@@ -281,12 +281,12 @@ Cancel a run
 
 Get a run's status
 
-| Flag                  | Description                                                 |
-| --------------------- | ----------------------------------------------------------- |
-| `-b, --branch string` | Branch name (defaults to current branch)                    |
-| `--jq string`         | Process values from the response using jq syntax            |
-| `--json`              | Output as JSON                                              |
-| `--project string`    | Project slug (e.g. gh/org/repo); used for latest-run lookup |
+| Flag                  | Description                                                                 |
+| --------------------- | --------------------------------------------------------------------------- |
+| `-b, --branch string` | Branch name (defaults to the current branch, or main when --project is set) |
+| `--jq string`         | Process values from the response using jq syntax                            |
+| `--json`              | Output as JSON                                                              |
+| `--project string`    | Project slug (e.g. gh/org/repo); used for latest-run lookup                 |
 
 
 **Arguments:**
@@ -294,7 +294,8 @@ Get a run's status
 `<run-id>` is optional and is the UUID of the run to look up. When
 omitted, the latest run is resolved from the project and branch
 inferred from the current git repository's remote and checked-out
-branch (override with --project and --branch).
+branch (override with --project and --branch). With --project set, the
+branch defaults to main unless --branch is given.
 
 #### `circleci run list [flags]`
 
