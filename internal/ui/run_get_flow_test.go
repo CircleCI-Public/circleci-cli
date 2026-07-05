@@ -801,7 +801,7 @@ func TestRunGetFlow_StepPagerEscResumes(t *testing.T) {
 }
 
 // TestRunGetFlow_FilterDialogOpensOnSlash confirms "/" opens the search dialog
-// with its Branch/Status tabs and OK/Cancel/Reset buttons.
+// with its Branch/Status tabs.
 func TestRunGetFlow_FilterDialogOpensOnSlash(t *testing.T) {
 	tm := startFlow(t, newStatusFlow(
 		map[string][]ui.RunGetItem{"": {runItem("aaaaaaa [main] - all")}},
@@ -809,10 +809,10 @@ func TestRunGetFlow_FilterDialogOpensOnSlash(t *testing.T) {
 	))
 
 	tm.Send(keySlash)
-	waitForOutput(t, tm, "Cancel")
+	waitForOutput(t, tm, "Branch")
 
 	v := flowSnapshot(t, tm)
-	for _, want := range []string{"Branch", "Status", "OK", "Cancel", "Reset"} {
+	for _, want := range []string{"Branch", "Status", "Filter runs by branch"} {
 		assert.Check(t, cmp.Contains(v, want), "dialog missing %q", want)
 	}
 }
@@ -830,7 +830,7 @@ func TestRunGetFlow_FilterApplyRefetchesRuns(t *testing.T) {
 	))
 
 	tm.Send(keySlash)
-	waitForOutput(t, tm, "Cancel")
+	waitForOutput(t, tm, "Branch")
 	tm.Send(keyRight) // Branch → Status tab
 	tm.Send(keyDown)  // all statuses → failed
 	tm.Send(keyEnt)   // apply
@@ -849,7 +849,7 @@ func TestRunGetFlow_FilterCancelReturnsToPicker(t *testing.T) {
 	))
 
 	tm.Send(keySlash)
-	waitForOutput(t, tm, "Cancel")
+	waitForOutput(t, tm, "Branch")
 	tm.Send(keyEsc)
 	waitForOutput(t, tm, "Select a run")
 

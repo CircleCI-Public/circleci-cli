@@ -105,11 +105,10 @@ Opened with ` + "`/`" + ` on the run picker:
 
 | Key | Action |
 | --- | --- |
-| ` + "`tab`" + ` | Move between the lists and the OK / Cancel / Reset buttons |
-| ` + "`←` / `→`" + ` | Switch the Branch / Status tab (or move between buttons) |
+| ` + "`←` / `→`" + ` (or ` + "`tab`" + `) | Switch the Branch / Status tab |
 | ` + "`↑` / `↓`" + ` | Move within the active list |
-| ` + "`enter`" + ` | Apply the selection (or activate the focused button) |
-| ` + "`o` / `c` / `r`" + ` | Shortcut for OK / Cancel / Reset |
+| ` + "`enter`" + ` | Apply the selection |
+| ` + "`r`" + ` | Reset to the defaults (current branch, all statuses) |
 | ` + "`esc`" + ` | Cancel and return to the run picker |
 
 ## Pager
