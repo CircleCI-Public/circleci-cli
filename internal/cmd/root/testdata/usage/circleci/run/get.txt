@@ -1,7 +1,7 @@
 Usage:  circleci run get [<run-id>] [flags]
 
 Flags:
-  -b, --branch string    Branch name (defaults to current branch)
+  -b, --branch string    Branch name (defaults to the current branch, or main when --project is set)
       --jq string        Process values from the response using jq syntax
       --json             Output as JSON
       --project string   Project slug (e.g. gh/org/repo); used for latest-run lookup

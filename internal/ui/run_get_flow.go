@@ -94,10 +94,10 @@ This has some additional keys:
 
 | Key | Action |
 | --- | --- |
-| ` + "`" + switchScopeKeyLabel + "`" + ` | Switch trigger — cycle branches and your runs |
+| ` + "`" + switchScopeKeyLabel + "`" + ` | Switch trigger — cycle branches and my runs |
 | ` + "`s`" + ` | Cycle the status filter |
 | ` + "`S`" + ` | Clear the status filter (back to all statuses) |
-| ` + "`/`" + ` | Open the filter dialog — pick a branch and status from lists |
+| ` + "`/`" + ` | Open the filter dialog — pick a trigger and status from lists |
 
 ### The filter dialog
 
@@ -105,7 +105,7 @@ Opened with ` + "`/`" + ` on the run picker:
 
 | Key | Action |
 | --- | --- |
-| ` + "`←` / `→`" + ` (or ` + "`tab`" + `) | Switch the Branch / Status tab |
+| ` + "`←` / `→`" + ` (or ` + "`tab`" + `) | Switch the Trigger / Status tab |
 | ` + "`↑` / `↓`" + ` | Move within the active list |
 | ` + "`enter`" + ` | Apply the selection |
 | ` + "`r`" + ` | Reset to the defaults (current branch, all statuses) |
@@ -267,6 +267,11 @@ type RunGetFlowOptions struct {
 	// rather than by branch; when nil the scope is omitted. status is the active
 	// status filter, as for FetchRuns.
 	FetchMyRuns func(ctx context.Context, status string) ([]RunGetItem, error)
+	// MyRunsOnly restricts the run picker to the cross-project "my runs" scope,
+	// used when no project could be resolved (e.g. run outside a git repository).
+	// The branch scopes and the shift+tab branch toggle are then omitted; the
+	// picker opens directly on the user's runs across all projects.
+	MyRunsOnly bool
 	// StatusFilters are the pipeline statuses the "s" key cycles through, in
 	// order. The picker prepends an "all statuses" (no filter) entry, so pressing
 	// "s" cycles no-filter → each status → back. When empty, the "s" action is
@@ -289,6 +294,12 @@ type runScope struct {
 	branch string // "" = all branches (ignored when myRuns)
 	myRuns bool   // list the authenticated user's runs across all projects
 	label  string // title/loading wording, e.g. "main branch", "all branches"
+	icon   string // glyph shown beside the scope in the filter dialog's Trigger tab
+	// pickerLabel is the row text in the filter dialog's Trigger tab. Unlike the
+	// compact title bracket (titleName), it spells out the scope's role — e.g.
+	// "current branch [main]" or "default branch [develop]" — so the two branch
+	// scopes are distinguishable at a glance.
+	pickerLabel string
 }
 
 // titleName is the bracket-inner text for the picker title: the bare branch
@@ -306,11 +317,11 @@ func (s runScope) titleName() string {
 }
 
 // where is the location phrase used in the "no runs" footer note, e.g.
-// "on main", "on any branch", or "in your runs".
+// "on main", "on any branch", or "in my runs".
 func (s runScope) where() string {
 	switch {
 	case s.myRuns:
-		return "in your runs"
+		return "in my runs"
 	case s.branch == "":
 		return "on any branch"
 	default:
@@ -323,19 +334,67 @@ func (s runScope) where() string {
 // finally "my runs" when includeMyRuns is set (i.e. FetchMyRuns is wired). The
 // cycle always includes all-branches so a toggle is offered even when there is
 // only one branch to name.
-func buildRunScopes(current, defaultBranch string, includeMyRuns bool) []runScope {
-	branchScope := func(b string) runScope {
-		return runScope{branch: b, label: b + " branch"}
+func buildRunScopes(current, defaultBranch string, includeMyRuns, myRunsOnly bool) []runScope {
+	// With no project resolved, "my runs" is the only available scope: there is
+	// no branch to filter by, so the branch scopes and toggle are omitted.
+	if myRunsOnly {
+		return []runScope{{myRuns: true, label: "my runs", pickerLabel: "my runs", icon: scopeIconMyRuns}}
 	}
-	scopes := []runScope{branchScope(current)}
+	// The current branch's picker label spells out its role and names the branch,
+	// e.g. "current branch [main]"; it falls back to the bare phrase for a
+	// detached HEAD (no branch name to show).
+	currentPicker := "current branch"
+	if current != "" {
+		currentPicker = "current branch [" + current + "]"
+	}
+	scopes := []runScope{{
+		branch: current, label: current + " branch", pickerLabel: currentPicker, icon: scopeIconCurrentBranch,
+	}}
 	if defaultBranch != "" && defaultBranch != current {
-		scopes = append(scopes, branchScope(defaultBranch))
+		scopes = append(scopes, runScope{
+			branch: defaultBranch, label: defaultBranch + " branch",
+			pickerLabel: "default branch [" + defaultBranch + "]", icon: scopeIconDefaultBranch,
+		})
 	}
-	scopes = append(scopes, runScope{label: "all branches"})
+	scopes = append(scopes, runScope{label: "all branches", pickerLabel: "all branches", icon: scopeIconAllBranches})
 	if includeMyRuns {
-		scopes = append(scopes, runScope{myRuns: true, label: "your runs"})
+		scopes = append(scopes, runScope{myRuns: true, label: "my runs", pickerLabel: "my runs", icon: scopeIconMyRuns})
 	}
 	return scopes
+}
+
+// Trigger glyphs shown beside each scope in the filter dialog's Trigger tab.
+// They are deliberately not status symbols (see statusIconStyle) so they take
+// their own colors (see triggerIconStyle) rather than a status color:
+//   - the current branch is where you are now (a filled "you are here" target);
+//   - the default branch is the project's home base (a house);
+//   - "all branches" is the generic branch mark;
+//   - "my runs" — the cross-project scope — gets a heart.
+const (
+	scopeIconCurrentBranch = "◉"
+	scopeIconDefaultBranch = "⌂"
+	scopeIconAllBranches   = "⎇"
+	scopeIconMyRuns        = "♥"
+)
+
+// triggerIconStyle maps a trigger glyph (a scopeIcon* constant) to its color:
+// the current branch reads as active/here (blue), the default branch as the
+// project's home base (green), "all branches" as a neutral gold accent (matching
+// the Status tab's "all statuses" star), and "my runs" as a red heart. The
+// bool is false for an unrecognised glyph, which is then left uncolored.
+func triggerIconStyle(glyph string) (lipgloss.Style, bool) {
+	switch glyph {
+	case scopeIconCurrentBranch:
+		return theme.RunningStyle, true // blue — the branch you're on now
+	case scopeIconDefaultBranch:
+		return theme.SuccessStyle, true // green — the project's home base
+	case scopeIconAllBranches:
+		return theme.SecondaryStyle, true // gold — neutral catch-all
+	case scopeIconMyRuns:
+		return theme.ErrorStyle, true // red — a red heart
+	default:
+		return lipgloss.Style{}, false
+	}
 }
 
 // RunStatusFilter is one selectable pipeline-status filter offered by the run
@@ -360,7 +419,7 @@ func buildStatusCycle(selectable []RunStatusFilter) []RunStatusFilter {
 
 // runsEmptyNote is the transient footer note shown when a scope+status
 // combination has no runs, e.g. "No runs found on main" or "No failed runs in
-// your runs".
+// my runs".
 func runsEmptyNote(scope runScope, status RunStatusFilter) string {
 	if status.Value == "" {
 		return "No runs found " + scope.where()
@@ -514,7 +573,7 @@ type RunGetFlowModel struct {
 	help            components.HelpModel
 	helpReturnStage runGetStage
 
-	// filter is the "/" search dialog on the run picker: a tabbed Branch/Status
+	// filter is the "/" search dialog on the run picker: a tabbed Trigger/Status
 	// chooser with OK/Cancel/Reset buttons. It is (re)built each time "/" opens it.
 	filter runFilterDialog
 
@@ -570,7 +629,7 @@ func NewRunGetFlow(ctx context.Context, opts RunGetFlowOptions) RunGetFlowModel 
 		spin:          components.NewSpinner(opts.Color),
 		pager:         components.NewPager().WithKeys(stepPagerKeys...),
 		runs:          opts.Runs,
-		scopes:        buildRunScopes(opts.CurrentBranch, opts.DefaultBranch, opts.FetchMyRuns != nil),
+		scopes:        buildRunScopes(opts.CurrentBranch, opts.DefaultBranch, opts.FetchMyRuns != nil, opts.MyRunsOnly),
 		statusFilters: buildStatusCycle(opts.StatusFilters),
 		// activeScopeIdx and statusIdx start at 0: the current branch is always the
 		// first scope, and "all statuses" the first filter.
@@ -1434,7 +1493,10 @@ func (m RunGetFlowModel) newRunSelect() components.SelectModel {
 	// the (bold, uncolored) title.
 	prompt := "Select a run"
 	var parts []string
-	if len(m.scopes) >= 2 {
+	// Name the scope when there is more than one to choose from, or when the sole
+	// scope is the cross-project "my runs" (so it reads "[my runs]" rather than an
+	// unlabelled project-branch list).
+	if len(m.scopes) >= 2 || m.activeScope().myRuns {
 		parts = append(parts, m.activeScope().titleName())
 	}
 	if status := m.statusFilters[m.statusIdx]; status.Value != "" {

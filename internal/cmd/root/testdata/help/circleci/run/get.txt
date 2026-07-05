@@ -3,7 +3,9 @@
 Display the status of a CircleCI run and its workflows.
 
 When called without arguments, the project and branch are inferred from
-the current git repository's remote and checked-out branch.
+the current git repository's remote and checked-out branch. When
+--project is given, the branch defaults to main (not the local checkout,
+which is meaningless for a different project) unless --branch is set.
 
 Pass a run UUID to look up a specific run.
 
@@ -20,12 +22,12 @@ For more information about output formatting flags, see `circleci help formattin
 
 ## Flags
 
-| Flag                  | Description                                                 |
-| --------------------- | ----------------------------------------------------------- |
-| `-b, --branch string` | Branch name (defaults to current branch)                    |
-| `--jq string`         | Process values from the response using jq syntax            |
-| `--json`              | Output as JSON                                              |
-| `--project string`    | Project slug (e.g. gh/org/repo); used for latest-run lookup |
+| Flag                  | Description                                                                 |
+| --------------------- | --------------------------------------------------------------------------- |
+| `-b, --branch string` | Branch name (defaults to the current branch, or main when --project is set) |
+| `--jq string`         | Process values from the response using jq syntax                            |
+| `--json`              | Output as JSON                                                              |
+| `--project string`    | Project slug (e.g. gh/org/repo); used for latest-run lookup                 |
 
 ## Inherited Flags
 
@@ -41,7 +43,8 @@ For more information about output formatting flags, see `circleci help formattin
 `<run-id>` is optional and is the UUID of the run to look up. When
 omitted, the latest run is resolved from the project and branch
 inferred from the current git repository's remote and checked-out
-branch (override with --project and --branch).
+branch (override with --project and --branch). With --project set, the
+branch defaults to main unless --branch is given.
 
 ## Examples
 
