@@ -1,0 +1,5 @@
+Usage:  circleci completion powershell [flags]
+
+Flags:
+  -o, --output string   Write the completion script to this file instead of stdout
+  

@@ -377,3 +377,45 @@ func TestCompletionZshGeneratesScript(t *testing.T) {
 	assert.Check(t, strings.Contains(result.Stdout, "compdef") || strings.Contains(result.Stdout, "#compdef"),
 		"expected zsh completion markers, got: %s", result.Stdout[:min(200, len(result.Stdout))])
 }
+
+func TestCompletionFishGeneratesScript(t *testing.T) {
+	env := testenv.New(t)
+	// Telemetry enabled + PATH without /usr/sbin reproduces the Homebrew
+	// completion-generation environment that previously yielded empty scripts.
+	env.Telemetry = true
+	env.Extra["PATH"] = pathWithoutSbin()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"completion", "fish"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 0))
+	assert.Check(t, cmp.Equal(result.Stderr, ""))
+	assert.Check(t, len(result.Stdout) > 0, "expected fish completion output")
+	assert.Check(t, strings.Contains(result.Stdout, "fish completion for circleci"),
+		"expected fish completion markers, got: %s", result.Stdout[:min(200, len(result.Stdout))])
+}
+
+func TestCompletionPowershellGeneratesScript(t *testing.T) {
+	env := testenv.New(t)
+	// Telemetry enabled + PATH without /usr/sbin reproduces the Homebrew
+	// completion-generation environment that previously yielded empty scripts.
+	env.Telemetry = true
+	env.Extra["PATH"] = pathWithoutSbin()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"completion", "powershell"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 0))
+	assert.Check(t, cmp.Equal(result.Stderr, ""))
+	assert.Check(t, len(result.Stdout) > 0, "expected powershell completion output")
+	assert.Check(t, strings.Contains(result.Stdout, "powershell completion for circleci"),
+		"expected powershell completion markers, got: %s", result.Stdout[:min(200, len(result.Stdout))])
+}
