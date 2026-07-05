@@ -68,49 +68,22 @@ const (
 	filterTabStatus
 )
 
-// runFilterZone is where keyboard focus sits: in the active tab's list, or on the
-// OK / Cancel / Reset button row.
-type runFilterZone int
-
-const (
-	filterZoneList runFilterZone = iota
-	filterZoneButtons
-)
-
-// runFilterButton identifies a dialog button.
-type runFilterButton int
-
-const (
-	filterBtnOK runFilterButton = iota
-	filterBtnCancel
-	filterBtnReset
-)
-
-// filterBtnCount is the number of buttons. It is kept out of the runFilterButton
-// enum (an untyped constant) so switches over the button values stay exhaustive.
-const filterBtnCount = 3
-
-// dialog keys. tab/shift+tab move focus between the list and the button row;
-// left/right switch the active tab (in the list) or move between buttons (on the
-// button row).
+// dialog keys. left/right (and tab/shift+tab) switch the active Branch/Status
+// tab; "r" resets the selection to its defaults. Enter applies and esc cancels
+// (via the shared bindings).
 var (
 	filterKeyLeft  = key.NewBinding(key.WithKeys("left", "h"))
 	filterKeyRight = key.NewBinding(key.WithKeys("right", "l"))
-
-	// Button mnemonics: accelerators that fire OK / Cancel / Reset from anywhere
-	// in the dialog, matching the underlined letter shown on each button.
-	filterKeyOK     = key.NewBinding(key.WithKeys("o", "O"))
-	filterKeyCancel = key.NewBinding(key.WithKeys("c", "C"))
-	filterKeyReset  = key.NewBinding(key.WithKeys("r", "R"))
+	filterKeyReset = key.NewBinding(key.WithKeys("r", "R"))
 )
 
 // runFilterDialog is the "/" search overlay on the run picker: a two-tab
 // (Branch / Status) chooser that lets the user set the branch scope and status
-// filter explicitly from lists, with OK / Cancel / Reset buttons. It embeds two
-// components.SelectModel lists (one per tab) so the picker's navigation, scrolling
-// and rendering are reused; the dialog only adds the tab bar, the button row and
-// the focus model on top. It never quits the program — the host reads Outcome()
-// after each Update and acts on Apply/Cancel.
+// filter explicitly from lists. It embeds two components.SelectModel lists (one
+// per tab) so the picker's navigation, scrolling and rendering are reused; the
+// dialog only adds the tab bar on top. Enter applies, esc cancels, "r" resets.
+// It never quits the program — the host reads Outcome() after each Update and
+// acts on Apply/Cancel.
 type runFilterDialog struct {
 	scopes   []runScope
 	statuses []RunStatusFilter
@@ -118,12 +91,10 @@ type runFilterDialog struct {
 	branchSel components.SelectModel
 	statusSel components.SelectModel
 
-	tab    runFilterTab
-	zone   runFilterZone
-	button runFilterButton
+	tab runFilterTab
 
-	// defaultScope / defaultStatus are the indexes the Reset button restores
-	// (the current branch and "all statuses" — always the first of each cycle).
+	// defaultScope / defaultStatus are the indexes "r" (reset) restores (the
+	// current branch and "all statuses" — always the first of each cycle).
 	defaultScope  int
 	defaultStatus int
 
@@ -141,8 +112,6 @@ func newRunFilterDialog(scopes []runScope, statuses []RunStatusFilter, scopeIdx,
 		scopes:   scopes,
 		statuses: statuses,
 		tab:      filterTabBranch,
-		zone:     filterZoneList,
-		button:   filterBtnOK,
 		color:    color,
 	}
 	d.branchSel = d.newBranchSelect(scopeIdx)
@@ -250,11 +219,11 @@ func (d runFilterDialog) Selected() (scopeIdx, statusIdx int) {
 
 func (d runFilterDialog) Init() tea.Cmd { return nil }
 
-// Update handles the dialog's keys. It never emits a command; navigation is
-// forwarded to the active tab's embedded list. ctrl+c is left to the host (it
-// quits the whole program), so the dialog only binds esc (cancel), tab/shift+tab
-// (switch focus zone), left/right (switch tab or move button) and enter (apply,
-// or activate the focused button).
+// Update handles the dialog's keys. It never emits a command; navigation (up/
+// down/paging) is forwarded to the active tab's embedded list. ctrl+c is left to
+// the host (it quits the whole program), so the dialog binds esc (cancel), enter
+// (apply), "r" (reset), and left/right + tab/shift+tab (switch the Branch/Status
+// tab).
 func (d runFilterDialog) Update(msg tea.Msg) (runFilterDialog, tea.Cmd) {
 	if ws, ok := msg.(tea.WindowSizeMsg); ok {
 		d = d.SetSize(ws.Width, ws.Height)
@@ -268,98 +237,38 @@ func (d runFilterDialog) Update(msg tea.Msg) (runFilterDialog, tea.Cmd) {
 	case key.Matches(k, components.KeyEsc):
 		d.outcome = runFilterCancel
 		return d, nil
-	case key.Matches(k, filterKeyOK):
+	case key.Matches(k, components.KeyEnter):
 		d.outcome = runFilterApply
-		return d, nil
-	case key.Matches(k, filterKeyCancel):
-		d.outcome = runFilterCancel
 		return d, nil
 	case key.Matches(k, filterKeyReset):
 		d.reset()
 		return d, nil
-	case key.Matches(k, components.KeyTab, components.KeyShiftTab):
-		d.toggleZone()
-		return d, nil
 	case key.Matches(k, filterKeyLeft):
-		d.moveLeft()
+		d.tab = filterTabBranch
 		return d, nil
 	case key.Matches(k, filterKeyRight):
-		d.moveRight()
+		d.tab = filterTabStatus
 		return d, nil
-	case key.Matches(k, components.KeyEnter):
-		return d.activate()
-	}
-
-	// Any other key (up/down, paging, g/G) drives the active tab's list, but only
-	// while the list zone has focus.
-	if d.zone == filterZoneList {
-		d.forwardToList(msg)
-	}
-	return d, nil
-}
-
-// toggleZone flips focus between the list and the button row.
-func (d *runFilterDialog) toggleZone() {
-	if d.zone == filterZoneList {
-		d.zone = filterZoneButtons
-	} else {
-		d.zone = filterZoneList
-	}
-}
-
-// moveLeft switches to the previous tab (list zone) or the previous button
-// (button zone), clamping at the ends.
-func (d *runFilterDialog) moveLeft() {
-	if d.zone == filterZoneList {
-		if d.tab == filterTabStatus {
-			d.tab = filterTabBranch
-		}
-		return
-	}
-	if d.button > 0 {
-		d.button--
-	}
-}
-
-// moveRight is moveLeft's mirror: next tab or next button.
-func (d *runFilterDialog) moveRight() {
-	if d.zone == filterZoneList {
+	case key.Matches(k, components.KeyTab, components.KeyShiftTab):
 		if d.tab == filterTabBranch {
 			d.tab = filterTabStatus
+		} else {
+			d.tab = filterTabBranch
 		}
-		return
-	}
-	if d.button < filterBtnCount-1 {
-		d.button++
-	}
-}
-
-// activate handles enter: in the list zone it applies the current selection (a
-// convenience shortcut for OK); on the button row it runs the focused button.
-func (d runFilterDialog) activate() (runFilterDialog, tea.Cmd) {
-	if d.zone == filterZoneList {
-		d.outcome = runFilterApply
 		return d, nil
 	}
-	switch d.button {
-	case filterBtnOK:
-		d.outcome = runFilterApply
-	case filterBtnCancel:
-		d.outcome = runFilterCancel
-	case filterBtnReset:
-		d.reset()
-	}
+
+	// Any other key (up/down, paging, g/G) drives the active tab's list.
+	d.forwardToList(msg)
 	return d, nil
 }
 
 // reset restores the branch and status selections to their defaults (the current
-// branch, all statuses) and returns focus to the Branch list.
+// branch, all statuses) and returns to the Branch tab.
 func (d *runFilterDialog) reset() {
 	d.branchSel = d.newBranchSelect(d.defaultScope)
 	d.statusSel = d.newStatusSelect(d.defaultStatus)
 	d.tab = filterTabBranch
-	d.zone = filterZoneList
-	d.button = filterBtnOK
 }
 
 // forwardToList sends a message to whichever tab's list is active, keeping the
@@ -377,10 +286,10 @@ func (d *runFilterDialog) forwardToList(msg tea.Msg) {
 func (d runFilterDialog) View() tea.View {
 	dialog := d.renderDialog()
 	footer := components.Hints(
-		key.NewBinding(key.WithKeys("tab"), key.WithHelp("tab", "list/buttons")),
-		key.NewBinding(key.WithKeys("←/→"), key.WithHelp("←/→", d.leftRightHelp())),
+		key.NewBinding(key.WithKeys("left", "right"), key.WithHelp("←/→", "tab")),
 		components.BindMove,
 		key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "apply")),
+		key.NewBinding(key.WithKeys("r"), key.WithHelp("r", "reset")),
 		key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc", "cancel")),
 	)
 
@@ -400,35 +309,23 @@ func (d runFilterDialog) View() tea.View {
 	return v
 }
 
-// leftRightHelp names what ←/→ does in the current zone, so the footer stays
-// truthful as focus moves.
-func (d runFilterDialog) leftRightHelp() string {
-	if d.zone == filterZoneButtons {
-		return "button"
-	}
-	return "tab"
-}
-
 // filterHelpWidth is the column width of the right-hand help panel in each tab.
 const filterHelpWidth = 34
 
 // renderDialog assembles the tabbed window: a row of tabs whose bottom edge forms
 // the window's top border, over a rounded-bordered body holding the tab body
-// (options on the left, a help description on the right) and the button row. The
-// window is sized to the content, and the tab row is split to the same width so
-// the two seam together.
+// (options on the left, a help description on the right). The window is sized to
+// the content, and the tab row is split to the same width so the two seam
+// together.
 func (d runFilterDialog) renderDialog() string {
 	body := d.tabBody()
-	// contentWidth is the window's interior width. It must hold both the two-column
-	// body and the button row (whose Reset is right-aligned to this width).
-	contentWidth := max(lipgloss.Width(body), lipgloss.Width(d.renderButtons(0)), 44)
+	contentWidth := max(lipgloss.Width(body), 44)
 	// rowWidth is the dialog's outer width. lipgloss .Width() here sets the outer
 	// box width (border + padding included), so the window is contentWidth +
 	// border(2) + padding(2); the tab row is set to the same width so they line up.
 	rowWidth := contentWidth + 4
 	if rowWidth%2 != 0 {
 		rowWidth++ // even split across the two tabs
-		contentWidth++
 	}
 
 	window := lipgloss.NewStyle().
@@ -440,8 +337,7 @@ func (d runFilterDialog) renderDialog() string {
 		window = window.BorderForeground(theme.ColorSecondary)
 	}
 
-	inner := lipgloss.JoinVertical(lipgloss.Left, body, "", d.renderButtons(contentWidth))
-	return lipgloss.JoinVertical(lipgloss.Left, d.renderTabs(rowWidth), window.Render(inner))
+	return lipgloss.JoinVertical(lipgloss.Left, d.renderTabs(rowWidth), window.Render(body))
 }
 
 // tabBody lays out the active tab as two columns: the options list on the left, a
@@ -560,51 +456,6 @@ func (d runFilterDialog) renderTabs(rowWidth int) string {
 		cells[i] = st.Render(labels[i])
 	}
 	return lipgloss.JoinHorizontal(lipgloss.Bottom, cells[0], cells[1])
-}
-
-// renderButtons draws the OK / Cancel / Reset row. OK and Cancel sit on the left;
-// Reset is right-aligned to width (pass 0 to lay the row out at its natural width,
-// used only to measure it). Every button carries a visible background (muted when
-// idle, accent when focused).
-func (d runFilterDialog) renderButtons(width int) string {
-	ok := d.renderButton(filterBtnOK, "OK")
-	cancel := d.renderButton(filterBtnCancel, "Cancel")
-	reset := d.renderButton(filterBtnReset, "Reset")
-
-	left := ok + " " + cancel
-	if width <= 0 {
-		return left + " " + reset
-	}
-	gap := width - lipgloss.Width(left) - lipgloss.Width(reset)
-	if gap < 1 {
-		gap = 1
-	}
-	return left + strings.Repeat(" ", gap) + reset
-}
-
-// button renders one button with a visible background (accent when focused, muted
-// otherwise) and its first letter underlined as the mnemonic accelerator. The
-// parts are rendered separately but all carry the same background, so there is no
-// gap between them.
-func (d runFilterDialog) renderButton(id runFilterButton, label string) string {
-	focused := d.zone == filterZoneButtons && d.button == id
-	base := lipgloss.NewStyle()
-	switch {
-	case d.color && focused:
-		base = base.Foreground(lipgloss.Color("232")).Background(theme.ColorAccent)
-	case d.color:
-		base = base.Foreground(lipgloss.Color("232")).Background(theme.ColorMuted)
-	case focused:
-		base = base.Reverse(true)
-	}
-	rest := base
-	if focused {
-		rest = rest.Bold(true)
-	}
-	mnem := rest.Underline(true).Bold(true)
-
-	r := []rune(label)
-	return base.Render("  ") + mnem.Render(string(r[0])) + rest.Render(string(r[1:])) + base.Render("  ")
 }
 
 // bodyRows is the number of option rows the lists hold: the longer of the two, so

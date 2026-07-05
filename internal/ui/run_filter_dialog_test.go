@@ -38,6 +38,7 @@ var (
 	dlgTab   = tea.KeyPressMsg{Code: tea.KeyTab}
 	dlgEnter = tea.KeyPressMsg{Code: tea.KeyEnter}
 	dlgEsc   = tea.KeyPressMsg{Code: tea.KeyEscape}
+	dlgReset = tea.KeyPressMsg{Code: 'r', Text: "r"}
 )
 
 // newTestDialog builds a dialog with two branch scopes and two statuses, seeded
@@ -84,32 +85,24 @@ func TestRunFilterDialog_ListNavigationSetsSelection(t *testing.T) {
 	assert.Check(t, cmp.Equal(status, 1))
 }
 
-func TestRunFilterDialog_TabSwitchClampsAtEnds(t *testing.T) {
-	// Left on the Branch tab stays on Branch; two rights land (and clamp) on
-	// Status. Navigation only reaches the branch list while Branch is active.
-	d := drive(newTestDialog(), dlgLeft)
-	assert.Check(t, cmp.Equal(d.tab, filterTabBranch))
-	d = drive(d, dlgRight, dlgRight)
+func TestRunFilterDialog_TabSwitching(t *testing.T) {
+	// left selects the Branch tab, right the Status tab, regardless of the current
+	// tab; tab toggles between them.
+	d := drive(newTestDialog(), dlgRight)
 	assert.Check(t, cmp.Equal(d.tab, filterTabStatus))
+	d = drive(d, dlgLeft)
+	assert.Check(t, cmp.Equal(d.tab, filterTabBranch))
+	d = drive(d, dlgTab)
+	assert.Check(t, cmp.Equal(d.tab, filterTabStatus))
+	d = drive(d, dlgTab)
+	assert.Check(t, cmp.Equal(d.tab, filterTabBranch))
 }
 
-func TestRunFilterDialog_EnterInListApplies(t *testing.T) {
+func TestRunFilterDialog_EnterApplies(t *testing.T) {
 	d := drive(newTestDialog(), dlgDown, dlgEnter)
 	assert.Check(t, cmp.Equal(d.Outcome(), runFilterApply))
 	scope, _ := d.Selected()
 	assert.Check(t, cmp.Equal(scope, 1))
-}
-
-func TestRunFilterDialog_OKButtonApplies(t *testing.T) {
-	// tab moves focus to the button row (OK is focused first); enter applies.
-	d := drive(newTestDialog(), dlgTab, dlgEnter)
-	assert.Check(t, cmp.Equal(d.Outcome(), runFilterApply))
-}
-
-func TestRunFilterDialog_CancelButtonCancels(t *testing.T) {
-	// tab to buttons, right to Cancel, enter.
-	d := drive(newTestDialog(), dlgTab, dlgRight, dlgEnter)
-	assert.Check(t, cmp.Equal(d.Outcome(), runFilterCancel))
 }
 
 func TestRunFilterDialog_EscCancels(t *testing.T) {
@@ -117,41 +110,26 @@ func TestRunFilterDialog_EscCancels(t *testing.T) {
 	assert.Check(t, cmp.Equal(d.Outcome(), runFilterCancel))
 }
 
-func TestRunFilterDialog_MnemonicKeys(t *testing.T) {
-	// The mnemonics fire from the list zone (no need to focus the buttons first).
-	assert.Check(t, cmp.Equal(drive(newTestDialog(), tea.KeyPressMsg{Code: 'o', Text: "o"}).Outcome(), runFilterApply))
-	assert.Check(t, cmp.Equal(drive(newTestDialog(), tea.KeyPressMsg{Code: 'c', Text: "c"}).Outcome(), runFilterCancel))
-
-	// "r" resets: move the selection off default, then reset restores it and keeps
-	// the dialog open.
-	d := drive(newTestDialog(), dlgDown, tea.KeyPressMsg{Code: 'r', Text: "r"})
-	scope, _ := d.Selected()
-	assert.Check(t, cmp.Equal(d.Outcome(), runFilterOpen))
-	assert.Check(t, cmp.Equal(scope, 0))
-}
-
 func TestRunFilterDialog_ResetRestoresDefaults(t *testing.T) {
-	// Move both selections off their defaults, then Reset via its button.
+	// Move both selections off their defaults, then reset with "r".
 	d := drive(newTestDialog(), dlgDown, dlgRight, dlgDown)
 	scope, status := d.Selected()
 	assert.Assert(t, cmp.Equal(scope, 1))
 	assert.Assert(t, cmp.Equal(status, 1))
 
-	// tab to buttons, right twice to Reset, enter.
-	d = drive(d, dlgTab, dlgRight, dlgRight, dlgEnter)
+	d = drive(d, dlgReset)
 	scope, status = d.Selected()
 	assert.Check(t, cmp.Equal(d.Outcome(), runFilterOpen), "reset should not close the dialog")
 	assert.Check(t, cmp.Equal(scope, 0))
 	assert.Check(t, cmp.Equal(status, 0))
-	assert.Check(t, cmp.Equal(d.tab, filterTabBranch), "reset returns focus to the Branch list")
-	assert.Check(t, cmp.Equal(d.zone, filterZoneList))
+	assert.Check(t, cmp.Equal(d.tab, filterTabBranch), "reset returns to the Branch tab")
 }
 
-func TestRunFilterDialog_ViewShowsTabsAndButtons(t *testing.T) {
-	// The Branch tab is active on open: its tabs, buttons, branch options and help
+func TestRunFilterDialog_ViewShowsTabsAndOptions(t *testing.T) {
+	// The Branch tab is active on open: both tabs, its branch options and its help
 	// description show.
 	v := ansi.Strip(newTestDialog().View().Content)
-	for _, want := range []string{"Branch", "Status", "OK", "Cancel", "Reset", "main", "all branches", "Filter runs by branch"} {
+	for _, want := range []string{"Branch", "Status", "main", "all branches", "Filter runs by branch"} {
 		assert.Check(t, cmp.Contains(v, want), "branch view missing %q", want)
 	}
 
