@@ -54,8 +54,14 @@ func NewCompletionCmd() *cobra.Command {
 
 			To install manually, add one of the following to your shell profile:
 
-			  bash:  source <(circleci completion bash)
-			  zsh:   source <(circleci completion zsh)
+			  bash:        source <(circleci completion bash)
+			  zsh:         source <(circleci completion zsh)
+			  fish:        circleci completion fish | source
+			  powershell:  circleci completion powershell | Out-String | Invoke-Expression
+
+			PowerShell has no auto-loaded completion directory, so completions must be
+			registered from your profile. Append the powershell line above to your
+			$PROFILE to enable them in every session.
 		`),
 	}
 
@@ -63,6 +69,8 @@ func NewCompletionCmd() *cobra.Command {
 	cmd.AddCommand(newUninstallCmd())
 	cmd.AddCommand(newBashCmd())
 	cmd.AddCommand(newZshCmd())
+	cmd.AddCommand(newFishCmd())
+	cmd.AddCommand(newPowershellCmd())
 
 	return cmd
 }
@@ -272,6 +280,48 @@ func newZshCmd() *cobra.Command {
 			}
 			defer func() { _ = closeOut() }()
 			return cmd.Root().GenZshCompletion(w)
+		},
+	}
+	cmdutil.DisableTelemetry(cmd)
+	cmdutil.AddOutputFlag(cmd, &outputPath, "the completion script")
+	return cmd
+}
+
+func newFishCmd() *cobra.Command {
+	var outputPath string
+	cmd := &cobra.Command{
+		Use:    "fish",
+		Short:  "Generate fish completion script",
+		Hidden: true,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			ctx := cmd.Context()
+			w, closeOut, err := cmdutil.OpenOutput(outputPath, iostream.Out(ctx))
+			if err != nil {
+				return err
+			}
+			defer func() { _ = closeOut() }()
+			return cmd.Root().GenFishCompletion(w, true)
+		},
+	}
+	cmdutil.DisableTelemetry(cmd)
+	cmdutil.AddOutputFlag(cmd, &outputPath, "the completion script")
+	return cmd
+}
+
+func newPowershellCmd() *cobra.Command {
+	var outputPath string
+	cmd := &cobra.Command{
+		Use:    "powershell",
+		Short:  "Generate powershell completion script",
+		Hidden: true,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			ctx := cmd.Context()
+			w, closeOut, err := cmdutil.OpenOutput(outputPath, iostream.Out(ctx))
+			if err != nil {
+				return err
+			}
+			defer func() { _ = closeOut() }()
+			return cmd.Root().GenPowerShellCompletionWithDesc(w)
 		},
 	}
 	cmdutil.DisableTelemetry(cmd)

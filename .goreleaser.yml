@@ -32,6 +32,10 @@ before:
     - go run ./cmd/circleci man --output share/man/man1/circleci.1
     - go run ./cmd/circleci completion bash --output share/bash-completion/completions/circleci
     - go run ./cmd/circleci completion zsh --output share/zsh/site-functions/_circleci
+    - go run ./cmd/circleci completion fish --output share/fish/vendor_completions.d/circleci.fish
+    # PowerShell has no standard completion directory and completions are registered
+    # from the user's $PROFILE at runtime (see winget installation_notes), so there is
+    # nothing to ship — users run `circleci completion powershell` to regenerate.
 
 builds:
   - binary: circleci
@@ -68,6 +72,8 @@ nfpms:
       - src: "./share/zsh/site-functions/_circleci"
         dst: "/usr/share/zsh/vendor-completions/_circleci"
         packager: deb
+      - src: "./share/fish/vendor_completions.d/circleci.fish"
+        dst: "/usr/share/fish/vendor_completions.d/circleci.fish"
       # nfpm doesn't generate a debian/copyright file and the deb control format
       # has no License field, so the `license:` above is silently dropped for deb
       # (rpm gets it from its native License tag). Ship a DEP-5 copyright file so
@@ -116,6 +122,11 @@ winget:
   - publisher: CircleCI
     name: CircleCI CLI
     short_description: "CircleCI command line tool."
+    installation_notes: |
+      To enable PowerShell tab-completion, add this line to your PowerShell
+      profile ($PROFILE):
+
+        circleci completion powershell | Out-String | Invoke-Expression
     description: |
       `circleci` is CircleCI's official command line tool. It is an agent-friendly CLI that brings CI runs, jobs,
       configuration, and other CircleCI features to the terminal right where you're already working.
@@ -155,6 +166,11 @@ winget:
   - publisher: CircleCI
     name: CircleCI CLI Preview
     short_description: "CircleCI command line tool."
+    installation_notes: |
+      To enable PowerShell tab-completion, add this line to your PowerShell
+      profile ($PROFILE):
+
+        circleci completion powershell | Out-String | Invoke-Expression
     description: |
       `circleci` is CircleCI's official command line tool. It is an agent-friendly CLI that brings CI runs, jobs,
       configuration, and other CircleCI features to the terminal right where you're already working.
@@ -239,6 +255,7 @@ homebrew_casks:
     completions:
       bash: share/bash-completion/completions/circleci
       zsh: share/zsh/site-functions/_circleci
+      fish: share/fish/vendor_completions.d/circleci.fish
     caveats: |
       This preview build installs a `circleci` binary that conflicts with the
       stable `circleci` formula from homebrew-core. Homebrew cannot declare a
@@ -256,6 +273,8 @@ archives:
         dst: share/bash-completion/completions/circleci
       - src: ./share/zsh/site-functions/_circleci
         dst: share/zsh/site-functions/_circleci
+      - src: ./share/fish/vendor_completions.d/circleci.fish
+        dst: share/fish/vendor_completions.d/circleci.fish
     format_overrides:
       - goos: windows
         formats:
