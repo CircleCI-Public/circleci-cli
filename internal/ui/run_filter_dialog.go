@@ -24,6 +24,7 @@ package ui
 
 import (
 	"strings"
+	"time"
 
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
@@ -31,22 +32,6 @@ import (
 
 	"github.com/CircleCI-Public/circleci-cli/internal/ui/components"
 	"github.com/CircleCI-Public/circleci-cli/internal/ui/theme"
-)
-
-// Tab borders, styled after the lipgloss "layout" example: an active tab opens at
-// the bottom (a blank Bottom edge) so it reads as continuous with the window body
-// below it, while an inactive tab is a closed box whose bottom line forms part of
-// the window's top border. The first/last tab's bottom outer corner is patched at
-// render time so the tab row seams into the window's side borders (see renderTabs).
-var (
-	filterActiveTabBorder = lipgloss.Border{
-		Top: "─", Bottom: " ", Left: "│", Right: "│",
-		TopLeft: "╭", TopRight: "╮", BottomLeft: "┘", BottomRight: "└",
-	}
-	filterTabBorder = lipgloss.Border{
-		Top: "─", Bottom: "─", Left: "│", Right: "│",
-		TopLeft: "╭", TopRight: "╮", BottomLeft: "┴", BottomRight: "┴",
-	}
 )
 
 // runFilterOutcome is the state of a runFilterDialog after an Update: still open,
@@ -59,29 +44,54 @@ const (
 	runFilterCancel
 )
 
-// runFilterTab is the active facet in the dialog: the trigger (scope) list or the
-// status-filter list.
+// runFilterTab is the active facet in the dialog: the trigger (scope) list, the
+// status-filter list, or the created-age picker. The values index the tab bar
+// (see components.Tabs), so their order must match filterTabLabels.
 type runFilterTab int
 
 const (
 	filterTabTrigger runFilterTab = iota
 	filterTabStatus
+	filterTabCreated
 )
 
-// dialog keys. left/right (and tab/shift+tab) switch the active Trigger/Status
-// tab; "r" resets the selection to its defaults. Enter applies and esc cancels
-// (via the shared bindings).
-var (
-	filterKeyLeft  = key.NewBinding(key.WithKeys("left", "h"))
-	filterKeyRight = key.NewBinding(key.WithKeys("right", "l"))
-	filterKeyReset = key.NewBinding(key.WithKeys("r", "R"))
-)
+// filterTabLabels are the tab bar's labels, in runFilterTab order.
+var filterTabLabels = []string{"Trigger", "Status", "Created"}
 
-// runFilterDialog is the "/" search overlay on the run picker: a two-tab
-// (Trigger / Status) chooser that lets the user set the trigger scope and status
-// filter explicitly from lists. It embeds two components.SelectModel lists (one
-// per tab) so the picker's navigation, scrolling and rendering are reused; the
-// dialog only adds the tab bar on top. Enter applies, esc cancels, "r" resets.
+// createdDuration is one selectable relative age on the Created tab: its display
+// label and the duration it maps to (measured back from now).
+type createdDuration struct {
+	label    string
+	duration time.Duration
+}
+
+// createdDurations are the fixed relative-age options on the Created tab, coarse
+// buckets rather than a free-form date picker.
+var createdDurations = []createdDuration{
+	{"1 Hour", time.Hour},
+	{"6 Hours", 6 * time.Hour},
+	{"12 Hours", 12 * time.Hour},
+	{"24 Hours", 24 * time.Hour},
+	{"7 Days", 7 * 24 * time.Hour},
+	{"2 Weeks", 14 * 24 * time.Hour},
+	{"1 Month", 30 * 24 * time.Hour},
+}
+
+// createdAllDatesLabel is the Created date picker's first entry: it clears the
+// created filter (no age constraint), analogous to the Status tab's "all
+// statuses".
+const createdAllDatesLabel = "all dates"
+
+// dialog keys. "r" resets the selection to its defaults; Enter applies and esc
+// cancels (via the shared bindings). Tab switching is owned by components.Tabs.
+var filterKeyReset = key.NewBinding(key.WithKeys("r", "R"))
+
+// runFilterDialog is the "/" search overlay on the run picker: a three-tab
+// (Trigger / Status / Created) chooser that lets the user set the trigger scope,
+// status filter and created-age window. It embeds a components.SelectModel list
+// per tab (so the picker's navigation, scrolling and rendering are reused) and a
+// components.Tabs bar for the chrome; the Created tab pairs its date list with an
+// older/newer direction toggled by space. Enter applies, esc cancels, "r" resets.
 // It never quits the program — the host reads Outcome() after each Update and
 // acts on Apply/Cancel.
 type runFilterDialog struct {
@@ -90,8 +100,12 @@ type runFilterDialog struct {
 
 	triggerSel components.SelectModel
 	statusSel  components.SelectModel
+	// dateSel is the Created tab's age picker ("all dates" plus the relative-age
+	// buckets); createdNewer is the older/newer direction the space key toggles.
+	dateSel      components.SelectModel
+	createdNewer bool
 
-	tab runFilterTab
+	tabs components.Tabs
 
 	// defaultScope / defaultStatus are the indexes "r" (reset) restores (the
 	// current branch and "all statuses" — always the first of each cycle).
@@ -104,29 +118,82 @@ type runFilterDialog struct {
 	outcome       runFilterOutcome
 }
 
-// newRunFilterDialog builds the dialog seeded with the currently active scope and
-// status so it opens on what the picker is already showing. scopeIdx/statusIdx are
-// the active selections; the defaults it resets to are the first of each cycle.
-func newRunFilterDialog(scopes []runScope, statuses []RunStatusFilter, scopeIdx, statusIdx int, color bool) runFilterDialog {
+// newRunFilterDialog builds the dialog seeded with the currently active scope,
+// status and created filter so it opens on what the picker is already showing.
+// scopeIdx/statusIdx are the active selections; the defaults it resets to are the
+// first of each cycle. created seeds the Created tab (an inactive zero value
+// leaves the age on "all dates" and the direction on its "older" default).
+func newRunFilterDialog(scopes []runScope, statuses []RunStatusFilter, scopeIdx, statusIdx int, created RunCreatedFilter, color bool) runFilterDialog {
 	d := runFilterDialog{
-		scopes:   scopes,
-		statuses: statuses,
-		tab:      filterTabTrigger,
-		color:    color,
+		scopes:       scopes,
+		statuses:     statuses,
+		tabs:         components.NewTabs(filterTabLabels, color),
+		createdNewer: created.Newer,
+		color:        color,
 	}
 	d.triggerSel = d.newTriggerSelect(scopeIdx)
 	d.statusSel = d.newStatusSelect(statusIdx)
+	d.dateSel = d.newDateSelect(createdDateCursor(created))
 	return d
 }
+
+// createdDateCursor maps a created filter to the date picker's cursor: the "all
+// dates" entry (0) when inactive, otherwise the row of the matching age bucket.
+func createdDateCursor(created RunCreatedFilter) int {
+	if created.Active() {
+		for i, cd := range createdDurations {
+			if cd.duration == created.Duration {
+				return i + 1 // +1 for the leading "all dates" entry
+			}
+		}
+	}
+	return 0
+}
+
+// newDateSelect builds the chrome-free Created date list seeded at idx. Its first
+// entry ("all dates") clears the filter and is italicised (and tinted when color
+// is on) so it reads as the special "no age filter" option, matching the Status
+// tab's "all statuses".
+func (d runFilterDialog) newDateSelect(idx int) components.SelectModel {
+	color := d.color
+	return components.NewSelectModel("", createdDateLabels()).
+		WithCursor(idx).WithKeys().WithHeight(d.listHeight).
+		WithItemStyleFunc(func(i int) lipgloss.Style {
+			if i == 0 { // the "all dates" no-filter entry
+				st := lipgloss.NewStyle().Italic(true)
+				if color {
+					st = st.Foreground(theme.ColorSecondary)
+				}
+				return st
+			}
+			return lipgloss.NewStyle()
+		})
+}
+
+// createdDateLabels lists the date picker's option labels: the "all dates" clear
+// entry followed by each relative-age bucket.
+func createdDateLabels() []string {
+	labels := make([]string, 0, len(createdDurations)+1)
+	labels = append(labels, createdAllDatesLabel)
+	for _, cd := range createdDurations {
+		labels = append(labels, cd.label)
+	}
+	return labels
+}
+
+// activeTab is the currently selected tab, read from the tab bar.
+func (d runFilterDialog) activeTab() runFilterTab { return runFilterTab(d.tabs.Active()) }
 
 // newTriggerSelect builds the chrome-free trigger list (no title, no footer)
 // seeded at idx. Each trigger carries a glyph (see scopeIcons): a heart for
 // "my runs", and distinct marks for the current branch, default branch and
-// "all branches".
+// "all branches". The current/default branch rows carry their branch name as a
+// nested child (see scopeChildren) rather than a "[…]" bracket on the row.
 func (d runFilterDialog) newTriggerSelect(idx int) components.SelectModel {
 	return components.NewSelectModel("", d.scopeLabels()).
 		WithCursor(idx).WithKeys().WithHeight(d.listHeight).
-		WithIcons(d.scopeIcons())
+		WithIcons(d.scopeIcons()).
+		WithChildren(d.scopeChildren())
 }
 
 // scopeIcons renders each trigger's glyph for the list, colored per its role
@@ -190,34 +257,33 @@ func (d runFilterDialog) statusIcons() []string {
 	return icons
 }
 
-// scopeLabels renders the Trigger tab's row labels. When color is on, each
-// label's trailing "[…]" (the branch name on the current/default branch scopes)
-// is tinted with the secondary gold accent, matching the run picker title's
-// scope bracket.
+// scopeLabels renders the Trigger tab's row labels — the scope roles ("current
+// branch", "all branches", …). The branch name is carried separately as a nested
+// child (see scopeChildren), not on the row.
 func (d runFilterDialog) scopeLabels() []string {
 	labels := make([]string, len(d.scopes))
 	for i, s := range d.scopes {
-		label := s.pickerLabel
-		if d.color {
-			label = colorizeLabelBracket(label)
-		}
-		labels[i] = label
+		labels[i] = s.pickerLabel
 	}
 	return labels
 }
 
-// colorizeLabelBracket tints a trailing "[…]" segment of a label with the
-// secondary (gold) accent. A label with no trailing bracket (e.g. "all branches",
-// "my runs") is returned unchanged.
-func colorizeLabelBracket(label string) string {
-	if !strings.HasSuffix(label, "]") {
-		return label
+// scopeChildren renders each trigger's nested branch-name sub-entry as "[branch]"
+// (empty for scopes without one). When color is on the bracket is tinted with the
+// secondary gold accent, matching the run picker title's scope bracket.
+func (d runFilterDialog) scopeChildren() []string {
+	children := make([]string, len(d.scopes))
+	for i, s := range d.scopes {
+		if s.pickerChild == "" {
+			continue
+		}
+		child := "[" + s.pickerChild + "]"
+		if d.color {
+			child = theme.SecondaryStyle.Render(child)
+		}
+		children[i] = child
 	}
-	open := strings.LastIndexByte(label, '[')
-	if open < 0 {
-		return label
-	}
-	return label[:open] + theme.SecondaryStyle.Render(label[open:])
+	return children
 }
 
 func statusLabels(statuses []RunStatusFilter) []string {
@@ -246,6 +312,7 @@ func (d runFilterDialog) SetSize(width, height int) runFilterDialog {
 	d.listHeight = listHeight
 	d.triggerSel = d.triggerSel.WithHeight(listHeight)
 	d.statusSel = d.statusSel.WithHeight(listHeight)
+	d.dateSel = d.dateSel.WithHeight(listHeight)
 	return d
 }
 
@@ -259,13 +326,27 @@ func (d runFilterDialog) Selected() (scopeIdx, statusIdx int) {
 	return d.triggerSel.Selected(), d.statusSel.Selected()
 }
 
+// Created returns the chosen created-age filter, or an inactive zero value when
+// the date picker is on "all dates". Valid once Outcome() is runFilterApply.
+func (d runFilterDialog) Created() RunCreatedFilter {
+	idx := d.dateSel.Selected()
+	if idx <= 0 || idx > len(createdDurations) {
+		return RunCreatedFilter{} // "all dates" (0) or out of range → no filter
+	}
+	cd := createdDurations[idx-1] // -1 for the leading "all dates" entry
+	return RunCreatedFilter{
+		Newer:    d.createdNewer,
+		Duration: cd.duration,
+		Label:    cd.label,
+	}
+}
+
 func (d runFilterDialog) Init() tea.Cmd { return nil }
 
-// Update handles the dialog's keys. It never emits a command; navigation (up/
-// down/paging) is forwarded to the active tab's embedded list. ctrl+c is left to
-// the host (it quits the whole program), so the dialog binds esc (cancel), enter
-// (apply), "r" (reset), and left/right + tab/shift+tab (switch the Trigger/Status
-// tab).
+// Update handles the dialog's keys. It never emits a command; tab switching is
+// delegated to the tab bar, and everything else (up/down/paging, and space on the
+// Created tab) drives the active tab. ctrl+c is left to the host (it quits the
+// whole program), so the dialog binds esc (cancel), enter (apply) and "r" (reset).
 func (d runFilterDialog) Update(msg tea.Msg) (runFilterDialog, tea.Cmd) {
 	if ws, ok := msg.(tea.WindowSizeMsg); ok {
 		d = d.SetSize(ws.Width, ws.Height)
@@ -285,55 +366,68 @@ func (d runFilterDialog) Update(msg tea.Msg) (runFilterDialog, tea.Cmd) {
 	case key.Matches(k, filterKeyReset):
 		d.reset()
 		return d, nil
-	case key.Matches(k, filterKeyLeft):
-		d.tab = filterTabTrigger
-		return d, nil
-	case key.Matches(k, filterKeyRight):
-		d.tab = filterTabStatus
-		return d, nil
-	case key.Matches(k, components.KeyTab, components.KeyShiftTab):
-		if d.tab == filterTabTrigger {
-			d.tab = filterTabStatus
-		} else {
-			d.tab = filterTabTrigger
-		}
+	}
+
+	// Tab switching (←/→, tab/shift+tab) is owned by the tab bar; a consumed key
+	// switches tabs, anything else drives the active tab's list.
+	if tabs, handled := d.tabs.Update(msg); handled {
+		d.tabs = tabs
 		return d, nil
 	}
 
-	// Any other key (up/down, paging, g/G) drives the active tab's list.
 	d.forwardToList(msg)
 	return d, nil
 }
 
 // reset restores the trigger and status selections to their defaults (the current
-// branch, all statuses) and returns to the Trigger tab.
+// branch, all statuses), returns the Created tab to "all dates" / older, and
+// returns to the Trigger tab.
 func (d *runFilterDialog) reset() {
 	d.triggerSel = d.newTriggerSelect(d.defaultScope)
 	d.statusSel = d.newStatusSelect(d.defaultStatus)
-	d.tab = filterTabTrigger
+	d.dateSel = d.newDateSelect(0) // "all dates" — no created filter
+	d.createdNewer = false         // older — the default direction
+	d.tabs = d.tabs.SetActive(int(filterTabTrigger))
 }
 
-// forwardToList sends a message to whichever tab's list is active, keeping the
-// embedded SelectModel's navigation and scrolling behaviour.
+// forwardToList sends a message to whichever tab is active, keeping the embedded
+// SelectModel's navigation behaviour. On the Created tab, space toggles the
+// older/newer direction; every other key drives the date list.
 func (d *runFilterDialog) forwardToList(msg tea.Msg) {
-	if d.tab == filterTabTrigger {
+	switch d.activeTab() {
+	case filterTabTrigger:
 		updated, _ := d.triggerSel.Update(msg)
 		d.triggerSel = updated.(components.SelectModel)
-	} else {
+	case filterTabStatus:
 		updated, _ := d.statusSel.Update(msg)
 		d.statusSel = updated.(components.SelectModel)
+	case filterTabCreated:
+		if k, ok := msg.(tea.KeyPressMsg); ok && key.Matches(k, components.KeySpace) {
+			d.createdNewer = !d.createdNewer
+			return
+		}
+		updated, _ := d.dateSel.Update(msg)
+		d.dateSel = updated.(components.SelectModel)
 	}
 }
 
 func (d runFilterDialog) View() tea.View {
 	dialog := d.renderDialog()
-	footer := components.Hints(
+	hints := []key.Binding{
 		key.NewBinding(key.WithKeys("left", "right"), key.WithHelp("←/→", "tab")),
 		components.BindMove,
+	}
+	// Space toggles older/newer, which only means something on the Created tab; on
+	// the list tabs it does nothing, so advertise it only there.
+	if d.activeTab() == filterTabCreated {
+		hints = append(hints, key.NewBinding(key.WithKeys(" "), key.WithHelp("space", "older/newer")))
+	}
+	hints = append(hints,
 		key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "apply")),
 		key.NewBinding(key.WithKeys("r"), key.WithHelp("r", "reset")),
 		key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc", "cancel")),
 	)
+	footer := components.Hints(hints...)
 
 	// Centre the dialog in the screen above the footer, and pin the help text to
 	// the very bottom row. The dialog fills the screen, so it renders on the
@@ -354,32 +448,11 @@ func (d runFilterDialog) View() tea.View {
 // filterHelpWidth is the column width of the right-hand help panel in each tab.
 const filterHelpWidth = 34
 
-// renderDialog assembles the tabbed window: a row of tabs whose bottom edge forms
-// the window's top border, over a rounded-bordered body holding the tab body
-// (options on the left, a help description on the right). The window is sized to
-// the content, and the tab row is split to the same width so the two seam
-// together.
+// renderDialog assembles the tabbed window: the tab bar (components.Tabs) draws
+// the tab row and the rounded-bordered window frame around the tab body (options
+// on the left, a help description on the right).
 func (d runFilterDialog) renderDialog() string {
-	body := d.tabBody()
-	contentWidth := max(lipgloss.Width(body), 44)
-	// rowWidth is the dialog's outer width. lipgloss .Width() here sets the outer
-	// box width (border + padding included), so the window is contentWidth +
-	// border(2) + padding(2); the tab row is set to the same width so they line up.
-	rowWidth := contentWidth + 4
-	if rowWidth%2 != 0 {
-		rowWidth++ // even split across the two tabs
-	}
-
-	window := lipgloss.NewStyle().
-		Border(lipgloss.RoundedBorder()).
-		BorderTop(false). // the tab row supplies the top edge
-		Padding(0, 1).
-		Width(rowWidth)
-	if d.color {
-		window = window.BorderForeground(theme.ColorSecondary)
-	}
-
-	return lipgloss.JoinVertical(lipgloss.Left, d.renderTabs(rowWidth), window.Render(body))
+	return d.tabs.View(d.tabBody())
 }
 
 // tabBody lays out the active tab as two columns: the options list on the left, a
@@ -390,9 +463,12 @@ func (d runFilterDialog) renderDialog() string {
 // taller help text rather than hugging the top.
 func (d runFilterDialog) tabBody() string {
 	h := d.panelHeight()
+	// Centre the tab's content block horizontally within the column (as one unit,
+	// so a list's rows keep their shared left edge) and vertically beside the help.
+	content := centerHorizontally(strings.TrimRight(d.activeList(), "\n"), d.listColumnWidth())
 	left := lipgloss.NewStyle().Width(d.listColumnWidth()).Height(h).
 		AlignVertical(lipgloss.Center).
-		Render(strings.TrimRight(d.activeList(), "\n"))
+		Render(content)
 
 	// The divider is muted so it recedes; the description is left in the terminal's
 	// default foreground so it reads stronger than the muted divider and footer
@@ -412,41 +488,108 @@ func (d runFilterDialog) tabBody() string {
 	)
 }
 
-// panelHeight is the fixed row count of the tab body: the taller of the option
-// lists and the two help descriptions (wrapped to filterHelpWidth), so both tabs
-// render at the same height regardless of which has more options or longer help.
+// centerHorizontally shifts a (possibly multi-line) block right so it is centred
+// within width, preserving the block's internal left alignment — rather than
+// centring each line independently, which would leave a list's rows ragged. A
+// block already at least as wide as width is returned unchanged.
+func centerHorizontally(content string, width int) string {
+	pad := (width - lipgloss.Width(content)) / 2
+	if pad <= 0 {
+		return content
+	}
+	return lipgloss.NewStyle().PaddingLeft(pad).Render(content)
+}
+
+// panelHeight is the fixed row count of the tab body: the tallest of the option
+// lists (including the Created tab's stacked radios) and the tab help
+// descriptions (wrapped to filterHelpWidth), so every tab renders at the same
+// height regardless of which has more content.
 func (d runFilterDialog) panelHeight() int {
 	h := max(len(d.scopes), len(d.statuses))
-	for _, help := range []string{triggerHelpText, statusHelpText} {
+	h = max(h, lipgloss.Height(d.createdBody()))
+	for _, help := range []string{triggerHelpText, statusHelpText, createdHelpText} {
 		wrapped := lipgloss.NewStyle().Width(filterHelpWidth).Render(help)
 		h = max(h, lipgloss.Height(wrapped))
 	}
 	return h
 }
 
-// listColumnWidth is the width of the options column, the wider of the two lists
-// so the column (and thus the dialog) stays the same width on either tab.
+// listColumnWidth is the width of the options column, the widest of the tabs'
+// bodies so the column (and thus the dialog) stays the same width on every tab.
 func (d runFilterDialog) listColumnWidth() int {
 	return max(
 		lipgloss.Width(strings.TrimRight(d.triggerSel.View().Content, "\n")),
 		lipgloss.Width(strings.TrimRight(d.statusSel.View().Content, "\n")),
+		lipgloss.Width(d.createdBody()),
 	)
 }
 
 // activeList renders the embedded list for the active tab.
 func (d runFilterDialog) activeList() string {
-	if d.tab == filterTabTrigger {
-		return d.triggerSel.View().Content
+	switch d.activeTab() {
+	case filterTabStatus:
+		return d.statusSel.View().Content
+	case filterTabCreated:
+		return d.createdBody()
+	case filterTabTrigger:
 	}
-	return d.statusSel.View().Content
+	return d.triggerSel.View().Content
+}
+
+// createdBody renders the Created tab: the date list with the older/newer
+// direction toggle stacked vertically to its right. The direction options carry a
+// filled/hollow marker on the active one (space flips it); the whole toggle is
+// muted while the filter is inactive ("all dates" selected), since direction is
+// meaningless with no age.
+func (d runFilterDialog) createdBody() string {
+	dates := strings.TrimRight(d.dateSel.View().Content, "\n")
+	return lipgloss.JoinHorizontal(lipgloss.Top,
+		dates,
+		lipgloss.NewStyle().PaddingLeft(6).Render(d.createdDirectionColumn()),
+	)
+}
+
+// createdDirectionColumn renders the "older / newer" toggle as two stacked rows,
+// each "● word" (active) or "○ word", accenting the active one — or muting the
+// whole toggle when the created filter is inactive.
+func (d runFilterDialog) createdDirectionColumn() string {
+	inactive := !d.Created().Active()
+	return d.directionWord("older", !d.createdNewer, inactive) + "\n" +
+		d.directionWord("newer", d.createdNewer, inactive)
+}
+
+// directionWord renders one direction option as "● word" (active) or "○ word",
+// accenting the active word when color is on, or muting it when the created
+// filter is inactive.
+func (d runFilterDialog) directionWord(word string, active, inactive bool) string {
+	glyph := "○"
+	if active {
+		glyph = "●"
+	}
+	text := glyph + " " + word
+	if !d.color {
+		return text
+	}
+	switch {
+	case inactive:
+		return theme.HelperStyle.Render(text)
+	case active:
+		return theme.AccentStyle.Bold(true).Render(text)
+	default:
+		return theme.HelperStyle.Render(text)
+	}
 }
 
 // tabHelp is the description shown on the right of the active tab.
 func (d runFilterDialog) tabHelp() string {
-	if d.tab == filterTabTrigger {
-		return triggerHelpText
+	switch d.activeTab() {
+	case filterTabStatus:
+		return statusHelpText
+	case filterTabCreated:
+		return createdHelpText
+	case filterTabTrigger:
 	}
-	return statusHelpText
+	return triggerHelpText
 }
 
 const (
@@ -456,69 +599,15 @@ const (
 	statusHelpText = "Filter runs by status.\n\n" +
 		"\"all statuses\" clears the filter. Pick a status to show only the runs in " +
 		"that state."
+	createdHelpText = "Filter runs by age.\n\n" +
+		"Pick how far back to look; \"all dates\" clears the filter. Press space to " +
+		"toggle between older and newer than the chosen age."
 )
 
-// renderTabs draws the two-tab row at rowWidth, split evenly. The active tab uses
-// the open-bottom border so it reads as continuous with the window and its label
-// is pink; the outer bottom corners of the first and last tab are patched so the
-// row seams into the window's side borders below.
-func (d runFilterDialog) renderTabs(rowWidth int) string {
-	widths := splitWidth(rowWidth, 2)
-	labels := [2]string{"Trigger", "Status"}
-	active := [2]bool{d.tab == filterTabTrigger, d.tab == filterTabStatus}
-
-	cells := make([]string, 2)
-	for i := 0; i < 2; i++ {
-		border := filterTabBorder
-		if active[i] {
-			border = filterActiveTabBorder
-		}
-		switch i {
-		case 0: // first tab: bottom-left seams into the window's left border
-			if active[i] {
-				border.BottomLeft = "│"
-			} else {
-				border.BottomLeft = "├"
-			}
-		case 1: // last tab: bottom-right seams into the window's right border
-			if active[i] {
-				border.BottomRight = "│"
-			} else {
-				border.BottomRight = "┤"
-			}
-		}
-
-		st := lipgloss.NewStyle().Border(border, true).Padding(0, 1).
-			Align(lipgloss.Center).Width(widths[i])
-		switch {
-		case d.color && active[i]:
-			st = st.BorderForeground(theme.ColorSecondary).Foreground(theme.ColorAccent).Bold(true)
-		case d.color:
-			st = st.BorderForeground(theme.ColorSecondary).Foreground(theme.ColorMuted)
-		case active[i]:
-			st = st.Bold(true)
-		}
-		cells[i] = st.Render(labels[i])
-	}
-	return lipgloss.JoinHorizontal(lipgloss.Bottom, cells[0], cells[1])
-}
-
-// bodyRows is the number of option rows the lists hold: the longer of the two, so
-// both tabs reserve the same number of list rows.
+// bodyRows is the number of option rows the tabs' lists hold: the most of any
+// tab (the Created date list has the most, with its "all dates" entry plus the age
+// buckets), so every tab reserves the same number of list rows and switching tabs
+// never resizes the dialog.
 func (d runFilterDialog) bodyRows() int {
-	return max(len(d.scopes), len(d.statuses))
-}
-
-// splitWidth divides total into n parts as evenly as possible, handing the
-// remainder to the leading parts, so the parts sum back to total.
-func splitWidth(total, n int) []int {
-	base := total / n
-	out := make([]int, n)
-	for i := range out {
-		out[i] = base
-	}
-	for i := 0; i < total-base*n; i++ {
-		out[i]++
-	}
-	return out
+	return max(len(d.scopes), len(d.statuses), len(createdDurations)+1)
 }

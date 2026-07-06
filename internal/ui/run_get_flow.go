@@ -97,18 +97,21 @@ This has some additional keys:
 | ` + "`" + switchScopeKeyLabel + "`" + ` | Switch trigger — cycle branches and my runs |
 | ` + "`s`" + ` | Cycle the status filter |
 | ` + "`S`" + ` | Clear the status filter (back to all statuses) |
-| ` + "`/`" + ` | Open the filter dialog — pick a trigger and status from lists |
+| ` + "`/`" + ` | Open the filter dialog — pick a trigger, status and created age |
 
 ### The filter dialog
 
-Opened with ` + "`/`" + ` on the run picker:
+Opened with ` + "`/`" + ` on the run picker. It has three tabs: Trigger, Status
+and Created (filter runs by how long ago they were created — pick an age, or
+"all dates" to clear it).
 
 | Key | Action |
 | --- | --- |
-| ` + "`←` / `→`" + ` (or ` + "`tab`" + `) | Switch the Trigger / Status tab |
-| ` + "`↑` / `↓`" + ` | Move within the active list |
+| ` + "`←` / `→`" + ` (or ` + "`tab`" + `) | Switch between the Trigger / Status / Created tabs |
+| ` + "`↑` / `↓`" + ` | Move within the active tab |
+| ` + "`space`" + ` | On the Created tab, toggle between older and newer than the chosen age |
 | ` + "`enter`" + ` | Apply the selection |
-| ` + "`r`" + ` | Reset to the defaults (current branch, all statuses) |
+| ` + "`r`" + ` | Reset the filters (current branch, all statuses, all dates) |
 | ` + "`esc`" + ` | Cancel and return to the run picker |
 
 ## Pager
@@ -257,16 +260,18 @@ type RunGetFlowOptions struct {
 	// picker offers a shift+tab toggle between them, re-fetching via FetchRuns.
 	// When DefaultBranch is empty or equal to CurrentBranch, the toggle is hidden.
 	// The status argument to FetchRuns is the active status filter (the "s" key),
-	// a pipeline.status value ("" = every status).
+	// a pipeline.status value ("" = every status). The created argument is the
+	// active "Created" filter from the filter dialog (an inactive zero value when
+	// none is set).
 	CurrentBranch string
 	DefaultBranch string
-	FetchRuns     func(ctx context.Context, branch, status string) ([]RunGetItem, error)
+	FetchRuns     func(ctx context.Context, branch, status string, created RunCreatedFilter) ([]RunGetItem, error)
 	// FetchMyRuns lists the authenticated user's recent runs across all projects
 	// (the counterpart to "circleci my runs"). When set, the run picker's
 	// shift+tab cycle gains a "my runs" scope that fetches via this callback
-	// rather than by branch; when nil the scope is omitted. status is the active
-	// status filter, as for FetchRuns.
-	FetchMyRuns func(ctx context.Context, status string) ([]RunGetItem, error)
+	// rather than by branch; when nil the scope is omitted. status and created are
+	// the active status and created filters, as for FetchRuns.
+	FetchMyRuns func(ctx context.Context, status string, created RunCreatedFilter) ([]RunGetItem, error)
 	// MyRunsOnly restricts the run picker to the cross-project "my runs" scope,
 	// used when no project could be resolved (e.g. run outside a git repository).
 	// The branch scopes and the shift+tab branch toggle are then omitted; the
@@ -295,11 +300,13 @@ type runScope struct {
 	myRuns bool   // list the authenticated user's runs across all projects
 	label  string // title/loading wording, e.g. "main branch", "all branches"
 	icon   string // glyph shown beside the scope in the filter dialog's Trigger tab
-	// pickerLabel is the row text in the filter dialog's Trigger tab. Unlike the
-	// compact title bracket (titleName), it spells out the scope's role — e.g.
-	// "current branch [main]" or "default branch [develop]" — so the two branch
-	// scopes are distinguishable at a glance.
+	// pickerLabel is the row text in the filter dialog's Trigger tab: the scope's
+	// role, e.g. "current branch", "default branch", "all branches" or "my runs".
 	pickerLabel string
+	// pickerChild is the branch name shown as a nested, non-selectable sub-entry
+	// beneath the row (empty for "all branches", "my runs" and a detached HEAD), so
+	// the branch is named without widening the row with a "[…]" bracket.
+	pickerChild string
 }
 
 // titleName is the bracket-inner text for the picker title: the bare branch
@@ -340,20 +347,17 @@ func buildRunScopes(current, defaultBranch string, includeMyRuns, myRunsOnly boo
 	if myRunsOnly {
 		return []runScope{{myRuns: true, label: "my runs", pickerLabel: "my runs", icon: scopeIconMyRuns}}
 	}
-	// The current branch's picker label spells out its role and names the branch,
-	// e.g. "current branch [main]"; it falls back to the bare phrase for a
-	// detached HEAD (no branch name to show).
-	currentPicker := "current branch"
-	if current != "" {
-		currentPicker = "current branch [" + current + "]"
-	}
+	// The current/default branch rows spell out their role ("current branch") and
+	// name the branch as a nested child, rather than a "[…]" bracket that widens the
+	// row. The child is empty for a detached HEAD (no branch name to show).
 	scopes := []runScope{{
-		branch: current, label: current + " branch", pickerLabel: currentPicker, icon: scopeIconCurrentBranch,
+		branch: current, label: current + " branch",
+		pickerLabel: "current branch", pickerChild: current, icon: scopeIconCurrentBranch,
 	}}
 	if defaultBranch != "" && defaultBranch != current {
 		scopes = append(scopes, runScope{
 			branch: defaultBranch, label: defaultBranch + " branch",
-			pickerLabel: "default branch [" + defaultBranch + "]", icon: scopeIconDefaultBranch,
+			pickerLabel: "default branch", pickerChild: defaultBranch, icon: scopeIconDefaultBranch,
 		})
 	}
 	scopes = append(scopes, runScope{label: "all branches", pickerLabel: "all branches", icon: scopeIconAllBranches})
@@ -406,6 +410,24 @@ type RunStatusFilter struct {
 	Label string // title/footer wording, e.g. "failed", "needs approval"
 	Icon  string // status glyph shown in the filter dialog's status list
 }
+
+// RunCreatedFilter narrows runs by creation time relative to now, as chosen on
+// the filter dialog's "Created" tab. Duration is the relative window (e.g. 24h);
+// a zero Duration means no created filter is active. Newer keeps runs created
+// within the window (newer than now-Duration); when false — the default — it
+// keeps runs older than now-Duration. Label is the human wording of the window
+// (e.g. "24 Hours") for the picker title.
+type RunCreatedFilter struct {
+	Newer    bool
+	Duration time.Duration
+	Label    string
+}
+
+// Active reports whether a created filter is set (a duration was chosen). The
+// caller resolves the actual [from, to] window it requests (an "older than" query
+// needs an explicit lower bound so the API does not apply its short default; see
+// RUN_DATE_RANGES.md and createdWindow in internal/cmd/run).
+func (f RunCreatedFilter) Active() bool { return f.Duration > 0 }
 
 // buildStatusCycle prepends the "all statuses" (no-filter) entry to the caller's
 // selectable statuses, so pressing "s" cycles no-filter → each status → back.
@@ -511,6 +533,10 @@ type RunGetFlowModel struct {
 	activeScopeIdx int
 	statusFilters  []RunStatusFilter
 	statusIdx      int
+	// createdFilter is the active "Created" filter (the filter dialog's Created
+	// tab): a relative-age window applied on top of the scope and status. Its zero
+	// value is inactive (no created filter).
+	createdFilter RunCreatedFilter
 
 	// Fetched data for the current selections, parallel to the pickers (the
 	// workflow/job/step pickers are offset by their leading summary options).
@@ -586,6 +612,7 @@ type (
 		items     []RunGetItem
 		scopeIdx  int
 		statusIdx int
+		created   RunCreatedFilter
 		err       error
 	}
 	runGetWorkflowsMsg struct {
@@ -757,7 +784,7 @@ func (m RunGetFlowModel) updateRunSelect(msg tea.Msg) (tea.Model, tea.Cmd) {
 				next := (m.activeScopeIdx + 1) % len(m.scopes)
 				m.stage = runGetStageLoadingRuns
 				m.loadingLabel = "Fetching runs for " + m.scopes[next].label
-				return m, m.loadingCmd(m.cmdFetchRuns(next, m.statusIdx))
+				return m, m.loadingCmd(m.cmdFetchRuns(next, m.statusIdx, m.createdFilter))
 			}
 			return m, nil
 		case key.Matches(k, components.BindStatus):
@@ -775,7 +802,7 @@ func (m RunGetFlowModel) updateRunSelect(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case key.Matches(k, components.BindRefresh):
 			m.stage = runGetStageLoadingRuns
 			m.loadingLabel = "Refreshing runs"
-			return m, m.loadingCmd(m.cmdFetchRuns(m.activeScopeIdx, m.statusIdx))
+			return m, m.loadingCmd(m.cmdFetchRuns(m.activeScopeIdx, m.statusIdx, m.createdFilter))
 		case key.Matches(k, components.BindSearch):
 			if m.filterEnabled() {
 				return m.openRunFilter()
@@ -820,6 +847,7 @@ func (m RunGetFlowModel) onRuns(msg runGetRunsMsg) (tea.Model, tea.Cmd) {
 	m.runs = msg.items
 	m.activeScopeIdx = msg.scopeIdx
 	m.statusIdx = msg.statusIdx
+	m.createdFilter = msg.created
 	m.runCursor = 0
 	m.runSelect = m.newRunSelect()
 	m.stage = runGetStageRunSelect
@@ -848,21 +876,21 @@ func (m RunGetFlowModel) fetchStatus(idx int) (tea.Model, tea.Cmd) {
 	} else {
 		m.loadingLabel = "Fetching runs"
 	}
-	return m, m.loadingCmd(m.cmdFetchRuns(m.activeScopeIdx, idx))
+	return m, m.loadingCmd(m.cmdFetchRuns(m.activeScopeIdx, idx, m.createdFilter))
 }
 
-// filterEnabled reports whether the "/" search dialog is worth offering: true
-// when there is more than one branch scope to choose from or at least one
-// selectable status filter. With neither there is nothing to pick, so "/" is
-// inert and its footer hint is suppressed.
+// filterEnabled reports whether the "/" search dialog is worth offering. The
+// dialog always carries the "Created" tab (a relative-age filter that applies to
+// any scope), so it is always worth opening — even a single-branch project with
+// no selectable statuses can still filter by creation time.
 func (m RunGetFlowModel) filterEnabled() bool {
-	return len(m.scopes) >= 2 || m.statusFilterEnabled()
+	return true
 }
 
 // openRunFilter builds and shows the "/" search dialog seeded with the active
-// scope and status, sized to the current terminal.
+// scope, status and created filter, sized to the current terminal.
 func (m RunGetFlowModel) openRunFilter() (tea.Model, tea.Cmd) {
-	m.filter = newRunFilterDialog(m.scopes, m.statusFilters, m.activeScopeIdx, m.statusIdx, m.opts.Color)
+	m.filter = newRunFilterDialog(m.scopes, m.statusFilters, m.activeScopeIdx, m.statusIdx, m.createdFilter, m.opts.Color)
 	if m.width > 0 && m.height > 0 {
 		m.filter = m.filter.SetSize(m.width, m.height)
 	}
@@ -886,15 +914,16 @@ func (m RunGetFlowModel) updateRunFilter(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Still open — keep showing the dialog.
 	case runFilterApply:
 		scopeIdx, statusIdx := m.filter.Selected()
-		if scopeIdx == m.activeScopeIdx && statusIdx == m.statusIdx {
+		created := m.filter.Created()
+		if scopeIdx == m.activeScopeIdx && statusIdx == m.statusIdx && created == m.createdFilter {
 			// Nothing changed — just close the dialog and redisplay the picker.
 			m.runSelect = m.newRunSelect()
 			m.stage = runGetStageRunSelect
 			return m, nil
 		}
 		m.stage = runGetStageLoadingRuns
-		m.loadingLabel = filterLoadingLabel(m.scopes[scopeIdx], m.statusFilters[statusIdx])
-		return m, m.loadingCmd(m.cmdFetchRuns(scopeIdx, statusIdx))
+		m.loadingLabel = filterLoadingLabel(m.scopes[scopeIdx], m.statusFilters[statusIdx], created)
+		return m, m.loadingCmd(m.cmdFetchRuns(scopeIdx, statusIdx, created))
 	case runFilterCancel:
 		m.runSelect = m.newRunSelect()
 		m.stage = runGetStageRunSelect
@@ -904,13 +933,28 @@ func (m RunGetFlowModel) updateRunFilter(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 // filterLoadingLabel is the loading line shown while the dialog's chosen
-// scope+status is fetched, e.g. "Fetching failed runs for main branch".
-func filterLoadingLabel(scope runScope, status RunStatusFilter) string {
+// scope+status+created filter is fetched, e.g. "Fetching failed runs for main
+// branch older than 24 Hours".
+func filterLoadingLabel(scope runScope, status RunStatusFilter, created RunCreatedFilter) string {
 	label := "Fetching"
 	if status.Value != "" {
 		label += " " + status.Label
 	}
-	return label + " runs for " + scope.label
+	label += " runs for " + scope.label
+	if created.Active() {
+		label += " " + createdPhrase(created)
+	}
+	return label
+}
+
+// createdPhrase renders a created filter as a title/label suffix, e.g.
+// "older than 24 Hours" or "newer than 7 Days".
+func createdPhrase(created RunCreatedFilter) string {
+	dir := "older than"
+	if created.Newer {
+		dir = "newer than"
+	}
+	return dir + " " + created.Label
 }
 
 func (m RunGetFlowModel) onWorkflows(msg runGetWorkflowsMsg) (tea.Model, tea.Cmd) {
@@ -1502,6 +1546,9 @@ func (m RunGetFlowModel) newRunSelect() components.SelectModel {
 	if status := m.statusFilters[m.statusIdx]; status.Value != "" {
 		parts = append(parts, status.Label)
 	}
+	if m.createdFilter.Active() {
+		parts = append(parts, createdPhrase(m.createdFilter))
+	}
 	if len(parts) > 0 {
 		scope := "[" + strings.Join(parts, " · ") + "]"
 		if m.opts.Color {
@@ -1782,7 +1829,7 @@ func statusIconStyle(symbol string) (lipgloss.Style, bool) {
 // FetchMyRuns), otherwise the branch-filtered runs (via FetchRuns). The scope
 // and status indexes ride along on the result so onRuns can commit them once the
 // fetch succeeds.
-func (m RunGetFlowModel) cmdFetchRuns(scopeIdx, statusIdx int) tea.Cmd {
+func (m RunGetFlowModel) cmdFetchRuns(scopeIdx, statusIdx int, created RunCreatedFilter) tea.Cmd {
 	ctx, scope := m.ctx, m.scopes[scopeIdx]
 	status := m.statusFilters[statusIdx].Value
 	fetchRuns, fetchMine := m.opts.FetchRuns, m.opts.FetchMyRuns
@@ -1792,11 +1839,11 @@ func (m RunGetFlowModel) cmdFetchRuns(scopeIdx, statusIdx int) tea.Cmd {
 			err   error
 		)
 		if scope.myRuns {
-			items, err = fetchMine(ctx, status)
+			items, err = fetchMine(ctx, status, created)
 		} else {
-			items, err = fetchRuns(ctx, scope.branch, status)
+			items, err = fetchRuns(ctx, scope.branch, status, created)
 		}
-		return runGetRunsMsg{items: items, scopeIdx: scopeIdx, statusIdx: statusIdx, err: err}
+		return runGetRunsMsg{items: items, scopeIdx: scopeIdx, statusIdx: statusIdx, created: created, err: err}
 	}
 }
 

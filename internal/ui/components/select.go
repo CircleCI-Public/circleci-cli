@@ -40,16 +40,17 @@ import (
 // Esc/Ctrl+C cancels. When the option list is taller than the available height
 // the list scrolls to keep the cursor visible (see WithHeight).
 type SelectModel struct {
-	prompt  string
-	options []string
-	icons   []string
-	keys    []key.Binding // footer key bindings; nil renders no hint line
-	help    help.Model    // renders keys into the muted footer line
-	note    string        // optional lines rendered between the title and the options
-	cursor  int
-	offset  int // index of the first visible option when the list scrolls
-	height  int // terminal rows available; 0 = unlimited (render every option)
-	chosen  bool
+	prompt   string
+	options  []string
+	icons    []string
+	children []string      // optional nested, non-selectable sub-entry per option
+	keys     []key.Binding // footer key bindings; nil renders no hint line
+	help     help.Model    // renders keys into the muted footer line
+	note     string        // optional lines rendered between the title and the options
+	cursor   int
+	offset   int // index of the first visible option when the list scrolls
+	height   int // terminal rows available; 0 = unlimited (render every option)
+	chosen   bool
 
 	// itemStyleFunc, when set, supplies a per-option label style so a caller can
 	// mark a row as special (e.g. a muted "all statuses" no-filter entry). It is
@@ -104,6 +105,20 @@ func (m SelectModel) WithItemStyleFunc(fn func(i int) lipgloss.Style) SelectMode
 // carries an icon.
 func (m SelectModel) WithIcons(icons []string) SelectModel {
 	m.icons = icons
+	return m
+}
+
+// WithChildren attaches an optional nested sub-entry to each option. children is
+// parallel to the options; an empty string means "no child" for that row. A
+// child renders as a muted, non-selectable "└ value" line indented beneath its
+// option (e.g. a branch name under a trigger), keeping a long attribute off the
+// option's own row. Children are meant for short lists shown in full; the list
+// still scrolls by option when it overflows, but the window is sized to show
+// every option and its children together, so a caller relying on children should
+// leave enough height for them.
+func (m SelectModel) WithChildren(children []string) SelectModel {
+	m.children = children
+	m.clampOffset()
 	return m
 }
 
@@ -197,16 +212,37 @@ func (m SelectModel) reservedRows() int {
 }
 
 // visibleRows is how many option rows fit, reserving lines for the prompt, hint
-// and note. Zero height (or a list that already fits) means no limit.
+// and note. Zero height (or a list that already fits, counting each option's
+// nested child line) means no limit.
 func (m SelectModel) visibleRows() int {
 	reserved := m.reservedRows()
-	if m.height <= 0 || m.height-reserved >= len(m.options) {
+	if m.height <= 0 || m.height-reserved >= len(m.options)+m.childLines() {
 		return len(m.options)
 	}
 	if rows := m.height - reserved; rows > 0 {
 		return rows
 	}
 	return 1
+}
+
+// childLines is the number of options carrying a nested child sub-entry (each
+// renders one extra line beneath its option).
+func (m SelectModel) childLines() int {
+	n := 0
+	for _, c := range m.children {
+		if c != "" {
+			n++
+		}
+	}
+	return n
+}
+
+// childAt returns option i's nested sub-entry, or "" when it has none.
+func (m SelectModel) childAt(i int) string {
+	if i >= 0 && i < len(m.children) {
+		return m.children[i]
+	}
+	return ""
 }
 
 // clampOffset scrolls the visible window so the cursor stays inside it and the
@@ -279,8 +315,20 @@ func (m SelectModel) renderOptions(start, end int) string {
 		EnumeratorStyle(lipgloss.NewStyle())
 	for i := start; i < end; i++ {
 		l.Item(m.renderRow(i))
+		if child := m.childAt(i); child != "" {
+			l.Item(m.renderChild(i, child))
+		}
 	}
 	return l.String()
+}
+
+// renderChild renders a non-selectable sub-entry on its own line beneath option
+// i, aligned with where the option's label text begins (i.e. past the "› "/"  "
+// cursor prefix and the icon column). The value is emitted verbatim so a caller
+// can style it (e.g. tint a branch name).
+func (m SelectModel) renderChild(i int, child string) string {
+	indent := len("  ") + lipgloss.Width(m.iconPrefix(i))
+	return strings.Repeat(" ", indent) + child
 }
 
 // renderRow renders option i as "› label" (cursor) or "  label", styled so the

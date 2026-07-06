@@ -130,8 +130,8 @@ func runItem(label string) ui.RunGetItem {
 // fetchByBranch returns a FetchRuns that maps a branch filter ("" = all
 // branches) to its run list, returning an empty list for unmapped branches. The
 // status argument is ignored (status filtering is covered separately).
-func fetchByBranch(byBranch map[string][]ui.RunGetItem) func(context.Context, string, string) ([]ui.RunGetItem, error) {
-	return func(_ context.Context, branch, _ string) ([]ui.RunGetItem, error) {
+func fetchByBranch(byBranch map[string][]ui.RunGetItem) func(context.Context, string, string, ui.RunCreatedFilter) ([]ui.RunGetItem, error) {
+	return func(_ context.Context, branch, _ string, _ ui.RunCreatedFilter) ([]ui.RunGetItem, error) {
 		return byBranch[branch], nil
 	}
 }
@@ -139,7 +139,7 @@ func fetchByBranch(byBranch map[string][]ui.RunGetItem) func(context.Context, st
 // newToggleFlow builds a run-get flow on branch "feature" with default branch
 // "main". Animation is off so the loading command is the bare fetch (no spinner
 // tick), keeping the program loop deterministic under teatest.
-func newToggleFlow(fetch func(context.Context, string, string) ([]ui.RunGetItem, error)) ui.RunGetFlowModel {
+func newToggleFlow(fetch func(context.Context, string, string, ui.RunCreatedFilter) ([]ui.RunGetItem, error)) ui.RunGetFlowModel {
 	return ui.NewRunGetFlow(context.Background(), ui.RunGetFlowOptions{
 		Runs:          []ui.RunGetItem{runItem("aaaaaaa [feature] - 1 minute ago")},
 		CurrentBranch: "feature",
@@ -304,7 +304,7 @@ func TestRunGetFlow_ToggleReachesMyRuns(t *testing.T) {
 			"main":    {runItem("bbbbbbb [main] - 2 minutes ago")},
 			"":        {runItem("ccccccc [other] - 3 minutes ago")},
 		}),
-		FetchMyRuns: func(context.Context, string) ([]ui.RunGetItem, error) {
+		FetchMyRuns: func(context.Context, string, ui.RunCreatedFilter) ([]ui.RunGetItem, error) {
 			return []ui.RunGetItem{runItem("ddddddd [mine] - 4 minutes ago")}, nil
 		},
 	}))
@@ -392,7 +392,7 @@ func newStatusFlow(byStatus map[string][]ui.RunGetItem, statuses []ui.RunStatusF
 	return ui.NewRunGetFlow(context.Background(), ui.RunGetFlowOptions{
 		Runs:          byStatus[""],
 		CurrentBranch: "main",
-		FetchRuns: func(_ context.Context, _, status string) ([]ui.RunGetItem, error) {
+		FetchRuns: func(_ context.Context, _, status string, _ ui.RunCreatedFilter) ([]ui.RunGetItem, error) {
 			return byStatus[status], nil
 		},
 		StatusFilters: statuses,
@@ -491,7 +491,7 @@ func TestRunGetFlow_StatusFilterResetsWithShiftS(t *testing.T) {
 	tm := startFlow(t, ui.NewRunGetFlow(context.Background(), ui.RunGetFlowOptions{
 		Runs:          []ui.RunGetItem{runItem("aaaaaaa [main] - startup")},
 		CurrentBranch: "main",
-		FetchRuns: func(_ context.Context, _, status string) ([]ui.RunGetItem, error) {
+		FetchRuns: func(_ context.Context, _, status string, _ ui.RunCreatedFilter) ([]ui.RunGetItem, error) {
 			return byStatus[status], nil
 		},
 		StatusFilters: []ui.RunStatusFilter{
@@ -866,4 +866,37 @@ func TestRunGetFlow_FilterHintShownWhenEnabled(t *testing.T) {
 		[]ui.RunStatusFilter{{Value: "failed", Label: "failed"}},
 	)))
 	assert.Check(t, cmp.Contains(v, "/ search"))
+}
+
+// TestRunGetFlow_FilterApplyCreated drives the dialog to the Created tab, selects
+// an age, applies, and confirms the created filter reaches FetchRuns and is named
+// in the picker title.
+func TestRunGetFlow_FilterApplyCreated(t *testing.T) {
+	var gotCreated ui.RunCreatedFilter
+	m := ui.NewRunGetFlow(context.Background(), ui.RunGetFlowOptions{
+		Runs:          []ui.RunGetItem{runItem("aaaaaaa [main] - all")},
+		CurrentBranch: "main",
+		FetchRuns: func(_ context.Context, _, _ string, created ui.RunCreatedFilter) ([]ui.RunGetItem, error) {
+			gotCreated = created
+			return []ui.RunGetItem{runItem("ccccccc [main] - recent")}, nil
+		},
+		StatusFilters: []ui.RunStatusFilter{{Value: "failed", Label: "failed"}},
+	})
+	tm := startFlow(t, m)
+
+	tm.Send(keySlash)
+	waitForOutput(t, tm, "Trigger")
+	tm.Send(keyRight) // Trigger → Status
+	tm.Send(keyRight) // Status → Created
+	waitForOutput(t, tm, "1 Hour")
+	tm.Send(keyDown) // all dates → 1 Hour (the cursor is the selection)
+	tm.Send(keyEnt)  // apply
+	waitForOutput(t, tm, "ccccccc [main] - recent")
+
+	assert.Check(t, gotCreated.Active())
+	assert.Check(t, cmp.Equal(gotCreated.Duration, time.Hour))
+	assert.Check(t, !gotCreated.Newer, "direction defaults to older")
+
+	v := flowSnapshot(t, tm)
+	assert.Check(t, cmp.Contains(v, "older than 1 Hour"))
 }
