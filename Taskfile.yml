@@ -155,7 +155,15 @@ tasks:
   # Demo tasks
   #
   # Static PNG/SVG screenshots of the CLI in action are captured with
-  # charmbracelet/freeze
+  # charmbracelet/freeze. Animated GIFs are recorded with charmbracelet/vhs
+  # (pinned in tools/go.mod alongside freeze), which additionally needs ttyd,
+  # ffmpeg, and the demo font at record time — run `task demo:install` once
+  # to install them.
+  #
+  # The vhs tapes in docs/demos/*.tape run the freshly built dist/circleci
+  # against real data, so record while logged in — each tape's header comment
+  # explains any per-tape prep (e.g. logging out first for auth-login, or
+  # substituting a real run id).
 
   demo:
     desc: Generate all README/docs screenshots
@@ -174,6 +182,26 @@ tasks:
           --execute.timeout 60s
           --output docs/demos/run-get.{{.ITEM}}
 
+  demo:install:
+    desc: Install the recording dependencies for the VHS demos (ttyd, ffmpeg, JetBrains Mono)
+    cmds:
+      - brew install ttyd ffmpeg
+      # vhs records in a headless browser, so the demo font must be installed
+      # system-wide (the copy bundled inside JetBrains IDEs is not visible to it).
+      - brew install --cask font-jetbrains-mono
+
+  demo:gifs:
+    desc: Record all animated GIF demos with VHS (requires ttyd + ffmpeg)
+    deps: [build]
+    cmds:
+      - for: ['auth-login', 'run-list-get', 'run-get-tui', 'setting-theme', 'run-get-jq']
+        cmd: PATH="$PWD/dist:$PATH" go tool -modfile tools/go.mod vhs docs/demos/{{.ITEM}}.tape
+
+  demo:gif:
+    desc: 'Record a single demo tape by name, e.g.: task demo:gif -- run-get-tui'
+    deps: [build]
+    cmds:
+      - PATH="$PWD/dist:$PATH" go tool -modfile tools/go.mod vhs docs/demos/{{.CLI_ARGS}}.tape
 
   docs:reference:
     desc: Generate the reference page from the live command tree
