@@ -99,7 +99,13 @@ func (h flowHarness) View() tea.View { return h.m.View() }
 // startFlow runs a flow at a known terminal size and waits for the run picker.
 func startFlow(t *testing.T, m ui.RunGetFlowModel) *teatest.TestModel {
 	t.Helper()
-	tm := teatest.NewTestModel(t, flowHarness{m: m}, teatest.WithInitialTermSize(80, 24))
+	// Pin TERM so the renderer's capability detection (e.g. REP compression
+	// for repeated characters) doesn't vary with the host terminal, which
+	// would make substring assertions on raw output environment-dependent.
+	tm := teatest.NewTestModel(t, flowHarness{m: m},
+		teatest.WithInitialTermSize(80, 24),
+		teatest.WithProgramOptions(tea.WithEnvironment([]string{"TERM=dumb"})),
+	)
 	waitForOutput(t, tm, "Select a run")
 	return tm
 }

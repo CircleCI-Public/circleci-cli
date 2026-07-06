@@ -11,10 +11,11 @@ jobs, an execution index selects which executor's output to fetch.
 
 ## Available Commands
 
-| Command | Description                          |
-| ------- | ------------------------------------ |
-| `get`   | Get the output of a job step         |
-| `list`  | List a job's steps with their output |
+| Command     | Description                                                    |
+| ----------- | -------------------------------------------------------------- |
+| `condensed` | Get a step's stdout condensed to its most error-relevant lines |
+| `get`       | Get the output of a job step                                   |
+| `list`      | List a job's steps with their output                           |
 
 ## Inherited Flags
 

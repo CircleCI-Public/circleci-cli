@@ -1,5 +1,6 @@
 Usage:  circleci job output <command>
 
 Available commands:
+  condensed
   get
   list
