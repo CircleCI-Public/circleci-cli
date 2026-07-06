@@ -1,4 +1,4 @@
-Usage:  circleci orb publish promote <ns>/<orb>@dev:<label> --bump major|minor|patch [flags]
+Usage:  circleci orb publish promote <namespace>/<orb>@dev:<label> --bump major|minor|patch [flags]
 
 Flags:
   --bump string   which version segment to increment: major, minor, or patch

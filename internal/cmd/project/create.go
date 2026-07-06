@@ -50,8 +50,8 @@ func newCreateCmd() *cobra.Command {
 		Annotations: map[string]string{
 			"help:arguments": heredoc.Doc(`
 				[project-name] is the name for the new project and is optional.
-				When omitted, the current git repository's name is used: in a
-				terminal you are prompted with it as the default, and in
+				When omitted, the current git repository's name is used: In a
+				terminal you are prompted with the name of the current git repository as the default, and in
 				non-interactive mode it is used automatically.
 			`),
 		},

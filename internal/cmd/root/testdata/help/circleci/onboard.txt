@@ -27,6 +27,11 @@ choose between scanning the current repo or signing up directly.
 | `--no-color`          | Disable ANSI color output (same as setting NO_COLOR)         |
 | `-q, --quiet`         | Suppress informational output. Data on stdout is unaffected  |
 
+## Arguments
+
+`<path>` is optional and is the directory to scan. Defaults to
+the current directory.
+
 ## Examples
 
 - Interactive mode: choose scan or signup: 

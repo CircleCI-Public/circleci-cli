@@ -33,8 +33,8 @@ Use --force (-f) to skip the prompt for scripting.
 
 ## Arguments
 
-The resource class to delete, given in the form "namespace/name",
-where namespace is your organization name (e.g. my-org/my-runner).
+The resource class to delete, given in the form `namespace/name`,
+where namespace is your organization name (for example, `my-org/my-runner`).
 
 ## Examples
 

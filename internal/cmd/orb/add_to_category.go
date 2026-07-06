@@ -35,12 +35,12 @@ import (
 
 func newAddToCategoryCmd() *cobra.Command {
 	return &cobra.Command{
-		Use:   "add-to-category <ns>/<orb> <category>",
+		Use:   "add-to-category <namespace>/<orb> <category>",
 		Short: "Add an orb to a registry category",
 		Annotations: map[string]string{
 			"help:arguments": heredoc.Docf(`
-				- %[1]s<ns>/<orb>%[1]s: the orb to add, as "namespace/orb-name"
-				- %[1]s<category>%[1]s: the registry category name, e.g. "Testing"
+				- %[1]s<namespace>/<orb>%[1]s is the orb to add, for example, %[1]snamespace/orb-name%[1]s.
+				- %[1]s<category>%[1]s is the registry category name, for example, %[1]sTesting%[1]s.
 			`, "`"),
 		},
 		Long: heredoc.Doc(`

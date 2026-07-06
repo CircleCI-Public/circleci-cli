@@ -43,8 +43,8 @@ For more information about output formatting flags, see `circleci help formattin
 `<run-id>` is optional and is the UUID of the run to look up. When
 omitted, the latest run is resolved from the project and branch
 inferred from the current git repository's remote and checked-out
-branch (override with --project and --branch). With --project set, the
-branch defaults to main unless --branch is given.
+branch (override with `--project` and `--branch`). With
+`--project` set, the branch defaults to main unless `--branch` is given.
 
 ## Examples
 

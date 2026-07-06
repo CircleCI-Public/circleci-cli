@@ -45,11 +45,11 @@ func newDiffCmd() *cobra.Command {
 	)
 
 	cmd := &cobra.Command{
-		Use:   "diff <ns>/<orb> --from <v1> --to <v2>",
+		Use:   "diff <namespace>/<orb> --from <v1> --to <v2>",
 		Short: "Show a unified diff between two orb versions",
 		Annotations: map[string]string{
 			"help:arguments": heredoc.Docf(`
-				- %[1]s<ns>/<orb>%[1]s: the orb to diff, as "namespace/orb-name"
+				- %[1]s<namespace>/<orb>%[1]s is the orb to diff, for example, %[1]snamespace/orb-name%[1]s.
 			`, "`"),
 		},
 		Long: heredoc.Doc(`

@@ -1,1 +1,1 @@
-Usage:  circleci orb source <ns>/<orb>[@<version>]
+Usage:  circleci orb source <namespace>/<orb>[@<version>]

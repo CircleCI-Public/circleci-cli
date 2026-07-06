@@ -77,11 +77,11 @@ func newRestrictionCreateCmd() *cobra.Command {
 		Use:   "create <context-id|context-name>",
 		Short: "Add a restriction to a context",
 		Annotations: map[string]string{
-			"help:arguments": heredoc.Doc(`
-				A context can be specified in the form:
-				- "context-name"
-				- by ID, e.g. 849e7902-802f-4082-8a70-da77dcd084e3
-			`),
+			"help:arguments": heredoc.Docf(`
+				A context can be specified by name or ID:
+				- By name, for example, %[1]scontext-name%[1]s
+				- By ID, for example, %[1]s849e7902-802f-4082-8a70-da77dcd084e3%[1]s
+			`, "`"),
 		},
 		Long: heredoc.Doc(`
 			Add a restriction to a CircleCI context.
@@ -192,11 +192,11 @@ func newRestrictionDeleteCmd() *cobra.Command {
 		Aliases: []string{"rm"},
 		Short:   "Delete a restriction from a context",
 		Annotations: map[string]string{
-			"help:arguments": heredoc.Doc(`
-				A context can be specified in the form:
-				- "context-name"
-				- by ID, e.g. 849e7902-802f-4082-8a70-da77dcd084e3
-			`),
+			"help:arguments": heredoc.Docf(`
+				A context can be specified by name or ID:
+				- By name, for example, %[1]scontext-name%[1]s
+				- By ID, for example, %[1]s849e7902-802f-4082-8a70-da77dcd084e3%[1]s
+			`, "`"),
 		},
 		Long: heredoc.Doc(`
 			Remove a restriction from a CircleCI context.
