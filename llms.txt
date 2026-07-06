@@ -14,7 +14,12 @@ Installation instructions are in the [README](https://github.com/CircleCI-Public
 Run `circleci auth login` to authenticate with your CircleCI account. You can also set the
 `CIRCLE_TOKEN` environment variable.
 
+## Get Running
+
+Run `circleci run get` to view the runs for the current project in an interactive terminal UI (TUI).
+
 ## Model Context Protocol
+
 The CLI supports the MCP protocol. To enable it, run:
 
 Claude:
