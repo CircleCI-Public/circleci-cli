@@ -1,4 +1,4 @@
-Usage:  circleci orb diff <ns>/<orb> --from <v1> --to <v2> [flags]
+Usage:  circleci orb diff <namespace>/<orb> --from <v1> --to <v2> [flags]
 
 Flags:
   --from string   the first version (semver e.g. 1.0.0, or a dev label e.g. dev:my-branch)

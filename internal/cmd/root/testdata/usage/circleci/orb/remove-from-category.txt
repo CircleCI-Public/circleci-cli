@@ -1,1 +1,1 @@
-Usage:  circleci orb remove-from-category <ns>/<orb> <category>
+Usage:  circleci orb remove-from-category <namespace>/<orb> <category>

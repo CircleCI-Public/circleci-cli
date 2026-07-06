@@ -20,7 +20,7 @@ Supported keys:
 
 ## Arguments
 
-`<key>` is the setting to remove. Currently only "token" is supported.
+`<key>` is the setting to remove. Currently only `token` is supported.
 
 ## Examples
 

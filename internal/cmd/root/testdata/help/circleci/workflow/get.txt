@@ -33,7 +33,7 @@ For more information about output formatting flags, see `circleci help formattin
 ## Arguments
 
 `<workflow-id>` is the UUID of the workflow to look up. Workflow IDs are
-shown in the output of "circleci run get".
+shown in the output of `circleci run get`.
 
 ## Examples
 

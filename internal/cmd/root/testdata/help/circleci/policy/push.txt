@@ -38,7 +38,7 @@ For more information about output formatting flags, see `circleci help formattin
 ## Arguments
 
 `<path>` is the path to a local directory of .rego policy files,
-e.g. "./policies". Its contents are uploaded as the policy
+for example, "./policies". Its contents are uploaded as the policy
 bundle, replacing the existing bundle.
 
 ## Examples

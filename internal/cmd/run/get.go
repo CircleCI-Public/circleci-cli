@@ -73,8 +73,8 @@ func newGetCmd() *cobra.Command {
 				%[1]s<run-id>%[1]s is optional and is the UUID of the run to look up. When
 				omitted, the latest run is resolved from the project and branch
 				inferred from the current git repository's remote and checked-out
-				branch (override with --project and --branch). With --project set, the
-				branch defaults to main unless --branch is given.
+				branch (override with %[1]s--project%[1]s and %[1]s--branch%[1]s). With
+				%[1]s--project%[1]s set, the branch defaults to main unless %[1]s--branch%[1]s is given.
 			`, "`"),
 		},
 		Long: heredoc.Doc(`

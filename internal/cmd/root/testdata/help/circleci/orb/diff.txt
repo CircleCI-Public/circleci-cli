@@ -9,7 +9,7 @@ Exit code is 0 regardless of whether the versions differ.
 
 ## Usage
 
-`circleci orb diff <ns>/<orb> --from <v1> --to <v2> [flags]`
+`circleci orb diff <namespace>/<orb> --from <v1> --to <v2> [flags]`
 
 ## Flags
 
@@ -29,7 +29,7 @@ Exit code is 0 regardless of whether the versions differ.
 
 ## Arguments
 
-- `<ns>/<orb>`: the orb to diff, as "namespace/orb-name"
+- `<namespace>/<orb>` is the orb to diff, for example, `namespace/orb-name`.
 
 ## Examples
 

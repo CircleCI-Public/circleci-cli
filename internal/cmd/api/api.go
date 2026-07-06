@@ -62,8 +62,8 @@ func NewAPICmd() *cobra.Command {
 		Annotations: map[string]string{
 			"help:arguments": heredoc.Docf(`
 				%[1]s<path>%[1]s is the request path. It is relative to /api/v3 by default
-				(e.g. "projects/{project-id}"). To target
-				a different version prefix, include it explicitly, e.g. "api/v2/me".
+				(for example, "projects/{project-id}"). To target
+				a different version prefix, include it explicitly, for example, "api/v2/me".
 			`, "`"),
 		},
 		Long: heredoc.Docf(`

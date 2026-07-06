@@ -53,8 +53,8 @@ func newOutputGetCmd() *cobra.Command {
 		Annotations: map[string]string{
 			"help:arguments": heredoc.Docf(`
 				%[1]s<job-id>%[1]s is the UUID of the job whose step output to fetch. Job UUIDs
-				are shown in the output of "circleci workflow get" and "circleci job get".
-				Use --step-num to select which step's output to read.
+				are shown in the output of %[1]scircleci workflow get%[1]s and %[1]scircleci job get%[1]s.
+				Use %[1]s--step-num%[1]s to select which step's output to read.
 			`, "`"),
 		},
 		Long: heredoc.Doc(`

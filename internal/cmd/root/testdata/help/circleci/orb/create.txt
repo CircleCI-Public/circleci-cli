@@ -35,7 +35,7 @@ For more information about output formatting flags, see `circleci help formattin
 
 ## Arguments
 
-- `<namespace>/<orb>`: the orb name to reserve, as "namespace/orb-name".
+- `<namespace>/<orb>` is the orb name to reserve, for example, `namespace/orb-name`.
   The namespace must already exist.
 
 ## Examples

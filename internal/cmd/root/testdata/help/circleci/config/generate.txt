@@ -24,6 +24,11 @@ directory is created if needed, and the file is written atomically.
 | `--no-color`          | Disable ANSI color output (same as setting NO_COLOR)         |
 | `-q, --quiet`         | Suppress informational output. Data on stdout is unaffected  |
 
+## Arguments
+
+`<path>` is optional and is the directory to scan. Defaults to
+the current directory.
+
 ## Examples
 
 - Generate a config for the current directory: 

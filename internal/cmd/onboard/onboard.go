@@ -44,6 +44,12 @@ func NewOnboardCmd() *cobra.Command {
 		Use:     "onboard [path]",
 		GroupID: "user",
 		Short:   "Guided onboarding: scan, test, generate config, sign up",
+		Annotations: map[string]string{
+			"help:arguments": heredoc.Docf(`
+				%[1]s<path>%[1]s is optional and is the directory to scan. Defaults to
+				the current directory.
+			`, "`"),
+		},
 		Long: heredoc.Doc(`
 			Guided onboarding: scan a local repository, run its detected tests,
 			generate a starter .circleci/config.yml, and sign up for CircleCI.

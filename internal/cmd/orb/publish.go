@@ -45,13 +45,13 @@ func newPublishCmd() *cobra.Command {
 			Publish orb versions to the CircleCI orb registry.
 
 			To publish a specific version:
-			  circleci orb publish %[1]s<path> <ns>/<orb>@<version>%[1]s
+			  circleci orb publish %[1]s<path> <namespace>/<orb>@<version>%[1]s
 
 			To promote a dev version to a stable semver:
-			  circleci orb publish promote %[1]s<ns>/<orb>@dev:<label>%[1]s --bump major|minor|patch
+			  circleci orb publish promote %[1]s<namespace>/<orb>@dev:<label>%[1]s --bump major|minor|patch
 
 			To increment the latest stable version and publish:
-			  circleci orb publish increment %[1]s<path> <ns>/<orb>%[1]s --bump major|minor|patch
+			  circleci orb publish increment %[1]s<path> <namespace>/<orb>%[1]s --bump major|minor|patch
 		`, "`"),
 		Example: heredoc.Doc(`
 			# Publish a specific version
@@ -96,17 +96,17 @@ func newPublishPromoteCmd() *cobra.Command {
 	var bump string
 
 	cmd := &cobra.Command{
-		Use:   "promote <ns>/<orb>@dev:<label> --bump major|minor|patch",
+		Use:   "promote <namespace>/<orb>@dev:<label> --bump major|minor|patch",
 		Short: "Promote a dev orb version to a stable semver",
 		Annotations: map[string]string{
 			"help:arguments": heredoc.Docf(`
-				- %[1]s<ns>/<orb>@dev:<label>%[1]s: the dev version to promote, e.g. "namespace/orb-name@dev:my-branch"
+				- %[1]s<namespace>/<orb>@dev:<label>%[1]s is the dev version to promote, for example, %[1]snamespace/orb-name@dev:my-branch%[1]s
 			`, "`"),
 		},
 		Long: heredoc.Docf(`
 			Promote a dev orb version to a stable semver version.
 
-			The dev version ref must be in the form %[1]s<ns>/<orb>@dev:<label>%[1]s.
+			The dev version ref must be in the form %[1]s<namespace>/<orb>@dev:<label>%[1]s.
 			The --bump flag determines how the version is incremented
 			from the latest stable release.
 		`, "`"),
@@ -148,12 +148,12 @@ func newPublishIncrementCmd() *cobra.Command {
 	var bump string
 
 	cmd := &cobra.Command{
-		Use:   "increment <path> <ns>/<orb> --bump major|minor|patch",
+		Use:   "increment <path> <namespace>/<orb> --bump major|minor|patch",
 		Short: "Increment and publish a new orb version",
 		Annotations: map[string]string{
 			"help:arguments": heredoc.Docf(`
-				- %[1]s<path>%[1]s: path to the orb YAML to publish. Pass '-' to read from stdin.
-				- %[1]s<ns>/<orb>%[1]s: the orb to publish, as "namespace/orb-name"
+				- %[1]s<path>%[1]s is the path to the orb YAML to publish. Pass %[1]s-%[1]s to read from stdin.
+				- %[1]s<namespace>/<orb>%[1]s is the orb to publish, for example, %[1]snamespace/orb-name%[1]s.
 			`, "`"),
 		},
 		Long: heredoc.Doc(`

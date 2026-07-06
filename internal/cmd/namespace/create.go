@@ -45,7 +45,7 @@ func newCreateCmd() *cobra.Command {
 		Annotations: map[string]string{
 			"help:arguments": heredoc.Docf(`
 				%[1]s<name>%[1]s is the namespace name to create. It must be globally unique
-				across CircleCI, e.g. "myorg".
+				across CircleCI, for example, %[1]smyorg%[1]s.
 			`, "`"),
 		},
 		Long: heredoc.Doc(`

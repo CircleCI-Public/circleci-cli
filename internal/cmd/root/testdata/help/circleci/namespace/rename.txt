@@ -32,8 +32,8 @@ For more information about output formatting flags, see `circleci help formattin
 
 ## Arguments
 
-- `<name>` is the current name of the namespace, e.g. "oldname".
-- `<new-name>` is the new name to assign, e.g. "newname".
+- `<name>` is the current name of the namespace, for example, `oldname`.
+- `<new-name>` is the new name to assign, for example, `newname`.
 
 ## Examples
 

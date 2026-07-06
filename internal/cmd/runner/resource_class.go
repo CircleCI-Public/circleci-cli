@@ -181,10 +181,10 @@ func newResourceClassCreateCmd() *cobra.Command {
 		Use:   "create <namespace>/<name>",
 		Short: "Create a runner resource class",
 		Annotations: map[string]string{
-			"help:arguments": heredoc.Doc(`
-				The resource class name must be given in the form "namespace/name",
-				where namespace is your organization name (e.g. my-org/my-runner).
-			`),
+			"help:arguments": heredoc.Docf(`
+				The resource class name must be given in the form %[1]snamespace/name%[1]s,
+				where namespace is your organization name (for example, %[1]smy-org/my-runner%[1]s).
+			`, "`"),
 		},
 		Long: heredoc.Doc(`
 			Create a new CircleCI runner resource class.
@@ -261,10 +261,10 @@ func newResourceClassDeleteCmd() *cobra.Command {
 		Aliases: []string{"rm"},
 		Short:   "Delete a runner resource class",
 		Annotations: map[string]string{
-			"help:arguments": heredoc.Doc(`
-				The resource class to delete, given in the form "namespace/name",
-				where namespace is your organization name (e.g. my-org/my-runner).
-			`),
+			"help:arguments": heredoc.Docf(`
+				The resource class to delete, given in the form %[1]snamespace/name%[1]s,
+				where namespace is your organization name (for example, %[1]smy-org/my-runner%[1]s).
+			`, "`"),
 		},
 		Long: heredoc.Doc(`
 			Delete a CircleCI runner resource class.

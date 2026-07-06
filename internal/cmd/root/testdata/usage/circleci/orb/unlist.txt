@@ -1,4 +1,4 @@
-Usage:  circleci orb unlist <ns>/<orb> [flags]
+Usage:  circleci orb unlist <namespace>/<orb> [flags]
 
 Flags:
   --restore   restore the orb's visibility instead of hiding it

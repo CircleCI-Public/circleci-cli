@@ -48,7 +48,7 @@ func newConfigCmd() *cobra.Command {
 		Annotations: map[string]string{
 			"help:arguments": heredoc.Docf(`
 				%[1]s<resource-class>%[1]s is the runner resource class to generate config for,
-				in the form "namespace/name" (e.g. my-org/my-runner).
+				in the form %[1]snamespace/name%[1]s (for example, %[1]smy-org/my-runner%[1]s).
 			`, "`"),
 		},
 		Long: heredoc.Doc(`

@@ -2,13 +2,13 @@
 
 Promote a dev orb version to a stable semver version.
 
-The dev version ref must be in the form `<ns>/<orb>@dev:<label>`.
+The dev version ref must be in the form `<namespace>/<orb>@dev:<label>`.
 The --bump flag determines how the version is incremented
 from the latest stable release.
 
 ## Usage
 
-`circleci orb publish promote <ns>/<orb>@dev:<label> --bump major|minor|patch [flags]`
+`circleci orb publish promote <namespace>/<orb>@dev:<label> --bump major|minor|patch [flags]`
 
 ## Flags
 
@@ -27,7 +27,7 @@ from the latest stable release.
 
 ## Arguments
 
-- `<ns>/<orb>@dev:<label>`: the dev version to promote, e.g. "namespace/orb-name@dev:my-branch"
+- `<namespace>/<orb>@dev:<label>` is the dev version to promote, for example, `namespace/orb-name@dev:my-branch`
 
 ## Examples
 

@@ -70,11 +70,11 @@ func newSecretListCmd() *cobra.Command {
 		Aliases: []string{"ls"},
 		Short:   "List environment variables in a context",
 		Annotations: map[string]string{
-			"help:arguments": heredoc.Doc(`
-				A context can be specified in the form:
-				- "context-name"
-				- by ID, e.g. 849e7902-802f-4082-8a70-da77dcd084e3
-			`),
+			"help:arguments": heredoc.Docf(`
+				A context can be specified by name or ID:
+				- By name, for example, %[1]scontext-name%[1]s
+				- By ID, for example, %[1]s849e7902-802f-4082-8a70-da77dcd084e3%[1]s
+			`, "`"),
 		},
 		Long: heredoc.Doc(`
 			List the environment variable names stored in a CircleCI context.
@@ -182,11 +182,11 @@ func newSecretSetCmd() *cobra.Command {
 		Use:   "set <context-id|context-name>",
 		Short: "Set an environment variable in a context",
 		Annotations: map[string]string{
-			"help:arguments": heredoc.Doc(`
-				A context can be specified in the form:
-				- "context-name"
-				- by ID, e.g. 849e7902-802f-4082-8a70-da77dcd084e3
-			`),
+			"help:arguments": heredoc.Docf(`
+				A context can be specified by name or ID:
+				- By name, for example, %[1]scontext-name%[1]s
+				- By ID, for example, %[1]s849e7902-802f-4082-8a70-da77dcd084e3%[1]s
+			`, "`"),
 		},
 		Long: heredoc.Doc(`
 			Add or update an environment variable in a CircleCI context.
@@ -285,11 +285,11 @@ func newSecretDeleteCmd() *cobra.Command {
 		Aliases: []string{"rm"},
 		Short:   "Delete an environment variable from a context",
 		Annotations: map[string]string{
-			"help:arguments": heredoc.Doc(`
-				A context can be specified in the form:
-				- "context-name"
-				- by ID, e.g. 849e7902-802f-4082-8a70-da77dcd084e3
-			`),
+			"help:arguments": heredoc.Docf(`
+				A context can be specified by name or ID:
+				- By name, for example, %[1]scontext-name%[1]s
+				- By ID, for example, %[1]s849e7902-802f-4082-8a70-da77dcd084e3%[1]s
+			`, "`"),
 		},
 		Long: heredoc.Doc(`
 			Remove an environment variable from a CircleCI context.

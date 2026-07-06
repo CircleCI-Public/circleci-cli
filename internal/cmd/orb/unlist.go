@@ -37,11 +37,11 @@ func newUnlistCmd() *cobra.Command {
 	var restore bool
 
 	cmd := &cobra.Command{
-		Use:   "unlist <ns>/<orb>",
+		Use:   "unlist <namespace>/<orb>",
 		Short: "Hide or restore an orb in the registry",
 		Annotations: map[string]string{
 			"help:arguments": heredoc.Docf(`
-				- %[1]s<ns>/<orb>%[1]s: the orb to update, as "namespace/orb-name"
+				- %[1]s<namespace>/<orb>%[1]s is the orb to update, for example, %[1]snamespace/orb-name%[1]s
 			`, "`"),
 		},
 		Long: heredoc.Doc(`

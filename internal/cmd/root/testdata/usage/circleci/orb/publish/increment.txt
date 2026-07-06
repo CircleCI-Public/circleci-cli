@@ -1,4 +1,4 @@
-Usage:  circleci orb publish increment <path> <ns>/<orb> --bump major|minor|patch [flags]
+Usage:  circleci orb publish increment <path> <namespace>/<orb> --bump major|minor|patch [flags]
 
 Flags:
   --bump string   which version segment to increment: major, minor, or patch

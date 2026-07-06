@@ -41,8 +41,8 @@ func newRenameCmd() *cobra.Command {
 		Short: "Rename a namespace",
 		Annotations: map[string]string{
 			"help:arguments": heredoc.Docf(`
-				- %[1]s<name>%[1]s is the current name of the namespace, e.g. "oldname".
-				- %[1]s<new-name>%[1]s is the new name to assign, e.g. "newname".
+				- %[1]s<name>%[1]s is the current name of the namespace, for example, %[1]soldname%[1]s.
+				- %[1]s<new-name>%[1]s is the new name to assign, for example, %[1]snewname%[1]s.
 			`, "`"),
 		},
 		Long: heredoc.Doc(`

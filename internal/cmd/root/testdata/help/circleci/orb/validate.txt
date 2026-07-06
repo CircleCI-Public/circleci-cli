@@ -2,7 +2,7 @@
 
 Validate an orb YAML file against the CircleCI API.
 
-Pass '-' as the path to read from stdin.
+Pass `-` as the path to read from stdin.
 
 Use --org (a slug or UUID) to validate against a specific
 organization's private orb dependencies.
@@ -30,7 +30,7 @@ Exit code 7 if the orb is invalid.
 
 ## Arguments
 
-- `<path>`: path to an orb YAML file. Pass '-' to read from stdin.
+- `<path>` is the path to an orb YAML file. Pass `-` to read from stdin.
 
 ## Examples
 

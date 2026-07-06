@@ -9,7 +9,7 @@ Unlisted orbs can still be used if you know the exact orb reference.
 
 ## Usage
 
-`circleci orb unlist <ns>/<orb> [flags]`
+`circleci orb unlist <namespace>/<orb> [flags]`
 
 ## Flags
 
@@ -28,7 +28,7 @@ Unlisted orbs can still be used if you know the exact orb reference.
 
 ## Arguments
 
-- `<ns>/<orb>`: the orb to update, as "namespace/orb-name"
+- `<namespace>/<orb>` is the orb to update, for example, `namespace/orb-name`
 
 ## Examples
 

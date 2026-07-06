@@ -43,13 +43,14 @@ without waiting for the remaining workflows to finish.
 
 ## Arguments
 
-`<run-id>` is optional and selects the run to watch. It can be:
-- a run UUID (shown in "circleci run list --json")
-- a run number (shown in "circleci run list"); the project is
-  inferred from the git remote unless overridden with --project
+`<run-id>` is optional and selects the run to watch. A run can be specified by its UUID or number:
+- A run UUID, as shown in `circleci run list --json`
+- A run number, as shown in `circleci run list`.
+
+The project is inferred from the git remote unless overridden with `--project`.
 
 When omitted, the latest run for the current branch is watched
-(override the branch with --branch, or match a commit with --sha).
+(override the branch with `--branch`, or match a commit with `--sha`).
 
 ## Examples
 
