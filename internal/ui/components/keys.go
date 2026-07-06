@@ -49,6 +49,7 @@ var (
 	KeyNo       = key.NewBinding(key.WithKeys("n", "N"))
 	KeyTab      = key.NewBinding(key.WithKeys("tab"))
 	KeyShiftTab = key.NewBinding(key.WithKeys("shift+tab"))
+	KeySpace    = key.NewBinding(key.WithKeys(" ", "space"))
 
 	// List/viewport movement. k/j accompany the arrows for vim-style navigation.
 	KeyUp       = key.NewBinding(key.WithKeys("up", "k"))

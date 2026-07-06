@@ -31,7 +31,32 @@ import (
 	is "gotest.tools/v3/assert/cmp"
 
 	"github.com/CircleCI-Public/circleci-cli/internal/apiclient"
+	"github.com/CircleCI-Public/circleci-cli/internal/ui"
 )
+
+// TestCreatedWindow verifies the created-filter time window always carries an
+// explicit lower bound, so an "older than" query does not inherit the runs
+// endpoints' implicit ~14-day default from (which would hide older runs, and for
+// "my runs" return nothing — see RUN_DATE_RANGES.md).
+func TestCreatedWindow(t *testing.T) {
+	now := time.Date(2026, 7, 6, 12, 0, 0, 0, time.UTC)
+
+	t.Run("older than floors the lower bound at 90 days", func(t *testing.T) {
+		// "older than 2 weeks" is the case that previously returned no runs: the
+		// upper bound is 2 weeks ago and the lower bound must be an explicit 90-day
+		// floor, not left unset.
+		from, to := createdWindow(ui.RunCreatedFilter{Duration: 14 * 24 * time.Hour}, now)
+		assert.Check(t, is.Equal(from, now.AddDate(0, 0, -90)))
+		assert.Check(t, is.Equal(to, now.Add(-14*24*time.Hour)))
+		assert.Check(t, from.Before(to), "the window must be non-empty")
+	})
+
+	t.Run("newer than spans the age up to now", func(t *testing.T) {
+		from, to := createdWindow(ui.RunCreatedFilter{Newer: true, Duration: time.Hour}, now)
+		assert.Check(t, is.Equal(from, now.Add(-time.Hour)))
+		assert.Check(t, is.Equal(to, now))
+	})
+}
 
 // TestStepRows_UnfinishedStep verifies that a step with no stop time renders "~"
 // in the duration column (rather than a blank gap), while a finished step shows

@@ -275,6 +275,24 @@ func displayRun(ctx context.Context, client *apiclient.Client, r *apiclient.RunV
 	return nil
 }
 
+// createdWindow resolves the explicit [from, to] creation-time window for an
+// active "Created" filter, measured from now. Both bounds are always set —
+// including a 90-day floor on the lower bound for an "older than" query — so the
+// runs endpoints never fall back to their implicit (~14-day) default window. That
+// matters most for "my runs", where an implicit lower bound also narrows the
+// recently-active project set and can hide every matching run (see
+// RUN_DATE_RANGES.md). Call only when created.Active().
+//
+// The relative-age buckets are all well under 90 days, so the older-than window
+// [now-90d, now-duration] is always a valid, non-empty range.
+func createdWindow(created ui.RunCreatedFilter, now time.Time) (from, to time.Time) {
+	cut := now.Add(-created.Duration)
+	if created.Newer {
+		return cut, now // newer than the cut, up to now
+	}
+	return now.AddDate(0, 0, -90), cut // older than the cut, floored at 90 days
+}
+
 // runGetInteractive drives the interactive picker flow used when "circleci run
 // get" is run in a terminal with no run ID:
 //
@@ -331,15 +349,22 @@ func runGetInteractive(ctx context.Context, client *apiclient.Client, projectSlu
 	}
 
 	// fetchRuns lists the 10 most recent runs for a branch as picker items,
-	// optionally narrowed to a pipeline status. It is used for the initial load
-	// and re-run on each branch-scope toggle or status-filter change. Unused in
-	// the "my runs" only flow (there is no project to scope to).
-	fetchRuns := func(ctx context.Context, br, status string) ([]ui.RunGetItem, error) {
+	// optionally narrowed to a pipeline status and a created-age window. It is used
+	// for the initial load and re-run on each branch-scope toggle, status-filter or
+	// created-filter change. Unused in the "my runs" only flow (there is no project
+	// to scope to).
+	fetchRuns := func(ctx context.Context, br, status string, created ui.RunCreatedFilter) ([]ui.RunGetItem, error) {
 		now := time.Now().UTC()
+		// The default window is the last 90 days; a created filter narrows it to
+		// runs older or newer than its relative age (still floored at 90 days).
+		from, to := now.AddDate(0, 0, -90), now
+		if created.Active() {
+			from, to = createdWindow(created, now)
+		}
 		runs, err := client.SearchRunsV3(ctx, apiclient.RunSearchParams{
 			ProjectIDs: []string{projectID},
-			From:       now.AddDate(0, 0, -90),
-			To:         now,
+			From:       from,
+			To:         to,
 			Filter:     apiclient.BuildRunFilter(br, status),
 			Limit:      10,
 		})
@@ -355,8 +380,19 @@ func runGetInteractive(ctx context.Context, client *apiclient.Client, projectSlu
 	// counterpart to "circleci my runs"). Because it spans projects, each row folds
 	// its project (the "org/repo" slug from the run's repository URL) into the ref
 	// bracket as "[project:branch]".
-	fetchMyRuns := func(ctx context.Context, status string) ([]ui.RunGetItem, error) {
-		runs, err := client.ListMyRunsV3(ctx, 10, status)
+	fetchMyRuns := func(ctx context.Context, status string, created ui.RunCreatedFilter) ([]ui.RunGetItem, error) {
+		// Only send explicit bounds when a created filter is active. With no filter,
+		// leave from/to nil so the endpoint applies its own default window (as
+		// "circleci my runs" does). An active filter must always send an explicit
+		// lower bound: an "older than" query would otherwise inherit the endpoint's
+		// implicit ~14-day default from, which also collapses the recently-active
+		// project set to nothing and returns no runs (see RUN_DATE_RANGES.md).
+		params := apiclient.MyRunsParams{Limit: 10, Status: status}
+		if created.Active() {
+			from, to := createdWindow(created, time.Now().UTC())
+			params.From, params.To = &from, &to
+		}
+		runs, err := client.ListMyRunsV3(ctx, params)
 		if err != nil {
 			return nil, apiErr(err, "your runs")
 		}
@@ -369,11 +405,11 @@ func runGetInteractive(ctx context.Context, client *apiclient.Client, projectSlu
 	)
 	if myRunsOnly {
 		sp := iostream.Spinner(ctx, true, "Fetching your recent runs")
-		items, err = fetchMyRuns(ctx, "")
+		items, err = fetchMyRuns(ctx, "", ui.RunCreatedFilter{})
 		sp.Stop()
 	} else {
 		sp := iostream.Spinner(ctx, true, fmt.Sprintf("Fetching recent runs for %s on branch %s", projectSlug, effectiveBranch))
-		items, err = fetchRuns(ctx, effectiveBranch, "")
+		items, err = fetchRuns(ctx, effectiveBranch, "", ui.RunCreatedFilter{})
 		sp.Stop()
 	}
 	if err != nil {

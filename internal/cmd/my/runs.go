@@ -102,7 +102,7 @@ type runEntry struct {
 }
 
 func runMyRuns(ctx context.Context, client *apiclient.Client, limit int, jsonOut bool) error {
-	runs, err := client.ListMyRunsV3(ctx, limit, "")
+	runs, err := client.ListMyRunsV3(ctx, apiclient.MyRunsParams{Limit: limit})
 	if err != nil {
 		return cmdutil.APIErr(err, "your runs",
 			"my.runs_failed", "Could not list your runs.")
