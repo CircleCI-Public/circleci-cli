@@ -1,0 +1,11 @@
+{{- /* Copy-to-clipboard button.
+       Pass (dict "cmd" "<text>") to copy a literal command, or
+       (dict "copyTarget" "<element-id>") to copy an element's text content.
+       Optional "id" sets the button's id attribute. */ -}}
+<button class="copy-btn"{{ with .id }} id="{{ . }}"{{ end }} type="button" aria-label="Copy command"
+        {{- with .cmd }} data-cmd="{{ . }}"{{ end }}{{ with .copyTarget }} data-copy-target="{{ . }}"{{ end }}>
+  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <rect x="5.5" y="2.5" width="8" height="10" rx="1.25"/>
+    <path d="M3.5 4.5H2.75A1.25 1.25 0 0 0 1.5 5.75v7.5c0 .69.56 1.25 1.25 1.25h5.5c.69 0 1.25-.56 1.25-1.25V13"/>
+  </svg>
+</button>

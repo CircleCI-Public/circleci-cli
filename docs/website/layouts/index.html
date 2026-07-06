@@ -34,12 +34,7 @@
               <span class="install-cmd-wrap">
                 <span class="install-prompt">$ </span><span id="install-cmd">brew install circleci-public/circleci/circleci@next</span>
               </span>
-              <button class="copy-btn" id="install-copy-btn" type="button" aria-label="Copy command" data-copy-target="install-cmd">
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                  <rect x="5.5" y="2.5" width="8" height="10" rx="1.25"/>
-                  <path d="M3.5 4.5H2.75A1.25 1.25 0 0 0 1.5 5.75v7.5c0 .69.56 1.25 1.25 1.25h5.5c.69 0 1.25-.56 1.25-1.25V13"/>
-                </svg>
-              </button>
+              {{ partial "copy-button.html" (dict "id" "install-copy-btn" "copyTarget" "install-cmd") }}
             </div>
 
             <ul class="install-menu" id="install-menu" role="listbox" aria-label="Installation method" hidden>
@@ -53,6 +48,27 @@
           </div>
 
           <p class="hero-ref-link"><a href="reference/">View command reference &rarr;</a></p>
+
+          {{/* Getting-started tip */}}
+          <section class="hero-tip" aria-labelledby="hero-tip-title">
+            <h2 class="hero-tip-title" id="hero-tip-title">Authenticate</h2>
+            <div class="hero-tip-row">
+              <div class="hero-tip-bar">
+                <span class="install-cmd-wrap"><span class="install-prompt">$ </span>circleci auth login</span>
+                {{ partial "copy-button.html" (dict "cmd" "circleci auth login") }}
+              </div>
+              <span class="hero-tip-or">or</span>
+              <div class="hero-tip-bar">
+                <span class="install-cmd-wrap"><span class="install-prompt">$ </span>circleci auth signup</span>
+                {{ partial "copy-button.html" (dict "cmd" "circleci auth signup") }}
+              </div>
+            </div>
+            <h2 class="hero-tip-title" id="hero-tip-title-2">Ready to run</h2>
+            <div class="hero-tip-bar">
+              <span class="install-cmd-wrap"><span class="install-prompt">$ </span>circleci run get</span>
+              {{ partial "copy-button.html" (dict "cmd" "circleci run get") }}
+            </div>
+          </section>
 
           <p class="hero-fine">
             Looking for something else? See the

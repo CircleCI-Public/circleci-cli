@@ -58,7 +58,12 @@ var helpTopics = []helpTopic{
 			Run %[1]scircleci auth login%[1]s to authenticate with your CircleCI account. You can also set the
 			%[1]sCIRCLE_TOKEN%[1]s environment variable.
 
+			## Get Running
+
+			Run %[1]scircleci run get%[1]s to view the runs for the current project in an interactive terminal UI (TUI).
+
 			## Model Context Protocol
+
 			The CLI supports the MCP protocol. To enable it, run:
 			
 			Claude:
