@@ -543,9 +543,11 @@ func (d runFilterDialog) activeList() string {
 // meaningless with no age.
 func (d runFilterDialog) createdBody() string {
 	dates := strings.TrimRight(d.dateSel.View().Content, "\n")
+	// Top-align the older/newer toggle beside the date list, dropped one row so its
+	// "Than:" title sits a line below the first date option.
 	return lipgloss.JoinHorizontal(lipgloss.Top,
 		dates,
-		lipgloss.NewStyle().PaddingLeft(6).Render(d.createdDirectionColumn()),
+		lipgloss.NewStyle().PaddingLeft(6).PaddingTop(1).Render(d.createdDirectionColumn()),
 	)
 }
 
