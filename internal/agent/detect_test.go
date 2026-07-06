@@ -23,7 +23,6 @@
 package agent
 
 import (
-	"os"
 	"testing"
 
 	"gotest.tools/v3/assert"
@@ -123,21 +122,8 @@ func TestDetect(t *testing.T) {
 		},
 	}
 
-	// Vars Detect() reads. Cleared before each case so ambient values from the
-	// process running the test suite (e.g. this suite running inside an actual
-	// AI agent) don't leak into the "clean environment" expectations.
-	knownVars := []string{
-		"AI_AGENT", "AGENT",
-		"CODEX_SANDBOX", "CODEX_CI", "CODEX_THREAD_ID",
-		"GEMINI_CLI", "COPILOT_CLI", "OPENCODE", "CLAUDECODE",
-	}
-
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			for _, k := range knownVars {
-				t.Setenv(k, "")
-				assert.NilError(t, os.Unsetenv(k))
-			}
 			for k, v := range tt.env {
 				t.Setenv(k, v)
 			}
