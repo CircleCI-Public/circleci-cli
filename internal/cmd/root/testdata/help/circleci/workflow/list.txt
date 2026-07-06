@@ -47,10 +47,11 @@ For more information about output formatting flags, see `circleci help formattin
 
 ## Arguments
 
-`<run-id>` is optional and selects a single run. It can be:
-- a run UUID (shown in "circleci run list --json")
-- a run number (shown in "circleci run list"); the project is
-  inferred from the git remote unless overridden with --project
+`<run-id>` is optional and selects a single run. A run can be specified by its UUID or number:
+- A run UUID, as shown in `circleci run list --json`
+- A run number, as shown in `circleci run list`.
+
+The project is inferred from the git remote unless overridden with `--project`.
 
 When omitted, workflows for recent runs in the current project are
 listed, grouped by run.

@@ -48,7 +48,7 @@ func newPushCmd() *cobra.Command {
 		Annotations: map[string]string{
 			"help:arguments": heredoc.Docf(`
 				%[1]s<path>%[1]s is the path to a local directory of .rego policy files,
-				e.g. "./policies". Its contents are uploaded as the policy
+				for example, "./policies". Its contents are uploaded as the policy
 				bundle, replacing the existing bundle.
 			`, "`"),
 		},

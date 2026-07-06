@@ -1,4 +1,4 @@
-Usage:  circleci orb get <ns>/<orb>[@<version>]/<orb-id> [flags]
+Usage:  circleci orb get <namespace>/<orb>[@<version>]/<orb-id> [flags]
 
 Flags:
   --jq string   Process values from the response using jq syntax

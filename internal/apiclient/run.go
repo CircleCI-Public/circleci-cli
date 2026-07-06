@@ -219,23 +219,37 @@ func (c *Client) SearchRunsV3(ctx context.Context, params RunSearchParams) ([]Ru
 	return runs, nil
 }
 
+// MyRunsParams configures a ListMyRunsV3 request. All fields are optional: the
+// zero value lists every recent run the endpoint defaults to.
+type MyRunsParams struct {
+	// Limit caps the page size; a value <= 0 uses the server default.
+	Limit int
+	// Status narrows the list to runs with that pipeline status (e.g. "failed",
+	// "on_hold"); an empty status lists every status.
+	Status string
+	// From and To bound the list to runs created within that window
+	// (filter[from]/filter[to], RFC3339). A nil bound is omitted, letting the
+	// endpoint apply its own default for that side.
+	From *time.Time
+	To   *time.Time
+}
+
 // ListMyRunsV3 lists runs triggered by the authenticated user across all
-// projects, via GET /api/v3/runs?filter[user_id]=me. limit caps the page size;
-// a value <= 0 uses the server default. A non-empty status narrows the list to
-// runs with that pipeline status (e.g. "failed", "on_hold"); an empty status
-// lists every status.
+// projects, via GET /api/v3/runs?filter[user_id]=me.
 //
 // Unlike the runs/search endpoint, this endpoint has no pipeline.status filter —
 // it filters on the run's own phase and current_outcome — so the status is
 // converted to those via StatusPhaseOutcome.
-func (c *Client) ListMyRunsV3(ctx context.Context, limit int, status string) ([]RunV3, error) {
-	phase, currentOutcome := StatusPhaseOutcome(status)
+func (c *Client) ListMyRunsV3(ctx context.Context, params MyRunsParams) ([]RunV3, error) {
+	phase, currentOutcome := StatusPhaseOutcome(params.Status)
 	var resp v3List[runWire]
 	if err := c.getV3(ctx, "/runs", &resp,
 		filterParam("user_id", "me"),
 		filterParam("phase", phase),
 		filterParam("current_outcome", currentOutcome),
-		pageLimit(limit)); err != nil {
+		filterParam("from", rfc3339OrEmpty(params.From)),
+		filterParam("to", rfc3339OrEmpty(params.To)),
+		pageLimit(params.Limit)); err != nil {
 		return nil, err
 	}
 
@@ -296,6 +310,15 @@ func StatusPhaseOutcome(status string) (phase, currentOutcome string) {
 	default:
 		return "", ""
 	}
+}
+
+// rfc3339OrEmpty formats t as an RFC3339 timestamp, or returns "" for a nil
+// pointer so filterParam omits the bound entirely.
+func rfc3339OrEmpty(t *time.Time) string {
+	if t == nil {
+		return ""
+	}
+	return t.Format(time.RFC3339)
 }
 
 // BuildRunFilter constructs a filter expression for the V3 runs/search endpoint.

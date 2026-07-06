@@ -38,9 +38,9 @@ Use --force (-f) to skip the prompt for scripting.
 
 ## Arguments
 
-A context can be specified in the form:
-- "context-name"
-- by ID, e.g. 849e7902-802f-4082-8a70-da77dcd084e3
+A context can be specified by name or ID:
+- By name, for example, `context-name`
+- By ID, for example, `849e7902-802f-4082-8a70-da77dcd084e3`
 
 ## Examples
 

@@ -196,7 +196,7 @@ func newTokenCreateCmd() *cobra.Command {
 		Annotations: map[string]string{
 			"help:arguments": heredoc.Docf(`
 				%[1]s<resource-class>%[1]s is the runner resource class to create a token for,
-				in the form "namespace/name" (e.g. my-org/my-runner).
+				in the form %[1]snamespace/name%[1]s (for example, %[1]smy-org/my-runner%[1]s).
 			`, "`"),
 		},
 		Long: heredoc.Doc(`
@@ -286,7 +286,7 @@ func newTokenDeleteCmd() *cobra.Command {
 		Annotations: map[string]string{
 			"help:arguments": heredoc.Docf(`
 				%[1]s<token-id>%[1]s is the ID of the token to delete (a UUID). Find token IDs
-				with: circleci runner token list --resource-class %[1]s<namespace/name>%[1]s
+				with: %[1]scircleci runner token list --resource-class <namespace/name>%[1]s
 			`, "`"),
 		},
 		Long: heredoc.Docf(`

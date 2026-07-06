@@ -7,8 +7,14 @@ profile automatically. Supported shells: bash, zsh.
 
 To install manually, add one of the following to your shell profile:
 
-  bash:  source <(circleci completion bash)
-  zsh:   source <(circleci completion zsh)
+  bash:        source <(circleci completion bash)
+  zsh:         source <(circleci completion zsh)
+  fish:        circleci completion fish | source
+  powershell:  circleci completion powershell | Out-String | Invoke-Expression
+
+PowerShell has no auto-loaded completion directory, so completions must be
+registered from your profile. Append the powershell line above to your
+$PROFILE to enable them in every session.
 
 ## Usage
 

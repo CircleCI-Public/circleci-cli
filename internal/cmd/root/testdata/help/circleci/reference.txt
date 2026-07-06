@@ -38,6 +38,11 @@ Generate, validate, process and pack config YAML
 
 Generate .circleci/config.yml from a repository scan
 
+**Arguments:**
+
+`<path>` is optional and is the directory to scan. Defaults to
+the current directory.
+
 #### `circleci config pack <path>`
 
 Bundle split config files into a single YAML document
@@ -95,8 +100,8 @@ List or download artifacts for a job
 **Arguments:**
 
 `<job-id>` is the UUID of the job whose artifacts to list or download.
-Job UUIDs are shown in the output of "circleci workflow get" and
-"circleci run get --json".
+Job UUIDs are shown in the output of `circleci workflow get` and
+`circleci run get --json`.
 
 #### `circleci job get <job-id> [flags]`
 
@@ -111,7 +116,7 @@ Get job details
 **Arguments:**
 
 `<job-id>` is the UUID of the job to look up. Job UUIDs are shown in
-the output of "circleci workflow get" and "circleci run get --json".
+the output of `circleci workflow get` and `circleci run get --json`.
 
 #### `circleci job open <job-id>`
 
@@ -120,7 +125,7 @@ Open job in browser
 **Arguments:**
 
 `<job-id>` is the UUID of the job to look up. Job UUIDs are shown in
-the output of "circleci workflow get" and "circleci run get --json".
+the output of `circleci workflow get` and `circleci run get --json`.
 
 #### `circleci job output <command>`
 
@@ -140,8 +145,8 @@ Get the output of a job step
 **Arguments:**
 
 `<job-id>` is the UUID of the job whose step output to fetch. Job UUIDs
-are shown in the output of "circleci workflow get" and "circleci job get".
-Use --step-num to select which step's output to read.
+are shown in the output of `circleci workflow get` and `circleci job get`.
+Use `--step-num` to select which step's output to read.
 
 ##### `circleci job output list <job-id> [flags]`
 
@@ -158,8 +163,8 @@ List a job's steps with their output
 **Arguments:**
 
 `<job-id>` is the UUID of the job whose steps and output to list. Job
-UUIDs are shown in the output of "circleci workflow get" and
-"circleci job get".
+UUIDs are shown in the output of `circleci workflow get` and
+`circleci job get`.
 
 ### `circleci pipeline <command>`
 
@@ -232,21 +237,22 @@ Cancel a run
 
 **Arguments:**
 
-`<run-number-or-id>` identifies the run to cancel. It can be:
-- a run UUID (shown in "circleci run list --json")
-- a run number (shown in "circleci run list"); the project is
-  inferred from the git remote unless overridden with --project
+`<run-number-or-id>` identifies the run to cancel. A run can be specified by its UUID or number:
+- A run UUID, as shown in `circleci run list --json`
+- A run number, as shown in `circleci run list`.
+
+The project is inferred from the git remote unless overridden with `--project`.
 
 #### `circleci run get [<run-id>] [flags]`
 
 Get a run's status
 
-| Flag                  | Description                                                 |
-| --------------------- | ----------------------------------------------------------- |
-| `-b, --branch string` | Branch name (defaults to current branch)                    |
-| `--jq string`         | Process values from the response using jq syntax            |
-| `--json`              | Output as JSON                                              |
-| `--project string`    | Project slug (e.g. gh/org/repo); used for latest-run lookup |
+| Flag                  | Description                                                                 |
+| --------------------- | --------------------------------------------------------------------------- |
+| `-b, --branch string` | Branch name (defaults to the current branch, or main when --project is set) |
+| `--jq string`         | Process values from the response using jq syntax                            |
+| `--json`              | Output as JSON                                                              |
+| `--project string`    | Project slug (e.g. gh/org/repo); used for latest-run lookup                 |
 
 
 **Arguments:**
@@ -254,7 +260,8 @@ Get a run's status
 `<run-id>` is optional and is the UUID of the run to look up. When
 omitted, the latest run is resolved from the project and branch
 inferred from the current git repository's remote and checked-out
-branch (override with --project and --branch).
+branch (override with `--project` and `--branch`). With
+`--project` set, the branch defaults to main unless `--branch` is given.
 
 #### `circleci run list [flags]`
 
@@ -313,13 +320,14 @@ Watch a run until it completes
 
 **Arguments:**
 
-`<run-id>` is optional and selects the run to watch. It can be:
-- a run UUID (shown in "circleci run list --json")
-- a run number (shown in "circleci run list"); the project is
-  inferred from the git remote unless overridden with --project
+`<run-id>` is optional and selects the run to watch. A run can be specified by its UUID or number:
+- A run UUID, as shown in `circleci run list --json`
+- A run number, as shown in `circleci run list`.
+
+The project is inferred from the git remote unless overridden with `--project`.
 
 When omitted, the latest run for the current branch is watched
-(override the branch with --branch, or match a commit with --sha).
+(override the branch with `--branch`, or match a commit with `--sha`).
 
 ### `circleci testresult <command>`
 
@@ -340,10 +348,10 @@ Get a single test result by name
 **Arguments:**
 
 `<job-id>` is the UUID of the job whose test results to search. Job
-UUIDs are shown in "circleci job get" and "circleci run get --json".
+UUIDs are shown in `circleci job get` and `circleci run get --json`.
 
 `<name>` is the exact test name to look up. If more than one test
-shares that name, use --filter classname=`<value>` to disambiguate.
+shares that name, use `--filter classname=<value>` to disambiguate.
 
 #### `circleci testresult list <job-id> [flags]`
 
@@ -362,7 +370,7 @@ List test results for a job
 **Arguments:**
 
 `<job-id>` is the UUID of the job whose test results to list. Job
-UUIDs are shown in "circleci job get" and "circleci run get --json".
+UUIDs are shown in `circleci job get` and `circleci run get --json`.
 
 **Aliases:**
 
@@ -385,7 +393,7 @@ Cancel a running workflow
 **Arguments:**
 
 `<workflow-id>` is the UUID of the workflow to cancel. Workflow IDs are
-shown in the output of "circleci run get".
+shown in the output of `circleci run get`.
 
 #### `circleci workflow get <workflow-id> [flags]`
 
@@ -400,7 +408,7 @@ Get workflow details
 **Arguments:**
 
 `<workflow-id>` is the UUID of the workflow to look up. Workflow IDs are
-shown in the output of "circleci run get".
+shown in the output of `circleci run get`.
 
 #### `circleci workflow list [<run-id>] [flags]`
 
@@ -417,10 +425,11 @@ List workflows for a run or recent runs
 
 **Arguments:**
 
-`<run-id>` is optional and selects a single run. It can be:
-- a run UUID (shown in "circleci run list --json")
-- a run number (shown in "circleci run list"); the project is
-  inferred from the git remote unless overridden with --project
+`<run-id>` is optional and selects a single run. A run can be specified by its UUID or number:
+- A run UUID, as shown in `circleci run list --json`
+- A run number, as shown in `circleci run list`.
+
+The project is inferred from the git remote unless overridden with `--project`.
 
 When omitted, workflows for recent runs in the current project are
 listed, grouped by run.
@@ -437,7 +446,7 @@ Open workflow in browser
 **Arguments:**
 
 `<workflow-id>` is the UUID of the workflow to look up. Workflow IDs are
-shown in the output of "circleci run get".
+shown in the output of `circleci run get`.
 
 #### `circleci workflow rerun <workflow-id> [flags]`
 
@@ -451,7 +460,7 @@ Rerun a workflow
 **Arguments:**
 
 `<workflow-id>` is the UUID of the workflow to rerun. Workflow IDs are
-shown in the output of "circleci run get".
+shown in the output of `circleci run get`.
 
 ## Management Commands
 
@@ -470,8 +479,8 @@ Delete an iOS certificate
 
 **Arguments:**
 
-`<cert-id>` is the ID of the certificate to delete
-(see: circleci certificate list).
+`<cert-id>` is the ID of the certificate to delete.
+Find the certificate ID with `circleci certificate list`.
 
 **Aliases:**
 
@@ -524,7 +533,7 @@ Create a new context
 
 **Arguments:**
 
-The name for the new context, e.g. "build-secrets".
+`<name>` is the name for the new context, for example, `build-secrets`.
 
 #### `circleci context delete <context-id|context-name> [flags]`
 
@@ -538,9 +547,9 @@ Delete a context
 
 **Arguments:**
 
-A context can be specified in the form:
-- "context-name"
-- by ID, e.g. 849e7902-802f-4082-8a70-da77dcd084e3
+A context can be specified by name or ID:
+- By name, for example, `context-name`
+- By ID, for example, `849e7902-802f-4082-8a70-da77dcd084e3`
 
 **Aliases:**
 
@@ -560,9 +569,9 @@ Get details of a context
 
 **Arguments:**
 
-A context can be specified in the form:
-- "context-name"
-- by ID, e.g. 849e7902-802f-4082-8a70-da77dcd084e3
+A context can be specified by name or ID:
+- By name, for example, `context-name`
+- By ID, for example, `849e7902-802f-4082-8a70-da77dcd084e3`
 
 #### `circleci context list [flags]`
 
@@ -609,9 +618,9 @@ Add a restriction to a context
 
 **Arguments:**
 
-A context can be specified in the form:
-- "context-name"
-- by ID, e.g. 849e7902-802f-4082-8a70-da77dcd084e3
+A context can be specified by name or ID:
+- By name, for example, `context-name`
+- By ID, for example, `849e7902-802f-4082-8a70-da77dcd084e3`
 
 ##### `circleci context restriction delete <context-id|context-name> [flags]`
 
@@ -626,9 +635,9 @@ Delete a restriction from a context
 
 **Arguments:**
 
-A context can be specified in the form:
-- "context-name"
-- by ID, e.g. 849e7902-802f-4082-8a70-da77dcd084e3
+A context can be specified by name or ID:
+- By name, for example, `context-name`
+- By ID, for example, `849e7902-802f-4082-8a70-da77dcd084e3`
 
 **Aliases:**
 
@@ -652,9 +661,9 @@ Delete an environment variable from a context
 
 **Arguments:**
 
-A context can be specified in the form:
-- "context-name"
-- by ID, e.g. 849e7902-802f-4082-8a70-da77dcd084e3
+A context can be specified by name or ID:
+- By name, for example, `context-name`
+- By ID, for example, `849e7902-802f-4082-8a70-da77dcd084e3`
 
 **Aliases:**
 
@@ -674,9 +683,9 @@ List environment variables in a context
 
 **Arguments:**
 
-A context can be specified in the form:
-- "context-name"
-- by ID, e.g. 849e7902-802f-4082-8a70-da77dcd084e3
+A context can be specified by name or ID:
+- By name, for example, `context-name`
+- By ID, for example, `849e7902-802f-4082-8a70-da77dcd084e3`
 
 **Aliases:**
 
@@ -696,9 +705,9 @@ Set an environment variable in a context
 
 **Arguments:**
 
-A context can be specified in the form:
-- "context-name"
-- by ID, e.g. 849e7902-802f-4082-8a70-da77dcd084e3
+A context can be specified by name or ID:
+- By name, for example, `context-name`
+- By ID, for example, `849e7902-802f-4082-8a70-da77dcd084e3`
 
 ### `circleci deploy <command>`
 
@@ -827,7 +836,7 @@ Create a namespace
 **Arguments:**
 
 `<name>` is the namespace name to create. It must be globally unique
-across CircleCI, e.g. "myorg".
+across CircleCI, for example, `myorg`.
 
 #### `circleci namespace delete <name> [flags]`
 
@@ -841,7 +850,7 @@ Delete a namespace and all its orbs
 
 **Arguments:**
 
-`<name>` is the name of the namespace to delete, e.g. "myorg".
+`<name>` is the name of the namespace to delete, for example, "myorg".
 
 **Aliases:**
 
@@ -860,7 +869,7 @@ Get details of a namespace
 
 **Arguments:**
 
-`<name>` is the name of the namespace to look up, e.g. "myorg".
+`<name>` is the name of the namespace to look up, for example, `myorg`.
 
 #### `circleci namespace rename <name> <new-name> [flags]`
 
@@ -874,21 +883,21 @@ Rename a namespace
 
 **Arguments:**
 
-- `<name>` is the current name of the namespace, e.g. "oldname".
-- `<new-name>` is the new name to assign, e.g. "newname".
+- `<name>` is the current name of the namespace, for example, `oldname`.
+- `<new-name>` is the new name to assign, for example, `newname`.
 
 ### `circleci orb <command>`
 
 Create, publish and inspect orbs (reusable config)
 
-#### `circleci orb add-to-category <ns>/<orb> <category>`
+#### `circleci orb add-to-category <namespace>/<orb> <category>`
 
 Add an orb to a registry category
 
 **Arguments:**
 
-- `<ns>/<orb>`: the orb to add, as "namespace/orb-name"
-- `<category>`: the registry category name, e.g. "Testing"
+- `<namespace>/<orb>` is the orb to add, for example, `namespace/orb-name`.
+- `<category>` is the registry category name, for example, `Testing`.
 
 #### `circleci orb create <namespace>/<orb> [flags]`
 
@@ -903,10 +912,10 @@ Reserve an orb name in a namespace
 
 **Arguments:**
 
-- `<namespace>/<orb>`: the orb name to reserve, as "namespace/orb-name".
+- `<namespace>/<orb>` is the orb name to reserve, for example, `namespace/orb-name`.
   The namespace must already exist.
 
-#### `circleci orb diff <ns>/<orb> --from <v1> --to <v2> [flags]`
+#### `circleci orb diff <namespace>/<orb> --from <v1> --to <v2> [flags]`
 
 Show a unified diff between two orb versions
 
@@ -918,9 +927,9 @@ Show a unified diff between two orb versions
 
 **Arguments:**
 
-- `<ns>/<orb>`: the orb to diff, as "namespace/orb-name"
+- `<namespace>/<orb>` is the orb to diff, for example, `namespace/orb-name`.
 
-#### `circleci orb get <ns>/<orb>[@<version>]/<orb-id> [flags]`
+#### `circleci orb get <namespace>/<orb>[@<version>]/<orb-id> [flags]`
 
 Get orb metadata and statistics
 
@@ -932,9 +941,9 @@ Get orb metadata and statistics
 
 **Arguments:**
 
-An orb can be specified in the form:
-- "namespace/orb-name", optionally with a version, e.g. "namespace/orb-name@1.2.3"
-- by orb ID (UUID), e.g. 849e7902-802f-4082-8a70-da77dcd084e3
+An orb can be specified by name or ID:
+- By name, for example, `namespace/orb-name`, optionally with a version, for example, `namespace/orb-name@1.2.3`
+- By ID, the orb ID (UUID), for example, `849e7902-802f-4082-8a70-da77dcd084e3`
 
 #### `circleci orb list [<namespace>] [flags]`
 
@@ -950,7 +959,7 @@ List orbs in the registry
 
 **Arguments:**
 
-- `<namespace>`: optional. When given, lists all orbs in that namespace.
+- `<namespace>` is optional. When given, lists all orbs in that namespace.
   When omitted, lists certified orbs globally.
 
 **Aliases:**
@@ -974,7 +983,7 @@ Pack a multi-file orb directory into a single YAML
 
 **Arguments:**
 
-- `<path>`: path to an orb source directory or a single orb YAML file.
+- `<path>` is the path to an orb source directory or a single orb YAML file.
 
 #### `circleci orb process <path> [flags]`
 
@@ -987,13 +996,13 @@ Validate and print expanded orb YAML
 
 **Arguments:**
 
-- `<path>`: path to an orb YAML file. Pass '-' to read from stdin.
+- `<path>` is the path to an orb YAML file. Pass `-` to read from stdin.
 
 #### `circleci orb publish <command>`
 
 Publish orb versions
 
-##### `circleci orb publish increment <path> <ns>/<orb> --bump major|minor|patch [flags]`
+##### `circleci orb publish increment <path> <namespace>/<orb> --bump major|minor|patch [flags]`
 
 Increment and publish a new orb version
 
@@ -1004,10 +1013,10 @@ Increment and publish a new orb version
 
 **Arguments:**
 
-- `<path>`: path to the orb YAML to publish. Pass '-' to read from stdin.
-- `<ns>/<orb>`: the orb to publish, as "namespace/orb-name"
+- `<path>` is the path to the orb YAML to publish. Pass `-` to read from stdin.
+- `<namespace>/<orb>` is the orb to publish, for example, `namespace/orb-name`.
 
-##### `circleci orb publish promote <ns>/<orb>@dev:<label> --bump major|minor|patch [flags]`
+##### `circleci orb publish promote <namespace>/<orb>@dev:<label> --bump major|minor|patch [flags]`
 
 Promote a dev orb version to a stable semver
 
@@ -1018,28 +1027,28 @@ Promote a dev orb version to a stable semver
 
 **Arguments:**
 
-- `<ns>/<orb>@dev:<label>`: the dev version to promote, e.g. "namespace/orb-name@dev:my-branch"
+- `<namespace>/<orb>@dev:<label>` is the dev version to promote, for example, `namespace/orb-name@dev:my-branch`
 
-#### `circleci orb remove-from-category <ns>/<orb> <category>`
+#### `circleci orb remove-from-category <namespace>/<orb> <category>`
 
 Remove an orb from a registry category
 
 **Arguments:**
 
-- `<ns>/<orb>`: the orb to remove, as "namespace/orb-name"
-- `<category>`: the registry category name, e.g. "Testing"
+- `<namespace>/<orb>` is the orb to remove, for example, `namespace/orb-name`
+- `<category>` is the registry category name, for example, `Testing`
 
-#### `circleci orb source <ns>/<orb>[@<version>]`
+#### `circleci orb source <namespace>/<orb>[@<version>]`
 
 Print the YAML source of an orb version
 
 **Arguments:**
 
-- `<ns>/<orb>[@<version>]`: the orb to print, as "namespace/orb-name".
-  Optionally append `@<version>` (e.g. @1.2.3, @volatile, or @dev:my-branch).
+- `<namespace>/<orb>[@<version>]` is the orb to print, for example, `namespace/orb-name`.
+  Optionally append `@<version>` (for example, `@1.2.3`, `@volatile`, or `@dev:my-branch`).
   When omitted, the latest published version is shown.
 
-#### `circleci orb unlist <ns>/<orb> [flags]`
+#### `circleci orb unlist <namespace>/<orb> [flags]`
 
 Hide or restore an orb in the registry
 
@@ -1050,7 +1059,7 @@ Hide or restore an orb in the registry
 
 **Arguments:**
 
-- `<ns>/<orb>`: the orb to update, as "namespace/orb-name"
+- `<namespace>/<orb>` is the orb to update, for example, `namespace/orb-name`
 
 #### `circleci orb validate <path> [flags]`
 
@@ -1063,7 +1072,7 @@ Validate an orb YAML file
 
 **Arguments:**
 
-- `<path>`: path to an orb YAML file. Pass '-' to read from stdin.
+- `<path>` is the path to an orb YAML file. Pass `-` to read from stdin.
 
 ### `circleci policy <command>`
 
@@ -1100,7 +1109,7 @@ Show diff between local and remote policy bundles
 **Arguments:**
 
 `<path>` is the path to a local directory of .rego policy files,
-e.g. "./policies". Its contents are compared against the remote
+for example, "./policies". Its contents are compared against the remote
 policy bundle.
 
 #### `circleci policy fetch [policy-name] [flags]`
@@ -1114,6 +1123,11 @@ Download the remote policy bundle
 | `--org string`            | Organization slug (e.g. gh/myorg) or UUID (required) |
 | `--policy-context string` | Policy context (default "config")                    |
 
+
+**Arguments:**
+
+`<policy-name>` is optional and fetches a single policy.
+When omitted, the full policy bundle is fetched.
 
 #### `circleci policy logs [decision-id] [flags]`
 
@@ -1134,6 +1148,11 @@ Get policy decision logs
 | `--status string`         | Filter by decision status (PASS, SOFT_FAIL, HARD_FAIL, ERROR) |
 
 
+**Arguments:**
+
+`<decision-id>` is optional and retrieves a single log entry.
+When omitted, all logs are returned (paginated automatically).
+
 #### `circleci policy push <path> [flags]`
 
 Push a policy bundle to CircleCI
@@ -1150,7 +1169,7 @@ Push a policy bundle to CircleCI
 **Arguments:**
 
 `<path>` is the path to a local directory of .rego policy files,
-e.g. "./policies". Its contents are uploaded as the policy
+for example, "./policies". Its contents are uploaded as the policy
 bundle, replacing the existing bundle.
 
 #### `circleci policy settings <command>`
@@ -1199,8 +1218,8 @@ Create a new project
 **Arguments:**
 
 [project-name] is the name for the new project and is optional.
-When omitted, the current git repository's name is used: in a
-terminal you are prompted with it as the default, and in
+When omitted, the current git repository's name is used: In a
+terminal you are prompted with the name of the current git repository as the default, and in
 non-interactive mode it is used automatically.
 
 #### `circleci project dlc <command>`
@@ -1383,7 +1402,7 @@ Generate a runner agent configuration file
 **Arguments:**
 
 `<resource-class>` is the runner resource class to generate config for,
-in the form "namespace/name" (e.g. my-org/my-runner).
+in the form `namespace/name` (for example, `my-org/my-runner`).
 
 #### `circleci runner instance <command>`
 
@@ -1433,8 +1452,8 @@ Create a runner resource class
 
 **Arguments:**
 
-The resource class name must be given in the form "namespace/name",
-where namespace is your organization name (e.g. my-org/my-runner).
+The resource class name must be given in the form `namespace/name`,
+where namespace is your organization name (for example, `my-org/my-runner`).
 
 ##### `circleci runner resource-class delete <namespace>/<name> [flags]`
 
@@ -1447,8 +1466,8 @@ Delete a runner resource class
 
 **Arguments:**
 
-The resource class to delete, given in the form "namespace/name",
-where namespace is your organization name (e.g. my-org/my-runner).
+The resource class to delete, given in the form `namespace/name`,
+where namespace is your organization name (for example, `my-org/my-runner`).
 
 **Aliases:**
 
@@ -1501,7 +1520,7 @@ Create a token for a resource class
 **Arguments:**
 
 `<resource-class>` is the runner resource class to create a token for,
-in the form "namespace/name" (e.g. my-org/my-runner).
+in the form `namespace/name` (for example, `my-org/my-runner`).
 
 ##### `circleci runner token delete <token-id> [flags]`
 
@@ -1515,7 +1534,7 @@ Delete a runner token
 **Arguments:**
 
 `<token-id>` is the ID of the token to delete (a UUID). Find token IDs
-with: circleci runner token list --resource-class `<namespace/name>`
+with: `circleci runner token list --resource-class <namespace/name>`
 
 **Aliases:**
 
@@ -1568,7 +1587,7 @@ Delete an iOS signing config
 **Arguments:**
 
 `<signing-config-id>` is the ID of the signing config to delete
-(see: circleci signing-config list).
+Use `circleci signing-config list` to find the ID.
 
 **Aliases:**
 
@@ -1831,6 +1850,11 @@ Guided onboarding: scan, test, generate config, sign up
 | `--signup`     | Skip prompt: sign up for CircleCI                 |
 
 
+**Arguments:**
+
+`<path>` is optional and is the directory to scan. Defaults to
+the current directory.
+
 ### `circleci setting <command>`
 
 Configure the CLI itself (token, host, defaults)
@@ -1856,9 +1880,9 @@ Set a CLI setting
 
 **Arguments:**
 
-- `<key>` is the setting to change: token, host, telemetry, or theme.
-- `<value>` is the value to store. Pass "-" to read it from stdin.
-  May be omitted for "theme" to pick interactively.
+- `<key>` is the setting to change. Options are: `token`, `host`, `telemetry`, or `theme`.
+- `<value>` is the value to store. Pass `-` to read it from stdin.
+  May be omitted for `theme` to pick interactively.
 
 #### `circleci setting unset <key>`
 
@@ -1866,7 +1890,7 @@ Remove a stored CLI setting
 
 **Arguments:**
 
-`<key>` is the setting to remove. Currently only "token" is supported.
+`<key>` is the setting to remove. Currently only `token` is supported.
 
 ## Additional Commands
 
@@ -1886,8 +1910,8 @@ Call the CircleCI REST API directly
 **Arguments:**
 
 `<path>` is the request path. It is relative to /api/v3 by default
-(e.g. "projects/{project-id}"). To target
-a different version prefix, include it explicitly, e.g. "api/v2/me".
+(for example, "projects/{project-id}"). To target
+a different version prefix, include it explicitly, for example, "api/v2/me".
 
 ### `circleci version [flags]`
 

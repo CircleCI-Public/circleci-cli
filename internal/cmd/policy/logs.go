@@ -54,6 +54,12 @@ func newLogsCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "logs [decision-id]",
 		Short: "Get policy decision logs",
+		Annotations: map[string]string{
+			"help:arguments": heredoc.Docf(`
+				%[1]s<decision-id>%[1]s is optional and retrieves a single log entry.
+				When omitted, all logs are returned (paginated automatically).
+			`, "`"),
+		},
 		Long: heredoc.Doc(`
 			Retrieve policy decision logs for an owner.
 

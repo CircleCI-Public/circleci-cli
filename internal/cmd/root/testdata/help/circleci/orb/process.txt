@@ -29,7 +29,7 @@ Pass '-' as the path to read from stdin.
 
 ## Arguments
 
-- `<path>`: path to an orb YAML file. Pass '-' to read from stdin.
+- `<path>` is the path to an orb YAML file. Pass `-` to read from stdin.
 
 ## Examples
 

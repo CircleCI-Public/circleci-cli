@@ -51,10 +51,10 @@ func newGetCmd() *cobra.Command {
 		Annotations: map[string]string{
 			"help:arguments": heredoc.Docf(`
 				%[1]s<job-id>%[1]s is the UUID of the job whose test results to search. Job
-				UUIDs are shown in "circleci job get" and "circleci run get --json".
+				UUIDs are shown in %[1]scircleci job get%[1]s and %[1]scircleci run get --json%[1]s.
 
 				%[1]s<name>%[1]s is the exact test name to look up. If more than one test
-				shares that name, use --filter classname=%[1]s<value>%[1]s to disambiguate.
+				shares that name, use %[1]s--filter classname=<value>%[1]s to disambiguate.
 			`, "`"),
 		},
 		Long: heredoc.Docf(`
@@ -62,15 +62,15 @@ func newGetCmd() *cobra.Command {
 
 			The name must match exactly. When several tests share a name — for
 			example the same test running under different suites — the lookup is
-			ambiguous and fails; pass --filter classname=%[1]s<value>%[1]s to narrow to one.
+			ambiguous and fails; pass %[1]s--filter classname=<value>%[1]s to narrow to one.
 			classname is matched as a case-insensitive substring and may be
 			repeated to accept any of several suites.
 
 			To browse or filter across all of a job's tests, use
-			'circleci testresult list'.
+			%[1]scircleci testresult list%[1]s.
 
 			By default the message is replayed through a virtual terminal and
-			embedded in the output. Pass --plain to print only the message exactly
+			embedded in the output. Pass %[1]s--plain%[1]s to print only the message exactly
 			as the test runner recorded it (ANSI and all), which is handy for
 			piping a failure's output to another tool.
 

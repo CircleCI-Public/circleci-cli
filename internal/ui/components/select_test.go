@@ -124,6 +124,41 @@ func TestSelectModel_FitsWithoutScrolling(t *testing.T) {
 	assert.Check(t, !strings.Contains(view, " of "), "unexpected scroll indicator: %q", view)
 }
 
+// TestSelectModel_Children verifies WithChildren renders a value verbatim on its
+// own line, indented beneath its option, that the child is not a selectable row
+// (the cursor moves option-to-option, skipping it), and that options without a
+// child render none.
+func TestSelectModel_Children(t *testing.T) {
+	m := components.NewSelectModel("Pick", []string{"current branch", "all branches"}).
+		WithChildren([]string{"[main]", ""})
+	view := finalView(t, start(t, m, 80, 24))
+
+	// The child renders on its own line, indented past its option's label, and
+	// only where set.
+	assert.Check(t, cmp.Contains(view, "[main]"))
+	assert.Check(t, strings.Index(view, "current branch") < strings.Index(view, "[main]"),
+		"child should render beneath its option: %q", view)
+	assert.Check(t, !strings.Contains(view, "[all"), "an option with no child renders none")
+
+	// The child is decoration, not a selectable row: one Down moves from the first
+	// option straight to the second, so confirming lands on index 1.
+	assert.Check(t, cmp.Equal(runSelectChildren(t, tea.KeyDown), 1))
+}
+
+// runSelectChildren drives a two-option picker (the first carrying a child) with
+// the given keys followed by Enter, and returns the confirmed index.
+func runSelectChildren(t *testing.T, codes ...rune) int {
+	t.Helper()
+	m := components.NewSelectModel("Pick", []string{"current branch", "all branches"}).
+		WithChildren([]string{"main", ""})
+	tm := start(t, m, 80, 24)
+	pressKeys(tm, codes...)
+	pressKeys(tm, tea.KeyEnter)
+	fm := tm.FinalModel(t, teatest.WithFinalTimeout(time.Second)).(selectHarness)
+	assert.Check(t, fm.m.Done(), "expected the picker to have confirmed a choice")
+	return fm.m.Selected()
+}
+
 // TestSelectModel_Note verifies WithNote renders its line(s) between the title
 // and the options, and that a note reserves rows so the option window shrinks
 // accordingly (leaving room for the note without overflowing the height).

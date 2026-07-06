@@ -327,6 +327,53 @@ a:hover {
   color: var(--color-site-heading);
 }
 
+.hero-tip {
+  margin: 0 0 1rem;
+  font-size: 0.875rem;
+  border: 1px solid var(--color-site-border-strong);
+  border-radius: 0.5rem;
+  background-color: var(--color-site-surface);
+  padding: 1rem;
+}
+
+.hero-tip-title {
+  margin: 0 0 0.625rem;
+  font-family: var(--font-sans);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--color-site-heading);
+}
+
+.hero-tip-title:not(:first-child) {
+  margin-top: 1rem;
+}
+
+.hero-tip-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  column-gap: 0.75rem;
+  row-gap: 0.375rem;
+}
+
+.hero-tip-or {
+  color: var(--color-site-muted);
+}
+
+.hero-tip-bar {
+  display: flex;
+  width: fit-content;
+  align-items: center;
+  border: 1px solid var(--color-site-border-strong);
+  border-radius: 0.5rem;
+  background-color: var(--color-site-surface);
+  padding-block: 0.5rem;
+}
+
+.hero-tip-bar .copy-btn {
+  margin-right: 0.25rem;
+}
+
 @media (width < 56rem) {
   .hero-screenshot { display: none; }
 }
@@ -490,7 +537,8 @@ a:hover {
 
 /* ── Install / picker bar ───────────────────────────────────────────────── */
 .install-bar {
-  display: inline-flex;
+  display: flex;
+  width: 100%;
   align-items: center;
   overflow: hidden;
   border-radius: 0.5rem;
@@ -535,6 +583,10 @@ a:hover {
 }
 
 .install-cmd-wrap {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
   padding-inline: 1rem;
   font-family: var(--font-mono);
   font-size: 0.875rem;
@@ -612,20 +664,6 @@ a:hover {
 .install-menu .picker-divider {
   margin-block: 0.25rem;
   border-top: 1px solid var(--color-site-border);
-}
-
-@media (width < 52rem) {
-  .install-bar {
-    display: flex;
-    width: 100%;
-  }
-
-  .install-cmd-wrap {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    flex: 1;
-    min-width: 0;
-  }
 }
 
 /* ── TOC (sidebar nav) ──────────────────────────────────────────────────── */
@@ -733,6 +771,20 @@ a:hover {
   color: var(--color-site-muted);
 }
 
+.content h5 {
+  margin-top: 1.25rem;
+  margin-bottom: 0.375rem;
+  font-size: 1.05rem;
+  color: var(--color-site-muted);
+}
+
+.content h6 {
+  margin-top: 1rem;
+  margin-bottom: 0.375rem;
+  font-size: 1rem;
+  color: var(--color-site-muted);
+}
+
 /* Section headings are self-anchoring links (see render-heading.html). The
    link inherits the heading's color/font so it reads as a heading, with a
    faint "#" affordance that brightens on hover/focus. */
@@ -784,7 +836,9 @@ a:hover {
 .content h1 code,
 .content h2 code,
 .content h3 code,
-.content h4 code {
+.content h4 code,
+.content h5 code,
+.content h6 code {
   background-color: transparent;
   padding: 0;
   /* Don't shrink: command-name headings are entirely <code>, so the default

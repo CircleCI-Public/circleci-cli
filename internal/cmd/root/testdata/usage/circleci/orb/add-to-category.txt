@@ -1,1 +1,1 @@
-Usage:  circleci orb add-to-category <ns>/<orb> <category>
+Usage:  circleci orb add-to-category <namespace>/<orb> <category>
