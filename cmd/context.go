@@ -89,9 +89,6 @@ are injected at runtime.`,
 				VCSType: vcsType,
 				OrgName: orgName,
 			}
-			params.OrgID = orgID
-			params.VCSType = vcsType
-			params.OrgName = orgName
 			org, err := api.GetOrganization(gqlClient, params)
 			if err != nil {
 				return err
@@ -184,9 +181,6 @@ are injected at runtime.`,
 				VCSType: vcsType,
 				OrgName: orgName,
 			}
-			params.OrgID = orgID
-			params.VCSType = vcsType
-			params.OrgName = orgName
 			org, err := api.GetOrganization(gqlClient, params)
 			if err != nil {
 				return err
