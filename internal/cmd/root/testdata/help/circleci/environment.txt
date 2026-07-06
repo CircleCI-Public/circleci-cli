@@ -4,6 +4,9 @@ being prompted to authenticate and takes precedence over previously stored crede
 
 `CIRCLE_HOST`: specify the CircleCI hostname.
 
+`CIRCLE_ORG`: default organization for org-scoped commands when `--org` is omitted.
+Use an organization slug such as `gh/myorg`.
+
 `NO_COLOR`: set to any value to avoid printing ANSI escape sequences for color output.
 The `--no-color` flag has the same effect.
 
