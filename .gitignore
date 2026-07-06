@@ -24,7 +24,6 @@ Thumbs.db
 
 # Editor
 .idea/
-.vscode/
 *.swp
 *.swo
 
@@ -34,3 +33,7 @@ Thumbs.db
 # chunk active sandbox tracking
 .chunk/sandbox.json
 .chunk/sandbox.*.json
+branch_structure.json
+temp_auto_push.bat
+temp_interactive_push.bat
+.gitignore
