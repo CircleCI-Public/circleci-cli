@@ -74,26 +74,6 @@ func TestJobOutputCondensed_Execution(t *testing.T) {
 	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 }
 
-func TestJobOutputCondensed_JSON(t *testing.T) {
-	fake := fakes.NewCircleCI(t)
-	fake.AddJobStdoutCondensed(testJobID, 0, 103, "FAIL: TestSomething\nexit status 1\n")
-
-	env := testenv.New(t)
-	env.Token = "testtoken"
-	env.CircleCIURL = fake.URL()
-
-	result := binary.RunCLI(t, binary.RunOpts{
-		Binary:  binaryPath,
-		Args:    []string{"job", "output", "condensed", testJobID, "--step-num", "103", "--json"},
-		Env:     env.Environ(),
-		WorkDir: t.TempDir(),
-	})
-
-	assert.Check(t, cmp.Equal(result.ExitCode, 0))
-	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
-	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
-}
-
 func TestJobOutputCondensed_MissingStepNum(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
 

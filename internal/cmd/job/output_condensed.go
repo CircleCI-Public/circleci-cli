@@ -38,7 +38,6 @@ func newOutputCondensedCmd() *cobra.Command {
 	var (
 		execution int
 		stepNum   int
-		jsonOut   bool
 	)
 
 	cmd := &cobra.Command{
@@ -64,8 +63,6 @@ func newOutputCondensedCmd() *cobra.Command {
 
 			For parallel jobs, use --execution to choose which executor's output
 			to read; it defaults to the first execution (index 0).
-
-			JSON fields: execution, step_num, condensed_stdout
 		`),
 		Example: heredoc.Doc(`
 			# Get the condensed output of step 3 in a job
@@ -74,8 +71,8 @@ func newOutputCondensedCmd() *cobra.Command {
 			# Get the condensed output of step 3 from the second parallel execution
 			$ circleci job output condensed 8e50c384-0083-43d0-bc8f-93f0db589d6b --step-num 3 --execution 1
 
-			# As JSON
-			$ circleci job output condensed 8e50c384-0083-43d0-bc8f-93f0db589d6b --step-num 3 --json
+			# Pipe the condensed output to an AI CLI tool
+			$ circleci job output condensed 8e50c384-0083-43d0-bc8f-93f0db589d6b --step-num 3 | llm "Why did this fail?"
 		`),
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -104,18 +101,13 @@ func newOutputCondensedCmd() *cobra.Command {
 					"No output found for %s.")
 			}
 
-			if jsonOut {
-				return iostream.PrintJSON(ctx, condensed)
-			}
-			_, _ = fmt.Fprintln(iostream.Out(ctx), condensed.CondensedStdout)
+			_, _ = iostream.Out(ctx).Write(condensed)
 			return nil
 		},
 	}
 
 	cmd.Flags().IntVar(&execution, "execution", 0, "Parallel execution index to read output from")
 	cmd.Flags().IntVar(&stepNum, "step-num", 0, "Step number whose output to fetch (required)")
-	cmdutil.AddJSONFlag(cmd, &jsonOut)
-	cmdutil.AddJQFlag(cmd)
 
 	return cmd
 }

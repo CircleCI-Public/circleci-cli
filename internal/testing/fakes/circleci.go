@@ -76,7 +76,7 @@ type CircleCI struct {
 	workflowJobsV3     map[string][]any  // workflow id → V3 job list items
 	jobStdout          map[string][]byte // "jobID/index/stepNum" → plain text stdout
 	jobStderr          map[string][]byte // "jobID/index/stepNum" → plain text stderr
-	jobStdoutCondensed map[string]any    // "jobID/index/stepNum" → condensed_stdout attributes
+	jobStdoutCondensed map[string][]byte // "jobID/index/stepNum" → raw condensed text
 	jobTests           map[string][]any  // job UUID → test result objects (served as JSONL)
 
 	// Run (v3) state.
@@ -210,7 +210,7 @@ func NewCircleCI(t *testing.T) *CircleCI {
 		workflowJobsV3:                    map[string][]any{},
 		jobStdout:                         map[string][]byte{},
 		jobStderr:                         map[string][]byte{},
-		jobStdoutCondensed:                map[string]any{},
+		jobStdoutCondensed:                map[string][]byte{},
 		jobTests:                          map[string][]any{},
 		runsV3:                            map[string]any{},
 		runsV3ByProject:                   map[string][]any{},
@@ -524,16 +524,7 @@ func (f *CircleCI) AddJobStderr(id string, execution, stepNum int, content []byt
 func (f *CircleCI) AddJobStdoutCondensed(id string, execution, stepNum int, condensed string) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	f.jobStdoutCondensed[fmt.Sprintf("%s/%d/%d", id, execution, stepNum)] = map[string]any{
-		"data": map[string]any{
-			"id": id,
-			"attributes": map[string]any{
-				"execution":        execution,
-				"step_num":         stepNum,
-				"condensed_stdout": condensed,
-			},
-		},
-	}
+	f.jobStdoutCondensed[fmt.Sprintf("%s/%d/%d", id, execution, stepNum)] = []byte(condensed)
 }
 
 // SetTriggerResponse registers the response body returned when POST
@@ -845,14 +836,14 @@ func rangeOffset(r *http.Request, n int) int {
 func (f *CircleCI) handleGetJobStdoutCondensed(w http.ResponseWriter, r *http.Request) {
 	key := jobStepKey(r)
 	f.mu.RLock()
-	body, ok := f.jobStdoutCondensed[key]
+	content, ok := f.jobStdoutCondensed[key]
 	f.mu.RUnlock()
 	if !ok {
 		render.Status(r, http.StatusNotFound)
 		render.JSON(w, r, map[string]any{"message": "not found"})
 		return
 	}
-	render.JSON(w, r, body)
+	render.Data(w, r, content)
 }
 
 func (f *CircleCI) handleGetJobStderr(w http.ResponseWriter, r *http.Request) {
