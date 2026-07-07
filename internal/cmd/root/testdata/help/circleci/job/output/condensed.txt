@@ -13,22 +13,16 @@ The job is identified by its UUID, shown in the output of
 For parallel jobs, use --execution to choose which executor's output
 to read; it defaults to the first execution (index 0).
 
-JSON fields: execution, step_num, condensed_stdout
-
-For more information about output formatting flags, see `circleci help formatting`.
-
 ## Usage
 
 `circleci job output condensed <job-id> [flags]`
 
 ## Flags
 
-| Flag              | Description                                      |
-| ----------------- | ------------------------------------------------ |
-| `--execution int` | Parallel execution index to read output from     |
-| `--jq string`     | Process values from the response using jq syntax |
-| `--json`          | Output as JSON                                   |
-| `--step-num int`  | Step number whose output to fetch (required)     |
+| Flag              | Description                                  |
+| ----------------- | -------------------------------------------- |
+| `--execution int` | Parallel execution index to read output from |
+| `--step-num int`  | Step number whose output to fetch (required) |
 
 ## Inherited Flags
 
@@ -51,8 +45,8 @@ Use --step-num to select which step's output to read.
   `circleci job output condensed 8e50c384-0083-43d0-bc8f-93f0db589d6b --step-num 3`
 - Get the condensed output of step 3 from the second parallel execution: 
   `circleci job output condensed 8e50c384-0083-43d0-bc8f-93f0db589d6b --step-num 3 --execution 1`
-- As JSON: 
-  `circleci job output condensed 8e50c384-0083-43d0-bc8f-93f0db589d6b --step-num 3 --json`
+- Pipe the condensed output to an AI CLI tool: 
+  `circleci job output condensed 8e50c384-0083-43d0-bc8f-93f0db589d6b --step-num 3 | llm "Why did this fail?"`
 
 ## Learn More
 

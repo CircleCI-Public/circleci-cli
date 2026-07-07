@@ -135,12 +135,10 @@ Work with job step output
 
 Get a step's stdout condensed to its most error-relevant lines
 
-| Flag              | Description                                      |
-| ----------------- | ------------------------------------------------ |
-| `--execution int` | Parallel execution index to read output from     |
-| `--jq string`     | Process values from the response using jq syntax |
-| `--json`          | Output as JSON                                   |
-| `--step-num int`  | Step number whose output to fetch (required)     |
+| Flag              | Description                                  |
+| ----------------- | -------------------------------------------- |
+| `--execution int` | Parallel execution index to read output from |
+| `--step-num int`  | Step number whose output to fetch (required) |
 
 
 **Arguments:**
