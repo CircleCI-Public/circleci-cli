@@ -1,26 +1,25 @@
 # CircleCI CLI
 
-List and manage CircleCI organizations.
+List all CircleCI organizations the authenticated user is a member of.
 
-Use 'circleci org list' to see all organizations you belong to.
-Use 'circleci org settings list' to view advanced settings for an org,
-or a specific settings subcommand to view or change an individual setting.
+JSON fields: id, slug, name, vcs_type
+
+For more information about output formatting flags, see `circleci help formatting`.
 
 ## Usage
 
-`circleci org <command> [flags]`
+`circleci org list [flags]`
 
-## General Commands
+## Aliases
 
-| Command | Description                      |
-| ------- | -------------------------------- |
-| `list`  | List organizations you belong to |
+`circleci org ls`
 
-## Subcommands
+## Flags
 
-| Command    | Description                           |
-| ---------- | ------------------------------------- |
-| `settings` | View and update org advanced settings |
+| Flag          | Description                                      |
+| ------------- | ------------------------------------------------ |
+| `--jq string` | Process values from the response using jq syntax |
+| `--json`      | Output as JSON                                   |
 
 ## Inherited Flags
 
@@ -30,6 +29,15 @@ or a specific settings subcommand to view or change an individual setting.
 | `--debug`             | Enable debug logging                                         |
 | `--no-color`          | Disable ANSI color output (same as setting NO_COLOR)         |
 | `-q, --quiet`         | Suppress informational output. Data on stdout is unaffected  |
+
+## Examples
+
+- List all your organizations: 
+  `circleci org list`
+- Output as JSON for scripting: 
+  `circleci org list --json`
+- Extract just the slugs: 
+  `circleci org list --json --jq '.[].slug'`
 
 ## Learn More
 

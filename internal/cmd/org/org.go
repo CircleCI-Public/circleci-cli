@@ -37,16 +37,19 @@ func NewOrgCmd() *cobra.Command {
 		GroupID: "management",
 		Short:   "Manage CircleCI organizations",
 		Long: heredoc.Doc(`
-			Manage settings and configuration for CircleCI organizations.
+			List and manage CircleCI organizations.
 
-			Use 'circleci org settings list' to view all advanced settings for an
-			organization, or use a specific settings subcommand to view or change
-			an individual setting.
+			Use 'circleci org list' to see all organizations you belong to.
+			Use 'circleci org settings list' to view advanced settings for an org,
+			or a specific settings subcommand to view or change an individual setting.
 		`),
 		RunE:               cmdutil.GroupRunE,
 		FParseErrWhitelist: cobra.FParseErrWhitelist{UnknownFlags: true},
 	}
 
+	cmdutil.AddGroup(cmd, "General commands",
+		newListCmd(),
+	)
 	cmdutil.AddGroup(cmd, "Subcommands",
 		newSettingsCmd(),
 	)

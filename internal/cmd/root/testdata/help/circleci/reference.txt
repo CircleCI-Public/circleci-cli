@@ -1078,6 +1078,21 @@ Validate an orb YAML file
 
 Manage CircleCI organizations
 
+#### `circleci org list [flags]`
+
+List organizations you belong to
+
+| Flag          | Description                                      |
+| ------------- | ------------------------------------------------ |
+| `--jq string` | Process values from the response using jq syntax |
+| `--json`      | Output as JSON                                   |
+
+
+**Aliases:**
+
+
+`circleci org ls`
+
 #### `circleci org settings <command>`
 
 View and update org advanced settings

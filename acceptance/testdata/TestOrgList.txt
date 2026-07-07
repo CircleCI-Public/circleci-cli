@@ -1,0 +1,4 @@
+# Organizations
+| Slug     | Name  | VCS    |
+| -------- | ----- | ------ |
+| gh/myorg | myorg | github |
