@@ -43,7 +43,7 @@ func setupSettingsFake(t *testing.T) (*fakes.CircleCI, *testenv.TestEnv) {
 	fake, env := setupProjectFake(t)
 	// Settings are keyed by project UUID (the v3 endpoint takes :id, not slug).
 	fake.SetProjectSettings(alphaProjectID, map[string]any{
-		"enable_ai_error_summarization":         false,
+		"enable_ai_error_summarization":          false,
 		"enable_auto_cancel_redundant_workflows": false,
 		"enable_building_fork_prs":               true,
 		"is_build_prs_only":                      false,
