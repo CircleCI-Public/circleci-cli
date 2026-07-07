@@ -169,7 +169,9 @@ type CircleCI struct {
 	lastCompileOwnerID string
 
 	// Org state.
-	orgs map[string]map[string]any
+	orgs        map[string]map[string]any
+	orgsByUUID  map[string]bool // org UUID → true
+	orgSettings map[string]any  // org UUID → attributes map
 }
 
 // orbFakeValidateResponse holds a preset validate/process response for testing.
@@ -261,6 +263,8 @@ func NewCircleCI(t *testing.T) *CircleCI {
 		compileValid:                      true,
 		compileOutputYAML:                 "# compiled output\nversion: \"2.1\"\n",
 		orgs:                              map[string]map[string]any{},
+		orgsByUUID:                        map[string]bool{},
+		orgSettings:                       map[string]any{},
 	}
 
 	r := newRouter()
@@ -328,6 +332,8 @@ func NewCircleCI(t *testing.T) *CircleCI {
 	// Config compile + org routes.
 	r.Post("/api/v2/compile-config-with-defaults", f.handleCompileConfig)
 	r.Get("/api/v2/organization/{vcs}/{org}", f.handleGetOrg)
+	r.Get("/api/v3/orgs/{id}/settings", f.handleGetOrgSettingsV3)
+	r.Post("/api/v3/orgs/{id}/update-settings", f.handleUpdateOrgSettingsV3)
 	// Job (v3) routes.
 	r.Get("/api/v3/jobs", f.handleListWorkflowJobsV3)
 	r.Get("/api/v3/jobs/{id}", f.handleGetJobV3)
@@ -3709,6 +3715,7 @@ func (f *CircleCI) AddOrg(id, slug, name, vcsType string) {
 		"slug":     slug,
 		"vcs_type": vcsType,
 	}
+	f.orgsByUUID[id] = true
 }
 
 func (f *CircleCI) handleCompileConfig(w http.ResponseWriter, r *http.Request) {
@@ -3751,4 +3758,88 @@ func (f *CircleCI) handleGetOrg(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	render.JSON(w, r, org)
+}
+
+// defaultOrgSettingsAttrs returns an all-false v3 attributes payload for org settings.
+func defaultOrgSettingsAttrs() map[string]any {
+	return map[string]any{
+		"is_runner_terms_of_service_accepted":      false,
+		"enable_ai_error_summarization":            false,
+		"enable_ai_agents":                         false,
+		"enable_unversioned_config":                false,
+		"enable_certified_public_orbs":             false,
+		"enable_chunk_ip_ranges":                   false,
+		"enable_minor_ai_features":                 false,
+		"enable_private_orbs":                      false,
+		"enable_uncertified_public_orbs":           false,
+		"is_bitbucket_workspace_member_org_member": false,
+		"is_user_checkout_keys_disabled":           false,
+		"is_running_disabled":                      false,
+		"enable_image_brownouts":                   false,
+		"is_context_group_restriction_required":    false,
+		"enable_resource_class_brownouts":          false,
+	}
+}
+
+// SetOrgSettings registers advanced settings for GET /api/v3/orgs/:id/settings.
+// orgUUID should be the org UUID string.
+func (f *CircleCI) SetOrgSettings(orgUUID string, settings any) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.orgSettings[orgUUID] = settings
+}
+
+func (f *CircleCI) handleGetOrgSettingsV3(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	f.mu.RLock()
+	settings, hasSettings := f.orgSettings[id]
+	hasOrg := f.orgsByUUID[id]
+	f.mu.RUnlock()
+
+	if !hasSettings && !hasOrg {
+		render.Status(r, http.StatusNotFound)
+		render.JSON(w, r, map[string]any{"message": "not found"})
+		return
+	}
+	if !hasSettings {
+		settings = defaultOrgSettingsAttrs()
+	}
+	render.JSON(w, r, map[string]any{
+		"data": map[string]any{"attributes": settings},
+	})
+}
+
+func (f *CircleCI) handleUpdateOrgSettingsV3(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+
+	var patch map[string]any
+	if err := json.NewDecoder(r.Body).Decode(&patch); err != nil {
+		render.Status(r, http.StatusBadRequest)
+		render.JSON(w, r, map[string]any{"message": "invalid JSON"})
+		return
+	}
+
+	f.mu.Lock()
+	existing, hasSettings := f.orgSettings[id]
+	hasOrg := f.orgsByUUID[id]
+	if !hasSettings && !hasOrg {
+		f.mu.Unlock()
+		render.Status(r, http.StatusNotFound)
+		render.JSON(w, r, map[string]any{"message": "not found"})
+		return
+	}
+
+	attrs, _ := existing.(map[string]any)
+	if attrs == nil {
+		attrs = defaultOrgSettingsAttrs()
+	}
+	for k, v := range patch {
+		attrs[k] = v
+	}
+	f.orgSettings[id] = attrs
+	f.mu.Unlock()
+
+	render.JSON(w, r, map[string]any{
+		"data": map[string]any{"attributes": attrs},
+	})
 }

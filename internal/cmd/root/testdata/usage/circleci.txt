@@ -17,6 +17,7 @@ Available commands:
   namespace
   onboard
   orb
+  org
   pipeline
   policy
   project

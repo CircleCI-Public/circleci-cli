@@ -29,6 +29,7 @@ Work with CircleCI from the command line.
 | `envvar`         | List, set and delete a project's environment variables |
 | `namespace`      | Manage the org namespace orbs publish under            |
 | `orb`            | Create, publish and inspect orbs (reusable config)     |
+| `org`            | Manage CircleCI organizations                          |
 | `policy`         | Govern config with Rego security policies              |
 | `project`        | List, follow and configure CircleCI projects           |
 | `runner`         | Manage self-hosted runners                             |

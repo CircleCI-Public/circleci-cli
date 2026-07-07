@@ -1,0 +1,19 @@
+Usage:  circleci org settings <command>
+
+Available commands:
+  ai-agents
+  ai-error-summarization
+  bitbucket-workspace-member-is-org-member
+  certified-public-orbs
+  chunk-ip-ranges
+  context-group-restriction
+  disable-running
+  disable-user-checkout-keys
+  image-brownouts
+  list
+  minor-ai-features
+  private-orbs
+  resource-class-brownouts
+  runner-tos-accepted
+  uncertified-public-orbs
+  unversioned-config

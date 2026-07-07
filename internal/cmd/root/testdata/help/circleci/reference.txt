@@ -1074,6 +1074,225 @@ Validate an orb YAML file
 
 - `<path>` is the path to an orb YAML file. Pass `-` to read from stdin.
 
+### `circleci org <command>`
+
+Manage CircleCI organizations
+
+#### `circleci org settings <command>`
+
+View and update org advanced settings
+
+##### `circleci org settings ai-agents [flags]`
+
+Enable AI agents for this organization
+
+| Flag           | Description                                              |
+| -------------- | -------------------------------------------------------- |
+| `--disable`    | Disable the setting                                      |
+| `--enable`     | Enable the setting                                       |
+| `--jq string`  | Process values from the response using jq syntax         |
+| `--json`       | Output as JSON                                           |
+| `--org string` | Org slug or UUID (e.g. gh/myorg); defaults to git remote |
+
+
+##### `circleci org settings ai-error-summarization [flags]`
+
+Enable AI-powered error summarization
+
+| Flag           | Description                                              |
+| -------------- | -------------------------------------------------------- |
+| `--disable`    | Disable the setting                                      |
+| `--enable`     | Enable the setting                                       |
+| `--jq string`  | Process values from the response using jq syntax         |
+| `--json`       | Output as JSON                                           |
+| `--org string` | Org slug or UUID (e.g. gh/myorg); defaults to git remote |
+
+
+##### `circleci org settings bitbucket-workspace-member-is-org-member [flags]`
+
+Treat Bitbucket workspace members as org members
+
+| Flag           | Description                                              |
+| -------------- | -------------------------------------------------------- |
+| `--disable`    | Disable the setting                                      |
+| `--enable`     | Enable the setting                                       |
+| `--jq string`  | Process values from the response using jq syntax         |
+| `--json`       | Output as JSON                                           |
+| `--org string` | Org slug or UUID (e.g. gh/myorg); defaults to git remote |
+
+
+##### `circleci org settings certified-public-orbs [flags]`
+
+Allow use of certified public orbs
+
+| Flag           | Description                                              |
+| -------------- | -------------------------------------------------------- |
+| `--disable`    | Disable the setting                                      |
+| `--enable`     | Enable the setting                                       |
+| `--jq string`  | Process values from the response using jq syntax         |
+| `--json`       | Output as JSON                                           |
+| `--org string` | Org slug or UUID (e.g. gh/myorg); defaults to git remote |
+
+
+##### `circleci org settings chunk-ip-ranges [flags]`
+
+Enable chunk IP ranges for this organization
+
+| Flag           | Description                                              |
+| -------------- | -------------------------------------------------------- |
+| `--disable`    | Disable the setting                                      |
+| `--enable`     | Enable the setting                                       |
+| `--jq string`  | Process values from the response using jq syntax         |
+| `--json`       | Output as JSON                                           |
+| `--org string` | Org slug or UUID (e.g. gh/myorg); defaults to git remote |
+
+
+##### `circleci org settings context-group-restriction [flags]`
+
+Require context group restriction for this organization
+
+| Flag           | Description                                              |
+| -------------- | -------------------------------------------------------- |
+| `--disable`    | Disable the setting                                      |
+| `--enable`     | Enable the setting                                       |
+| `--jq string`  | Process values from the response using jq syntax         |
+| `--json`       | Output as JSON                                           |
+| `--org string` | Org slug or UUID (e.g. gh/myorg); defaults to git remote |
+
+
+##### `circleci org settings disable-running [flags]`
+
+Disable all builds for this organization
+
+| Flag           | Description                                              |
+| -------------- | -------------------------------------------------------- |
+| `--disable`    | Disable the setting                                      |
+| `--enable`     | Enable the setting                                       |
+| `--jq string`  | Process values from the response using jq syntax         |
+| `--json`       | Output as JSON                                           |
+| `--org string` | Org slug or UUID (e.g. gh/myorg); defaults to git remote |
+
+
+##### `circleci org settings disable-user-checkout-keys [flags]`
+
+Disable user checkout keys for this organization
+
+| Flag           | Description                                              |
+| -------------- | -------------------------------------------------------- |
+| `--disable`    | Disable the setting                                      |
+| `--enable`     | Enable the setting                                       |
+| `--jq string`  | Process values from the response using jq syntax         |
+| `--json`       | Output as JSON                                           |
+| `--org string` | Org slug or UUID (e.g. gh/myorg); defaults to git remote |
+
+
+##### `circleci org settings image-brownouts [flags]`
+
+Enable image brownout warnings for this organization
+
+| Flag           | Description                                              |
+| -------------- | -------------------------------------------------------- |
+| `--disable`    | Disable the setting                                      |
+| `--enable`     | Enable the setting                                       |
+| `--jq string`  | Process values from the response using jq syntax         |
+| `--json`       | Output as JSON                                           |
+| `--org string` | Org slug or UUID (e.g. gh/myorg); defaults to git remote |
+
+
+##### `circleci org settings list [flags]`
+
+List all advanced settings for an organization
+
+| Flag           | Description                                              |
+| -------------- | -------------------------------------------------------- |
+| `--jq string`  | Process values from the response using jq syntax         |
+| `--json`       | Output as JSON                                           |
+| `--org string` | Org slug or UUID (e.g. gh/myorg); defaults to git remote |
+
+
+**Aliases:**
+
+
+`circleci org settings ls`
+
+##### `circleci org settings minor-ai-features [flags]`
+
+Enable minor AI features for this organization
+
+| Flag           | Description                                              |
+| -------------- | -------------------------------------------------------- |
+| `--disable`    | Disable the setting                                      |
+| `--enable`     | Enable the setting                                       |
+| `--jq string`  | Process values from the response using jq syntax         |
+| `--json`       | Output as JSON                                           |
+| `--org string` | Org slug or UUID (e.g. gh/myorg); defaults to git remote |
+
+
+##### `circleci org settings private-orbs [flags]`
+
+Allow use of private orbs
+
+| Flag           | Description                                              |
+| -------------- | -------------------------------------------------------- |
+| `--disable`    | Disable the setting                                      |
+| `--enable`     | Enable the setting                                       |
+| `--jq string`  | Process values from the response using jq syntax         |
+| `--json`       | Output as JSON                                           |
+| `--org string` | Org slug or UUID (e.g. gh/myorg); defaults to git remote |
+
+
+##### `circleci org settings resource-class-brownouts [flags]`
+
+Enable resource class brownout warnings for this organization
+
+| Flag           | Description                                              |
+| -------------- | -------------------------------------------------------- |
+| `--disable`    | Disable the setting                                      |
+| `--enable`     | Enable the setting                                       |
+| `--jq string`  | Process values from the response using jq syntax         |
+| `--json`       | Output as JSON                                           |
+| `--org string` | Org slug or UUID (e.g. gh/myorg); defaults to git remote |
+
+
+##### `circleci org settings runner-tos-accepted [flags]`
+
+Runner terms of service accepted
+
+| Flag           | Description                                              |
+| -------------- | -------------------------------------------------------- |
+| `--disable`    | Disable the setting                                      |
+| `--enable`     | Enable the setting                                       |
+| `--jq string`  | Process values from the response using jq syntax         |
+| `--json`       | Output as JSON                                           |
+| `--org string` | Org slug or UUID (e.g. gh/myorg); defaults to git remote |
+
+
+##### `circleci org settings uncertified-public-orbs [flags]`
+
+Allow use of uncertified public orbs
+
+| Flag           | Description                                              |
+| -------------- | -------------------------------------------------------- |
+| `--disable`    | Disable the setting                                      |
+| `--enable`     | Enable the setting                                       |
+| `--jq string`  | Process values from the response using jq syntax         |
+| `--json`       | Output as JSON                                           |
+| `--org string` | Org slug or UUID (e.g. gh/myorg); defaults to git remote |
+
+
+##### `circleci org settings unversioned-config [flags]`
+
+Allow triggering pipelines without a config file
+
+| Flag           | Description                                              |
+| -------------- | -------------------------------------------------------- |
+| `--disable`    | Disable the setting                                      |
+| `--enable`     | Enable the setting                                       |
+| `--jq string`  | Process values from the response using jq syntax         |
+| `--json`       | Output as JSON                                           |
+| `--org string` | Org slug or UUID (e.g. gh/myorg); defaults to git remote |
+
+
 ### `circleci policy <command>`
 
 Govern config with Rego security policies
