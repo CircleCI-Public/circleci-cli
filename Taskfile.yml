@@ -194,9 +194,13 @@ tasks:
           echo
           echo '> Command-line interface to CircleCI for use in your terminal or scripts. This is the full command reference, generated from the live command tree.'
           echo
-          go run ./cmd/circleci getting-started
+          go run ./cmd/circleci help getting-started
           echo
-          go run ./cmd/circleci reference
+          go run ./cmd/circleci help environment
+          echo
+          go run ./cmd/circleci help formatting
+          echo
+          go run ./cmd/circleci help reference
         } > {{.SITE_DIR}}/static/llms.txt
       - |
         {
@@ -204,9 +208,13 @@ tasks:
           echo 'title: CircleCI CLI Reference'
           echo '---'
           echo
-          go run ./cmd/circleci getting-started
+          go run ./cmd/circleci help getting-started
           echo
-          go run ./cmd/circleci reference
+          go run ./cmd/circleci help environment
+          echo
+          go run ./cmd/circleci help formatting
+          echo
+          go run ./cmd/circleci help reference
         } > {{.SITE_DIR}}/content/reference/_index.md
 
   docs:clean:
