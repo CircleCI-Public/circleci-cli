@@ -63,6 +63,7 @@ func NewProjectCmd() *cobra.Command {
 		newEnvCmd(),
 		newTriggerCmd(),
 		newProjectDLCCmd(),
+		newSettingsCmd(),
 	)
 
 	return cmd
