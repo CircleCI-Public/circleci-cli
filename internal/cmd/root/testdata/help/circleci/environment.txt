@@ -7,6 +7,15 @@ being prompted to authenticate and takes precedence over previously stored crede
 `NO_COLOR`: set to any value to avoid printing ANSI escape sequences for color output.
 The `--no-color` flag has the same effect.
 
+`CIRCLE_NO_COLOR`: set to any value to disable ANSI color output, same as `NO_COLOR`.
+
+`CIRCLE_NO_INTERACTIVE`: set to any value to suppress all interactive prompts.
+
+`CI`: when set (as CI systems do), interactive prompts, the animated spinner, and update
+notifications are all disabled automatically.
+
+`CIRCLE_SPINNER_DISABLED`: set to any value to replace the animated spinner with plain text.
+
 `CIRCLE_NO_PAGER`: set to any value to print long output directly instead of through a pager.
 
 `PAGER`: names the pager program to send long output through (for example `less` or `more`).

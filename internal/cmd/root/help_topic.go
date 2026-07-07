@@ -100,6 +100,15 @@ var helpTopics = []helpTopic{
 			%[1]sNO_COLOR%[1]s: set to any value to avoid printing ANSI escape sequences for color output.
 			The %[1]s--no-color%[1]s flag has the same effect.
 
+			%[1]sCIRCLE_NO_COLOR%[1]s: set to any value to disable ANSI color output, same as %[1]sNO_COLOR%[1]s.
+
+			%[1]sCIRCLE_NO_INTERACTIVE%[1]s: set to any value to suppress all interactive prompts.
+
+			%[1]sCI%[1]s: when set (as CI systems do), interactive prompts, the animated spinner, and update
+			notifications are all disabled automatically.
+
+			%[1]sCIRCLE_SPINNER_DISABLED%[1]s: set to any value to replace the animated spinner with plain text.
+
 			%[1]sCIRCLE_NO_PAGER%[1]s: set to any value to print long output directly instead of through a pager.
 
 			%[1]sPAGER%[1]s: names the pager program to send long output through (for example %[1]sless%[1]s or %[1]smore%[1]s).
