@@ -80,6 +80,7 @@ func newSignupCmd() *cobra.Command {
 // SignupOutcome describes what SignupIfNeeded did.
 type SignupOutcome string
 
+// Possible SignupOutcome values.
 const (
 	SignupAlreadyAuthenticated SignupOutcome = "already_authenticated"
 	SignupCompleted            SignupOutcome = "completed"
