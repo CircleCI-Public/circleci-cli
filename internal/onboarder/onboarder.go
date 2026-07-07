@@ -68,10 +68,19 @@ func Run(ctx context.Context, dir string, opts Options) error {
 		return err
 	}
 
+	trackOnboard(ctx, "onboard_mode_selected", map[string]any{
+		"mode": modeString(m),
+	})
+
 	if m == modeSignup {
-		if err := cmdauth.SignupIfNeeded(ctx, opts.NoBrowser, opts.SecureStorage, opts.ConfigPath); err != nil {
+		result, err := cmdauth.SignupIfNeeded(ctx, opts.NoBrowser, opts.SecureStorage, opts.ConfigPath)
+		if err != nil {
 			return err
 		}
+		trackOnboard(ctx, "onboard_signup", map[string]any{
+			"mode":    "signup",
+			"outcome": string(result.Outcome),
+		})
 		return postSignupGuidance(ctx)
 	}
 
@@ -139,9 +148,14 @@ func Run(ctx context.Context, dir string, opts Options) error {
 		return err
 	}
 
-	if err := cmdauth.SignupIfNeeded(ctx, opts.NoBrowser, opts.SecureStorage, opts.ConfigPath); err != nil {
+	signupResult, err := cmdauth.SignupIfNeeded(ctx, opts.NoBrowser, opts.SecureStorage, opts.ConfigPath)
+	if err != nil {
 		return err
 	}
+	trackOnboard(ctx, "onboard_signup", map[string]any{
+		"mode":    "scan",
+		"outcome": string(signupResult.Outcome),
+	})
 
 	return postSignupGuidance(ctx)
 }
@@ -260,6 +274,25 @@ func followClassicProject(ctx context.Context, client *apiclient.Client, appURL,
 
 func printManualGuidance(ctx context.Context) {
 	iostream.Printf(ctx, "\nRun 'circleci project create' to connect this repo to CircleCI.\n")
+}
+
+func trackOnboard(ctx context.Context, event string, props map[string]any) {
+	tc := cmdutil.GetTelemetry(ctx)
+	if tc == nil {
+		return
+	}
+	_ = tc.Track(event, props)
+}
+
+func modeString(m mode) string {
+	switch m {
+	case modeScan:
+		return "scan"
+	case modeSignup:
+		return "signup"
+	default:
+		return "unknown"
+	}
 }
 
 func resolveMode(ctx context.Context, opts Options) (mode, error) {

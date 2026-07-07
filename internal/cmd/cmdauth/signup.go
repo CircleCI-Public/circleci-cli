@@ -77,10 +77,25 @@ func newSignupCmd() *cobra.Command {
 	return cmd
 }
 
+// SignupOutcome describes what SignupIfNeeded did.
+type SignupOutcome string
+
+const (
+	SignupAlreadyAuthenticated SignupOutcome = "already_authenticated"
+	SignupCompleted            SignupOutcome = "completed"
+)
+
+// SignupResult is returned by SignupIfNeeded so callers can distinguish
+// between "already signed in" and "signup just completed."
+type SignupResult struct {
+	Outcome SignupOutcome
+}
+
 // SignupIfNeeded is the idempotent variant of signup used by orchestrators
 // like `circleci onboard`. If a valid token already exists, it prints a
-// confirmation and returns nil. Otherwise it runs the standard signup flow.
-func SignupIfNeeded(ctx context.Context, noBrowser, secureStorage bool, configPath string) error {
+// confirmation and returns the AlreadyAuthenticated outcome. Otherwise it
+// runs the standard signup flow and returns the Completed outcome.
+func SignupIfNeeded(ctx context.Context, noBrowser, secureStorage bool, configPath string) (SignupResult, error) {
 	cfg := cmdutil.GetConfig(ctx)
 
 	token := cfg.EffectiveToken()
@@ -95,7 +110,10 @@ func SignupIfNeeded(ctx context.Context, noBrowser, secureStorage bool, configPa
 			  • Deploy visibility across your whole org, out of the box
 
 		`))
-		return runSignup(ctx, noBrowser, secureStorage, configPath)
+		if err := runSignup(ctx, noBrowser, secureStorage, configPath); err != nil {
+			return SignupResult{}, err
+		}
+		return SignupResult{Outcome: SignupCompleted}, nil
 	}
 
 	client := apiclient.New(apiclient.Config{
@@ -105,7 +123,7 @@ func SignupIfNeeded(ctx context.Context, noBrowser, secureStorage bool, configPa
 	})
 	me, err := client.GetMe(ctx)
 	if err != nil {
-		return clierrors.New(
+		return SignupResult{}, clierrors.New(
 			"auth.signup.stale_token",
 			"Could not verify existing token",
 			fmt.Sprintf("A token is configured but the identity check failed: %s.", err),
@@ -116,7 +134,7 @@ func SignupIfNeeded(ctx context.Context, noBrowser, secureStorage bool, configPa
 	}
 
 	iostream.Printf(ctx, "%s Already signed in as %s\n", iostream.SymbolOK(ctx), me.Login)
-	return nil
+	return SignupResult{Outcome: SignupAlreadyAuthenticated}, nil
 }
 
 func runSignup(ctx context.Context, noBrowser, secureStorage bool, configPath string) error {
