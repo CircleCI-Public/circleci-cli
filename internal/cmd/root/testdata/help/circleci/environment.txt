@@ -1,4 +1,8 @@
 # Environment
+`circleci` reads the following environment variables to configure authentication, output, and
+behavior. Each takes precedence over the corresponding stored setting, so they are useful for
+scripting and CI where you want explicit, per-invocation control.
+
 `CIRCLE_TOKEN`: an authentication token that will be used for API requests. Setting this avoids
 being prompted to authenticate and takes precedence over previously stored credentials.
 
@@ -6,6 +10,15 @@ being prompted to authenticate and takes precedence over previously stored crede
 
 `NO_COLOR`: set to any value to avoid printing ANSI escape sequences for color output.
 The `--no-color` flag has the same effect.
+
+`CIRCLE_NO_COLOR`: set to any value to disable ANSI color output, same as `NO_COLOR`.
+
+`CIRCLE_NO_INTERACTIVE`: set to any value to suppress all interactive prompts.
+
+`CI`: when set (as CI systems do), interactive prompts, the animated spinner, and update
+notifications are all disabled automatically.
+
+`CIRCLE_SPINNER_DISABLED`: set to any value to replace the animated spinner with plain text.
 
 `CIRCLE_NO_PAGER`: set to any value to print long output directly instead of through a pager.
 

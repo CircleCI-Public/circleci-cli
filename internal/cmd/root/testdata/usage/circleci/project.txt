@@ -9,4 +9,5 @@ Available commands:
   link
   list
   open
+  settings
   trigger

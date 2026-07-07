@@ -1,0 +1,15 @@
+# Advanced Settings
+| Setting                       | Value |
+| ----------------------------- | ----- |
+| ai-error-summarization        | false |
+| auto-cancel-builds            | false |
+| build-forked-pull-requests    | true  |
+| build-prs-only                | false |
+| disable-running               | false |
+| disable-ssh                   | false |
+| dynamic-config                | false |
+| forks-receive-secret-env-vars | false |
+| oss                           | false |
+| set-github-status             | true  |
+| unversioned-config            | false |
+| write-settings-requires-admin | false |
