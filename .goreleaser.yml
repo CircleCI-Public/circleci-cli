@@ -123,10 +123,13 @@ winget:
     name: CircleCI CLI
     short_description: "CircleCI command line tool."
     installation_notes: |
-      To enable PowerShell tab-completion, add this line to your PowerShell
-      profile ($PROFILE):
+      To enable PowerShell tab-completion, register the completions from your
+      PowerShell profile ($PROFILE). The first command ensures the profile's
+      parent directory exists (Add-Content creates the file but not the folder);
+      the second appends the registration line:
 
-        circleci completion powershell | Out-String | Invoke-Expression
+        New-Item -ItemType Directory -Path (Split-Path $PROFILE) -Force | Out-Null
+        Add-Content -Path $PROFILE -Value 'circleci completion powershell | Out-String | Invoke-Expression'
     description: |
       `circleci` is CircleCI's official command line tool. It is an agent-friendly CLI that brings CI runs, jobs,
       configuration, and other CircleCI features to the terminal right where you're already working.
@@ -167,10 +170,13 @@ winget:
     name: CircleCI CLI Preview
     short_description: "CircleCI command line tool."
     installation_notes: |
-      To enable PowerShell tab-completion, add this line to your PowerShell
-      profile ($PROFILE):
+      To enable PowerShell tab-completion, register the completions from your
+      PowerShell profile ($PROFILE). The first command ensures the profile's
+      parent directory exists (Add-Content creates the file but not the folder);
+      the second appends the registration line:
 
-        circleci completion powershell | Out-String | Invoke-Expression
+        New-Item -ItemType Directory -Path (Split-Path $PROFILE) -Force | Out-Null
+        Add-Content -Path $PROFILE -Value 'circleci completion powershell | Out-String | Invoke-Expression'
     description: |
       `circleci` is CircleCI's official command line tool. It is an agent-friendly CLI that brings CI runs, jobs,
       configuration, and other CircleCI features to the terminal right where you're already working.
