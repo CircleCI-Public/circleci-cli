@@ -30,9 +30,9 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/CircleCI-Public/circleci-cli/internal/cmd/extension"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmd/root"
 	clierrors "github.com/CircleCI-Public/circleci-cli/internal/errors"
-	"github.com/CircleCI-Public/circleci-cli/internal/extension"
 	"github.com/CircleCI-Public/circleci-cli/internal/jq"
 )
 

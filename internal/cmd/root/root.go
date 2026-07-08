@@ -41,6 +41,7 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/internal/cmd/deploy"
 	cmddlc "github.com/CircleCI-Public/circleci-cli/internal/cmd/dlc"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmd/envvar"
+	"github.com/CircleCI-Public/circleci-cli/internal/cmd/extension"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmd/job"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmd/my"
 	cmdnamespace "github.com/CircleCI-Public/circleci-cli/internal/cmd/namespace"
@@ -63,7 +64,6 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/internal/cmdutil"
 	"github.com/CircleCI-Public/circleci-cli/internal/config"
 	clierrors "github.com/CircleCI-Public/circleci-cli/internal/errors"
-	"github.com/CircleCI-Public/circleci-cli/internal/extension"
 	"github.com/CircleCI-Public/circleci-cli/internal/iostream"
 	"github.com/CircleCI-Public/circleci-cli/internal/telemetry"
 )
