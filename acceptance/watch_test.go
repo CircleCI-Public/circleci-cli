@@ -29,6 +29,7 @@ import (
 	"os"
 	"os/exec"
 	"runtime"
+	"strings"
 	"testing"
 	"time"
 
@@ -396,4 +397,67 @@ func TestRunWatch_NoToken(t *testing.T) {
 	})
 
 	assert.Equal(t, result.ExitCode, 3, "stderr: %s", result.Stderr)
+}
+
+// --- emoji shortcodes must never leak into watch's raw output ---
+
+// statusEmojiShortcodes are the emoji shortcodes apiclient.PhaseOutcomeStatus
+// embeds in its status strings (e.g. ":white_check_mark: succeeded"). Those
+// only render as emoji when passed through glamour markdown; watch prints its
+// status lines raw, so it uses the emoji-free PhaseOutcomeSymbol/PhaseOutcomeText
+// pair instead — none of these shortcodes may appear literally in watch output.
+var statusEmojiShortcodes = []string{
+	":white_check_mark:", ":x:", ":white_circle:", ":lock:", ":no_entry_sign:",
+	":warning:", ":hourglass:", ":hourglass_flowing_sand:", ":red_circle:",
+	":large_blue_circle:",
+}
+
+func assertNoEmojiShortcodes(t *testing.T, output string) {
+	t.Helper()
+	for _, sc := range statusEmojiShortcodes {
+		assert.Check(t, !strings.Contains(output, sc),
+			"emoji shortcode %q leaked into raw watch output:\n%s", sc, output)
+	}
+}
+
+// TestRunWatch_NoEmojiShortcodes guards the non-TTY per-change status line,
+// which used to print ":white_check_mark: succeeded" literally. It must now show
+// the plain status word.
+func TestRunWatch_NoEmojiShortcodes(t *testing.T) {
+	_, env := setupWatchFake(t, "f0000000-0000-4000-8000-0000000000e1", "b0000000-0000-4000-8000-0000000000e1", "success")
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"run", "watch", "75", "--project", watchSlug},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assertNoEmojiShortcodes(t, result.Stderr)
+	// The non-TTY progress line reports the plain status word, e.g. "build=succeeded".
+	assert.Check(t, cmp.Contains(result.Stderr, "build=succeeded"), "stderr: %s", result.Stderr)
+}
+
+// TestRunWatch_TTY_PlainStatusGlyphs guards the live TTY table renderers, which
+// used to embed emoji shortcodes in each row. Under a PTY the status column must
+// render a plain Unicode glyph + word (e.g. "✓ succeeded"), never a shortcode.
+// The expect PTY merges the child's stdout and stderr, so the watch output lands
+// in result.Stdout.
+func TestRunWatch_TTY_PlainStatusGlyphs(t *testing.T) {
+	_, env := setupWatchFake(t, "f0000000-0000-4000-8000-0000000000e2", "b0000000-0000-4000-8000-0000000000e2", "success")
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"run", "watch", "75", "--project", watchSlug},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+		TTY:     true,
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "output: %s", result.Stdout)
+	assertNoEmojiShortcodes(t, result.Stdout)
+	// The table renders a plain status glyph and word rather than an emoji.
+	assert.Check(t, cmp.Contains(result.Stdout, "✓"), "output: %s", result.Stdout)
+	assert.Check(t, cmp.Contains(result.Stdout, "succeeded"), "output: %s", result.Stdout)
 }
