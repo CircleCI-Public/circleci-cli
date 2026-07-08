@@ -1,0 +1,9 @@
+Usage:  circleci org settings private-orbs [flags]
+
+Flags:
+  --disable      Disable the setting
+  --enable       Enable the setting
+  --jq string    Process values from the response using jq syntax
+  --json         Output as JSON
+  --org string   Org slug or UUID (e.g. gh/myorg); defaults to git remote
+  

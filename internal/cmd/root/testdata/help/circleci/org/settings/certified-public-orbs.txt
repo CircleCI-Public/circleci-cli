@@ -1,0 +1,51 @@
+# CircleCI CLI
+
+Control whether projects in this organization can use certified
+public orbs from the CircleCI orb registry.
+
+JSON fields: enable_certified_public_orbs
+
+For more information about output formatting flags, see `circleci help formatting`.
+
+## Usage
+
+`circleci org settings certified-public-orbs [flags]`
+
+## Flags
+
+| Flag           | Description                                              |
+| -------------- | -------------------------------------------------------- |
+| `--disable`    | Disable the setting                                      |
+| `--enable`     | Enable the setting                                       |
+| `--jq string`  | Process values from the response using jq syntax         |
+| `--json`       | Output as JSON                                           |
+| `--org string` | Org slug or UUID (e.g. gh/myorg); defaults to git remote |
+
+## Inherited Flags
+
+| Flag                  | Description                                                  |
+| --------------------- | ------------------------------------------------------------ |
+| `-c, --config string` | Path to config file (default: ~/.config/circleci/config.yml) |
+| `--debug`             | Enable debug logging                                         |
+| `--no-color`          | Disable ANSI color output (same as setting NO_COLOR)         |
+| `-q, --quiet`         | Suppress informational output. Data on stdout is unaffected  |
+
+## Examples
+
+- Show current value and pick a new one interactively (TTY): 
+  `circleci org settings certified-public-orbs`
+- Show current value for a specific org (non-interactive): 
+  `circleci org settings certified-public-orbs --org gh/myorg`
+- Enable the setting directly (non-interactive / scripting): 
+  `circleci org settings certified-public-orbs --enable`
+- Disable the setting directly (non-interactive / scripting): 
+  `circleci org settings certified-public-orbs --disable`
+- Output the current value as JSON: 
+  `circleci org settings certified-public-orbs --json`
+
+## Learn More
+
+- Use `circleci <command> <subcommand> --help` for more information about a command.
+- Read the manual at <https://cli.circleci.com/reference/>
+- Support at <https://github.com/CircleCI-Public/circleci-cli/issues>
+
