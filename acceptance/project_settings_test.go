@@ -42,19 +42,19 @@ func setupSettingsFake(t *testing.T) (*fakes.CircleCI, *testenv.TestEnv) {
 	t.Helper()
 	fake, env := setupProjectFake(t)
 	fake.SetProjectSettings(alphaProjectID, map[string]any{
-		"enable_ai_error_summarization":         false,
+		"enable_ai_error_summarization":          false,
 		"enable_auto_cancel_redundant_workflows": false,
-		"enable_building_fork_prs":              true,
-		"is_build_prs_only":                     false,
-		"can_pass_secrets_to_fork_pr_jobs":      false,
-		"can_set_github_status":                 true,
-		"is_running_disabled":                   false,
-		"is_ssh_disabled":                       false,
-		"enable_dynamic_config":                 false,
+		"enable_building_fork_prs":               true,
+		"is_build_prs_only":                      false,
+		"can_pass_secrets_to_fork_pr_jobs":       false,
+		"can_set_github_status":                  true,
+		"is_running_disabled":                    false,
+		"is_ssh_disabled":                        false,
+		"enable_dynamic_config":                  false,
 		"is_admin_required_for_writing_settings": false,
-		"is_oss":                                false,
-		"pr_only_branch_overrides":              []string{},
-		"enable_unversioned_config":             false,
+		"is_oss":                                 false,
+		"pr_only_branch_overrides":               []string{},
+		"enable_unversioned_config":              false,
 	})
 	return fake, env
 }
