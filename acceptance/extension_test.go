@@ -25,27 +25,175 @@ package acceptance_test
 import (
 	"os"
 	"path/filepath"
-	"strings"
+	"runtime"
 	"testing"
 
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/golden"
 
+	"github.com/CircleCI-Public/circleci-cli/internal/extension"
 	"github.com/CircleCI-Public/circleci-cli/internal/testing/binary"
 	testenv "github.com/CircleCI-Public/circleci-cli/internal/testing/env"
+	"github.com/CircleCI-Public/circleci-cli/internal/testing/fakes"
 )
+
+func TestExtensionInstall_InvalidExtensionName(t *testing.T) {
+	f := fakes.NewExtensionRegistry(t)
+	env := testenv.New(t)
+	env.Token = testToken
+	env.ExtensionRegistryURL = f.URL()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"extension", "install", "^&*"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+	assert.Check(t, cmp.Equal(result.ExitCode, 2))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+}
+
+func TestExtensionInstall_ExtensionNotFound(t *testing.T) {
+	f := fakes.NewExtensionRegistry(t)
+	env := testenv.New(t)
+	env.Token = testToken
+	env.ExtensionRegistryURL = f.URL()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"extension", "install", "testextension"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+	assert.Check(t, cmp.Equal(result.ExitCode, 5))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+}
+
+func TestExtensionInstall_ExtensionBinaryNotAvailableForPlatform(t *testing.T) {
+	f := fakes.NewExtensionRegistry(t)
+	env := testenv.New(t)
+	env.Token = testToken
+	env.ExtensionRegistryURL = f.URL()
+
+	extName := "testextension"
+
+	f.WithExtension(t,
+		extension.Manifest{
+			Name:       extName,
+			BinaryName: "circleci-" + extName,
+			Version:    "1.0.0",
+			Path:       testBinaryPath,
+		},
+		fakes.ExtensionMeta{
+			Arch: "fakearch",
+			Sys:  "fakeos",
+		},
+	)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"extension", "install", extName},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+	assert.Check(t, cmp.Equal(result.ExitCode, 5))
+
+	data := struct {
+		GOOS   string
+		GOARCH string
+	}{
+		GOOS: runtime.GOOS, GOARCH: runtime.GOARCH,
+	}
+	goldenTemplate(t, result.Stderr, t.Name()+".stderr.tmpl", data)
+}
+
+func TestExtensionInstall_DownloadFailed(t *testing.T) {
+	f := fakes.NewExtensionRegistry(t)
+	env := testenv.New(t)
+	env.Token = testToken
+	env.ExtensionRegistryURL = f.URL()
+
+	extName := "testextension"
+
+	f.WithExtension(t,
+		extension.Manifest{
+			Name:       extName,
+			BinaryName: "circleci-" + extName,
+			Version:    "1.0.0",
+			Path:       testBinaryPath,
+		},
+		fakes.ExtensionMeta{
+			Version: "mismatchVersion",
+			Arch:    runtime.GOARCH,
+			Sys:     runtime.GOOS,
+		},
+	)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"extension", "install", extName},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+	assert.Check(t, cmp.Equal(result.ExitCode, 4))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+}
+
+func TestExtensionInstall_ChecksumMismatch(t *testing.T) {
+	f := fakes.NewExtensionRegistry(t)
+	env := testenv.New(t)
+	env.Token = testToken
+	env.ExtensionRegistryURL = f.URL()
+
+	extName := "testextension"
+
+	f.WithExtension(t,
+		extension.Manifest{
+			Name:       extName,
+			BinaryName: "circleci-" + extName,
+			Version:    "1.0.0",
+			Path:       testBinaryPath,
+		},
+		fakes.ExtensionMeta{
+			Sha256: "not-a-valid-sha-256",
+			Arch:   runtime.GOARCH,
+			Sys:    runtime.GOOS,
+		},
+	)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"extension", "install", extName},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+	assert.Check(t, cmp.Equal(result.ExitCode, 7))
+	data := struct {
+		ExpectedSha string
+		ActualSha   string
+	}{
+		ExpectedSha: "not-a-valid-sha-256",
+		ActualSha:   f.Manifest("circleci-" + extName).Sha256,
+	}
+	goldenTemplate(t, result.Stderr, t.Name()+".stderr.tmpl", data)
+}
 
 // TestExtensionDispatch verifies that an unknown command is transparently
 // dispatched to circleci-<name> when the binary exists in PATH.
 func TestExtension(t *testing.T) {
+	f := fakes.NewExtensionRegistry(t)
 	env := testenv.New(t)
 	env.Token = testToken
+	env.ExtensionRegistryURL = f.URL()
+
+	extName := "testextension"
+	installExtension(t, f, env, extName, runtime.GOARCH, runtime.GOOS)
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"testextension", "arg1", "arg2"},
-		Env:     withExtDir(env.Environ(), testBinaryDir),
+		Args:    []string{extName, "arg1", "arg2"},
+		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
 
@@ -58,8 +206,12 @@ func TestExtension(t *testing.T) {
 // This is distinct from TestExtensionEnvInjection, which only exercises the
 // env-passthrough path in buildEnv.
 func TestExtensionTokenFromConfig(t *testing.T) {
+	f := fakes.NewExtensionRegistry(t)
 	env := testenv.New(t)
-	env.Token = testToken
+	env.ExtensionRegistryURL = f.URL()
+
+	extName := "testextension"
+	installExtension(t, f, env, extName, runtime.GOARCH, runtime.GOOS)
 
 	// Write the token to the config file. Do NOT set env.Token — the token
 	// must reach the extension via the CLI's config-loading path.
@@ -71,8 +223,8 @@ func TestExtensionTokenFromConfig(t *testing.T) {
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"--insecure-storage", "testextension"},
-		Env:     withExtDir(env.Environ(), testBinaryDir),
+		Args:    []string{"--insecure-storage", extName},
+		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
 
@@ -84,12 +236,17 @@ func TestExtensionTokenFromConfig(t *testing.T) {
 // TestExtensionExitCodePropagated verifies that the extension's exit code is
 // propagated back to the caller unchanged.
 func TestExtensionExitCodePropagated(t *testing.T) {
+	f := fakes.NewExtensionRegistry(t)
 	env := testenv.New(t)
+	env.ExtensionRegistryURL = f.URL()
+
+	extName := "testextension"
+	installExtension(t, f, env, extName, runtime.GOARCH, runtime.GOOS)
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"testextension", "exit", "123"},
-		Env:     withExtDir(env.Environ(), testBinaryDir),
+		Args:    []string{extName, "exit", "123"},
+		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
 
@@ -120,16 +277,13 @@ func TestExtensionNotFoundShowsOriginalError(t *testing.T) {
 // within a known group (e.g. "circleci pipeline foo") are not dispatched to
 // any extension — only top-level unknown commands are intercepted.
 func TestExtensionNestedUnknownNotIntercepted(t *testing.T) {
-	// Use an empty directory for the path
-	extDir := t.TempDir()
-
 	env := testenv.New(t)
 	env.Token = testToken
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
 		Args:    []string{"run", "foo"},
-		Env:     withExtDir(env.Environ(), extDir),
+		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
 
@@ -141,15 +295,85 @@ func TestExtensionNestedUnknownNotIntercepted(t *testing.T) {
 	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 }
 
-// withExtDir prepends extDir to PATH in the given environ slice.
-func withExtDir(environ []string, extDir string) []string {
-	out := make([]string, 0, len(environ)+1)
-	out = append(out, environ...)
-	for i, v := range out {
-		if strings.HasPrefix(v, "PATH=") {
-			out[i] = "PATH=" + extDir + string(os.PathListSeparator) + v[len("PATH="):]
-			return out
-		}
-	}
-	return append(out, "PATH="+extDir)
+func TestExtensionRemove(t *testing.T) {
+	f := fakes.NewExtensionRegistry(t)
+	env := testenv.New(t)
+	env.Token = testToken
+	env.ExtensionRegistryURL = f.URL()
+
+	extName := "testextension"
+	installExtension(t, f, env, extName, runtime.GOARCH, runtime.GOOS)
+
+	// Verify the extension directory exists before removal.
+	extDir := filepath.Join(env.HomeDir, ".local", "share", "circleci", "extensions", "circleci-"+extName)
+	_, statErr := os.Stat(extDir)
+	assert.NilError(t, statErr)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"extension", "remove", extName},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 0))
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+
+	// Verify the extension directory was actually removed from disk.
+	_, statErr = os.Stat(extDir)
+	assert.Check(t, os.IsNotExist(statErr), "expected extension directory %q to be removed", extDir)
+}
+
+func TestExtensionRemove_NotInstalled(t *testing.T) {
+	env := testenv.New(t)
+	env.Token = testToken
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"extension", "remove", "testextension"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 5))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+}
+
+func TestExtensionRemove_InvalidName(t *testing.T) {
+	env := testenv.New(t)
+	env.Token = testToken
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"extension", "remove", "^&*"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 2))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+}
+
+func installExtension(t *testing.T, registry *fakes.ExtensionRegistry, env *testenv.TestEnv, extName, arch, sys string) {
+	registry.WithExtension(t,
+		extension.Manifest{
+			Name:       extName,
+			BinaryName: "circleci-" + extName,
+			Version:    "1.0.0",
+			Path:       testBinaryPath,
+		},
+		fakes.ExtensionMeta{
+			Arch: arch,
+			Sys:  sys,
+		},
+	)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"extension", "install", extName},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+	assert.Assert(t, cmp.Equal(result.ExitCode, 0))
 }
