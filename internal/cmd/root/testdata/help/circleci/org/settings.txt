@@ -2,14 +2,8 @@
 
 View and update advanced settings for a CircleCI organization.
 
-Each subcommand corresponds to one advanced setting. In a terminal,
-running a subcommand with no flags shows the current value and prompts
-you to pick a new one. In non-interactive mode (CI, scripts) it prints
-the current value and shows the exact flags to change it.
-
-Use --enable or --disable to set a value directly without a prompt.
-
-To list all settings at once, use 'circleci org settings list'.
+Use 'get' to read a setting's current value and 'set' to change it.
+Use 'list' to see all settings at once.
 
 ## Usage
 
@@ -17,24 +11,11 @@ To list all settings at once, use 'circleci org settings list'.
 
 ## Available Commands
 
-| Command                                    | Description                                                   |
-| ------------------------------------------ | ------------------------------------------------------------- |
-| `ai-agents`                                | Enable AI agents for this organization                        |
-| `ai-error-summarization`                   | Enable AI-powered error summarization                         |
-| `bitbucket-workspace-member-is-org-member` | Treat Bitbucket workspace members as org members              |
-| `certified-public-orbs`                    | Allow use of certified public orbs                            |
-| `chunk-ip-ranges`                          | Enable chunk IP ranges for this organization                  |
-| `context-group-restriction`                | Require context group restriction for this organization       |
-| `disable-running`                          | Disable all builds for this organization                      |
-| `disable-user-checkout-keys`               | Disable user checkout keys for this organization              |
-| `image-brownouts`                          | Enable image brownout warnings for this organization          |
-| `list`                                     | List all advanced settings for an organization                |
-| `minor-ai-features`                        | Enable minor AI features for this organization                |
-| `private-orbs`                             | Allow use of private orbs                                     |
-| `resource-class-brownouts`                 | Enable resource class brownout warnings for this organization |
-| `runner-tos-accepted`                      | Runner terms of service accepted                              |
-| `uncertified-public-orbs`                  | Allow use of uncertified public orbs                          |
-| `unversioned-config`                       | Allow triggering pipelines without a config file              |
+| Command | Description                             |
+| ------- | --------------------------------------- |
+| `get`   | Get the current value of an org setting |
+| `list`  | List all advanced settings for an org   |
+| `set`   | Set an org setting                      |
 
 ## Inherited Flags
 

@@ -1,0 +1,7 @@
+Usage:  circleci project setting get <setting> [flags]
+
+Flags:
+  --jq string        Process values from the response using jq syntax
+  --json             Output as JSON
+  --project string   Project slug (e.g. gh/org/repo); defaults to git remote
+  

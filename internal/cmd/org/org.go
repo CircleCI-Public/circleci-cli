@@ -40,7 +40,7 @@ func NewOrgCmd() *cobra.Command {
 			List and manage CircleCI organizations.
 
 			Use 'circleci org list' to see all organizations you belong to.
-			Use 'circleci org settings list' to view advanced settings for an org,
+			Use 'circleci org setting list' to view advanced settings for an org,
 			or a specific settings subcommand to view or change an individual setting.
 		`),
 		RunE:               cmdutil.GroupRunE,
