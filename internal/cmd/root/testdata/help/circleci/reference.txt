@@ -135,17 +135,19 @@ Work with job step output
 
 Get a step's stdout condensed to its most error-relevant lines
 
-| Flag              | Description                                  |
-| ----------------- | -------------------------------------------- |
-| `--execution int` | Parallel execution index to read output from |
-| `--step-num int`  | Step number whose output to fetch (required) |
+| Flag              | Description                                                                    |
+| ----------------- | ------------------------------------------------------------------------------ |
+| `--execution int` | Parallel execution index to read output from (defaults to the first execution) |
+| `--step-num int`  | Step number whose output to fetch (required)                                   |
 
 
 **Arguments:**
 
 <job-id> is the UUID of the job whose step output to fetch. Job UUIDs
 are shown in the output of "circleci workflow get" and "circleci job get".
-Use --step-num to select which step's output to read.
+Use --step-num to select which step's output to read. For parallel jobs,
+use --execution to choose which executor's output to read; it defaults to
+the first execution (index 0).
 
 ##### `circleci job output get <job-id> [flags]`
 

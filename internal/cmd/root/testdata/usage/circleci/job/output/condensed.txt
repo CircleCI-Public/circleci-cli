@@ -1,6 +1,6 @@
 Usage:  circleci job output condensed <job-id> [flags]
 
 Flags:
-  --execution int   Parallel execution index to read output from
+  --execution int   Parallel execution index to read output from (defaults to the first execution)
   --step-num int    Step number whose output to fetch (required)
   
