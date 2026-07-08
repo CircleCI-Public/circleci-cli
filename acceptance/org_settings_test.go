@@ -71,7 +71,7 @@ func TestOrgSettingsList(t *testing.T) {
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"org", "settings", "list", "--org", orgSettingsOrgSlug},
+		Args:    []string{"org", "setting", "list", "--org", orgSettingsOrgSlug},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
@@ -85,7 +85,7 @@ func TestOrgSettingsList_JSON(t *testing.T) {
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"org", "settings", "list", "--org", orgSettingsOrgSlug, "--json"},
+		Args:    []string{"org", "setting", "list", "--org", orgSettingsOrgSlug, "--json"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
@@ -107,7 +107,7 @@ func TestOrgSettingsList_NotFound(t *testing.T) {
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"org", "settings", "list", "--org", "gh/nonexistent"},
+		Args:    []string{"org", "setting", "list", "--org", "gh/nonexistent"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
@@ -120,7 +120,7 @@ func TestOrgSettingsAIErrorSummarization_Get(t *testing.T) {
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"org", "settings", "get", "ai-error-summarization", "--org", orgSettingsOrgSlug},
+		Args:    []string{"org", "setting", "get", "ai-error-summarization", "--org", orgSettingsOrgSlug},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
@@ -134,7 +134,7 @@ func TestOrgSettingsAIErrorSummarization_SetTrue(t *testing.T) {
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"org", "settings", "set", "ai-error-summarization", "true", "--org", orgSettingsOrgSlug},
+		Args:    []string{"org", "setting", "set", "ai-error-summarization", "true", "--org", orgSettingsOrgSlug},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
@@ -148,7 +148,7 @@ func TestOrgSettingsAIErrorSummarization_SetFalse(t *testing.T) {
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"org", "settings", "set", "ai-error-summarization", "false", "--org", orgSettingsOrgSlug},
+		Args:    []string{"org", "setting", "set", "ai-error-summarization", "false", "--org", orgSettingsOrgSlug},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
@@ -162,7 +162,7 @@ func TestOrgSettingsAIErrorSummarization_JSON(t *testing.T) {
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"org", "settings", "get", "ai-error-summarization", "--org", orgSettingsOrgSlug, "--json"},
+		Args:    []string{"org", "setting", "get", "ai-error-summarization", "--org", orgSettingsOrgSlug, "--json"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
@@ -181,7 +181,7 @@ func TestOrgSettingsAIErrorSummarization_InvalidValue(t *testing.T) {
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"org", "settings", "set", "ai-error-summarization", "yes", "--org", orgSettingsOrgSlug},
+		Args:    []string{"org", "setting", "set", "ai-error-summarization", "yes", "--org", orgSettingsOrgSlug},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})

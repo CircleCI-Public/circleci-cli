@@ -64,7 +64,7 @@ func TestProjectSettingsList(t *testing.T) {
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"project", "settings", "list", "--project", "gh/myorg/alpha"},
+		Args:    []string{"project", "setting", "list", "--project", "gh/myorg/alpha"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
@@ -78,7 +78,7 @@ func TestProjectSettingsList_JSON(t *testing.T) {
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"project", "settings", "list", "--project", "gh/myorg/alpha", "--json"},
+		Args:    []string{"project", "setting", "list", "--project", "gh/myorg/alpha", "--json"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
@@ -100,7 +100,7 @@ func TestProjectSettingsList_NotFound(t *testing.T) {
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"project", "settings", "list", "--project", "gh/myorg/nonexistent"},
+		Args:    []string{"project", "setting", "list", "--project", "gh/myorg/nonexistent"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
@@ -113,7 +113,7 @@ func TestProjectSettingsBuildForkedPRs_Get(t *testing.T) {
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"project", "settings", "get", "build-forked-pull-requests", "--project", "gh/myorg/alpha"},
+		Args:    []string{"project", "setting", "get", "build-forked-pull-requests", "--project", "gh/myorg/alpha"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
@@ -127,7 +127,7 @@ func TestProjectSettingsBuildForkedPRs_SetTrue(t *testing.T) {
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"project", "settings", "set", "build-forked-pull-requests", "true", "--project", "gh/myorg/alpha"},
+		Args:    []string{"project", "setting", "set", "build-forked-pull-requests", "true", "--project", "gh/myorg/alpha"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
@@ -141,7 +141,7 @@ func TestProjectSettingsBuildForkedPRs_SetFalse(t *testing.T) {
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"project", "settings", "set", "build-forked-pull-requests", "false", "--project", "gh/myorg/alpha"},
+		Args:    []string{"project", "setting", "set", "build-forked-pull-requests", "false", "--project", "gh/myorg/alpha"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
@@ -155,7 +155,7 @@ func TestProjectSettingsBuildForkedPRs_JSON(t *testing.T) {
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"project", "settings", "get", "build-forked-pull-requests", "--project", "gh/myorg/alpha", "--json"},
+		Args:    []string{"project", "setting", "get", "build-forked-pull-requests", "--project", "gh/myorg/alpha", "--json"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
@@ -174,7 +174,7 @@ func TestProjectSettingsBuildForkedPRs_InvalidValue(t *testing.T) {
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"project", "settings", "set", "build-forked-pull-requests", "yes", "--project", "gh/myorg/alpha"},
+		Args:    []string{"project", "setting", "set", "build-forked-pull-requests", "yes", "--project", "gh/myorg/alpha"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
@@ -187,7 +187,7 @@ func TestProjectSettingsBuildForkedPRs_UnknownSetting(t *testing.T) {
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"project", "settings", "get", "nonexistent-setting", "--project", "gh/myorg/alpha"},
+		Args:    []string{"project", "setting", "get", "nonexistent-setting", "--project", "gh/myorg/alpha"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})

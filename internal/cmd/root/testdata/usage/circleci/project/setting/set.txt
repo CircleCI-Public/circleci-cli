@@ -1,4 +1,4 @@
-Usage:  circleci project settings list [flags]
+Usage:  circleci project setting set <setting> <true|false> [flags]
 
 Flags:
   --jq string        Process values from the response using jq syntax

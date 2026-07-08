@@ -18,11 +18,11 @@ For more information about output formatting flags, see `circleci help formattin
 
 ## Usage
 
-`circleci org settings list [flags]`
+`circleci org setting list [flags]`
 
 ## Aliases
 
-`circleci org settings ls`
+`circleci org setting ls`
 
 ## Flags
 

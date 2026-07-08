@@ -1093,11 +1093,11 @@ List organizations you belong to
 
 `circleci org ls`
 
-#### `circleci org settings <command>`
+#### `circleci org setting <command>`
 
 View and update org advanced settings
 
-##### `circleci org settings get <setting> [flags]`
+##### `circleci org setting get <setting> [flags]`
 
 Get the current value of an org setting
 
@@ -1108,7 +1108,7 @@ Get the current value of an org setting
 | `--org string` | Organization slug (e.g. gh/myorg) or UUID; defaults to git remote |
 
 
-##### `circleci org settings list [flags]`
+##### `circleci org setting list [flags]`
 
 List all advanced settings for an org
 
@@ -1122,9 +1122,9 @@ List all advanced settings for an org
 **Aliases:**
 
 
-`circleci org settings ls`
+`circleci org setting ls`
 
-##### `circleci org settings set <setting> <true|false> [flags]`
+##### `circleci org setting set <setting> <true|false> [flags]`
 
 Set an org setting
 
@@ -1405,11 +1405,11 @@ Open the project page in the browser
 | `--project string` | Project slug (e.g. gh/org/repo); defaults to git remote |
 
 
-#### `circleci project settings <command>`
+#### `circleci project setting <command>`
 
 View and update project advanced settings
 
-##### `circleci project settings get <setting> [flags]`
+##### `circleci project setting get <setting> [flags]`
 
 Get the current value of a project setting
 
@@ -1420,7 +1420,7 @@ Get the current value of a project setting
 | `--project string` | Project slug (e.g. gh/org/repo); defaults to git remote |
 
 
-##### `circleci project settings list [flags]`
+##### `circleci project setting list [flags]`
 
 List all advanced settings for a project
 
@@ -1434,9 +1434,9 @@ List all advanced settings for a project
 **Aliases:**
 
 
-`circleci project settings ls`
+`circleci project setting ls`
 
-##### `circleci project settings set <setting> <true|false> [flags]`
+##### `circleci project setting set <setting> <true|false> [flags]`
 
 Set a project setting
 

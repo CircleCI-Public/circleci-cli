@@ -15,11 +15,11 @@ For more information about output formatting flags, see `circleci help formattin
 
 ## Usage
 
-`circleci project settings list [flags]`
+`circleci project setting list [flags]`
 
 ## Aliases
 
-`circleci project settings ls`
+`circleci project setting ls`
 
 ## Flags
 

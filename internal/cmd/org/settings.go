@@ -42,7 +42,7 @@ import (
 
 func newSettingsCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "settings <command>",
+		Use:   "setting <command>",
 		Short: "View and update org advanced settings",
 		Long: heredoc.Doc(`
 			View and update advanced settings for a CircleCI organization.

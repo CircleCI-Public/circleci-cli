@@ -24,7 +24,7 @@ For more information about output formatting flags, see `circleci help formattin
 
 ## Usage
 
-`circleci project settings set <setting> <true|false> [flags]`
+`circleci project setting set <setting> <true|false> [flags]`
 
 ## Flags
 

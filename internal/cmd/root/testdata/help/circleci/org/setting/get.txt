@@ -27,7 +27,7 @@ For more information about output formatting flags, see `circleci help formattin
 
 ## Usage
 
-`circleci org settings get <setting> [flags]`
+`circleci org setting get <setting> [flags]`
 
 ## Flags
 
