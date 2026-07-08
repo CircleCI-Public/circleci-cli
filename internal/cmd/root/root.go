@@ -243,6 +243,7 @@ func NewRootCmd(version string) *cobra.Command {
 	cmd.AddCommand(step.NewStepCmd())
 	cmd.AddCommand(cmdtestresult.NewTestResultCmd())
 	cmd.AddCommand(workflow.NewWorkflowCmd())
+	cmd.AddCommand(extension.NewExtensionCmd())
 
 	// Wire in MCP commands. ophis sets its own terse Short; override it so the
 	// root command table explains what the command actually does.

@@ -38,6 +38,7 @@ import (
 	"runtime"
 	"strings"
 
+	"github.com/MakeNowJust/heredoc"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
@@ -123,6 +124,33 @@ func trimExeSufix(extName string) string {
 		}
 	}
 	return extName
+}
+
+func NewExtensionCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:     "extension <command>",
+		Short:   "Manage CLI extensions",
+		GroupID: "extension",
+		Long: heredoc.Doc(`
+			Manage CircleCI CLI extensions.
+
+			Extensions are binaries named circleci-<name> that add new
+			commands to the CLI. Once installed, an extension is invoked transparently
+			as 'circleci <name>'.
+
+			Use 'circleci extension install <name>' to fetch an extension from the CircleCI
+			extension registry and verify its checksum before installing it.
+		`),
+		RunE:               cmdutil.GroupRunE,
+		FParseErrWhitelist: cobra.FParseErrWhitelist{UnknownFlags: true},
+	}
+
+	cmdutil.AddGroup(cmd, "Targeted commands",
+		newInstallCmd(),
+		newRemoveCmd(),
+	)
+
+	return cmd
 }
 
 // newCmd returns a cobra command that dispatches to the circleci-<name>

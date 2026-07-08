@@ -1,0 +1,35 @@
+# CircleCI CLI
+
+Install a CircleCI CLI extension from the extension registry.
+
+The extension binary is downloaded, its SHA-256 checksum is verified
+against the release manifest, and the binary is written to the
+extension directory.
+
+A manifest file is written alongside the binary recording the version,
+checksum, and source URL so the extension can be upgraded or removed later.
+
+## Usage
+
+`circleci extension install <extension> [flags]`
+
+## Inherited Flags
+
+| Flag                  | Description                                                  |
+| --------------------- | ------------------------------------------------------------ |
+| `-c, --config string` | Path to config file (default: ~/.config/circleci/config.yml) |
+| `--debug`             | Enable debug logging                                         |
+| `--no-color`          | Disable ANSI color output (same as setting NO_COLOR)         |
+| `-q, --quiet`         | Suppress informational output. Data on stdout is unaffected  |
+
+## Examples
+
+- Install the testsuite extension: 
+  `circleci extension install testsuite`
+
+## Learn More
+
+- Use `circleci <command> <subcommand> --help` for more information about a command.
+- Read the manual at <https://cli.circleci.com/reference/>
+- Support at <https://github.com/CircleCI-Public/circleci-cli/issues>
+
