@@ -1,21 +1,25 @@
 # CircleCI CLI
 
-View and update advanced settings for a CircleCI project.
+List all CircleCI organizations the authenticated user is a member of.
 
-Use 'get' to read a setting's current value and 'set' to change it.
-Use 'list' to see all settings at once.
+JSON fields: id, slug, name, vcs_type
+
+For more information about output formatting flags, see `circleci help formatting`.
 
 ## Usage
 
-`circleci project settings <command> [flags]`
+`circleci org list [flags]`
 
-## Available Commands
+## Aliases
 
-| Command | Description                                |
-| ------- | ------------------------------------------ |
-| `get`   | Get the current value of a project setting |
-| `list`  | List all advanced settings for a project   |
-| `set`   | Set a project setting                      |
+`circleci org ls`
+
+## Flags
+
+| Flag          | Description                                      |
+| ------------- | ------------------------------------------------ |
+| `--jq string` | Process values from the response using jq syntax |
+| `--json`      | Output as JSON                                   |
 
 ## Inherited Flags
 
@@ -25,6 +29,15 @@ Use 'list' to see all settings at once.
 | `--debug`             | Enable debug logging                                         |
 | `--no-color`          | Disable ANSI color output (same as setting NO_COLOR)         |
 | `-q, --quiet`         | Suppress informational output. Data on stdout is unaffected  |
+
+## Examples
+
+- List all your organizations: 
+  `circleci org list`
+- Output as JSON for scripting: 
+  `circleci org list --json`
+- Extract just the slugs: 
+  `circleci org list --json --jq '.[].slug'`
 
 ## Learn More
 

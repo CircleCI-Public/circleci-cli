@@ -9,5 +9,5 @@ Available commands:
   link
   list
   open
-  settings
+  setting
   trigger
