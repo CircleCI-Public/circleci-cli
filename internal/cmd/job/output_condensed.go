@@ -47,7 +47,9 @@ func newOutputCondensedCmd() *cobra.Command {
 			"help:arguments": heredoc.Doc(`
 				<job-id> is the UUID of the job whose step output to fetch. Job UUIDs
 				are shown in the output of "circleci workflow get" and "circleci job get".
-				Use --step-num to select which step's output to read.
+				Use --step-num to select which step's output to read.For parallel jobs, use 
+				--execution to choose which executor's output to read; it defaults to the
+				first execution (index 0).
 			`),
 		},
 		Long: heredoc.Doc(`
