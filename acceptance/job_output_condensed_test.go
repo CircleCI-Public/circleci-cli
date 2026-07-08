@@ -93,6 +93,23 @@ func TestJobOutputCondensed_MissingStepNum(t *testing.T) {
 	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 }
 
+func TestJobOutputCondensed_InvalidJobID(t *testing.T) {
+	env := testenv.New(t)
+	env.Token = "testtoken"
+	env.CircleCIURL = "https://circleci.com" // never reached
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"job", "output", "condensed", "not-a-uuid", "--step-num", "1"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 2))
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+}
+
 func TestJobOutputCondensed_NotFound(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
 

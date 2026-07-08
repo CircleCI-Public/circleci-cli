@@ -23,6 +23,7 @@
 package job
 
 import (
+	"bytes"
 	"fmt"
 
 	"github.com/MakeNowJust/heredoc"
@@ -32,6 +33,7 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/internal/cmdutil"
 	clierrors "github.com/CircleCI-Public/circleci-cli/internal/errors"
 	"github.com/CircleCI-Public/circleci-cli/internal/iostream"
+	"github.com/CircleCI-Public/circleci-cli/internal/termrender"
 )
 
 func newOutputCondensedCmd() *cobra.Command {
@@ -103,7 +105,11 @@ func newOutputCondensedCmd() *cobra.Command {
 					"No output found for %s.")
 			}
 
-			_, _ = iostream.Out(ctx).Write(condensed)
+			_ = termrender.Render(
+				iostream.Out(ctx),
+				bytes.NewReader(condensed),
+			)
+
 			return nil
 		},
 	}
