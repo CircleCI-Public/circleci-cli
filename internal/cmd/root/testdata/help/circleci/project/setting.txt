@@ -7,7 +7,7 @@ Use 'list' to see all settings at once.
 
 ## Usage
 
-`circleci project settings <command> [flags]`
+`circleci project setting <command> [flags]`
 
 ## Available Commands
 

@@ -1,0 +1,18 @@
+# Advanced Settings
+| Setting                                  | Value |
+| ---------------------------------------- | ----- |
+| ai-agents                                | false |
+| ai-error-summarization                   | true  |
+| bitbucket-workspace-member-is-org-member | false |
+| certified-public-orbs                    | true  |
+| chunk-ip-ranges                          | false |
+| context-group-restriction                | false |
+| disable-running                          | false |
+| disable-user-checkout-keys               | false |
+| image-brownouts                          | false |
+| minor-ai-features                        | false |
+| private-orbs                             | false |
+| resource-class-brownouts                 | false |
+| runner-tos-accepted                      | false |
+| uncertified-public-orbs                  | false |
+| unversioned-config                       | false |

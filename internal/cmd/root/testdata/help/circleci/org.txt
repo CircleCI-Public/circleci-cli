@@ -1,21 +1,26 @@
 # CircleCI CLI
 
-View and update advanced settings for a CircleCI project.
+List and manage CircleCI organizations.
 
-Use 'get' to read a setting's current value and 'set' to change it.
-Use 'list' to see all settings at once.
+Use 'circleci org list' to see all organizations you belong to.
+Use 'circleci org setting list' to view advanced settings for an org,
+or a specific settings subcommand to view or change an individual setting.
 
 ## Usage
 
-`circleci project settings <command> [flags]`
+`circleci org <command> [flags]`
 
-## Available Commands
+## General Commands
 
-| Command | Description                                |
-| ------- | ------------------------------------------ |
-| `get`   | Get the current value of a project setting |
-| `list`  | List all advanced settings for a project   |
-| `set`   | Set a project setting                      |
+| Command | Description                      |
+| ------- | -------------------------------- |
+| `list`  | List organizations you belong to |
+
+## Subcommands
+
+| Command   | Description                           |
+| --------- | ------------------------------------- |
+| `setting` | View and update org advanced settings |
 
 ## Inherited Flags
 

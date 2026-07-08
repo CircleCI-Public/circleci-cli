@@ -31,6 +31,9 @@ vars:
   SITE_DIR: docs/website
   SITE_OUT: docs/website/public
 
+  GH_NAME: 'circleci'
+  GH_EMAIL: 'ops+deploy-bot@circleci.com'
+
 tasks:
   build:
     desc: Build the circleci binary
@@ -255,10 +258,12 @@ tasks:
       MESSAGE: 'Deploy docs from {{env "CIRCLE_SHA1" | default "local"}}'
     cmds:
       - test -d {{.SITE_OUT}} || { echo "Run 'task docs:build' first."; exit 1; }
-      # In CI, identity comes from the release context; locally, keep existing config.
+      # Only set the deploy-bot identity in CI; never clobber a local git config.
       - |
-        if [ -n "${GH_EMAIL:-}" ]; then git config --global user.email "$GH_EMAIL"; fi
-        if [ -n "${GH_NAME:-}" ]; then git config --global user.name "$GH_NAME"; fi
+        if [ -n "${CI:-}" ]; then
+          git config --global user.email '{{.GH_EMAIL}}'
+          git config --global user.name '{{.GH_NAME}}'
+        fi
       - rm -rf {{.WORKTREE}}
       - git worktree prune
       - |
@@ -319,8 +324,12 @@ tasks:
     vars:
       VERSION: 'v1.0.{{env "CIRCLE_BUILD_NUM" | default "0"}}-pre'
     cmds:
-      - git config --global user.email $GH_EMAIL
-      - git config --global user.name $GH_NAME
+      # Only set the deploy-bot identity in CI; never clobber a local git config.
+      - |
+        if [ -n "${CI:-}" ]; then
+          git config --global user.email '{{.GH_EMAIL}}'
+          git config --global user.name '{{.GH_NAME}}'
+        fi
       - git tag -a '{{.VERSION}}' -m 'Release {{.VERSION}}'
       - git push origin '{{.VERSION}}'
       - go tool -modfile tools/go.mod goreleaser release --clean
@@ -360,8 +369,12 @@ tasks:
     vars:
       VERSION: 'v1.0.{{env "CIRCLE_BUILD_NUM" | default "0"}}-pre'
     cmds:
-      - git config --global user.email $GH_EMAIL
-      - git config --global user.name $GH_NAME
+      # Only set the deploy-bot identity in CI; never clobber a local git config.
+      - |
+        if [ -n "${CI:-}" ]; then
+          git config --global user.email '{{.GH_EMAIL}}'
+          git config --global user.name '{{.GH_NAME}}'
+        fi
       - git tag -a '{{.VERSION}}' -m 'Release {{.VERSION}}'
       - go tool -modfile tools/go.mod goreleaser release --snapshot --skip=snapcraft --skip=chocolatey --clean
       - task: ci:packagecloud

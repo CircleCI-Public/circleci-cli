@@ -1,16 +1,6 @@
 Usage:  circleci project settings <command>
 
 Available commands:
-  ai-error-summarization
-  auto-cancel-builds
-  build-forked-pull-requests
-  build-prs-only
-  disable-running
-  disable-ssh
-  dynamic-config
-  forks-receive-secret-env-vars
+  get
   list
-  oss
-  set-github-status
-  unversioned-config
-  write-settings-requires-admin
+  set
