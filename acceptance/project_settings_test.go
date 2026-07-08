@@ -41,21 +41,20 @@ const alphaProjectID = "a0000000-0000-4000-8000-0000000c0001"
 func setupSettingsFake(t *testing.T) (*fakes.CircleCI, *testenv.TestEnv) {
 	t.Helper()
 	fake, env := setupProjectFake(t)
-	// Settings are keyed by project UUID (the v3 endpoint takes :id, not slug).
 	fake.SetProjectSettings(alphaProjectID, map[string]any{
-		"enable_ai_error_summarization":          false,
+		"enable_ai_error_summarization":         false,
 		"enable_auto_cancel_redundant_workflows": false,
-		"enable_building_fork_prs":               true,
-		"is_build_prs_only":                      false,
-		"can_pass_secrets_to_fork_pr_jobs":       false,
-		"can_set_github_status":                  true,
-		"is_running_disabled":                    false,
-		"is_ssh_disabled":                        false,
-		"enable_dynamic_config":                  false,
+		"enable_building_fork_prs":              true,
+		"is_build_prs_only":                     false,
+		"can_pass_secrets_to_fork_pr_jobs":      false,
+		"can_set_github_status":                 true,
+		"is_running_disabled":                   false,
+		"is_ssh_disabled":                       false,
+		"enable_dynamic_config":                 false,
 		"is_admin_required_for_writing_settings": false,
-		"is_oss":                                 false,
-		"pr_only_branch_overrides":               []string{},
-		"enable_unversioned_config":              false,
+		"is_oss":                                false,
+		"pr_only_branch_overrides":              []string{},
+		"enable_unversioned_config":             false,
 	})
 	return fake, env
 }
@@ -106,7 +105,6 @@ func TestProjectSettingsList_NotFound(t *testing.T) {
 		WorkDir: t.TempDir(),
 	})
 
-	// Slug resolution fails with ErrProjectNotFound → exit 5.
 	assert.Equal(t, result.ExitCode, 5, "stderr: %s", result.Stderr)
 }
 
@@ -115,7 +113,7 @@ func TestProjectSettingsBuildForkedPRs_Get(t *testing.T) {
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"project", "settings", "build-forked-pull-requests", "--project", "gh/myorg/alpha"},
+		Args:    []string{"project", "settings", "get", "build-forked-pull-requests", "--project", "gh/myorg/alpha"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
@@ -124,12 +122,12 @@ func TestProjectSettingsBuildForkedPRs_Get(t *testing.T) {
 	assert.Check(t, cmp.Contains(result.Stdout, "build-forked-pull-requests: true"))
 }
 
-func TestProjectSettingsBuildForkedPRs_Enable(t *testing.T) {
+func TestProjectSettingsBuildForkedPRs_SetTrue(t *testing.T) {
 	_, env := setupSettingsFake(t)
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"project", "settings", "build-forked-pull-requests", "--project", "gh/myorg/alpha", "--enable"},
+		Args:    []string{"project", "settings", "set", "build-forked-pull-requests", "true", "--project", "gh/myorg/alpha"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
@@ -138,12 +136,12 @@ func TestProjectSettingsBuildForkedPRs_Enable(t *testing.T) {
 	assert.Check(t, cmp.Contains(result.Stdout, "build-forked-pull-requests: true"))
 }
 
-func TestProjectSettingsBuildForkedPRs_Disable(t *testing.T) {
+func TestProjectSettingsBuildForkedPRs_SetFalse(t *testing.T) {
 	_, env := setupSettingsFake(t)
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"project", "settings", "build-forked-pull-requests", "--project", "gh/myorg/alpha", "--disable"},
+		Args:    []string{"project", "settings", "set", "build-forked-pull-requests", "false", "--project", "gh/myorg/alpha"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
@@ -157,7 +155,7 @@ func TestProjectSettingsBuildForkedPRs_JSON(t *testing.T) {
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"project", "settings", "build-forked-pull-requests", "--project", "gh/myorg/alpha", "--json"},
+		Args:    []string{"project", "settings", "get", "build-forked-pull-requests", "--project", "gh/myorg/alpha", "--json"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
@@ -171,12 +169,25 @@ func TestProjectSettingsBuildForkedPRs_JSON(t *testing.T) {
 	assert.Check(t, cmp.Equal(out["value"], true))
 }
 
-func TestProjectSettingsBuildForkedPRs_ConflictingFlags(t *testing.T) {
+func TestProjectSettingsBuildForkedPRs_InvalidValue(t *testing.T) {
 	_, env := setupSettingsFake(t)
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"project", "settings", "build-forked-pull-requests", "--project", "gh/myorg/alpha", "--enable", "--disable"},
+		Args:    []string{"project", "settings", "set", "build-forked-pull-requests", "yes", "--project", "gh/myorg/alpha"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 2)
+}
+
+func TestProjectSettingsBuildForkedPRs_UnknownSetting(t *testing.T) {
+	_, env := setupSettingsFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"project", "settings", "get", "nonexistent-setting", "--project", "gh/myorg/alpha"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})

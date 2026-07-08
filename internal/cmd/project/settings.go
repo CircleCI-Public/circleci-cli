@@ -26,6 +26,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/MakeNowJust/heredoc"
 	"github.com/google/uuid"
@@ -46,290 +47,129 @@ func newSettingsCmd() *cobra.Command {
 		Long: heredoc.Doc(`
 			View and update advanced settings for a CircleCI project.
 
-			Each subcommand corresponds to one advanced setting. In a terminal,
-			running a subcommand with no flags shows the current value and prompts
-			you to pick a new one. In non-interactive mode (CI, scripts) it prints
-			the current value and shows the exact flags to change it.
-
-			Use --enable or --disable to set a value directly without a prompt.
-
-			To list all settings at once, use 'circleci project settings list'.
+			Use 'get' to read a setting's current value and 'set' to change it.
+			Use 'list' to see all settings at once.
 		`),
 		RunE:               cmdutil.GroupRunE,
 		FParseErrWhitelist: cobra.FParseErrWhitelist{UnknownFlags: true},
 	}
 
 	cmd.AddCommand(newSettingsListCmd())
-	for _, spec := range boolSettingSpecs {
-		cmd.AddCommand(newBoolSettingCmd(spec))
-	}
+	cmd.AddCommand(newSettingsGetCmd())
+	cmd.AddCommand(newSettingsSetCmd())
 
 	return cmd
 }
 
 // boolSettingSpec describes a single boolean advanced setting.
 type boolSettingSpec struct {
-	use   string // cobra Use name, e.g. "build-forked-pull-requests"
+	use   string // name used on the CLI, e.g. "build-forked-pull-requests"
 	short string // one-line description
-	long  string // multi-line Long help
-	// get returns the value of this field from the settings attributes.
-	get func(*apiclient.ProjectSettingsAttributes) bool
-	// set writes the value into an update payload.
-	set func(*apiclient.ProjectSettingsUpdate, bool)
+	get   func(*apiclient.ProjectSettingsAttributes) bool
+	set   func(*apiclient.ProjectSettingsUpdate, bool)
 }
 
 var boolSettingSpecs = []boolSettingSpec{
 	{
 		use:   "build-forked-pull-requests",
 		short: "Build pull requests from forked repositories",
-		long: heredoc.Doc(`
-			Control whether CircleCI builds pull requests opened from forked
-			repositories.
-
-			When enabled, commits pushed to a fork that open a PR against this
-			repository will trigger a pipeline. Disable this on private repositories
-			if you do not want forked-repo PRs to have access to project secrets.
-
-			JSON fields: enable_building_fork_prs
-		`),
-		get: func(a *apiclient.ProjectSettingsAttributes) bool { return a.BuildForkPRs },
-		set: func(u *apiclient.ProjectSettingsUpdate, v bool) { u.BuildForkPRs = &v },
+		get:   func(a *apiclient.ProjectSettingsAttributes) bool { return a.BuildForkPRs },
+		set:   func(u *apiclient.ProjectSettingsUpdate, v bool) { u.BuildForkPRs = &v },
 	},
 	{
 		use:   "forks-receive-secret-env-vars",
 		short: "Pass secret environment variables to forked-PR builds",
-		long: heredoc.Doc(`
-			Control whether secret environment variables are passed to pipelines
-			triggered by pull requests from forked repositories.
-
-			This setting only applies when build-forked-pull-requests is also
-			enabled. Enabling it on public repositories exposes your project
-			secrets to all fork contributors.
-
-			JSON fields: can_pass_secrets_to_fork_pr_jobs
-		`),
-		get: func(a *apiclient.ProjectSettingsAttributes) bool { return a.CanPassSecretsToForkPR },
-		set: func(u *apiclient.ProjectSettingsUpdate, v bool) { u.CanPassSecretsToForkPR = &v },
+		get:   func(a *apiclient.ProjectSettingsAttributes) bool { return a.CanPassSecretsToForkPR },
+		set:   func(u *apiclient.ProjectSettingsUpdate, v bool) { u.CanPassSecretsToForkPR = &v },
 	},
 	{
 		use:   "oss",
 		short: "Mark project as free and open source",
-		long: heredoc.Doc(`
-			Mark this project as free and open source (OSS).
-
-			OSS projects receive extra free build minutes on CircleCI and are
-			visible on the public builds page. Enable this only for genuinely
-			open-source repositories.
-
-			JSON fields: is_oss
-		`),
-		get: func(a *apiclient.ProjectSettingsAttributes) bool { return a.IsOSS },
-		set: func(u *apiclient.ProjectSettingsUpdate, v bool) { u.IsOSS = &v },
+		get:   func(a *apiclient.ProjectSettingsAttributes) bool { return a.IsOSS },
+		set:   func(u *apiclient.ProjectSettingsUpdate, v bool) { u.IsOSS = &v },
 	},
 	{
 		use:   "auto-cancel-builds",
 		short: "Automatically cancel redundant workflows",
-		long: heredoc.Doc(`
-			Control whether CircleCI automatically cancels queued or running
-			workflows when a newer commit is pushed to the same branch.
-
-			Enabling this reduces CI queue time on busy branches at the cost of
-			not retaining build history for superseded commits.
-
-			JSON fields: enable_auto_cancel_redundant_workflows
-		`),
-		get: func(a *apiclient.ProjectSettingsAttributes) bool { return a.AutoCancelBuilds },
-		set: func(u *apiclient.ProjectSettingsUpdate, v bool) { u.AutoCancelBuilds = &v },
+		get:   func(a *apiclient.ProjectSettingsAttributes) bool { return a.AutoCancelBuilds },
+		set:   func(u *apiclient.ProjectSettingsUpdate, v bool) { u.AutoCancelBuilds = &v },
 	},
 	{
 		use:   "set-github-status",
 		short: "Report build status back to GitHub",
-		long: heredoc.Doc(`
-			Control whether CircleCI posts build status checks to GitHub.
-
-			When enabled, CircleCI updates the commit status on GitHub so that
-			pull requests show a pass/fail indicator. Disabling this prevents
-			CircleCI from writing to the GitHub Checks or Statuses API.
-
-			JSON fields: can_set_github_status
-		`),
-		get: func(a *apiclient.ProjectSettingsAttributes) bool { return a.CanSetGitHubStatus },
-		set: func(u *apiclient.ProjectSettingsUpdate, v bool) { u.CanSetGitHubStatus = &v },
+		get:   func(a *apiclient.ProjectSettingsAttributes) bool { return a.CanSetGitHubStatus },
+		set:   func(u *apiclient.ProjectSettingsUpdate, v bool) { u.CanSetGitHubStatus = &v },
 	},
 	{
 		use:   "build-prs-only",
 		short: "Only build branches that have open pull requests",
-		long: heredoc.Doc(`
-			Control whether CircleCI only runs pipelines for branches that have
-			an open pull request.
-
-			When enabled, pushes to branches without an open PR are ignored.
-			This reduces build usage on feature branches that have not yet
-			opened a PR.
-
-			JSON fields: is_build_prs_only
-		`),
-		get: func(a *apiclient.ProjectSettingsAttributes) bool { return a.BuildPRsOnly },
-		set: func(u *apiclient.ProjectSettingsUpdate, v bool) { u.BuildPRsOnly = &v },
+		get:   func(a *apiclient.ProjectSettingsAttributes) bool { return a.BuildPRsOnly },
+		set:   func(u *apiclient.ProjectSettingsUpdate, v bool) { u.BuildPRsOnly = &v },
 	},
 	{
 		use:   "disable-ssh",
 		short: "Disable SSH access to build containers",
-		long: heredoc.Doc(`
-			Control whether users can SSH into build containers for debugging.
-
-			When disabled, the "Rerun with SSH" button is removed from the
-			CircleCI UI and no SSH keys are added to running containers. Enable
-			this for projects with strict security requirements.
-
-			JSON fields: is_ssh_disabled
-		`),
-		get: func(a *apiclient.ProjectSettingsAttributes) bool { return a.DisableSSH },
-		set: func(u *apiclient.ProjectSettingsUpdate, v bool) { u.DisableSSH = &v },
+		get:   func(a *apiclient.ProjectSettingsAttributes) bool { return a.DisableSSH },
+		set:   func(u *apiclient.ProjectSettingsUpdate, v bool) { u.DisableSSH = &v },
 	},
 	{
 		use:   "write-settings-requires-admin",
 		short: "Require admin role to change project settings",
-		long: heredoc.Doc(`
-			Control whether only organization admins can modify project settings.
-
-			When enabled, project-level settings (including environment variables
-			and advanced settings) can only be changed by users with admin access
-			to the organization.
-
-			JSON fields: is_admin_required_for_writing_settings
-		`),
-		get: func(a *apiclient.ProjectSettingsAttributes) bool { return a.IsAdminRequiredForWriting },
-		set: func(u *apiclient.ProjectSettingsUpdate, v bool) { u.IsAdminRequiredForWriting = &v },
+		get:   func(a *apiclient.ProjectSettingsAttributes) bool { return a.IsAdminRequiredForWriting },
+		set:   func(u *apiclient.ProjectSettingsUpdate, v bool) { u.IsAdminRequiredForWriting = &v },
 	},
 	{
 		use:   "ai-error-summarization",
 		short: "Enable AI-powered error summarization",
-		long: heredoc.Doc(`
-			Control whether CircleCI uses AI to summarize failed build errors.
-
-			When enabled, CircleCI generates an AI summary of failure output
-			shown in the UI alongside the raw logs.
-
-			JSON fields: enable_ai_error_summarization
-		`),
-		get: func(a *apiclient.ProjectSettingsAttributes) bool { return a.AIErrorSummarization },
-		set: func(u *apiclient.ProjectSettingsUpdate, v bool) { u.AIErrorSummarization = &v },
+		get:   func(a *apiclient.ProjectSettingsAttributes) bool { return a.AIErrorSummarization },
+		set:   func(u *apiclient.ProjectSettingsUpdate, v bool) { u.AIErrorSummarization = &v },
 	},
 	{
 		use:   "dynamic-config",
 		short: "Enable dynamic configuration (setup workflows)",
-		long: heredoc.Doc(`
-			Control whether this project can use dynamic configuration with
-			setup workflows.
-
-			Dynamic configuration allows a setup workflow to generate and run
-			a secondary configuration at runtime based on changed files or other
-			conditions.
-
-			JSON fields: enable_dynamic_config
-		`),
-		get: func(a *apiclient.ProjectSettingsAttributes) bool { return a.DynamicConfig },
-		set: func(u *apiclient.ProjectSettingsUpdate, v bool) { u.DynamicConfig = &v },
+		get:   func(a *apiclient.ProjectSettingsAttributes) bool { return a.DynamicConfig },
+		set:   func(u *apiclient.ProjectSettingsUpdate, v bool) { u.DynamicConfig = &v },
 	},
 	{
 		use:   "unversioned-config",
 		short: "Allow triggering pipelines without a config file",
-		long: heredoc.Doc(`
-			Control whether pipelines can be triggered via the API without a
-			config file in the repository.
-
-			When enabled, API-triggered pipelines may supply their configuration
-			inline at trigger time rather than reading it from the repo.
-
-			JSON fields: enable_unversioned_config
-		`),
-		get: func(a *apiclient.ProjectSettingsAttributes) bool { return a.UnversionedConfig },
-		set: func(u *apiclient.ProjectSettingsUpdate, v bool) { u.UnversionedConfig = &v },
+		get:   func(a *apiclient.ProjectSettingsAttributes) bool { return a.UnversionedConfig },
+		set:   func(u *apiclient.ProjectSettingsUpdate, v bool) { u.UnversionedConfig = &v },
 	},
 	{
 		use:   "disable-running",
 		short: "Disable all builds for this project",
-		long: heredoc.Doc(`
-			Control whether builds are disabled for this project.
-
-			When enabled, all new pipeline runs are dropped immediately. Use this
-			as an emergency stop when a project is producing unexpected or
-			runaway builds.
-
-			JSON fields: is_running_disabled
-		`),
-		get: func(a *apiclient.ProjectSettingsAttributes) bool { return a.DisableRunning },
-		set: func(u *apiclient.ProjectSettingsUpdate, v bool) { u.DisableRunning = &v },
+		get:   func(a *apiclient.ProjectSettingsAttributes) bool { return a.DisableRunning },
+		set:   func(u *apiclient.ProjectSettingsUpdate, v bool) { u.DisableRunning = &v },
 	},
 }
 
-// newBoolSettingCmd returns a Cobra command for one boolean advanced setting.
-func newBoolSettingCmd(spec boolSettingSpec) *cobra.Command {
-	var (
-		projectSlug string
-		enable      bool
-		disable     bool
-		jsonOut     bool
-	)
-
-	cmd := &cobra.Command{
-		Use:   spec.use,
-		Short: spec.short,
-		Long:  spec.long,
-		Example: heredoc.Docf(`
-			# Show current value and pick a new one interactively (TTY)
-			$ circleci project settings %[1]s
-
-			# Show current value for a specific project (non-interactive)
-			$ circleci project settings %[1]s --project gh/myorg/myrepo
-
-			# Enable the setting directly (non-interactive / scripting)
-			$ circleci project settings %[1]s --enable
-
-			# Disable the setting directly (non-interactive / scripting)
-			$ circleci project settings %[1]s --disable
-
-			# Output the current value as JSON
-			$ circleci project settings %[1]s --json
-		`, spec.use),
-		Args: cobra.NoArgs,
-		RunE: func(cmd *cobra.Command, args []string) error {
-			if enable && disable {
-				return clierrors.New("args.conflicting_flags", "Conflicting flags",
-					"--enable and --disable cannot be used together.").
-					WithExitCode(clierrors.ExitBadArguments)
-			}
-
-			ctx := cmd.Context()
-			client, err := cmdutil.LoadClient(ctx)
-			if err != nil {
-				return err
-			}
-
-			projectID, err := resolveProjectIDFromSlug(ctx, client, projectSlug)
-			if err != nil {
-				return err
-			}
-
-			if !enable && !disable {
-				return runSettingGet(ctx, client, projectID, spec, jsonOut)
-			}
-			return runSettingSet(ctx, client, projectID, spec, enable, jsonOut)
-		},
+func findProjectSetting(name string) (boolSettingSpec, bool) {
+	for _, s := range boolSettingSpecs {
+		if s.use == name {
+			return s, true
+		}
 	}
+	return boolSettingSpec{}, false
+}
 
-	cmd.Flags().StringVar(&projectSlug, "project", "", "Project slug (e.g. gh/org/repo); defaults to git remote")
-	cmd.Flags().BoolVar(&enable, "enable", false, "Enable the setting")
-	cmd.Flags().BoolVar(&disable, "disable", false, "Disable the setting")
-	cmdutil.AddJSONFlag(cmd, &jsonOut)
-	cmdutil.AddJQFlag(cmd)
+func projectSettingNames() string {
+	names := make([]string, len(boolSettingSpecs))
+	for i, s := range boolSettingSpecs {
+		names[i] = s.use
+	}
+	return strings.Join(names, ", ")
+}
 
-	return cmd
+func projectSettingTable() string {
+	tbl := mdtable.New("Name", "Description")
+	for _, s := range boolSettingSpecs {
+		tbl.Row(s.use, s.short)
+	}
+	return tbl.Render()
 }
 
 // resolveProjectIDFromSlug resolves a project UUID from a slug flag or git remote.
-// It reuses resolveProjectID from trigger.go (same package).
 func resolveProjectIDFromSlug(ctx context.Context, client *apiclient.Client, projectSlug string) (uuid.UUID, error) {
 	idStr, err := resolveProjectID(ctx, client, projectSlug, "")
 	if err != nil {
@@ -344,12 +184,151 @@ func resolveProjectIDFromSlug(ctx context.Context, client *apiclient.Client, pro
 	return id, nil
 }
 
+// --- settings get ---
+
+func newSettingsGetCmd() *cobra.Command {
+	var (
+		projectSlug string
+		jsonOut     bool
+	)
+
+	cmd := &cobra.Command{
+		Use:   "get <setting>",
+		Short: "Get the current value of a project setting",
+		Long: heredoc.Docf(`
+			Get the current value of an advanced project setting.
+
+			JSON fields: name, value
+
+			Available settings:
+			%s
+		`, projectSettingTable()),
+		Example: heredoc.Doc(`
+			# Get a setting for the current project
+			$ circleci project settings get build-forked-pull-requests
+
+			# Get a setting for a specific project
+			$ circleci project settings get build-forked-pull-requests --project gh/myorg/myrepo
+
+			# Output as JSON
+			$ circleci project settings get build-forked-pull-requests --json
+		`),
+		Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			spec, ok := findProjectSetting(args[0])
+			if !ok {
+				return clierrors.New("settings.unknown", "Unknown setting",
+					fmt.Sprintf("%q is not a known project setting.", args[0])).
+					WithSuggestions("Run 'circleci project settings list' to see all available settings",
+						"Valid settings: "+projectSettingNames()).
+					WithExitCode(clierrors.ExitBadArguments)
+			}
+
+			ctx := cmd.Context()
+			client, err := cmdutil.LoadClient(ctx)
+			if err != nil {
+				return err
+			}
+			projectID, err := resolveProjectIDFromSlug(ctx, client, projectSlug)
+			if err != nil {
+				return err
+			}
+			return runProjectSettingGet(ctx, client, projectID, spec, jsonOut)
+		},
+	}
+
+	cmd.Flags().StringVar(&projectSlug, "project", "", "Project slug (e.g. gh/org/repo); defaults to git remote")
+	cmdutil.AddJSONFlag(cmd, &jsonOut)
+	cmdutil.AddJQFlag(cmd)
+
+	return cmd
+}
+
+// --- settings set ---
+
+func newSettingsSetCmd() *cobra.Command {
+	var (
+		projectSlug string
+		jsonOut     bool
+	)
+
+	cmd := &cobra.Command{
+		Use:   "set <setting> <true|false>",
+		Short: "Set a project setting",
+		Long: heredoc.Docf(`
+			Set an advanced project setting to true or false.
+
+			JSON fields: name, value
+
+			Available settings:
+			%s
+		`, projectSettingTable()),
+		Example: heredoc.Doc(`
+			# Enable a setting for the current project
+			$ circleci project settings set build-forked-pull-requests true
+
+			# Disable a setting for a specific project
+			$ circleci project settings set build-forked-pull-requests false --project gh/myorg/myrepo
+
+			# Output the updated value as JSON
+			$ circleci project settings set auto-cancel-builds true --json
+		`),
+		Args: cobra.ExactArgs(2),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			spec, ok := findProjectSetting(args[0])
+			if !ok {
+				return clierrors.New("settings.unknown", "Unknown setting",
+					fmt.Sprintf("%q is not a known project setting.", args[0])).
+					WithSuggestions("Run 'circleci project settings list' to see all available settings",
+						"Valid settings: "+projectSettingNames()).
+					WithExitCode(clierrors.ExitBadArguments)
+			}
+
+			value, err := parseBool(args[1])
+			if err != nil {
+				return err
+			}
+
+			ctx := cmd.Context()
+			client, err := cmdutil.LoadClient(ctx)
+			if err != nil {
+				return err
+			}
+			projectID, err := resolveProjectIDFromSlug(ctx, client, projectSlug)
+			if err != nil {
+				return err
+			}
+			return runProjectSettingSet(ctx, client, projectID, spec, value, jsonOut)
+		},
+	}
+
+	cmd.Flags().StringVar(&projectSlug, "project", "", "Project slug (e.g. gh/org/repo); defaults to git remote")
+	cmdutil.AddJSONFlag(cmd, &jsonOut)
+	cmdutil.AddJQFlag(cmd)
+
+	return cmd
+}
+
+// parseBool accepts "true"/"false" and returns a structured error for anything else.
+func parseBool(s string) (bool, error) {
+	switch s {
+	case "true":
+		return true, nil
+	case "false":
+		return false, nil
+	default:
+		return false, clierrors.New("args.invalid_value", "Invalid value",
+			fmt.Sprintf("%q is not a valid boolean value. Use 'true' or 'false'.", s)).
+			WithExitCode(clierrors.ExitBadArguments)
+	}
+}
+
 type settingValueOutput struct {
 	Name  string `json:"name"`
 	Value bool   `json:"value"`
 }
 
-func runSettingGet(ctx context.Context, client *apiclient.Client, projectID uuid.UUID, spec boolSettingSpec, jsonOut bool) error {
+func runProjectSettingGet(ctx context.Context, client *apiclient.Client, projectID uuid.UUID, spec boolSettingSpec, jsonOut bool) error {
 	attrs, err := client.GetProjectSettings(ctx, projectID)
 	if err != nil {
 		if httpcl.HasStatusCode(err, http.StatusNotFound) {
@@ -366,43 +345,11 @@ func runSettingGet(ctx context.Context, client *apiclient.Client, projectID uuid
 		return iostream.PrintJSON(ctx, settingValueOutput{Name: spec.use, Value: val})
 	}
 
-	if iostream.IsInteractive(ctx) {
-		return runSettingPrompt(ctx, client, projectID, spec, val)
-	}
-
 	iostream.Printf(ctx, "%s: %v\n", spec.use, val)
-	iostream.ErrPrintf(ctx, "To change this setting, run:\n  circleci project settings %s --enable\n  circleci project settings %s --disable\n", spec.use, spec.use)
 	return nil
 }
 
-// runSettingPrompt offers an interactive enable/disable picker pre-highlighted
-// at the current value. If the user picks a different value it is applied immediately.
-func runSettingPrompt(ctx context.Context, client *apiclient.Client, projectID uuid.UUID, spec boolSettingSpec, current bool) error {
-	options := []string{"enable", "disable"}
-	defaultIdx := 1 // disable
-	if current {
-		defaultIdx = 0 // enable
-	}
-
-	idx, err := iostream.PromptSelectDefault(ctx, fmt.Sprintf("Set %s", spec.use), options, defaultIdx)
-	if err != nil {
-		return err
-	}
-	if idx < 0 {
-		return clierrors.New("settings.cancelled", "Aborted",
-			"No selection made.").
-			WithExitCode(clierrors.ExitCancelled)
-	}
-
-	newVal := idx == 0 // 0 = "enable" → true
-	if newVal == current {
-		iostream.Printf(ctx, "%s: %v (unchanged)\n", spec.use, current)
-		return nil
-	}
-	return runSettingSet(ctx, client, projectID, spec, newVal, false)
-}
-
-func runSettingSet(ctx context.Context, client *apiclient.Client, projectID uuid.UUID, spec boolSettingSpec, value bool, jsonOut bool) error {
+func runProjectSettingSet(ctx context.Context, client *apiclient.Client, projectID uuid.UUID, spec boolSettingSpec, value bool, jsonOut bool) error {
 	var update apiclient.ProjectSettingsUpdate
 	spec.set(&update, value)
 
@@ -483,12 +430,10 @@ func newSettingsListCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-
 			projectID, err := resolveProjectIDFromSlug(ctx, client, projectSlug)
 			if err != nil {
 				return err
 			}
-
 			return runSettingsList(ctx, client, projectID, jsonOut)
 		},
 	}

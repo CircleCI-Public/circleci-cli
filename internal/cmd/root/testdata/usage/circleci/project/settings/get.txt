@@ -1,8 +1,6 @@
-Usage:  circleci project settings forks-receive-secret-env-vars [flags]
+Usage:  circleci project settings get <setting> [flags]
 
 Flags:
-  --disable          Disable the setting
-  --enable           Enable the setting
   --jq string        Process values from the response using jq syntax
   --json             Output as JSON
   --project string   Project slug (e.g. gh/org/repo); defaults to git remote
