@@ -30,10 +30,10 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/CircleCI-Public/circleci-cli/internal/httpcl"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/assert/cmp"
 
-	"github.com/CircleCI-Public/circleci-cli/internal/apiclient"
 	"github.com/CircleCI-Public/circleci-cli/internal/testing/binary"
 	testenv "github.com/CircleCI-Public/circleci-cli/internal/testing/env"
 	"github.com/CircleCI-Public/circleci-cli/internal/testing/fakes"
@@ -72,7 +72,7 @@ func TestDLCPurge(t *testing.T) {
 			URL:    url.URL{Path: "/api/v3/projects/a0000000-0000-4000-8000-0000000e0001/dlc"},
 			Header: http.Header{
 				"Authorization": {"Bearer test-token"},
-				"User-Agent":    {apiclient.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
+				"User-Agent":    {httpcl.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
 			},
 			Body: new(""),
 		}, ignoreCommonHeaders))

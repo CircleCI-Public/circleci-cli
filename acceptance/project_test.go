@@ -31,11 +31,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/CircleCI-Public/circleci-cli/internal/httpcl"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/golden"
 
-	"github.com/CircleCI-Public/circleci-cli/internal/apiclient"
 	"github.com/CircleCI-Public/circleci-cli/internal/testing/binary"
 	testenv "github.com/CircleCI-Public/circleci-cli/internal/testing/env"
 	"github.com/CircleCI-Public/circleci-cli/internal/testing/fakes"
@@ -225,7 +225,7 @@ func TestProjectFollow(t *testing.T) {
 			URL:    url.URL{Path: "/api/v1.1/project/gh/myorg/newrepo/follow"},
 			Header: http.Header{
 				"Authorization": {"Bearer test-token"},
-				"User-Agent":    {apiclient.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
+				"User-Agent":    {httpcl.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
 			},
 			Body: new(""),
 		}, ignoreCommonHeaders))
@@ -407,7 +407,7 @@ func TestEnvSet(t *testing.T) {
 			URL:    url.URL{Path: "/api/v2/project/gh/myorg/alpha/envvar"},
 			Header: http.Header{
 				"Authorization": {"Bearer test-token"},
-				"User-Agent":    {apiclient.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
+				"User-Agent":    {httpcl.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
 			},
 			Body: new(`{"name":"NEW_VAR","value":"newvalue"}`),
 		}, ignoreCommonHeaders))
@@ -480,7 +480,7 @@ func TestEnvDelete(t *testing.T) {
 			URL:    url.URL{Path: "/api/v2/project/gh/myorg/alpha/envvar/DATABASE_URL"},
 			Header: http.Header{
 				"Authorization": {"Bearer test-token"},
-				"User-Agent":    {apiclient.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
+				"User-Agent":    {httpcl.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
 			},
 			Body: new(""),
 		}, ignoreCommonHeaders))
@@ -734,7 +734,7 @@ func TestProjectTriggerCreate(t *testing.T) {
 			URL:    url.URL{Path: "/api/v2/projects/" + triggerProjectID + "/pipeline-definitions/" + triggerPipelineDefID + "/triggers"},
 			Header: http.Header{
 				"Authorization": {"Bearer test-token"},
-				"User-Agent":    {apiclient.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
+				"User-Agent":    {httpcl.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
 			},
 			Body: new(`{"event_source":{"provider":"github_app","repo":{"external_id":"987654321"}}}`),
 		}, ignoreCommonHeaders))
@@ -924,7 +924,7 @@ func TestProjectCreate(t *testing.T) {
 			URL:    url.URL{Path: "/api/v2/organization/gh/myorg/project"},
 			Header: http.Header{
 				"Authorization": {"Bearer test-token"},
-				"User-Agent":    {apiclient.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
+				"User-Agent":    {httpcl.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
 			},
 			Body: new(`{"name":"my-new-repo"}`),
 		}, ignoreCommonHeaders))

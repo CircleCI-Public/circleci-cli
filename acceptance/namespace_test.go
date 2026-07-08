@@ -30,11 +30,11 @@ import (
 	"runtime"
 	"testing"
 
+	"github.com/CircleCI-Public/circleci-cli/internal/httpcl"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/golden"
 
-	"github.com/CircleCI-Public/circleci-cli/internal/apiclient"
 	"github.com/CircleCI-Public/circleci-cli/internal/testing/binary"
 	testenv "github.com/CircleCI-Public/circleci-cli/internal/testing/env"
 	"github.com/CircleCI-Public/circleci-cli/internal/testing/fakes"
@@ -136,7 +136,7 @@ func TestNamespaceCreate(t *testing.T) {
 			URL:    url.URL{Path: "/api/v3/namespaces"},
 			Header: http.Header{
 				"Authorization": {"Bearer test-token"},
-				"User-Agent":    {apiclient.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
+				"User-Agent":    {httpcl.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
 			},
 			Body: new(`{"name":"myorg","org_id":"00000000-0000-0000-0000-000000000001"}`),
 		}, ignoreCommonHeaders))
@@ -211,7 +211,7 @@ func TestNamespaceRename(t *testing.T) {
 			URL:    url.URL{Path: "/api/v3/namespaces/" + testNamespaceID + "/rename"},
 			Header: http.Header{
 				"Authorization": {"Bearer test-token"},
-				"User-Agent":    {apiclient.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
+				"User-Agent":    {httpcl.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
 			},
 			Body: new(`{"name":"newname"}`),
 		}, ignoreCommonHeaders))
@@ -287,7 +287,7 @@ func TestNamespaceDelete_Force(t *testing.T) {
 			URL:    url.URL{Path: "/api/v3/namespaces/" + testNamespaceID},
 			Header: http.Header{
 				"Authorization": {"Bearer test-token"},
-				"User-Agent":    {apiclient.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
+				"User-Agent":    {httpcl.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
 			},
 			Body: new(""),
 		}, ignoreCommonHeaders))

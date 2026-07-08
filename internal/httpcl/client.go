@@ -216,3 +216,10 @@ func (c *Client) Call(ctx context.Context, r Request) (status int, err error) {
 		Body:       body,
 	}
 }
+
+func UserAgent(goos, goarch, version, agent string) string {
+	if agent != "" {
+		return fmt.Sprintf("circleci-cli (%s/%s; %s; %s)", goos, goarch, version, agent)
+	}
+	return fmt.Sprintf("circleci-cli (%s/%s; %s)", goos, goarch, version)
+}

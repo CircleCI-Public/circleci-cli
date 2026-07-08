@@ -28,11 +28,11 @@ import (
 	"runtime"
 	"testing"
 
+	"github.com/CircleCI-Public/circleci-cli/internal/httpcl"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/golden"
 
-	"github.com/CircleCI-Public/circleci-cli/internal/apiclient"
 	"github.com/CircleCI-Public/circleci-cli/internal/testing/binary"
 	"github.com/CircleCI-Public/circleci-cli/internal/testing/fakes"
 	"github.com/CircleCI-Public/circleci-cli/internal/testing/httprecorder"
@@ -70,7 +70,7 @@ func TestSigningConfigCreate(t *testing.T) {
 			URL:    url.URL{Path: "/api/v3/signing/configs"},
 			Header: http.Header{
 				"Authorization": {"Bearer test-token"},
-				"User-Agent":    {apiclient.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
+				"User-Agent":    {httpcl.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
 			},
 			Body: new(`{"data":{"attributes":{"name":"production-signing","provisioning_profiles":[{"file_name":"MyApp.mobileprovision","blob":"ZmFrZS1wcm9maWxlLWJ5dGVz"}]},"references":{"org":{"id":"11111111-1111-1111-1111-111111111111"},"signing_certificate":{"id":"aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"}}}}`),
 		}, ignoreCommonHeaders))
@@ -276,7 +276,7 @@ func TestSigningConfigDelete(t *testing.T) {
 			URL:    url.URL{Path: "/api/v3/signing/configs/eccccccc-cccc-cccc-cccc-cccccccccccc"},
 			Header: http.Header{
 				"Authorization": {"Bearer test-token"},
-				"User-Agent":    {apiclient.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
+				"User-Agent":    {httpcl.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
 			},
 			Body: new(""),
 		}, ignoreCommonHeaders))
