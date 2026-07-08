@@ -841,6 +841,12 @@ a:hover {
 }
 
 /* ── TOC (sidebar nav) ──────────────────────────────────────────────────── */
+.toc ul {
+  padding-left: 0;
+  margin: 0;
+  list-style: none;
+}
+
 .toc a {
   display: block;
   overflow: hidden;
