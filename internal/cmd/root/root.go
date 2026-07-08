@@ -266,21 +266,7 @@ func NewRootCmd(version string) *cobra.Command {
 	// man pages
 	cmd.AddCommand(newManCmd())
 
-	// Register extensions found in PATH. Built-in commands always win on name
-	// conflicts — extensions cannot shadow them.
-	builtins := map[string]bool{}
-	for _, sub := range cmd.Commands() {
-		builtins[sub.Name()] = true
-	}
-
-	path := os.Getenv("PATH")
-	if exts := extension.FindAll(path); len(exts) > 0 {
-		for _, name := range exts {
-			if !builtins[name] {
-				cmd.AddCommand(extension.NewCmd(name))
-			}
-		}
-	}
+	extension.RegisterExtensions(cmd)
 
 	cmd.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
 		for i := range args {

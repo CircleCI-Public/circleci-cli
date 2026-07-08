@@ -50,10 +50,28 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/internal/projectref"
 )
 
-// FindAll scans PATH for executables named "circleci-<name>" and returns the
+func RegisterExtensions(cmd *cobra.Command) {
+	// Register extensions found in PATH. Built-in commands always win on name
+	// conflicts — extensions cannot shadow them.
+	builtins := map[string]bool{}
+	for _, sub := range cmd.Commands() {
+		builtins[sub.Name()] = true
+	}
+
+	path := os.Getenv("PATH")
+	if exts := findAll(path); len(exts) > 0 {
+		for _, name := range exts {
+			if !builtins[name] {
+				cmd.AddCommand(newCmd(name))
+			}
+		}
+	}
+}
+
+// findAll scans PATH for executables named "circleci-<name>" and returns the
 // extension names (the part after "circleci-"). The first entry in PATH wins
 // for duplicate names, matching exec.LookPath semantics.
-func FindAll(path string) []string {
+func findAll(path string) []string {
 	seen := map[string]bool{}
 	var names []string
 	for _, dir := range filepath.SplitList(path) {
@@ -107,13 +125,13 @@ func trimExeSufix(extName string) string {
 	return extName
 }
 
-// NewCmd returns a cobra command that dispatches to the circleci-<name>
+// newCmd returns a cobra command that dispatches to the circleci-<name>
 // extension. DisableFlagParsing is set so the extension receives its own args
 // verbatim without cobra attempting to parse them. Root persistent flags
 // (--config, --insecure-storage, etc.) are parsed separately from os.Args by
 // ParseRootFlags so they are available for stream setup and auth injection
 // without being forwarded to the extension.
-func NewCmd(name string) *cobra.Command {
+func newCmd(name string) *cobra.Command {
 	return &cobra.Command{
 		Use:                name,
 		Short:              "Extension (circleci-" + name + ")",
