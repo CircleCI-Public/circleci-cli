@@ -108,7 +108,7 @@ func newOutputCondensedCmd() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().IntVar(&execution, "execution", 0, "Parallel execution index to read output from")
+	cmd.Flags().IntVar(&execution, "execution", 0, "Parallel execution index to read output from (defaults to the first execution)")
 	cmd.Flags().IntVar(&stepNum, "step-num", 0, "Step number whose output to fetch (required)")
 
 	return cmd
