@@ -4,7 +4,7 @@ go 1.26.4
 
 require (
 	charm.land/bubbles/v2 v2.1.0
-	charm.land/bubbletea/v2 v2.0.7
+	charm.land/bubbletea/v2 v2.0.8
 	charm.land/glamour/v2 v2.0.0
 	charm.land/lipgloss/v2 v2.0.4
 	charm.land/log/v2 v2.0.0
@@ -14,7 +14,7 @@ require (
 	github.com/charmbracelet/x/exp/teatest/v2 v2.0.0-20260629091435-9c70f75e26a4
 	github.com/charmbracelet/x/term v0.2.2
 	github.com/cli/browser v1.3.0
-	github.com/go-chi/chi/v5 v5.3.0
+	github.com/go-chi/chi/v5 v5.3.1
 	github.com/go-chi/render v1.0.3
 	github.com/go-git/go-git/v5 v5.19.1
 	github.com/godbus/dbus/v5 v5.2.2
@@ -35,7 +35,7 @@ require (
 	github.com/zalando/go-keyring v0.2.8
 	golang.org/x/oauth2 v0.36.0
 	golang.org/x/sync v0.21.0
-	golang.org/x/sys v0.46.0
+	golang.org/x/sys v0.47.0
 	gopkg.in/yaml.v3 v3.0.1
 	gotest.tools/v3 v3.5.2
 )
