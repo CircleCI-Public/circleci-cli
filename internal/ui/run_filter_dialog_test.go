@@ -49,7 +49,7 @@ var (
 // branches, your runs — each carrying its glyph) and two statuses, seeded on the
 // current branch / all statuses, sized to a known terminal.
 func newTestDialog() runFilterDialog {
-	scopes := buildRunScopes("main", "", true, false)
+	scopes := buildRunScopes("main", "", true, true)
 	statuses := []RunStatusFilter{
 		{Label: "all statuses", Icon: "★"},
 		{Value: "failed", Label: "failed", Icon: "✗"},
@@ -172,7 +172,7 @@ func TestRunFilterDialog_CreatedViewShowsPickerAndDirection(t *testing.T) {
 func TestRunFilterDialog_CreatedSeededFromActiveFilter(t *testing.T) {
 	// Opening with an active created filter selects its age and direction so the
 	// dialog reflects what the picker is already showing.
-	scopes := buildRunScopes("main", "", true, false)
+	scopes := buildRunScopes("main", "", true, true)
 	statuses := []RunStatusFilter{{Label: "all statuses", Icon: "★"}}
 	created := RunCreatedFilter{Newer: true, Duration: 24 * time.Hour, Label: "24 Hours"}
 	d := newRunFilterDialog(scopes, statuses, 0, 0, created, false).SetSize(80, 24)
