@@ -222,7 +222,7 @@ func TestRunWatch_SHA(t *testing.T) {
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary: binaryPath,
-		Args: []string{"run", "watch", "--sha", "abc1234",
+		Args: []string{"run", "watch", "--sha", "abc1234def5678abcdef1234567890abcdef1234",
 			"--project", watchSlug, "--branch", "main"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -245,7 +245,7 @@ func TestRunWatch_SHA_NotFound(t *testing.T) {
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary: binaryPath,
-		Args: []string{"run", "watch", "--sha", "deadbeef",
+		Args: []string{"run", "watch", "--sha", "deadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
 			"--project", watchSlug, "--branch", "main"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),

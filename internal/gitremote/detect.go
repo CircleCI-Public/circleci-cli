@@ -27,6 +27,7 @@
 package gitremote
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"regexp"
@@ -55,6 +56,20 @@ var (
 	sshProtoRemote = regexp.MustCompile(`^ssh://git@([^/]+)/([^/]+)/(.+?)(?:\.git)?$`)
 	// matches https://github.com/org/repo.git
 	httpsRemote = regexp.MustCompile(`^https?://([^/]+)/([^/]+)/(.+?)(?:\.git)?$`)
+
+	hexRE = regexp.MustCompile(`^[0-9a-fA-F]+$`)
+)
+
+var (
+	// ErrSHANotHex is returned by ExpandSHA when the input contains non-hex
+	// characters (e.g. a branch name passed by mistake).
+	ErrSHANotHex = errors.New("input is not a valid hex SHA")
+	// ErrSHARepoInaccessible is returned by ExpandSHA when the local git
+	// repository cannot be opened, so a short SHA cannot be expanded.
+	ErrSHARepoInaccessible = errors.New("local git repository is not accessible")
+	// ErrSHANotFound is returned by ExpandSHA when the short SHA does not
+	// resolve to any object in the local repository.
+	ErrSHANotFound = errors.New("SHA not found in local repository")
 )
 
 // DetectNamespace returns the organization name (namespace) from the git remote.
@@ -230,6 +245,28 @@ func gitCurrentBranch(repo *git.Repository) (string, error) {
 		return "", err
 	}
 	return head.Name().Short(), nil
+}
+
+// ExpandSHA attempts to resolve an abbreviated git SHA to its full 40-character
+// form. It returns the (possibly expanded) SHA and nil on success, or the
+// original input and one of ErrSHANotHex, ErrSHARepoInaccessible, or
+// ErrSHANotFound on failure.
+func ExpandSHA(sha string) (string, error) {
+	if !hexRE.MatchString(sha) {
+		return sha, ErrSHANotHex
+	}
+	if len(sha) == 40 {
+		return sha, nil
+	}
+	repo, err := openRepo()
+	if err != nil {
+		return sha, ErrSHARepoInaccessible
+	}
+	hash, err := repo.ResolveRevision(plumbing.Revision(sha))
+	if err != nil {
+		return sha, ErrSHANotFound
+	}
+	return hash.String(), nil
 }
 
 // gitDefaultBranch returns the short name of the remote default branch (e.g.
