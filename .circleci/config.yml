@@ -1,15 +1,9 @@
 version: 2.1
 
-x_values:
-  checksum: &checksum '{{ checksum "go.sum" }}_{{ checksum "tools/go.sum" }}'
-
 parameters:
   go_version_with_patch:
     type: string
     default: 1.26.4
-
-orbs:
-  go: circleci/go@3.0.4
 
 commands:
   setup:
@@ -19,66 +13,9 @@ commands:
       - install-task
 
   install-go:
-    # TODO: Fix the Go orb install command, so it supports Windows.
     steps:
-      - run:
-          name: Install Go
-          command: |
-            arch="$(uname -m)"
-            case $arch in
-              "x86_64")
-                ARCH=amd64
-                ;;
-              "aarch64")
-                ARCH=arm64
-                ;;
-              "arm64")
-                ARCH=arm64
-                ;;
-              *)
-                echo "Unknown architecture: $arch"
-                exit 1
-                ;;
-            esac
-            echo "Detected architecture: $ARCH"
-
-            os="$(uname -o)"
-            case "$os" in
-              "Darwin")
-                OS=darwin
-                ;;
-              "Msys")
-                OS=windows
-                ;;
-              "GNU/Linux")
-                OS=linux
-                ;;
-              *)
-                echo "Unknown OS: $os"
-                exit 1
-                ;;
-            esac
-            echo "Detected OS: $OS"
-
-            EXTENSION="tar.gz"
-            if [[ "$OS" == "windows" ]]; then
-              EXTENSION="zip"
-            fi
-            URL="https://golang.org/dl/go<< pipeline.parameters.go_version_with_patch >>.${OS}-${ARCH}.${EXTENSION}"
-            echo "Downloading Go from $URL"
-
-            if [[ "$OS" == "windows" ]]; then
-              rm -rf /c/go
-              curl -o /tmp/go.zip -fsSL "$URL" 
-              unzip -q -d /c/ /tmp/go.zip
-            else
-              echo 'export PATH="/usr/local/go/bin:$HOME/go/bin:$PATH"' >> "$BASH_ENV"
-              . "$BASH_ENV"
-              sudo rm -rf /usr/local/go
-              curl -fsSL "$URL" | sudo tar -C /usr/local -xz
-            fi
-
-            go version
+      - run: circleci run circleci/setup-go@0.0.5-bf6c59b -- --version << pipeline.parameters.go_version_with_patch >> --go-cache-checksum '{{ checksum "go.sum" }}_{{ checksum "tools/go.sum" }}'
+      - run: go version
 
   install-task:
     steps:
@@ -106,28 +43,18 @@ executors:
   macos:
     macos:
       xcode: 26.5.0
-    environment:
-      # Work around Go orb not knowing where the cache is on MacOS (assuming ~/.cache/go-build).
-      GOCACHE: "/Users/distiller/.cache/go-build"
 
   windows:
     machine: true
     resource_class: windows.medium
-    environment:
-      # Work around Go orb not knowing where the cache is on Windows (assuming ~/.cache/go-build).
-      GOCACHE: 'C:\Users\circleci\.cache\go-build'
 
 jobs:
   check:
     executor: linux
     steps:
       - setup
-      - go/with-cache:
-          checksum: *checksum
-          golangci-lint: true
-          steps:
-            - run: task ci:check
-            - store_results
+      - run: task ci:check
+      - store_results
 
   test:
     parameters:
@@ -136,11 +63,8 @@ jobs:
     executor: << parameters.executor >>
     steps:
       - setup
-      - go/with-cache:
-          checksum: *checksum
-          steps:
-            - run: task ci:test
-            - store_results
+      - run: task ci:test
+      - store_results
 
   mark-release:
     executor: linux
@@ -185,9 +109,7 @@ jobs:
             sudo cp tools/choco.sh /usr/local/bin/choco
             sudo chmod +x /usr/local/bin/choco
             choco help
-      - go/with-cache:
-          checksum: *checksum
-          steps: << parameters.publish_steps >>
+      - steps: << parameters.publish_steps >>
       - store_artifacts:
           path: dist
 
@@ -208,15 +130,12 @@ jobs:
     executor: linux
     steps:
       - setup
-      - go/with-cache:
-          checksum: *checksum
-          steps:
-            - run:
-                name: Generate reference and build the site
-                command: task docs:build
-            - run:
-                name: Check internal links
-                command: task docs:test
+      - run:
+          name: Generate reference and build the site
+          command: task docs:build
+      - run:
+          name: Check internal links
+          command: task docs:test
       - store_artifacts:
           path: docs/website/public
       - persist_to_workspace:
