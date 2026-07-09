@@ -14,7 +14,7 @@ require (
 	github.com/charmbracelet/x/exp/teatest/v2 v2.0.0-20260629091435-9c70f75e26a4
 	github.com/charmbracelet/x/term v0.2.2
 	github.com/cli/browser v1.3.0
-	github.com/go-chi/chi/v5 v5.3.0
+	github.com/go-chi/chi/v5 v5.3.1
 	github.com/go-chi/render v1.0.3
 	github.com/go-git/go-git/v5 v5.19.1
 	github.com/godbus/dbus/v5 v5.2.2
