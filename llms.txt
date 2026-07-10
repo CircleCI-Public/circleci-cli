@@ -2128,9 +2128,17 @@ Remove a stored CLI setting
 
 ## Extension Commands
 
-### `circleci agent`
+### `circleci extension <command>`
 
-Extension (circleci-agent)
+Manage CLI extensions
+
+#### `circleci extension install <extension>`
+
+Install an extension
+
+#### `circleci extension remove <extension>`
+
+Remove an installed extension
 
 ## Additional Commands
 
