@@ -352,6 +352,58 @@ func TestRunGetFlow_MyRunsOmittedWithoutFetch(t *testing.T) {
 	}))
 }
 
+// TestRunGetFlow_InitialScopeMyRuns confirms that InitialScope: ScopeMyRuns opens
+// the picker on "my runs" while keeping all scopes available (i.e. the "change trigger"
+// hint is visible).
+func TestRunGetFlow_InitialScopeMyRuns(t *testing.T) {
+	newFlow := func() ui.RunGetFlowModel {
+		return ui.NewRunGetFlow(context.Background(), ui.RunGetFlowOptions{
+			Runs:          []ui.RunGetItem{runItem("ddddddd [mine] - 1 minute ago")},
+			CurrentBranch: "feature",
+			DefaultBranch: "main",
+			InitialScope:  ui.ScopeMyRuns,
+			FetchRuns: fetchByBranch(map[string][]ui.RunGetItem{
+				"feature": {runItem("abcdefg [feature] - 2 minutes ago")},
+			}),
+			FetchMyRuns: func(context.Context, string, ui.RunCreatedFilter) ([]ui.RunGetItem, error) {
+				return []ui.RunGetItem{runItem("ddddddd [mine] - 1 minute ago")}, nil
+			},
+		})
+	}
+
+	assert.Assert(t, t.Run("opens on my runs with other scopes available", func(t *testing.T) {
+		v := flowSnapshot(t, startFlow(t, newFlow()))
+		assert.Check(t, cmp.Contains(v, "Select a run [my runs]"))
+		assert.Check(t, cmp.Contains(v, "ddddddd [mine]"))
+		assert.Check(t, cmp.Contains(v, "change trigger")) // we can change out the my runs scope
+	}))
+	assert.Assert(t, t.Run("toggle from my runs reaches current branch", func(t *testing.T) {
+		tm := startFlow(t, newFlow())
+		tm.Send(switchKey) // my runs -> feature
+		waitForOutput(t, tm, "abcdefg [feature]")
+		v := flowSnapshot(t, tm)
+		assert.Check(t, cmp.Contains(v, "Select a run [feature]"))
+	}))
+}
+
+// TestRunGetFlow_InitialScopeMyRunsNoProject confirms that when FetchRuns is nil
+// (no project available), InitialScope is effectively forced to ScopeMyRuns and
+// the shift+tab toggle is hidden (only one scope exists).
+func TestRunGetFlow_InitialScopeMyRunsNoProject(t *testing.T) {
+	tm := startFlow(t, ui.NewRunGetFlow(context.Background(), ui.RunGetFlowOptions{
+		Runs: []ui.RunGetItem{runItem("ddddddd [mine] - 1 minute ago")},
+		FetchMyRuns: func(context.Context, string, ui.RunCreatedFilter) ([]ui.RunGetItem, error) {
+			return []ui.RunGetItem{runItem("ddddddd [mine] - 1 minute ago")}, nil
+		},
+	}))
+
+	v := flowSnapshot(t, tm)
+	assert.Check(t, cmp.Contains(v, "Select a run [my runs]"))
+	assert.Check(t, cmp.Contains(v, "ddddddd [mine]"))
+	// Only one scope. The change trigger hint should be absent.
+	assert.Check(t, !strings.Contains(v, "change trigger"))
+}
+
 // TestRunGetFlow_ToggleNoRuns swaps in an empty-state placeholder (committing the
 // empty scope, so the title names it) when the toggled-to scope has no runs.
 // Committing the empty scope is what keeps cycling from getting stuck.

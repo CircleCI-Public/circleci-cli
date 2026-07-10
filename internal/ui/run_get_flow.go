@@ -233,9 +233,14 @@ type RunGetResult struct {
 }
 
 // RunGetFlowOptions configures a RunGetFlowModel. The fetch callbacks keep this
-// program decoupled from the API client: the caller supplies the already-built
-// run list and closures that return the next level's items on demand.
+// program decoupled from the API client: the caller supplies closures that
+// return each level's items on demand. When Runs is nil the model fetches its
+// own initial data on Init() based on InitialScope; when Runs is pre-populated
+// the model starts directly on the run picker (useful for tests).
 type RunGetFlowOptions struct {
+	// Runs is an optional pre-loaded run list. When non-nil the model skips the
+	// initial fetch and opens the picker immediately. When nil, Init() fetches
+	// runs for the InitialScope asynchronously.
 	Runs            []RunGetItem
 	FetchWorkflows  func(ctx context.Context, runID uuid.UUID) ([]RunGetItem, error)
 	FetchJobs       func(ctx context.Context, workflowID uuid.UUID) ([]RunGetItem, error)
@@ -255,28 +260,31 @@ type RunGetFlowOptions struct {
 	// loading line stays static instead of repainting.
 	Animate bool
 
-	// CurrentBranch is the branch the initial Runs were fetched for.
-	// DefaultBranch is the project's default branch. When the two differ, the run
-	// picker offers a shift+tab toggle between them, re-fetching via FetchRuns.
-	// When DefaultBranch is empty or equal to CurrentBranch, the toggle is hidden.
-	// The status argument to FetchRuns is the active status filter (the "s" key),
-	// a pipeline.status value ("" = every status). The created argument is the
-	// active "Created" filter from the filter dialog (an inactive zero value when
-	// none is set).
+	// CurrentBranch is the branch the initial Runs were fetched for (or that
+	// the initial scope-based fetch will target). When FetchRuns is non-nil
+	// (project available), the picker offers branch scopes and optionally "my
+	// runs". When FetchRuns is nil (no project), only the "my runs" scope is
+	// available.
 	CurrentBranch string
+	// DefaultBranch is the project's default branch. When it differs from
+	// CurrentBranch a second branch scope is added to the toggle cycle. When
+	// empty or equal to CurrentBranch the extra scope is omitted.
 	DefaultBranch string
-	FetchRuns     func(ctx context.Context, branch, status string, created RunCreatedFilter) ([]RunGetItem, error)
+	// FetchRuns lists runs for a branch. The status argument is the active
+	// status filter ("" = every status). The created argument is the active
+	// "Created" filter from the filter dialog.
+	FetchRuns func(ctx context.Context, branch, status string, created RunCreatedFilter) ([]RunGetItem, error)
 	// FetchMyRuns lists the authenticated user's recent runs across all projects
 	// (the counterpart to "circleci my runs"). When set, the run picker's
 	// shift+tab cycle gains a "my runs" scope that fetches via this callback
 	// rather than by branch; when nil the scope is omitted. status and created are
 	// the active status and created filters, as for FetchRuns.
 	FetchMyRuns func(ctx context.Context, status string, created RunCreatedFilter) ([]RunGetItem, error)
-	// MyRunsOnly restricts the run picker to the cross-project "my runs" scope,
-	// used when no project could be resolved (e.g. run outside a git repository).
-	// The branch scopes and the shift+tab branch toggle are then omitted; the
-	// picker opens directly on the user's runs across all projects.
-	MyRunsOnly bool
+	// InitialScope selects which scope the picker opens on. The default
+	// (ScopeCurrentBranch) starts on the current branch. Use ScopeMyRuns to
+	// open on the user's runs. When FetchRuns is nil, InitialScope is ignored
+	// and "my runs" is the only available scope.
+	InitialScope RunScopeKind
 	// StatusFilters are the pipeline statuses the "s" key cycles through, in
 	// order. The picker prepends an "all statuses" (no filter) entry, so pressing
 	// "s" cycles no-filter → each status → back. When empty, the "s" action is
@@ -290,6 +298,20 @@ type RunGetFlowOptions struct {
 	// and no help hint is shown.
 	RenderMarkdown func(md string, width int) string
 }
+
+// RunScopeKind identifies a scope for the run picker's initial selection.
+type RunScopeKind int
+
+const (
+	// ScopeCurrentBranch starts the picker on the current branch (default).
+	ScopeCurrentBranch RunScopeKind = iota
+	// ScopeDefaultBranch starts the picker on the default branch.
+	ScopeDefaultBranch
+	// ScopeAllBranches starts the picker on the "all branches" scope.
+	ScopeAllBranches
+	// ScopeMyRuns starts the picker on the cross-project "my runs" scope.
+	ScopeMyRuns
+)
 
 // runScope is one entry in the run picker's shift+tab cycle: a branch filter
 // ("" means all branches) with the label shown in the picker title and loading
@@ -336,15 +358,13 @@ func (s runScope) where() string {
 	}
 }
 
-// buildRunScopes assembles the toggle cycle: the current branch, then the
-// default branch when it is known and distinct, then "all branches", and
-// finally "my runs" when includeMyRuns is set (i.e. FetchMyRuns is wired). The
-// cycle always includes all-branches so a toggle is offered even when there is
-// only one branch to name.
-func buildRunScopes(current, defaultBranch string, includeMyRuns, myRunsOnly bool) []runScope {
-	// With no project resolved, "my runs" is the only available scope: there is
-	// no branch to filter by, so the branch scopes and toggle are omitted.
-	if myRunsOnly {
+// buildRunScopes assembles the toggle cycle from the available callbacks.
+// When hasProject is true (FetchRuns is wired), the cycle includes the current
+// branch, the default branch (when distinct), "all branches", and optionally
+// "my runs" (when FetchMyRuns is also wired). When hasProject is false, "my
+// runs" is the only scope. There is no branch to filter by.
+func buildRunScopes(current, defaultBranch string, hasProject, includeMyRuns bool) []runScope {
+	if !hasProject {
 		return []runScope{{myRuns: true, label: "my runs", pickerLabel: "my runs", icon: scopeIconMyRuns}}
 	}
 	// The current/default branch rows spell out their role ("current branch") and
@@ -365,6 +385,32 @@ func buildRunScopes(current, defaultBranch string, includeMyRuns, myRunsOnly boo
 		scopes = append(scopes, runScope{myRuns: true, label: "my runs", pickerLabel: "my runs", icon: scopeIconMyRuns})
 	}
 	return scopes
+}
+
+// resolveScopeIndex maps a RunScopeKind to an index into the scope slice.
+// Returns 0 if the requested scope is not present.
+func resolveScopeIndex(scopes []runScope, kind RunScopeKind) int {
+	for i, s := range scopes {
+		switch kind {
+		case ScopeMyRuns:
+			if s.myRuns {
+				return i
+			}
+		case ScopeAllBranches:
+			if !s.myRuns && s.branch == "" {
+				return i
+			}
+		case ScopeDefaultBranch:
+			if s.pickerLabel == "default branch" {
+				return i
+			}
+		case ScopeCurrentBranch:
+			if s.pickerLabel == "current branch" {
+				return i
+			}
+		}
+	}
+	return 0
 }
 
 // Trigger glyphs shown beside each scope in the filter dialog's Trigger tab.
@@ -649,32 +695,46 @@ type (
 
 // NewRunGetFlow returns a RunGetFlowModel ready to pass to tea.NewProgram.
 func NewRunGetFlow(ctx context.Context, opts RunGetFlowOptions) RunGetFlowModel {
+	hasProject := opts.FetchRuns != nil
+	scopes := buildRunScopes(opts.CurrentBranch, opts.DefaultBranch, hasProject, opts.FetchMyRuns != nil)
+	initialIdx := resolveScopeIndex(scopes, opts.InitialScope)
+	stage := runGetStageLoadingRuns
+	if opts.Runs != nil {
+		stage = runGetStageRunSelect
+	}
 	m := RunGetFlowModel{
-		ctx:           ctx,
-		opts:          opts,
-		stage:         runGetStageRunSelect,
-		spin:          components.NewSpinner(opts.Color),
-		pager:         components.NewPager().WithKeys(stepPagerKeys...),
-		runs:          opts.Runs,
-		scopes:        buildRunScopes(opts.CurrentBranch, opts.DefaultBranch, opts.FetchMyRuns != nil, opts.MyRunsOnly),
-		statusFilters: buildStatusCycle(opts.StatusFilters),
-		// activeScopeIdx and statusIdx start at 0: the current branch is always the
-		// first scope, and "all statuses" the first filter.
-		stepCursor: -1,
+		ctx:            ctx,
+		opts:           opts,
+		stage:          stage,
+		spin:           components.NewSpinner(opts.Color),
+		pager:          components.NewPager().WithKeys(stepPagerKeys...),
+		runs:           opts.Runs,
+		scopes:         scopes,
+		activeScopeIdx: initialIdx,
+		statusFilters:  buildStatusCycle(opts.StatusFilters),
+		loadingLabel:   "Fetching runs for " + scopes[initialIdx].label,
+		stepCursor:     -1,
 	}
 	if opts.RenderMarkdown != nil {
 		m.help = components.NewHelp(func(w int) string {
 			return opts.RenderMarkdown(runGetHelpMarkdown, w)
 		})
 	}
-	m.runSelect = m.newRunSelect()
+	if opts.Runs != nil {
+		m.runSelect = m.newRunSelect()
+	}
 	return m
 }
 
 // Result returns the final outcome. Only valid after tea.Program.Run() returns.
 func (m RunGetFlowModel) Result() RunGetResult { return m.result }
 
-func (m RunGetFlowModel) Init() tea.Cmd { return nil }
+func (m RunGetFlowModel) Init() tea.Cmd {
+	if m.opts.Runs != nil {
+		return nil // pre-loaded, no fetch needed
+	}
+	return m.loadingCmd(m.cmdFetchRuns(m.activeScopeIdx, m.statusIdx, m.createdFilter))
+}
 
 func (m RunGetFlowModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	// Remember the terminal size for pickers built on later stages and for the

@@ -63,6 +63,7 @@ func newGetCmd() *cobra.Command {
 		projectSlug string
 		branch      string
 		jsonOut     bool
+		mine        bool
 	)
 
 	cmd := &cobra.Command{
@@ -87,6 +88,8 @@ func newGetCmd() *cobra.Command {
 
 			Pass a run UUID to look up a specific run.
 
+			Use the --mine flag to show only your runs.
+
 			JSON fields: id, phase, outcome, current_outcome, branch, tag, revision,
 			             created_at, errors[].type/message,
 			             workflows[].id/name/phase/outcome/current_outcome/duration/
@@ -101,6 +104,9 @@ func newGetCmd() *cobra.Command {
 
 			# Output as JSON for scripting
 			$ circleci run get --json
+
+			# Get only your runs
+			$ circleci run get --mine
 		`),
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -109,12 +115,13 @@ func newGetCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return runGet(ctx, client, args, projectSlug, branch, jsonOut)
+			return runGet(ctx, client, args, projectSlug, branch, jsonOut, mine)
 		},
 	}
 
 	cmd.Flags().StringVar(&projectSlug, "project", "", "Project slug (e.g. gh/org/repo); used for latest-run lookup")
 	cmd.Flags().StringVarP(&branch, "branch", "b", "", "Branch name (defaults to the current branch, or main when --project is set)")
+	cmd.Flags().BoolVarP(&mine, "mine", "m", false, "Filter to runs owned by you.")
 	cmdutil.AddJSONFlag(cmd, &jsonOut)
 	cmdutil.AddJQFlag(cmd)
 
@@ -158,12 +165,12 @@ type jobOutput struct {
 	Type           string    `json:"type,omitempty"`
 }
 
-func runGet(ctx context.Context, client *apiclient.Client, args []string, projectSlug, branch string, jsonOut bool) error {
+func runGet(ctx context.Context, client *apiclient.Client, args []string, projectSlug, branch string, jsonOut bool, mine bool) error {
 	// With no run ID and an interactive terminal, walk the user through a series
 	// of pickers (run → workflow → job) instead of silently resolving the latest
 	// run. JSON output stays non-interactive so scripting is unaffected.
 	if len(args) == 0 && !jsonOut && iostream.IsInteractive(ctx) {
-		return runGetInteractive(ctx, client, projectSlug, branch)
+		return runGetInteractive(ctx, client, projectSlug, branch, mine)
 	}
 
 	var r *apiclient.RunV3
@@ -306,29 +313,22 @@ func createdWindow(created ui.RunCreatedFilter, now time.Time) (from, to time.Ti
 // Each terminal choice reuses the existing command's output code so the
 // rendered markdown matches its non-interactive counterpart exactly. The
 // pickers are cancellable with esc/ctrl+c, which returns nil (no output).
-func runGetInteractive(ctx context.Context, client *apiclient.Client, projectSlug, branch string) error {
+func runGetInteractive(ctx context.Context, client *apiclient.Client, projectSlug, branch string, mine bool) error {
 	effectiveBranch := branch
-	var (
-		defaultBranch string
-		myRunsOnly    bool
-	)
-	// When --project is given explicitly the local checkout is meaningless for a
-	// (possibly different) project, so git is not consulted at all: the branch
-	// defaults to "main" when not supplied, and the default-branch toggle stays
-	// off. Otherwise the git remote supplies the project and (when not supplied)
-	// the branch and default branch. When no project could be inferred (not inside
-	// a repository) fall back to a "my runs" only flow — the authenticated user's
-	// runs across all projects — rather than erroring: project- and branch-scoped
-	// runs need a project, but "my runs" does not.
+	var defaultBranch string
+
+	// Resolve the project slug and branch from the git remote when not given
+	// explicitly. When --project is set the local checkout is irrelevant, so
+	// git is not consulted. When no project can be inferred (not inside a
+	// repository), FetchRuns stays nil and the UI falls back to the "my runs"
+	// scope automatically.
 	if projectSlug != "" {
 		if effectiveBranch == "" {
 			effectiveBranch = defaultBranchGuess
 		}
 	} else {
 		info, err := gitremote.Detect()
-		if err != nil {
-			myRunsOnly = true
-		} else {
+		if err == nil {
 			projectSlug = info.Slug
 			if effectiveBranch == "" {
 				effectiveBranch = info.Branch
@@ -337,56 +337,36 @@ func runGetInteractive(ctx context.Context, client *apiclient.Client, projectSlu
 		}
 	}
 
-	// The project is resolved only for the project-scoped flow; the "my runs"
-	// fallback lists across all projects and needs no project lookup.
-	var projectID string
-	if !myRunsOnly {
+	// Build the project-scoped fetch callback when a project is available.
+	// When nil, the UI offers only the "my runs" scope.
+	var fetchRuns func(ctx context.Context, branch, status string, created ui.RunCreatedFilter) ([]ui.RunGetItem, error)
+	if projectSlug != "" {
 		proj, err := client.GetProjectBySlug(ctx, projectSlug)
 		if err != nil {
 			return apiErr(err, projectSlug)
 		}
-		projectID = proj.ID.String()
+		projectID := proj.ID.String()
+		fetchRuns = func(ctx context.Context, br, status string, created ui.RunCreatedFilter) ([]ui.RunGetItem, error) {
+			now := time.Now().UTC()
+			from, to := now.AddDate(0, 0, -90), now
+			if created.Active() {
+				from, to = createdWindow(created, now)
+			}
+			runs, err := client.SearchRunsV3(ctx, apiclient.RunSearchParams{
+				ProjectIDs: []string{projectID},
+				From:       from,
+				To:         to,
+				Filter:     apiclient.BuildRunFilter(br, status),
+				Limit:      10,
+			})
+			if err != nil {
+				return nil, apiErr(err, fmt.Sprintf("%s@%s", projectSlug, br))
+			}
+			return runItems(runs), nil
+		}
 	}
 
-	// fetchRuns lists the 10 most recent runs for a branch as picker items,
-	// optionally narrowed to a pipeline status and a created-age window. It is used
-	// for the initial load and re-run on each branch-scope toggle, status-filter or
-	// created-filter change. Unused in the "my runs" only flow (there is no project
-	// to scope to).
-	fetchRuns := func(ctx context.Context, br, status string, created ui.RunCreatedFilter) ([]ui.RunGetItem, error) {
-		now := time.Now().UTC()
-		// The default window is the last 90 days; a created filter narrows it to
-		// runs older or newer than its relative age (still floored at 90 days).
-		from, to := now.AddDate(0, 0, -90), now
-		if created.Active() {
-			from, to = createdWindow(created, now)
-		}
-		runs, err := client.SearchRunsV3(ctx, apiclient.RunSearchParams{
-			ProjectIDs: []string{projectID},
-			From:       from,
-			To:         to,
-			Filter:     apiclient.BuildRunFilter(br, status),
-			Limit:      10,
-		})
-		if err != nil {
-			return nil, apiErr(err, fmt.Sprintf("%s@%s", projectSlug, br))
-		}
-		return runItems(runs), nil
-	}
-
-	// fetchMyRuns lists the authenticated user's recent runs across all projects
-	// (optionally narrowed to a pipeline status), backing the run picker's "my
-	// runs" scope. Unlike fetchRuns it is neither project- nor branch-scoped (the
-	// counterpart to "circleci my runs"). Because it spans projects, each row folds
-	// its project (the "org/repo" slug from the run's repository URL) into the ref
-	// bracket as "[project:branch]".
 	fetchMyRuns := func(ctx context.Context, status string, created ui.RunCreatedFilter) ([]ui.RunGetItem, error) {
-		// Only send explicit bounds when a created filter is active. With no filter,
-		// leave from/to nil so the endpoint applies its own default window (as
-		// "circleci my runs" does). An active filter must always send an explicit
-		// lower bound: an "older than" query would otherwise inherit the endpoint's
-		// implicit ~14-day default from, which also collapses the recently-active
-		// project set to nothing and returns no runs (see RUN_DATE_RANGES.md).
 		params := apiclient.MyRunsParams{Limit: 10, Status: status}
 		if created.Active() {
 			from, to := createdWindow(created, time.Now().UTC())
@@ -399,36 +379,17 @@ func runGetInteractive(ctx context.Context, client *apiclient.Client, projectSlu
 		return runItemsWithProjects(runs, true), nil
 	}
 
-	var (
-		items []ui.RunGetItem
-		err   error
-	)
-	if myRunsOnly {
-		sp := iostream.Spinner(ctx, true, "Fetching your recent runs")
-		items, err = fetchMyRuns(ctx, "", ui.RunCreatedFilter{})
-		sp.Stop()
-	} else {
-		sp := iostream.Spinner(ctx, true, fmt.Sprintf("Fetching recent runs for %s on branch %s", projectSlug, effectiveBranch))
-		items, err = fetchRuns(ctx, effectiveBranch, "", ui.RunCreatedFilter{})
-		sp.Stop()
-	}
-	if err != nil {
-		return err
-	}
-	if len(items) == 0 {
-		if myRunsOnly {
-			return apiErr(fmt.Errorf("no runs found"), "your runs")
-		}
-		return apiErr(fmt.Errorf("no runs found"), fmt.Sprintf("%s@%s", projectSlug, effectiveBranch))
+	initialScope := ui.ScopeCurrentBranch
+	if mine || fetchRuns == nil {
+		initialScope = ui.ScopeMyRuns
 	}
 
 	model := ui.NewRunGetFlow(ctx, ui.RunGetFlowOptions{
-		Runs:             items,
 		Color:            iostream.ColorEnabled(ctx),
 		Animate:          iostream.SpinnerEnabled(ctx),
 		CurrentBranch:    effectiveBranch,
 		DefaultBranch:    defaultBranch,
-		MyRunsOnly:       myRunsOnly,
+		InitialScope:     initialScope,
 		FetchRuns:        fetchRuns,
 		FetchMyRuns:      fetchMyRuns,
 		StatusFilters:    runStatusFilters,
