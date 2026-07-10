@@ -460,8 +460,8 @@ func terminalProperties(theme string, in io.Reader, out io.Writer) (width int, s
 			width = w
 		}
 	}
-	if width > 140 {
-		width = 140
+	if width > 160 {
+		width = 160
 	}
 
 	return width, style

@@ -60,10 +60,11 @@ const (
 
 func newGetCmd() *cobra.Command {
 	var (
-		projectSlug string
-		branch      string
-		jsonOut     bool
-		mine        bool
+		projectSlug   string
+		branch        string
+		jsonOut       bool
+		mine          bool
+		noInteractive bool
 	)
 
 	cmd := &cobra.Command{
@@ -88,9 +89,14 @@ func newGetCmd() *cobra.Command {
 
 			Pass a run UUID to look up a specific run.
 
+			With no run UUID in an interactive terminal, a picker walks you through
+			the recent runs; --no-interactive (or --json, or a non-interactive
+			session) skips it and resolves the latest run directly.
+
 			Use the --mine flag to show only your runs.
 
 			JSON fields: id, phase, outcome, current_outcome, branch, tag, revision,
+			             repository_url, commit.subject/url/author_name/author_login,
 			             created_at, errors[].type/message,
 			             workflows[].id/name/phase/outcome/current_outcome/duration/
 			             jobs[].id/name/phase/outcome/current_outcome/type
@@ -107,6 +113,9 @@ func newGetCmd() *cobra.Command {
 
 			# Get only your runs
 			$ circleci run get --mine
+
+			# Skip the picker and resolve the latest run directly
+			$ circleci run get --no-interactive
 		`),
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -115,13 +124,14 @@ func newGetCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return runGet(ctx, client, args, projectSlug, branch, jsonOut, mine)
+			return runGet(ctx, client, args, projectSlug, branch, jsonOut, mine, noInteractive)
 		},
 	}
 
 	cmd.Flags().StringVar(&projectSlug, "project", "", "Project slug (e.g. gh/org/repo); used for latest-run lookup")
 	cmd.Flags().StringVarP(&branch, "branch", "b", "", "Branch name (defaults to the current branch, or main when --project is set)")
 	cmd.Flags().BoolVarP(&mine, "mine", "m", false, "Filter to runs owned by you.")
+	cmd.Flags().BoolVar(&noInteractive, "no-interactive", false, "Skip the interactive picker and resolve the latest run directly")
 	cmdutil.AddJSONFlag(cmd, &jsonOut)
 	cmdutil.AddJQFlag(cmd)
 
@@ -136,6 +146,8 @@ type runGetOutput struct {
 	Branch         string           `json:"branch,omitempty"`
 	Tag            string           `json:"tag,omitempty"`
 	Revision       string           `json:"revision,omitempty"`
+	RepositoryURL  string           `json:"repository_url,omitempty"`
+	Commit         *commitOutput    `json:"commit,omitempty"`
 	CreatedAt      string           `json:"created_at"`
 	Errors         []errorOutput    `json:"errors,omitempty"`
 	Workflows      []workflowOutput `json:"workflows"`
@@ -144,6 +156,30 @@ type runGetOutput struct {
 type errorOutput struct {
 	Type    string `json:"type"`
 	Message string `json:"message"`
+}
+
+// commitOutput is the JSON shape for a run's head commit, shared by run get and
+// run list. Fields are omitted when empty so a run that resolved no commit
+// carries no commit object at all.
+type commitOutput struct {
+	Subject     string `json:"subject,omitempty"`
+	URL         string `json:"url,omitempty"`
+	AuthorName  string `json:"author_name,omitempty"`
+	AuthorLogin string `json:"author_login,omitempty"`
+}
+
+// commitOutputFrom adapts an apiclient commit to the JSON output shape, or nil
+// when the run carries no commit.
+func commitOutputFrom(c *apiclient.RunCommit) *commitOutput {
+	if c == nil {
+		return nil
+	}
+	return &commitOutput{
+		Subject:     c.Subject,
+		URL:         c.URL,
+		AuthorName:  c.AuthorName,
+		AuthorLogin: c.AuthorLogin,
+	}
 }
 
 type workflowOutput struct {
@@ -165,11 +201,12 @@ type jobOutput struct {
 	Type           string    `json:"type,omitempty"`
 }
 
-func runGet(ctx context.Context, client *apiclient.Client, args []string, projectSlug, branch string, jsonOut bool, mine bool) error {
+func runGet(ctx context.Context, client *apiclient.Client, args []string, projectSlug, branch string, jsonOut, mine, noInteractive bool) error {
 	// With no run ID and an interactive terminal, walk the user through a series
 	// of pickers (run → workflow → job) instead of silently resolving the latest
-	// run. JSON output stays non-interactive so scripting is unaffected.
-	if len(args) == 0 && !jsonOut && iostream.IsInteractive(ctx) {
+	// run. JSON output stays non-interactive so scripting is unaffected, and
+	// --no-interactive forces the same direct latest-run lookup in a TTY.
+	if len(args) == 0 && !jsonOut && !noInteractive && iostream.IsInteractive(ctx) {
 		return runGetInteractive(ctx, client, projectSlug, branch, mine)
 	}
 
@@ -714,6 +751,8 @@ func buildOutput(r *apiclient.RunV3, workflows []apiclient.WorkflowV3, wfJobs []
 		Branch:         r.Branch,
 		Tag:            r.Tag,
 		Revision:       revision,
+		RepositoryURL:  r.RepositoryURL,
+		Commit:         commitOutputFrom(r.Commit),
 		CreatedAt:      r.CreatedAt.Format("2006-01-02 15:04:05 UTC"),
 		Errors:         errs,
 		Workflows:      wflows,
@@ -762,6 +801,14 @@ func printRun(ctx context.Context, r runGetOutput, u string) {
 	}
 	if r.Revision != "" {
 		_, _ = fmt.Fprintf(&md, "- Commit: %s\n", r.Revision)
+	}
+	if r.Commit != nil {
+		if s := subjectDisplay(r.Commit.Subject, pickerSubjectMax); s != "" {
+			_, _ = fmt.Fprintf(&md, "- Subject: %s\n", s)
+		}
+		if r.Commit.AuthorName != "" {
+			_, _ = fmt.Fprintf(&md, "- Author: %s\n", r.Commit.AuthorName)
+		}
 	}
 	_, _ = fmt.Fprintf(&md, "- URL: <%s>\n", u)
 	_, _ = fmt.Fprintf(&md, "- Status: %s\n", deriveDisplayStatus(r))
@@ -857,14 +904,16 @@ func runItemErrors(errs []apiclient.RunError) []ui.RunGetError {
 	return out
 }
 
-// runItemLabel renders a run's picker label. Normally that is the short
-// revision and ref (e.g. "03d8295 [main] - 20 seconds ago"). When project is set
-// (the cross-project "my runs" scope) it leads the bracket as "[project:main]".
-// A run that never resolved a commit — an errored run whose config could not be
-// fetched, or one from an unknown trigger — carries no revision, branch or tag,
-// which would leave the label blank but for the timestamp. For those, fall back
-// to the run's first error, then its status word, so the row still says
-// something.
+// runItemLabel renders a run's picker label: the commit subject, ref bracket and
+// short revision, followed by a relative time — e.g.
+// "Fix the auth bug [main] 03d8295 - 20 seconds ago". Each identifying part is
+// omitted when absent, so a run with no subject reads "[main] 03d8295" and one
+// with only a revision reads "03d8295". When project is set (the cross-project
+// "my runs" scope) the bracket leads with it as "[project:main]". A run that
+// never resolved a commit, branch or revision — an errored run whose config could
+// not be fetched, or one from an unknown trigger — would leave the label blank
+// but for the timestamp; for those, fall back to the run's first error, then its
+// status word, so the row still says something.
 func runItemLabel(r *apiclient.RunV3, project string) string {
 	e := toListEntry(r)
 	ref := e.Branch
@@ -880,20 +929,63 @@ func runItemLabel(r *apiclient.RunV3, project string) string {
 	case project != "":
 		bracket = project
 	}
-	var desc string
-	switch {
-	case e.Revision != "" && bracket != "":
-		desc = fmt.Sprintf("%s [%s]", e.Revision, bracket)
-	case e.Revision != "":
-		desc = e.Revision
-	case bracket != "":
-		desc = "[" + bracket + "]"
-	case len(r.Errors) > 0:
-		desc = errorSummary(r.Errors[0])
-	default:
-		desc = apiclient.PhaseOutcomeText(r.Phase, r.Outcome, r.CurrentOutcome)
+	// Assemble the row lead-first: commit subject (what the run was for), then the
+	// ref bracket, then the short revision. Absent parts are dropped, so the row
+	// gracefully collapses to whatever identifiers the run has.
+	var parts []string
+	if subject := commitSubject(r); subject != "" {
+		parts = append(parts, subject)
+	}
+	if bracket != "" {
+		parts = append(parts, "["+bracket+"]")
+	}
+	if e.Revision != "" {
+		parts = append(parts, e.Revision)
+	}
+	desc := strings.Join(parts, " ")
+	if desc == "" {
+		// No commit, branch or revision resolved — say something rather than
+		// showing a bare timestamp.
+		if len(r.Errors) > 0 {
+			desc = errorSummary(r.Errors[0])
+		} else {
+			desc = apiclient.PhaseOutcomeText(r.Phase, r.Outcome, r.CurrentOutcome)
+		}
 	}
 	return desc + " - " + relativeTime(r.CreatedAt)
+}
+
+// Commit-subject display caps. The picker and the run get detail view give a
+// subject room to breathe; the run list table is tighter so each row stays on a
+// single line (the markdown table must not wrap).
+const (
+	pickerSubjectMax  = 50
+	runListSubjectMax = 29
+)
+
+// commitSubject returns the run's commit subject as a single capped line for a
+// picker row, or "" when the run resolved no commit — an errored run whose config
+// never loaded, or a trigger that carries none.
+func commitSubject(r *apiclient.RunV3) string {
+	if r.Commit == nil {
+		return ""
+	}
+	return subjectDisplay(r.Commit.Subject, pickerSubjectMax)
+}
+
+// subjectDisplay condenses a commit subject to a single line for a picker row or
+// table cell: its first line, trimmed, capped at maxLen runes with a … when it
+// overflows (git convention keeps subjects short, but nothing enforces it).
+// Empty in yields empty out.
+func subjectDisplay(subject string, maxLen int) string {
+	subject = strings.TrimSpace(subject)
+	if i := strings.IndexAny(subject, "\r\n"); i >= 0 {
+		subject = strings.TrimSpace(subject[:i])
+	}
+	if rs := []rune(subject); len(rs) > maxLen {
+		subject = strings.TrimSpace(string(rs[:maxLen])) + "…"
+	}
+	return subject
 }
 
 // errorSummary condenses a run error into a single short line for a picker row:

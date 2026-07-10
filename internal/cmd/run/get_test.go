@@ -94,12 +94,20 @@ func TestRunItemLabel(t *testing.T) {
 		{
 			name: "revision and branch",
 			run:  apiclient.RunV3{Revision: "03d8295abc", Branch: "main", Phase: "ended", Outcome: "succeeded", CreatedAt: created},
-			want: "03d8295 [main]",
+			want: "[main] 03d8295",
 		},
 		{
 			name: "tag, no branch",
 			run:  apiclient.RunV3{Revision: "03d8295abc", Tag: "v1.2.3", Phase: "ended", Outcome: "succeeded", CreatedAt: created},
-			want: "03d8295 [v1.2.3]",
+			want: "[v1.2.3] 03d8295",
+		},
+		{
+			name: "commit subject leads the row",
+			run: apiclient.RunV3{
+				Revision: "03d8295abc", Branch: "main", Phase: "ended", Outcome: "succeeded", CreatedAt: created,
+				Commit: &apiclient.RunCommit{Subject: "Fix the auth bug"},
+			},
+			want: "Fix the auth bug [main] 03d8295",
 		},
 		{
 			name: "revision only",
@@ -144,4 +152,22 @@ func TestErrorSummary(t *testing.T) {
 	long := errorSummary(apiclient.RunError{Message: strings.Repeat("x", 100)})
 	assert.Check(t, strings.HasSuffix(long, "…"), "long messages are truncated: %q", long)
 	assert.Check(t, len([]rune(long)) <= 61, "truncated to the cap plus ellipsis: %q", long)
+}
+
+// TestCommitSubject verifies the picker's commit subject is empty when no commit
+// resolved, reduced to its first line, and capped for long subjects.
+func TestCommitSubject(t *testing.T) {
+	assert.Check(t, is.Equal(commitSubject(&apiclient.RunV3{}), ""), "no commit yields no subject")
+
+	assert.Check(t, is.Equal(commitSubject(&apiclient.RunV3{
+		Commit: &apiclient.RunCommit{Subject: "  Fix the auth bug  "},
+	}), "Fix the auth bug"))
+
+	assert.Check(t, is.Equal(commitSubject(&apiclient.RunV3{
+		Commit: &apiclient.RunCommit{Subject: "Add retries\n\nThe body is dropped."},
+	}), "Add retries"), "only the first line is kept")
+
+	long := commitSubject(&apiclient.RunV3{Commit: &apiclient.RunCommit{Subject: strings.Repeat("x", 100)}})
+	assert.Check(t, strings.HasSuffix(long, "…"), "long subjects are truncated: %q", long)
+	assert.Check(t, len([]rune(long)) <= 51, "truncated to the cap plus ellipsis: %q", long)
 }

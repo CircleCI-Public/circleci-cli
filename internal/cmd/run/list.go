@@ -58,7 +58,12 @@ func newListCmd() *cobra.Command {
 			to a single branch, or --current-branch (-B) to automatically use
 			the branch you have checked out.
 
-			JSON fields: id, phase, outcome, current_outcome, branch, tag, revision, created_at
+			The markdown table includes the commit subject; the JSON adds the full
+			commit and repository detail.
+
+			JSON fields: id, phase, outcome, current_outcome, branch, tag, revision,
+			             repository_url, commit.subject/url/author_name/author_login,
+			             created_at
 		`),
 		Example: heredoc.Doc(`
 			# List recent runs for the current project
@@ -108,14 +113,16 @@ func newListCmd() *cobra.Command {
 }
 
 type runListEntry struct {
-	ID             uuid.UUID `json:"id"`
-	Phase          string    `json:"phase"`
-	Outcome        string    `json:"outcome,omitempty"`
-	CurrentOutcome string    `json:"current_outcome,omitempty"`
-	Branch         string    `json:"branch,omitempty"`
-	Tag            string    `json:"tag,omitempty"`
-	Revision       string    `json:"revision,omitempty"`
-	CreatedAt      string    `json:"created_at"`
+	ID             uuid.UUID     `json:"id"`
+	Phase          string        `json:"phase"`
+	Outcome        string        `json:"outcome,omitempty"`
+	CurrentOutcome string        `json:"current_outcome,omitempty"`
+	Branch         string        `json:"branch,omitempty"`
+	Tag            string        `json:"tag,omitempty"`
+	Revision       string        `json:"revision,omitempty"`
+	RepositoryURL  string        `json:"repository_url,omitempty"`
+	Commit         *commitOutput `json:"commit,omitempty"`
+	CreatedAt      string        `json:"created_at"`
 }
 
 func runList(ctx context.Context, client *apiclient.Client, projectSlug, branch string, limit int, jsonOut bool) error {
@@ -175,16 +182,28 @@ func toListEntry(r *apiclient.RunV3) runListEntry {
 		Branch:         r.Branch,
 		Tag:            r.Tag,
 		Revision:       rev,
+		RepositoryURL:  r.RepositoryURL,
+		Commit:         commitOutputFrom(r.Commit),
 		CreatedAt:      r.CreatedAt.Format("2006-01-02 15:04 UTC"),
 	}
 }
 
 func printList(ctx context.Context, entries []runListEntry) {
-	table := mdtable.New("Ref", "Revision", "ID", "Created", "Status")
+	table := mdtable.New("Ref", "Revision", "Subject", "ID", "Created", "Status")
 	for _, e := range entries {
-		table.Row(refDisplay(e.Branch, e.Tag), orDash(e.Revision), "`"+e.ID.String()+"`", e.CreatedAt, apiclient.PhaseOutcomeStatus(e.Phase, e.Outcome, e.CurrentOutcome))
+		table.Row(refDisplay(e.Branch, e.Tag), orDash(e.Revision), orDash(entrySubject(e)), "`"+e.ID.String()+"`", e.CreatedAt, apiclient.PhaseOutcomeStatus(e.Phase, e.Outcome, e.CurrentOutcome))
 	}
 	iostream.PrintMarkdown(ctx, "# Runs\n"+table.Render())
+}
+
+// entrySubject is the commit subject shown in the Subject column, capped tight
+// (runListSubjectMax) so the row never wraps, or "" when the run resolved no
+// commit.
+func entrySubject(e runListEntry) string {
+	if e.Commit == nil {
+		return ""
+	}
+	return subjectDisplay(e.Commit.Subject, runListSubjectMax)
 }
 
 // refDisplay renders the git ref for a run: the branch, or the tag (marked
