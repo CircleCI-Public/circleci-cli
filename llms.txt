@@ -382,6 +382,7 @@ Get a run's status
 | `--jq string`         | Process values from the response using jq syntax                            |
 | `--json`              | Output as JSON                                                              |
 | `-m, --mine`          | Filter to runs owned by you.                                                |
+| `--no-interactive`    | Skip the interactive picker and resolve the latest run directly             |
 | `--project string`    | Project slug (e.g. gh/org/repo); used for latest-run lookup                 |
 
 
