@@ -103,10 +103,11 @@ func newPromptCmd(name string) *cobra.Command {
 		Short: "Extension (circleci-" + name + ")",
 		Long: heredoc.Doc(fmt.Sprintf(`
 			The CircleCI %q extension is not installed by default.
-			
+
 			Install it with 'circleci extension install %s'.
 		`, name, name)),
-		GroupID: "extension",
+		GroupID:            "extension",
+		DisableFlagParsing: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 
