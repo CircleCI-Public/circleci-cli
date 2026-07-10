@@ -23,6 +23,7 @@
 package extension
 
 import (
+	"context"
 	"errors"
 	"strings"
 
@@ -61,43 +62,46 @@ func newInstallCmd() *cobra.Command {
 			}
 
 			ctx := cmd.Context()
-
-			extDir, err := config.ExtensionsDir()
-			if err != nil {
-				return err
-			}
-
-			cfg := cmdutil.GetConfig(ctx)
-
-			m := extension.NewManager(extension.Config{
-				Version:       cmdutil.GetVersion(ctx),
-				Agent:         cmdutil.GetAgentName(ctx),
-				ExtensionsDir: extDir,
-				BaseURL:       cfg.EffectiveExtensionHost(),
-			})
-
-			name := args[0]
-			if !strings.HasPrefix(name, "circleci-") {
-				name = "circleci-" + args[0]
-			}
-			ext, err := m.Get(ctx, name)
-			if err != nil {
-				return installCLIError(err)
-			}
-
-			iostream.Printf(ctx, "Installing %s version %s...\n", ext.BinaryName, ext.Version)
-
-			err = m.Install(ctx, ext)
-			if err != nil {
-				return installCLIError(err)
-			}
-
-			iostream.Printf(ctx, "%s Installed %s version %s\n", iostream.SymbolOK(ctx), ext.BinaryName, ext.Version)
-			return nil
+			return installExtension(ctx, args[0])
 		},
 	}
 
 	return cmd
+}
+
+func installExtension(ctx context.Context, name string) error {
+	extDir, err := config.ExtensionsDir()
+	if err != nil {
+		return err
+	}
+
+	cfg := cmdutil.GetConfig(ctx)
+
+	m := extension.NewManager(extension.Config{
+		Version:       cmdutil.GetVersion(ctx),
+		Agent:         cmdutil.GetAgentName(ctx),
+		ExtensionsDir: extDir,
+		BaseURL:       cfg.EffectiveExtensionHost(),
+	})
+
+	n := name
+	if !strings.HasPrefix(n, "circleci-") {
+		n = "circleci-" + name
+	}
+	ext, err := m.Get(ctx, n)
+	if err != nil {
+		return installCLIError(err)
+	}
+
+	iostream.Printf(ctx, "Installing %s version %s...\n", ext.BinaryName, ext.Version)
+
+	err = m.Install(ctx, ext)
+	if err != nil {
+		return installCLIError(err)
+	}
+
+	iostream.Printf(ctx, "%s Installed %s version %s\n", iostream.SymbolOK(ctx), ext.BinaryName, ext.Version)
+	return nil
 }
 
 func installCLIError(err error) error {

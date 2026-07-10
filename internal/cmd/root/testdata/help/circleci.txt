@@ -48,9 +48,10 @@ Work with CircleCI from the command line.
 
 ## Extension Commands
 
-| Command     | Description           |
-| ----------- | --------------------- |
-| `extension` | Manage CLI extensions |
+| Command     | Description                    |
+| ----------- | ------------------------------ |
+| `extension` | Manage CLI extensions          |
+| `testsuite` | Extension (circleci-testsuite) |
 
 ## Additional Commands
 

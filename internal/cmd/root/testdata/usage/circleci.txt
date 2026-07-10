@@ -27,5 +27,6 @@ Available commands:
   setting
   signing-config
   testresult
+  testsuite
   version
   workflow

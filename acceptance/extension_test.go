@@ -23,6 +23,7 @@
 package acceptance_test
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -37,6 +38,57 @@ import (
 	testenv "github.com/CircleCI-Public/circleci-cli/internal/testing/env"
 	"github.com/CircleCI-Public/circleci-cli/internal/testing/fakes"
 )
+
+func TestExtensionInstall_OfficialExtensionNotFound(t *testing.T) {
+	f := fakes.NewExtensionRegistry(t)
+	env := testenv.New(t)
+	env.Token = testToken
+	env.ExtensionRegistryURL = f.URL()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"testsuite"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+	assert.Check(t, cmp.Equal(result.ExitCode, 6))
+	assert.Check(t, cmp.Len(result.Stdout, 0))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+}
+
+func TestExtensionInstall_OfficialExtensionNotFound_Interactive(t *testing.T) {
+	f := fakes.NewExtensionRegistry(t)
+	env := testenv.New(t)
+	env.Token = testToken
+	env.ExtensionRegistryURL = f.URL()
+
+	extName := "testsuite"
+
+	f.WithExtension(t,
+		extension.Manifest{
+			Name:       extName,
+			BinaryName: "circleci-" + extName,
+			Version:    "1.0.0",
+			Path:       testBinaryPath,
+		},
+		fakes.ExtensionMeta{
+			Arch: runtime.GOARCH,
+			Sys:  runtime.GOOS,
+		},
+	)
+	console := binary.RunCLIInteractive(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"testsuite"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	_, err := console.ExpectString(fmt.Sprintf("%q is not installed. Install %q now?", extName, extName))
+	assert.NilError(t, err)
+
+	_, err = console.Send("Y\r")
+	assert.NilError(t, err)
+}
 
 func TestExtensionInstall_InvalidExtensionName(t *testing.T) {
 	f := fakes.NewExtensionRegistry(t)
