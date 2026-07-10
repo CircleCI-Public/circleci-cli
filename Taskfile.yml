@@ -299,11 +299,10 @@ tasks:
   ci:test:
     desc: Run tests with JUnit output
     vars:
-      ARGS: '{{default "./..." .CLI_ARGS}}'
-      RACE: '{{if not (eq OS "windows")}}-race{{end}}'
+      NAME: '{{if not (eq OS "windows")}}ci tests{{else}}windows tests{{end}}'
     cmds:
       - mkdir -p {{.RESULTS_DIR}}
-      - go tool -modfile tools/go.mod gotestsum --junitfile="{{.TEST_REPORT}}" -- {{.RACE}} -count=1 {{.ARGS}}
+      - circleci testsuite "{{.NAME}}"
 
   ci:check:
     desc: Check no uncommitted diffs after generate/fmt/tidy
