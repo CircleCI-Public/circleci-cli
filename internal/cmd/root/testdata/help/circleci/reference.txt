@@ -2011,6 +2011,10 @@ Install an extension
 
 Remove an installed extension
 
+### `circleci testsuite`
+
+Extension (circleci-testsuite)
+
 ## Additional Commands
 
 ### `circleci api <path> [flags]`

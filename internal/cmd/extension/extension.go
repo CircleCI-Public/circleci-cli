@@ -42,6 +42,12 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/internal/config"
 	clierrors "github.com/CircleCI-Public/circleci-cli/internal/errors"
 	"github.com/CircleCI-Public/circleci-cli/internal/extension"
+	"github.com/CircleCI-Public/circleci-cli/internal/iostream"
+)
+
+const (
+	// Testsuite is the official extension for running tests.
+	Testsuite = "testsuite"
 )
 
 func RegisterExtensions(rootCmd *cobra.Command) {
@@ -58,10 +64,53 @@ func RegisterExtensions(rootCmd *cobra.Command) {
 	exts, err := extension.FindAll(extsDir)
 	cobra.CheckErr(err)
 
+	officialInstalled := map[string]bool{
+		Testsuite: false,
+	}
+
 	for _, ext := range exts {
 		if !builtins[ext.Name] {
+			if _, ok := officialInstalled[ext.Name]; ok {
+				officialInstalled[ext.Name] = true
+			}
+
 			rootCmd.AddCommand(newCmd(ext))
 		}
+	}
+
+	for extName, installed := range officialInstalled {
+		if !installed {
+			rootCmd.AddCommand(newPromptCmd(extName))
+		}
+	}
+}
+
+func newPromptCmd(name string) *cobra.Command {
+	return &cobra.Command{
+		Use:   name,
+		Short: "Extension (circleci-" + name + ")",
+		Long: heredoc.Doc(fmt.Sprintf(`
+			The CircleCI %q extension is not installed by default.
+			
+			Install it with 'circleci extension install %s'.
+		`, name, name)),
+		GroupID: "extension",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			ctx := cmd.Context()
+
+			s := iostream.Get(ctx)
+			if s.IsInteractive() {
+				prompt := fmt.Sprintf("%q is not installed. Install %q now?", name, name)
+				if s.Confirm(ctx, prompt) {
+					return installExtension(ctx, name)
+				}
+			}
+
+			return clierrors.New("extension.not_installed", "Extension not installed",
+				fmt.Sprintf("extension %q is not installed", name)).
+				WithSuggestions(fmt.Sprintf("Install with: 'circleci extension install %s'", name)).
+				WithExitCode(clierrors.ExitCancelled)
+		},
 	}
 }
 
