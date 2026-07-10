@@ -155,9 +155,10 @@ func TestSlugFromRemote(t *testing.T) {
 // to the canonical "circleci/<orgID>/<projectID>" slug.
 func TestDetect_PrefersInfoYml(t *testing.T) {
 	tests := []struct {
-		name     string
-		info     projectref.Info
-		wantSlug string
+		name      string
+		info      projectref.Info
+		wantSlug  string
+		wantOrgID string
 	}{
 		{
 			name: "uuids present yields canonical slug",
@@ -168,7 +169,8 @@ func TestDetect_PrefersInfoYml(t *testing.T) {
 					ID:   "13c8F7nusayivoSxC6GMsw",
 				},
 			},
-			wantSlug: "circleci/E6i3yYZeWZhcf8UNqcKfjN/13c8F7nusayivoSxC6GMsw",
+			wantSlug:  "circleci/E6i3yYZeWZhcf8UNqcKfjN/13c8F7nusayivoSxC6GMsw",
+			wantOrgID: "E6i3yYZeWZhcf8UNqcKfjN",
 		},
 		{
 			name:     "slug-only falls through verbatim",
@@ -190,6 +192,9 @@ func TestDetect_PrefersInfoYml(t *testing.T) {
 			info, err := Detect()
 			assert.NilError(t, err)
 			assert.Check(t, cmp.Equal(info.Slug, tc.wantSlug))
+			// The org ID recorded by `project link` is surfaced verbatim so
+			// callers can use it without a project lookup.
+			assert.Check(t, cmp.Equal(info.OrgID, tc.wantOrgID))
 		})
 	}
 }

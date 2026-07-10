@@ -98,12 +98,14 @@ func readConfigInput(ctx context.Context, path string) (string, error) {
 // resolveOrgID returns the org UUID to use for private orb resolution during
 // compilation.
 //
-// When --org is empty the org is inferred from the git remote as a best-effort
-// convenience, so configs that reference private or namespaced orbs validate
-// without requiring the flag. If the org can't be determined (not a git
-// checkout, an unrecognised remote, or the project isn't found) it falls back
-// to "" and private orb resolution is skipped — the compile call still
-// proceeds so public configs validate anywhere.
+// When --org is empty the org is inferred from the current project as a
+// best-effort convenience, so configs that reference private or namespaced orbs
+// validate without requiring the flag. Inference honours a `circleci project
+// link` binding first and falls back to the git remote (see cmdutil.InferOrgID).
+// If the org can't be determined (not a linked or git checkout, an unrecognised
+// remote, or the project isn't found) it falls back to "" and private orb
+// resolution is skipped — the compile call still proceeds so public configs
+// validate anywhere.
 //
 // When --org is set explicitly, the slug or UUID is resolved via the API and an
 // unresolvable value is a hard error, so a typo isn't silently ignored.
@@ -111,7 +113,7 @@ func readConfigInput(ctx context.Context, path string) (string, error) {
 // cmdName is used only in the suggestion text of any resulting error.
 func resolveOrgID(ctx context.Context, client *apiclient.Client, org, cmdName string) (string, error) {
 	if org == "" {
-		return cmdutil.InferOrgIDFromGitRemote(ctx, client), nil
+		return cmdutil.InferOrgID(ctx, client), nil
 	}
 	id, err := cmdutil.ResolveOrgSlugOrID(ctx, client, org, cmdName)
 	if err != nil {

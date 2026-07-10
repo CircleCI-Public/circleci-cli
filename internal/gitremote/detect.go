@@ -46,6 +46,12 @@ type ProjectInfo struct {
 	Branch string
 	// DefaultBranch is the default branch name.
 	DefaultBranch string
+	// OrgID is the organization ID recorded by `circleci project link`
+	// (.circleci/info.yml). It is empty when the project was resolved from the
+	// git remote, because the org ID is not derivable from a remote URL without
+	// an API lookup. Its form is whatever link persisted (a UUID, or a compact
+	// base62 ID); consumers that need a UUID must parse and fall back on failure.
+	OrgID string
 }
 
 var (
@@ -111,6 +117,7 @@ func Detect() (*ProjectInfo, error) {
 				Slug:          ref.EffectiveSlug(),
 				Branch:        branch,
 				DefaultBranch: defaultBranch,
+				OrgID:         ref.Organization.ID,
 			}, nil
 		}
 	}
