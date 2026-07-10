@@ -101,15 +101,21 @@ func ResolveOrgSlugOrID(ctx context.Context, client *apiclient.Client, ref, cmdN
 	return parseOrgID(org.ID)
 }
 
-// InferOrgIDFromGitRemote best-effort resolves the org UUID for the current
-// git remote's project. It is the lenient counterpart to ResolveOrgSlugOrID,
-// for commands where the org is an optional convenience rather than required —
-// e.g. config compilation passes it so private and namespaced orbs resolve
-// without an explicit --org. It returns "" (with no error) whenever the org
-// cannot be determined — not a git checkout, an unrecognised remote, or a
-// failed project lookup — so callers fall back to public-only behaviour
-// instead of failing.
-func InferOrgIDFromGitRemote(ctx context.Context, client *apiclient.Client) string {
+// InferOrgID best-effort resolves the org UUID for the current directory's
+// CircleCI project. Detection follows gitremote.Detect's resolution order — a
+// `circleci project link` binding (.circleci/info.yml) takes precedence over
+// the git remote, so an explicit link wins when the remote is not the right
+// answer (repository renames, forks, standalone projects). When the link
+// recorded the org as a UUID it is used directly; otherwise the resolved
+// project is looked up through the API to recover its owning org.
+//
+// It is the lenient counterpart to ResolveOrgSlugOrID, for commands where the
+// org is an optional convenience rather than required — e.g. config compilation
+// passes it so private and namespaced orbs resolve without an explicit --org.
+// It returns "" (with no error) whenever the org cannot be determined — not a
+// git checkout, an unrecognised remote, or a failed project lookup — so callers
+// fall back to public-only behaviour instead of failing.
+func InferOrgID(ctx context.Context, client *apiclient.Client) string {
 	// The hint strings are unused: any error is swallowed into a "" result.
 	raw, err := orgIDFromGitRemote(ctx, client, "", "")
 	if err != nil {
@@ -127,6 +133,16 @@ func orgIDFromGitRemote(ctx context.Context, client *apiclient.Client, detectHin
 	info, err := gitremote.Detect()
 	if err != nil {
 		return "", GitDetectErr(err, detectHint)
+	}
+	// A `circleci project link` binding records the org ID directly. When it is a
+	// UUID — the same form the project lookup below returns — use it as-is and
+	// skip the API round-trip, so the org resolves even offline or with a token
+	// that can't read the project. A non-UUID (compact) recorded ID falls through
+	// to the lookup, which yields the canonical UUID.
+	if info.OrgID != "" {
+		if id, err := uuid.Parse(info.OrgID); err == nil {
+			return id.String(), nil
+		}
 	}
 	proj, err := client.GetProjectBySlug(ctx, info.Slug)
 	if err != nil {

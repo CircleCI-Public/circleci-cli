@@ -64,8 +64,10 @@ func newProcessCmd() *cobra.Command {
 			Pass a file path or "-" to read from stdin.
 
 			Private and namespaced orbs are resolved against your organization.
-			The org is inferred from the git remote when --org is omitted; pass
-			--org to override it or to resolve private orbs outside a checkout.
+			When --org is omitted the org is inferred from the current project —
+			a 'circleci project link' binding if present, otherwise the git
+			remote. Pass --org to override this, or to resolve private orbs
+			outside a project.
 		`),
 		Example: heredoc.Doc(`
 			# Process the default config
