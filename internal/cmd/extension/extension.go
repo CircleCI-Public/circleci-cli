@@ -50,37 +50,49 @@ const (
 	Testsuite = "testsuite"
 )
 
+// RegisterExtensions registers extensions in the following order:
+//   - Managed extensions found in the extensions directory.
+//   - Official uninstalled extensions.
+//   - Unmanaged extensions found in PATH.
 func RegisterExtensions(rootCmd *cobra.Command) {
-	// Register extensions found in PATH. Built-in commands always win on name
-	// conflicts — extensions cannot shadow them.
-	builtins := map[string]bool{}
+	assignedCommands := map[string]bool{}
 	for _, sub := range rootCmd.Commands() {
-		builtins[sub.Name()] = true
+		assignedCommands[sub.Name()] = true
 	}
 
 	extsDir, err := config.ExtensionsDir()
 	cobra.CheckErr(err)
 
-	exts, err := extension.FindAll(extsDir)
+	managedExts, err := extension.FindAll(extsDir)
 	cobra.CheckErr(err)
 
 	officialInstalled := map[string]bool{
 		Testsuite: false,
 	}
 
-	for _, ext := range exts {
-		if !builtins[ext.Name] {
+	for _, ext := range managedExts {
+		if !assignedCommands[ext.Name] {
 			if _, ok := officialInstalled[ext.Name]; ok {
 				officialInstalled[ext.Name] = true
 			}
 
-			rootCmd.AddCommand(newCmd(ext))
+			rootCmd.AddCommand(newManagedCmd(ext))
+			assignedCommands[ext.Name] = true
 		}
 	}
 
 	for extName, installed := range officialInstalled {
 		if !installed {
 			rootCmd.AddCommand(newPromptCmd(extName))
+			assignedCommands[extName] = true
+		}
+	}
+
+	unmanagedExts := extension.FindAllOnPATH()
+	for _, ext := range unmanagedExts {
+		if !assignedCommands[ext.Name] {
+			rootCmd.AddCommand(newUnmanagedCmd(ext))
+			assignedCommands[ext.Name] = true
 		}
 	}
 }
@@ -141,19 +153,60 @@ func NewExtensionCmd() *cobra.Command {
 	return cmd
 }
 
-// newCmd returns a cobra command that dispatches to the circleci-<name>
+// newManagedCmd returns a cobra command that dispatches to the circleci-<name>
 // extension. DisableFlagParsing is set so the extension receives its own args
 // verbatim without cobra attempting to parse them. Root persistent flags
 // (--config, --insecure-storage, etc.) are parsed separately from os.Args by
 // ParseRootFlags so they are available for stream setup and auth injection
 // without being forwarded to the extension.
-func newCmd(ext extension.Manifest) *cobra.Command {
+func newManagedCmd(ext extension.Manifest) *cobra.Command {
 	return &cobra.Command{
 		Use:                ext.Name,
 		Short:              "Extension (" + ext.BinaryName + ")",
 		GroupID:            "extension",
 		DisableFlagParsing: true,
 		SilenceUsage:       true,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			ctx := cmd.Context()
+
+			extArgs := ParseRootFlags(cmd)
+
+			// Some extensions do not need a CCI account, load the client and suppress
+			// any errors; extensions are expected to handle any missing vars.
+			client, _ := cmdutil.LoadClient(ctx)
+
+			err := ext.Run(ctx, client, extArgs)
+			if err != nil {
+				if exitErr, ok := errors.AsType[*extension.ErrExited](err); ok {
+					return exitErr
+				}
+
+				return clierrors.New(
+					"extension.exec_failed",
+					"Extension failed",
+					fmt.Sprintf("extension %q could not be executed: %s", ext.BinaryName, err),
+				)
+			}
+
+			return nil
+		},
+	}
+}
+
+// newUnmanagedCmd returns a cobra command that dispatches to the circleci-<name>
+// extension. DisableFlagParsing is set so the extension receives its own args
+// verbatim without cobra attempting to parse them. Root persistent flags
+// (--config, --insecure-storage, etc.) are parsed separately from os.Args by
+// ParseRootFlags so they are available for stream setup and auth injection
+// without being forwarded to the extension.
+func newUnmanagedCmd(ext extension.Unmanaged) *cobra.Command {
+	return &cobra.Command{
+		Use:                ext.Name,
+		Short:              "Extension (" + ext.BinaryName + ")",
+		GroupID:            "extension",
+		DisableFlagParsing: true,
+		SilenceUsage:       true,
+		Hidden:             true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 

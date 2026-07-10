@@ -1,0 +1,11 @@
+unknown command "testextension" for "circleci run"
+
+Usage:  circleci run <command> [flags]
+
+Available commands:
+  cancel
+  get
+  list
+  open
+  trigger
+  watch
