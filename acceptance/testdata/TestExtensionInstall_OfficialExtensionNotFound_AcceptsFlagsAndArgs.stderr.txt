@@ -1,0 +1,4 @@
+error: extension "testsuite" is not installed
+
+Suggestions:
+  • Install with: 'circleci extension install testsuite'

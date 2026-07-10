@@ -57,6 +57,23 @@ func TestExtensionInstall_OfficialExtensionNotFound(t *testing.T) {
 	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 }
 
+func TestExtensionInstall_OfficialExtensionNotFound_AcceptsFlagsAndArgs(t *testing.T) {
+	f := fakes.NewExtensionRegistry(t)
+	env := testenv.New(t)
+	env.Token = testToken
+	env.ExtensionRegistryURL = f.URL()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"testsuite", "ci tests", "--doctor"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+	assert.Check(t, cmp.Equal(result.ExitCode, 6))
+	assert.Check(t, cmp.Len(result.Stdout, 0))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+}
+
 func TestExtensionInstall_OfficialExtensionNotFound_Interactive(t *testing.T) {
 	f := fakes.NewExtensionRegistry(t)
 	env := testenv.New(t)
