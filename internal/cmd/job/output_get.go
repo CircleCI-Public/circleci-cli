@@ -45,6 +45,7 @@ func newOutputGetCmd() *cobra.Command {
 		execution int
 		stepNum   int
 		stripANSI bool
+		condensed bool
 	)
 
 	cmd := &cobra.Command{
@@ -79,6 +80,14 @@ func newOutputGetCmd() *cobra.Command {
 
 			Use --strip-ansi to force this rendering even on a terminal, or
 			--strip-ansi=false to pass the raw output through even when piped.
+
+			Use --condensed to fetch a filtered version of stdout only, with
+			noisy or repetitive lines removed server-side. This produces a much
+			smaller payload suitable for feeding to an AI tool. When --condensed
+			is set, output is always rendered through the plain-text renderer
+			regardless of the terminal or --strip-ansi.
+
+			Note: --condensed is experimental and subject to change.
 		`),
 		Example: heredoc.Doc(`
 			# Get the output of step 3 in a job
@@ -89,6 +98,9 @@ func newOutputGetCmd() *cobra.Command {
 
 			# Pipe the output to a file
 			$ circleci job output get 8e50c384-0083-43d0-bc8f-93f0db589d6b --step-num 3 > step.log
+
+			# Pipe condensed output to an AI CLI tool
+			$ circleci job output get 8e50c384-0083-43d0-bc8f-93f0db589d6b --step-num 3 --condensed | llm "Why did this fail?"
 		`),
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -112,6 +124,9 @@ func newOutputGetCmd() *cobra.Command {
 			// --strip-ansi is tri-state: when the user sets it explicitly we
 			// honour that value; otherwise default to rendering whenever the
 			// output is not going to a terminal.
+			if condensed {
+				return runOutputGetCondensed(ctx, client, jobID, execution, stepNum)
+			}
 			strip := !iostream.IsTerminal(ctx)
 			if cmd.Flags().Changed("strip-ansi") {
 				strip = stripANSI
@@ -123,6 +138,7 @@ func newOutputGetCmd() *cobra.Command {
 	cmd.Flags().IntVar(&execution, "execution", 0, "Parallel execution index to read output from")
 	cmd.Flags().IntVar(&stepNum, "step-num", 0, "Step number whose output to fetch (required)")
 	cmd.Flags().BoolVar(&stripANSI, "strip-ansi", false, "Force (or with =false, disable) ANSI stripping; defaults to stripping only when not a terminal")
+	cmd.Flags().BoolVar(&condensed, "condensed", false, "Fetch error-relevant lines only, filtered server-side (experimental)")
 
 	return cmd
 }
@@ -168,4 +184,15 @@ func writeOutput(out io.Writer, b []byte, strip bool) {
 	// collapse cursor/carriage-return redraws (Docker pulls, progress bars) to
 	// the final state a human would have seen. See internal/termrender.
 	_ = termrender.Render(out, bytes.NewReader(b))
+}
+
+func runOutputGetCondensed(ctx context.Context, client *apiclient.Client, jobID uuid.UUID, execution, stepNum int) error {
+	condensed, err := client.GetJobStdoutCondensed(ctx, jobID, execution, stepNum)
+	if err != nil {
+		subject := fmt.Sprintf("step %d of job %s", stepNum, jobID)
+		return cmdutil.APIErr(err, subject, "job.output_not_found",
+			"No output found for %s.")
+	}
+	_ = termrender.Render(iostream.Out(ctx), bytes.NewReader(condensed))
+	return nil
 }
