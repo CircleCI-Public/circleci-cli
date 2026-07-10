@@ -101,6 +101,23 @@ func ResolveOrgSlugOrID(ctx context.Context, client *apiclient.Client, ref, cmdN
 	return parseOrgID(org.ID)
 }
 
+// InferOrgIDFromGitRemote best-effort resolves the org UUID for the current
+// git remote's project. It is the lenient counterpart to ResolveOrgSlugOrID,
+// for commands where the org is an optional convenience rather than required —
+// e.g. config compilation passes it so private and namespaced orbs resolve
+// without an explicit --org. It returns "" (with no error) whenever the org
+// cannot be determined — not a git checkout, an unrecognised remote, or a
+// failed project lookup — so callers fall back to public-only behaviour
+// instead of failing.
+func InferOrgIDFromGitRemote(ctx context.Context, client *apiclient.Client) string {
+	// The hint strings are unused: any error is swallowed into a "" result.
+	raw, err := orgIDFromGitRemote(ctx, client, "", "")
+	if err != nil {
+		return ""
+	}
+	return raw
+}
+
 // orgIDFromGitRemote detects the project from the current git remote and
 // resolves it through the API to recover the org UUID (as the raw string the
 // API returns). detectHint is passed to GitDetectErr and projectFailSuggestion

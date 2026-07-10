@@ -2,6 +2,6 @@ Usage:  circleci config process <path> [flags]
 
 Flags:
   -n, --next                         Enable config next which previews upcoming potentially breaking config changes
-      --org string                   Organization slug (e.g. gh/myorg) or UUID for private orb resolution
+      --org string                   Organization slug (e.g. gh/myorg) or UUID for private orb resolution; defaults to git remote
       --pipeline-parameters string   Pipeline parameters as a YAML map or path to a YAML file
   

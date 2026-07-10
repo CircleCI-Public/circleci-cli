@@ -57,11 +57,11 @@ mapped to YAML keys in the merged document.
 
 Compile and expand a pipeline config file
 
-| Flag                           | Description                                                                    |
-| ------------------------------ | ------------------------------------------------------------------------------ |
-| `-n, --next`                   | Enable config next which previews upcoming potentially breaking config changes |
-| `--org string`                 | Organization slug (e.g. gh/myorg) or UUID for private orb resolution           |
-| `--pipeline-parameters string` | Pipeline parameters as a YAML map or path to a YAML file                       |
+| Flag                           | Description                                                                                  |
+| ------------------------------ | -------------------------------------------------------------------------------------------- |
+| `-n, --next`                   | Enable config next which previews upcoming potentially breaking config changes               |
+| `--org string`                 | Organization slug (e.g. gh/myorg) or UUID for private orb resolution; defaults to git remote |
+| `--pipeline-parameters string` | Pipeline parameters as a YAML map or path to a YAML file                                     |
 
 
 **Arguments:**
@@ -74,12 +74,12 @@ from stdin.
 
 Validate a pipeline config file
 
-| Flag                  | Description                                                                    |
-| --------------------- | ------------------------------------------------------------------------------ |
-| `-c, --config string` | Path to config file (use "-" for stdin) (default ".circleci/config.yml")       |
-| `--json`              | Output as JSON                                                                 |
-| `-n, --next`          | Enable config next which previews upcoming potentially breaking config changes |
-| `--org string`        | Organization slug (e.g. gh/myorg) or UUID for private orb resolution           |
+| Flag                  | Description                                                                                  |
+| --------------------- | -------------------------------------------------------------------------------------------- |
+| `-c, --config string` | Path to config file (use "-" for stdin) (default ".circleci/config.yml")                     |
+| `--json`              | Output as JSON                                                                               |
+| `-n, --next`          | Enable config next which previews upcoming potentially breaking config changes               |
+| `--org string`        | Organization slug (e.g. gh/myorg) or UUID for private orb resolution; defaults to git remote |
 
 
 ### `circleci job <command>`

@@ -217,6 +217,65 @@ func TestConfigValidate_WithOrgUUID(t *testing.T) {
 	assert.Check(t, cmp.Equal(fake.LastCompileOwnerID(), testOrgUUID))
 }
 
+// TestConfigValidate_InfersOrgFromGitRemote is the regression test for
+// https://github.com/CircleCI-Public/circleci-cli/issues/1061: with no --org,
+// the org is inferred from the git remote so private and namespaced orbs
+// resolve. The remote https://github.com/myorg/myrepo maps to project slug
+// gh/myorg/myrepo, whose org UUID must reach the compile endpoint as owner_id.
+func TestConfigValidate_InfersOrgFromGitRemote(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	fake.SetCompileResponse(true, testCompiledYAML)
+	fake.AddProjectBySlug("gh/myorg/myrepo", "00000000-0000-0000-0000-0000000000b1", "myrepo", testOrgUUID)
+
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+
+	dir := t.TempDir()
+	initGitRepoWithRemote(t, dir, "https://github.com/myorg/myrepo")
+	writeConfig(t, dir, testConfigYAML)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"config", "validate", "--config", ".circleci/config.yml"},
+		Env:     env.Environ(),
+		WorkDir: dir,
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 0), "stderr: %s", result.Stderr)
+	assert.Check(t, cmp.Contains(result.Stdout, ".circleci/config.yml"))
+	// The org inferred from the git remote reached the compile call as owner_id.
+	assert.Check(t, cmp.Equal(fake.LastCompileOwnerID(), testOrgUUID))
+}
+
+// TestConfigValidate_NoOrgOutsideGitRemote guards the other half of the #1061
+// contract: inference is best-effort. Outside a git checkout (and with no
+// --org) validation still succeeds, compiling with an empty owner_id rather
+// than failing — public configs must validate anywhere.
+func TestConfigValidate_NoOrgOutsideGitRemote(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	fake.SetCompileResponse(true, testCompiledYAML)
+
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+
+	dir := t.TempDir()
+	writeConfig(t, dir, testConfigYAML)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"config", "validate", "--config", ".circleci/config.yml"},
+		Env:     env.Environ(),
+		WorkDir: dir,
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 0), "stderr: %s", result.Stderr)
+	assert.Check(t, cmp.Contains(result.Stdout, ".circleci/config.yml"))
+	// No git remote to infer from: the compile call carries no owner.
+	assert.Check(t, cmp.Equal(fake.LastCompileOwnerID(), ""))
+}
+
 // TestConfigValidate_RemovedOrgFlags pins the clean break from the legacy org
 // flag names: --org-id and --org-slug were collapsed into --org and must no
 // longer be accepted. Cobra reports unknown flags with a non-zero exit and an
@@ -309,6 +368,35 @@ func TestConfigProcess_WithParams(t *testing.T) {
 	assert.Check(t, cmp.Equal(result.ExitCode, 0))
 	assert.Check(t, cmp.Contains(result.Stdout, "version"))
 	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+}
+
+// TestConfigProcess_InfersOrgFromGitRemote is the config process counterpart of
+// TestConfigValidate_InfersOrgFromGitRemote: process shares the same org
+// resolution, so with no --org the org is inferred from the git remote and
+// reaches the compile endpoint as owner_id.
+func TestConfigProcess_InfersOrgFromGitRemote(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	fake.SetCompileResponse(true, testCompiledYAML)
+	fake.AddProjectBySlug("gh/myorg/myrepo", "00000000-0000-0000-0000-0000000000b2", "myrepo", testOrgUUID)
+
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+
+	dir := t.TempDir()
+	initGitRepoWithRemote(t, dir, "https://github.com/myorg/myrepo")
+	writeConfig(t, dir, testConfigYAML)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"config", "process", ".circleci/config.yml"},
+		Env:     env.Environ(),
+		WorkDir: dir,
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 0), "stderr: %s", result.Stderr)
+	assert.Check(t, cmp.Contains(result.Stdout, "version"))
+	assert.Check(t, cmp.Equal(fake.LastCompileOwnerID(), testOrgUUID))
 }
 
 // --- config pack ---
