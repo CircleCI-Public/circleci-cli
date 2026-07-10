@@ -39,11 +39,12 @@ import (
 )
 
 func TestUsage(t *testing.T) {
-	// Use empty XDG_DATA_HOME so extension discovery produces a stable, empty
+	// Use temp XDG_DATA_HOME and PATH so extension discovery produces a stable, empty
 	// set regardless of what extensions happen to be installed in the test
 	// environment.
 	fakeHome := t.TempDir()
 	t.Setenv("XDG_DATA_HOME", filepath.Join(fakeHome, ".local", "share"))
+	t.Setenv("PATH", fakeHome)
 
 	// Avoid telemetry
 	t.Setenv("DO_NOT_TRACK", "1")
@@ -63,11 +64,12 @@ func TestUsage(t *testing.T) {
 }
 
 func TestHelp(t *testing.T) {
-	// Use empty XDG_DATA_HOME so extension discovery produces a stable, empty
+	// Use temp XDG_DATA_HOME and PATH so extension discovery produces a stable, empty
 	// set regardless of what extensions happen to be installed in the test
 	// environment.
 	fakeHome := t.TempDir()
 	t.Setenv("XDG_DATA_HOME", filepath.Join(fakeHome, ".local", "share"))
+	t.Setenv("PATH", fakeHome)
 
 	// Avoid telemetry
 	t.Setenv("DO_NOT_TRACK", "1")
@@ -103,6 +105,9 @@ func testSubCommandUsage(t *testing.T, prefix string, parent *cobra.Command, bas
 
 		assert.Check(t, golden.String(usageString, path.Join(baseDir, fmt.Sprintf("%s.txt", prefix))))
 		for _, cmd := range parent.Commands() {
+			if cmd.Hidden {
+				continue
+			}
 			testSubCommandUsage(t, path.Join(prefix, cmd.Name()), cmd, baseDir, f)
 		}
 	})
