@@ -30,11 +30,11 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/CircleCI-Public/circleci-cli/internal/httpcl"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/golden"
 
-	"github.com/CircleCI-Public/circleci-cli/internal/apiclient"
 	"github.com/CircleCI-Public/circleci-cli/internal/testing/binary"
 	testenv "github.com/CircleCI-Public/circleci-cli/internal/testing/env"
 	"github.com/CircleCI-Public/circleci-cli/internal/testing/fakes"
@@ -527,7 +527,7 @@ func TestWorkflowRerun(t *testing.T) {
 			URL:    url.URL{Path: "/api/v3/workflows/" + testWorkflowDetailID + "/rerun"},
 			Header: http.Header{
 				"Authorization": {"Bearer test-token"},
-				"User-Agent":    {apiclient.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
+				"User-Agent":    {httpcl.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
 			},
 			Body: new(`{"from_failed":false}`),
 		}, ignoreCommonHeaders))
@@ -568,7 +568,7 @@ func TestWorkflowRerun_FromFailed(t *testing.T) {
 			URL:    url.URL{Path: "/api/v3/workflows/" + testWorkflowDetailID + "/rerun"},
 			Header: http.Header{
 				"Authorization": {"Bearer test-token"},
-				"User-Agent":    {apiclient.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
+				"User-Agent":    {httpcl.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
 			},
 			Body: new(`{"from_failed":true}`),
 		}, ignoreCommonHeaders))
@@ -641,7 +641,7 @@ func TestWorkflowCancel(t *testing.T) {
 			URL:    url.URL{Path: "/api/v3/workflows/" + testWorkflowDetailID + "/cancel"},
 			Header: http.Header{
 				"Authorization": {"Bearer test-token"},
-				"User-Agent":    {apiclient.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
+				"User-Agent":    {httpcl.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
 			},
 			Body: new(``),
 		}, ignoreCommonHeaders))

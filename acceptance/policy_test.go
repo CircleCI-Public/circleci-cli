@@ -32,10 +32,10 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/CircleCI-Public/circleci-cli/internal/httpcl"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/assert/cmp"
 
-	"github.com/CircleCI-Public/circleci-cli/internal/apiclient"
 	"github.com/CircleCI-Public/circleci-cli/internal/testing/binary"
 	testenv "github.com/CircleCI-Public/circleci-cli/internal/testing/env"
 	"github.com/CircleCI-Public/circleci-cli/internal/testing/fakes"
@@ -89,7 +89,7 @@ func TestPolicyPush(t *testing.T) {
 			URL:    url.URL{Path: "/api/v2/owner/" + testOwnerID + "/context/" + testPolicyCtx + "/policy-bundle"},
 			Header: http.Header{
 				"Authorization": {"Bearer test-token"},
-				"User-Agent":    {apiclient.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
+				"User-Agent":    {httpcl.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
 			},
 			Body: new(string(body)),
 		}, ignoreCommonHeaders))
@@ -290,7 +290,7 @@ func TestPolicyDecide(t *testing.T) {
 			URL:    url.URL{Path: "/api/v2/owner/" + testOwnerID + "/context/" + testPolicyCtx + "/decision"},
 			Header: http.Header{
 				"Authorization": {"Bearer test-token"},
-				"User-Agent":    {apiclient.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
+				"User-Agent":    {httpcl.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
 			},
 			Body: new(`{"input":"version: 2.1\n"}`),
 		}, ignoreCommonHeaders))
@@ -389,7 +389,7 @@ func TestPolicySettingsSet(t *testing.T) {
 			URL:    url.URL{Path: "/api/v2/owner/" + testOwnerID + "/context/" + testPolicyCtx + "/decision/settings"},
 			Header: http.Header{
 				"Authorization": {"Bearer test-token"},
-				"User-Agent":    {apiclient.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
+				"User-Agent":    {httpcl.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
 			},
 			Body: new(`{"enabled":true}`),
 		}, ignoreCommonHeaders))

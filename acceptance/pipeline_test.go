@@ -31,10 +31,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/CircleCI-Public/circleci-cli/internal/httpcl"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/assert/cmp"
 
-	"github.com/CircleCI-Public/circleci-cli/internal/apiclient"
 	"github.com/CircleCI-Public/circleci-cli/internal/testing/binary"
 	testenv "github.com/CircleCI-Public/circleci-cli/internal/testing/env"
 	"github.com/CircleCI-Public/circleci-cli/internal/testing/fakes"
@@ -151,7 +151,7 @@ func TestPipelineCreate(t *testing.T) {
 			URL:    url.URL{Path: "/api/v2/projects/" + pipelineProjectID + "/pipeline-definitions"},
 			Header: http.Header{
 				"Authorization": {"Bearer test-token"},
-				"User-Agent":    {apiclient.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
+				"User-Agent":    {httpcl.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
 			},
 			Body: new(`{"checkout_source":{"provider":"github_app","repo":{"external_id":"987654321"}},"config_source":{"file_path":".circleci/config.yml","provider":"github_app","repo":{"external_id":"987654321"}},"name":"my-pipeline"}`),
 		}, ignoreCommonHeaders))
@@ -479,7 +479,7 @@ func TestPipelineRun(t *testing.T) {
 			URL:    url.URL{Path: "/api/v2/project/gh/myorg/myrepo/pipeline/run"},
 			Header: http.Header{
 				"Authorization": {"Bearer test-token"},
-				"User-Agent":    {apiclient.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
+				"User-Agent":    {httpcl.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
 			},
 			Body: new(`{}`),
 		}, ignoreCommonHeaders))
@@ -525,7 +525,7 @@ func TestPipelineRun_WithBranch(t *testing.T) {
 			URL:    url.URL{Path: "/api/v2/project/gh/myorg/myrepo/pipeline/run"},
 			Header: http.Header{
 				"Authorization": {"Bearer test-token"},
-				"User-Agent":    {apiclient.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
+				"User-Agent":    {httpcl.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
 			},
 			Body: new(`{"checkout":{"branch":"feature/my-branch"},"config":{"branch":"feature/my-branch"}}`),
 		}, ignoreCommonHeaders))
@@ -555,7 +555,7 @@ func TestPipelineRun_WithDefinitionID(t *testing.T) {
 			URL:    url.URL{Path: "/api/v2/project/gh/myorg/myrepo/pipeline/run"},
 			Header: http.Header{
 				"Authorization": {"Bearer test-token"},
-				"User-Agent":    {apiclient.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
+				"User-Agent":    {httpcl.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
 			},
 			Body: new(`{"definition_id":"` + pipelineDefID + `"}`),
 		}, ignoreCommonHeaders))
@@ -586,7 +586,7 @@ func TestPipelineRun_WithParams(t *testing.T) {
 			URL:    url.URL{Path: "/api/v2/project/gh/myorg/myrepo/pipeline/run"},
 			Header: http.Header{
 				"Authorization": {"Bearer test-token"},
-				"User-Agent":    {apiclient.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
+				"User-Agent":    {httpcl.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
 			},
 			Body: new(`{"parameters":{"deploy_env":"staging","run_tests":"true"}}`),
 		}, ignoreCommonHeaders))
@@ -637,7 +637,7 @@ func TestPipelineRun_Skipped(t *testing.T) {
 			URL:    url.URL{Path: "/api/v2/project/gh/myorg/myrepo/pipeline/run"},
 			Header: http.Header{
 				"Authorization": {"Bearer test-token"},
-				"User-Agent":    {apiclient.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
+				"User-Agent":    {httpcl.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
 			},
 			Body: new(`{}`),
 		}, ignoreCommonHeaders))

@@ -1997,6 +1997,20 @@ Remove a stored CLI setting
 
 `<key>` is the setting to remove. Currently only `token` is supported.
 
+## Extension Commands
+
+### `circleci extension <command>`
+
+Manage CLI extensions
+
+#### `circleci extension install <extension>`
+
+Install an extension
+
+#### `circleci extension remove <extension>`
+
+Remove an installed extension
+
 ## Additional Commands
 
 ### `circleci api <path> [flags]`

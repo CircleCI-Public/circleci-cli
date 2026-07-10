@@ -46,6 +46,12 @@ Work with CircleCI from the command line.
 | `onboard`    | Guided onboarding: scan, test, generate config, sign up |
 | `setting`    | Configure the CLI itself (token, host, defaults)        |
 
+## Extension Commands
+
+| Command     | Description           |
+| ----------- | --------------------- |
+| `extension` | Manage CLI extensions |
+
 ## Additional Commands
 
 | Command   | Description                         |

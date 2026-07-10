@@ -11,6 +11,7 @@ Available commands:
   deploy
   dlc
   envvar
+  extension
   job
   mcp
   my

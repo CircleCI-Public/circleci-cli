@@ -1,0 +1,5 @@
+Usage:  circleci extension <command>
+
+Available commands:
+  install
+  remove

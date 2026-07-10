@@ -27,6 +27,7 @@ import (
 	"context"
 	"fmt"
 	"path"
+	"path/filepath"
 	"testing"
 
 	"github.com/spf13/cobra"
@@ -38,9 +39,12 @@ import (
 )
 
 func TestUsage(t *testing.T) {
-	// Clear PATH so extension discovery produces a stable, empty set regardless
-	// of what extensions happen to be installed in the test environment.
-	t.Setenv("PATH", "")
+	// Use empty XDG_DATA_HOME so extension discovery produces a stable, empty
+	// set regardless of what extensions happen to be installed in the test
+	// environment.
+	fakeHome := t.TempDir()
+	t.Setenv("XDG_DATA_HOME", filepath.Join(fakeHome, ".local", "share"))
+
 	// Avoid telemetry
 	t.Setenv("DO_NOT_TRACK", "1")
 	cmd := root.NewRootCmd("1.2.3")
@@ -59,9 +63,12 @@ func TestUsage(t *testing.T) {
 }
 
 func TestHelp(t *testing.T) {
-	// Clear PATH so extension discovery produces a stable, empty set regardless
-	// of what extensions happen to be installed in the test environment.
-	t.Setenv("PATH", "")
+	// Use empty XDG_DATA_HOME so extension discovery produces a stable, empty
+	// set regardless of what extensions happen to be installed in the test
+	// environment.
+	fakeHome := t.TempDir()
+	t.Setenv("XDG_DATA_HOME", filepath.Join(fakeHome, ".local", "share"))
+
 	// Avoid telemetry
 	t.Setenv("DO_NOT_TRACK", "1")
 	cmd := root.NewRootCmd("1.2.3")

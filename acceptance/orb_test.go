@@ -31,11 +31,11 @@ import (
 	"runtime"
 	"testing"
 
+	"github.com/CircleCI-Public/circleci-cli/internal/httpcl"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/golden"
 
-	"github.com/CircleCI-Public/circleci-cli/internal/apiclient"
 	"github.com/CircleCI-Public/circleci-cli/internal/testing/binary"
 	testenv "github.com/CircleCI-Public/circleci-cli/internal/testing/env"
 	"github.com/CircleCI-Public/circleci-cli/internal/testing/fakes"
@@ -197,7 +197,7 @@ func TestOrbCreate(t *testing.T) {
 			URL:    url.URL{Path: "/api/v3/orb/packages"},
 			Header: http.Header{
 				"Authorization": {"Bearer test-token"},
-				"User-Agent":    {apiclient.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
+				"User-Agent":    {httpcl.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
 			},
 			Body: new(`{"data":{"attributes":{"name":"myorg/my-orb","is_private":false},"references":{"namespace":{"id":"orbns001-0000-4000-8000-000000000001"}}}}`),
 		}, ignoreCommonHeaders))
@@ -329,7 +329,7 @@ func TestOrbPublish(t *testing.T) {
 			URL:    url.URL{Path: "/api/v3/orb/versions"},
 			Header: http.Header{
 				"Authorization": {"Bearer test-token"},
-				"User-Agent":    {apiclient.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
+				"User-Agent":    {httpcl.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
 			},
 			Body: new(`{"data":{"attributes":{"orb_id":"orb00001-0000-4000-8000-000000000001","yaml":"version: 2.1\ndescription: My test orb\n","version":"1.0.0"}}}`),
 		}, ignoreCommonHeaders))
@@ -358,7 +358,7 @@ func TestOrbPublishPromote(t *testing.T) {
 			URL:    url.URL{Path: "/api/v3/orb/versions/" + testOrbVersionID + "/promote"},
 			Header: http.Header{
 				"Authorization": {"Bearer test-token"},
-				"User-Agent":    {apiclient.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
+				"User-Agent":    {httpcl.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
 			},
 			Body: new(`{"segment":"patch"}`),
 		}, ignoreCommonHeaders))
@@ -391,7 +391,7 @@ func TestOrbPublishIncrement(t *testing.T) {
 			URL:    url.URL{Path: "/api/v3/orb/versions"},
 			Header: http.Header{
 				"Authorization": {"Bearer test-token"},
-				"User-Agent":    {apiclient.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
+				"User-Agent":    {httpcl.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
 			},
 			Body: new(`{"data":{"attributes":{"orb_id":"orb00001-0000-4000-8000-000000000001","yaml":"version: 2.1\ndescription: My test orb\n","version":"1.0.1"}}}`),
 		}, ignoreCommonHeaders))
@@ -518,7 +518,7 @@ func TestOrbUnlist(t *testing.T) {
 			URL:    url.URL{Path: "/api/v3/orb/packages/" + testOrbID + "/set-listed"},
 			Header: http.Header{
 				"Authorization": {"Bearer test-token"},
-				"User-Agent":    {apiclient.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
+				"User-Agent":    {httpcl.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
 			},
 			Body: new(`{"is_listed":false}`),
 		}, ignoreCommonHeaders))
@@ -546,7 +546,7 @@ func TestOrbRelist(t *testing.T) {
 			URL:    url.URL{Path: "/api/v3/orb/packages/" + testOrbID + "/set-listed"},
 			Header: http.Header{
 				"Authorization": {"Bearer test-token"},
-				"User-Agent":    {apiclient.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
+				"User-Agent":    {httpcl.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
 			},
 			Body: new(`{"is_listed":true}`),
 		}, ignoreCommonHeaders))
@@ -599,7 +599,7 @@ func TestOrbAddToCategory(t *testing.T) {
 			URL:    url.URL{Path: "/api/v3/orb/packages/" + testOrbID + "/add-category"},
 			Header: http.Header{
 				"Authorization": {"Bearer test-token"},
-				"User-Agent":    {apiclient.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
+				"User-Agent":    {httpcl.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
 			},
 			Body: new(`{"category_id":"orbc0001-0000-4000-8000-000000000001"}`),
 		}, ignoreCommonHeaders))
@@ -628,7 +628,7 @@ func TestOrbRemoveFromCategory(t *testing.T) {
 			URL:    url.URL{Path: "/api/v3/orb/packages/" + testOrbID + "/remove-category"},
 			Header: http.Header{
 				"Authorization": {"Bearer test-token"},
-				"User-Agent":    {apiclient.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
+				"User-Agent":    {httpcl.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
 			},
 			Body: new(`{"category_id":"orbc0001-0000-4000-8000-000000000001"}`),
 		}, ignoreCommonHeaders))

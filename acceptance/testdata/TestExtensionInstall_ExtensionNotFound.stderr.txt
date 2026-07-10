@@ -1,0 +1,4 @@
+error: extension "circleci-testextension" not found in the registry
+
+Suggestions:
+  • Check the extension name for typos.

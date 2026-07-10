@@ -59,7 +59,7 @@ func New(cfg Config) *Client {
 	baseCfg := httpcl.Config{
 		AuthToken:  "Bearer " + cfg.Token,
 		AuthHeader: "Authorization",
-		UserAgent:  UserAgent(runtime.GOOS, runtime.GOARCH, cfg.Version, cfg.Agent),
+		UserAgent:  httpcl.UserAgent(runtime.GOOS, runtime.GOARCH, cfg.Version, cfg.Agent),
 		Transport:  cfg.Transport,
 	}
 
@@ -71,13 +71,6 @@ func New(cfg Config) *Client {
 		raw:   httpcl.New(baseCfg),
 		token: cfg.Token,
 	}
-}
-
-func UserAgent(goos, goarch, version, agent string) string {
-	if agent != "" {
-		return fmt.Sprintf("circleci-cli (%s/%s; %s; %s)", goos, goarch, version, agent)
-	}
-	return fmt.Sprintf("circleci-cli (%s/%s; %s)", goos, goarch, version)
 }
 
 func queryParam(key, val string) func(*httpcl.Request) {
