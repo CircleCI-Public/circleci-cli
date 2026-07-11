@@ -429,6 +429,23 @@ func (c *Client) GetJobStdout(ctx context.Context, jobID uuid.UUID, execution, s
 	return output, nil
 }
 
+// GetJobStdoutCondensed fetches a step's stdout condensed to its most
+// error-relevant lines (noisy/repetitive output filtered out server-side).
+// The endpoint returns raw text (octet-stream).
+func (c *Client) GetJobStdoutCondensed(ctx context.Context, jobID uuid.UUID, execution, stepNum int) ([]byte, error) {
+	var output []byte
+	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodGet, "/api/v3/jobs/%s/stdout/condensed",
+		httpcl.RouteParams(jobID),
+		filterParam("execution", strconv.Itoa(execution)),
+		filterParam("step_num", strconv.Itoa(stepNum)),
+		httpcl.BytesDecoder(&output),
+	))
+	if err != nil {
+		return nil, err
+	}
+	return output, nil
+}
+
 func (c *Client) GetJobStderr(ctx context.Context, jobID uuid.UUID, execution, stepNum int) ([]byte, error) {
 	var output []byte
 	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodGet, "/api/v3/jobs/%s/stderr",
