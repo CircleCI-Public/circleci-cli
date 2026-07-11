@@ -266,6 +266,7 @@ Get the output of a job step
 
 | Flag              | Description                                                                                    |
 | ----------------- | ---------------------------------------------------------------------------------------------- |
+| `--condensed`     | Fetch error-relevant lines only, filtered server-side (experimental)                           |
 | `--execution int` | Parallel execution index to read output from                                                   |
 | `--step-num int`  | Step number whose output to fetch (required)                                                   |
 | `--strip-ansi`    | Force (or with =false, disable) ANSI stripping; defaults to stripping only when not a terminal |
