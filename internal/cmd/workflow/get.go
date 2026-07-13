@@ -176,7 +176,7 @@ func printGet(ctx context.Context, w workflowGetOutput, u string) {
 	_, _ = fmt.Fprintf(&md, "- ID: `%s`\n", w.ID)
 	_, _ = fmt.Fprintf(&md, "- Name: %s\n", w.Name)
 	_, _ = fmt.Fprintf(&md, "- Run: `%s`\n", w.RunID)
-	_, _ = fmt.Fprintf(&md, "- URL: <%s>\n", u)
+	_, _ = fmt.Fprintf(&md, "- URL: %s\n", u)
 	_, _ = fmt.Fprintf(&md, "- Status: %s\n", apiclient.PhaseOutcomeStatus(w.Phase, w.Outcome, w.CurrentOutcome))
 	_, _ = fmt.Fprintf(&md, "- Created: %s\n", w.CreatedAt)
 	if w.EndedAt != "" {

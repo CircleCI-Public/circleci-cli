@@ -264,6 +264,12 @@ func (w jobWire) toJobV3() *JobV3 {
 
 // PhaseOutcomeStatus derives a human-readable status string from V3
 // phase, outcome, and current_outcome fields, prefixed with a status emoji.
+// The emoji is a real Unicode glyph (e.g. "✅ succeeded"), not a ":shortcode:",
+// so it renders whether or not the output is passed through glamour — piped and
+// CI output show the emoji rather than a literal ":white_check_mark:". Contexts
+// that lay out raw fixed-width columns (the interactive pickers, run watch)
+// should use PhaseOutcomeSymbol/PhaseOutcomeText instead, since a width-2 emoji
+// throws off "%-Ns" padding.
 func PhaseOutcomeStatus(phase, outcome, currentOutcome string) string {
 	emoji, text := phaseOutcomeParts(phase, outcome, currentOutcome)
 	if emoji == "" {
@@ -273,8 +279,10 @@ func PhaseOutcomeStatus(phase, outcome, currentOutcome string) string {
 }
 
 // PhaseOutcomeText is PhaseOutcomeStatus without the leading emoji — the plain
-// status word (e.g. "running", "not run", "succeeded"). Use it where emoji
-// shortcodes cannot be rendered, such as the interactive list pickers.
+// status word (e.g. "running", "not run", "succeeded"). Use it in raw
+// fixed-width layouts (the interactive list pickers, run watch) where a width-2
+// status emoji would misalign the columns, pairing it with PhaseOutcomeSymbol
+// for a plain single-width glyph.
 func PhaseOutcomeText(phase, outcome, currentOutcome string) string {
 	_, text := phaseOutcomeParts(phase, outcome, currentOutcome)
 	return text
@@ -286,19 +294,19 @@ func PhaseOutcomeText(phase, outcome, currentOutcome string) string {
 func phaseOutcomeParts(phase, outcome, currentOutcome string) (emoji, text string) {
 	switch phase {
 	case "created":
-		return ":hourglass_flowing_sand:", "created"
+		return "⏳", "created"
 	case "queued":
-		return ":hourglass:", "queued"
+		return "⌛", "queued"
 	case "started":
 		switch currentOutcome {
 		case "failed":
-			return ":red_circle:", "failing"
+			return "🔴", "failing"
 		case "canceled":
-			return ":no_entry_sign:", "canceling"
+			return "🚫", "canceling"
 		case "errored":
-			return ":warning:", "erroring"
+			return "⚠️", "erroring"
 		default:
-			return ":large_blue_circle:", "running"
+			return "🔵", "running"
 		}
 	case "ended":
 		// The V3 runs API reports only current_outcome, never outcome,
@@ -312,10 +320,10 @@ func phaseOutcomeParts(phase, outcome, currentOutcome string) (emoji, text strin
 	}
 }
 
-// PhaseOutcomeSymbol is like PhaseOutcomeStatus but returns a single plain
-// Unicode glyph rather than an emoji shortcode + word. Use it in contexts that
-// render raw text and so cannot process emoji — e.g. the interactive list
-// pickers, where ":white_check_mark:" would show literally.
+// PhaseOutcomeSymbol is like PhaseOutcomeStatus but returns a single plain,
+// single-width Unicode glyph (e.g. "✓") rather than a status emoji. Use it in
+// raw fixed-width layouts — the interactive list pickers, run watch — where the
+// width-2 emoji from PhaseOutcomeStatus would throw off column padding.
 func PhaseOutcomeSymbol(phase, outcome, currentOutcome string) string {
 	switch phase {
 	case "created", "queued":
@@ -371,20 +379,20 @@ func outcomeSymbol(outcome string) string {
 func outcomeParts(outcome string) (emoji, text string) {
 	switch outcome {
 	case "succeeded":
-		return ":white_check_mark:", "succeeded"
+		return "✅", "succeeded"
 	case "failed":
-		return ":x:", "failed"
+		return "❌", "failed"
 	case "canceled":
-		return ":white_circle:", "canceled"
+		return "⚪", "canceled"
 	case "unauthorized":
-		return ":lock:", "unauthorized"
+		return "🔒", "unauthorized"
 	case "not_run":
 		// A run that never executed (e.g. its config could not be fetched or
 		// compiled) — a no-entry glyph, not a warning, since nothing ran. The
 		// underscore-free wording reads better than the raw "not_run" outcome.
-		return ":no_entry_sign:", "not run"
+		return "🚫", "not run"
 	case "errored", "infrastructure_fail", "timedout":
-		return ":warning:", outcome
+		return "⚠️", outcome
 	default:
 		return "", outcome
 	}

@@ -1,6 +1,6 @@
 # Workflows
-| Ref  | Revision | Workflow | Status                       | ID                                     |
-| ---- | -------- | -------- | ---------------------------- | -------------------------------------- |
-| main | abc1234  | build    | :white_check_mark: succeeded | `b0000000-0000-4000-8000-00000000fa01` |
-|      |          | deploy   | :x: failed                   | `b0000000-0000-4000-8000-00000000fb01` |
-| main | abc1234  | build    | :large_blue_circle: running  | `b0000000-0000-4000-8000-00000000fc01` |
+| Ref  | Revision | Workflow | Status       | ID                                     |
+| ---- | -------- | -------- | ------------ | -------------------------------------- |
+| main | abc1234  | build    | ✅ succeeded | `b0000000-0000-4000-8000-00000000fa01` |
+|      |          | deploy   | ❌ failed    | `b0000000-0000-4000-8000-00000000fb01` |
+| main | abc1234  | build    | 🔵 running   | `b0000000-0000-4000-8000-00000000fc01` |

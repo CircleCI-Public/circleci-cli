@@ -25,6 +25,7 @@ package acceptance_test
 import (
 	"bytes"
 	"fmt"
+	"net"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -55,7 +56,15 @@ var osc8IDPattern = regexp.MustCompile(`8;id=\d+;`)
 func normalizeAppHost(s, fakeURL string) string {
 	u, err := url.Parse(fakeURL)
 	if err == nil && u.Host != "" {
+		// Plain case: host:port appear together (no ANSI codes in between).
 		s = strings.ReplaceAll(s, "app."+u.Host, "app.circleci.test")
+		// ANSI-split case: color renderers may insert escape sequences between
+		// the host and the port (e.g. "app.127.0.0.1\x1b[m\x1b[38;5;252m:PORT").
+		// strings.ReplaceAll won't find the substring, so use a regex.
+		if host, port, err2 := net.SplitHostPort(u.Host); err2 == nil {
+			re := regexp.MustCompile(`app\.` + regexp.QuoteMeta(host) + `(?:\x1b\[[0-9;]*m)*:` + regexp.QuoteMeta(port))
+			s = re.ReplaceAllString(s, "app.circleci.test")
+		}
 	}
 	return osc8IDPattern.ReplaceAllString(s, "8;id=link;")
 }

@@ -459,12 +459,12 @@ func printWatchTable(ctx context.Context, state runGetOutput, elapsed time.Durat
 
 // watchStatusParts renders a phase/outcome as a plain status glyph and word for
 // watch's raw terminal output — e.g. ("✓", "succeeded"). PhaseOutcomeStatus
-// emits emoji shortcodes (":white_check_mark: succeeded") that only render when
-// passed through glamour markdown; watch prints raw, so it uses the emoji-free
-// PhaseOutcomeSymbol/PhaseOutcomeText pair instead — as the interactive pickers
-// and watch's own result lines already do. The symbol is returned separately so
-// callers can pad the (ASCII) word into a fixed-width column without the glyph's
-// multi-byte width throwing off the alignment.
+// prefixes a width-2 status emoji ("✅ succeeded"); watch lays out fixed-width
+// columns, so it uses the single-width PhaseOutcomeSymbol/PhaseOutcomeText pair
+// instead — as the interactive pickers and watch's own result lines already do.
+// The symbol is returned separately so callers can pad the (ASCII) word into a
+// fixed-width column without the glyph's multi-byte width throwing off the
+// alignment.
 func watchStatusParts(phase, outcome, currentOutcome string) (symbol, word string) {
 	return apiclient.PhaseOutcomeSymbol(phase, outcome, currentOutcome),
 		apiclient.PhaseOutcomeText(phase, outcome, currentOutcome)

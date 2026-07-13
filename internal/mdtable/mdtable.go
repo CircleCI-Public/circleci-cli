@@ -33,6 +33,8 @@ package mdtable
 import (
 	"fmt"
 	"strings"
+
+	"github.com/charmbracelet/x/ansi"
 )
 
 // Table accumulates headers and rows, then renders a GFM-aligned table.
@@ -46,7 +48,7 @@ type Table struct {
 func New(headers ...string) *Table {
 	widths := make([]int, len(headers))
 	for i, h := range headers {
-		widths[i] = len(h)
+		widths[i] = ansi.StringWidth(h)
 	}
 	return &Table{headers: headers, widths: widths}
 }
@@ -59,8 +61,8 @@ func (t *Table) Row(values ...string) {
 		if i < len(values) {
 			row[i] = values[i]
 		}
-		if len(row[i]) > t.widths[i] {
-			t.widths[i] = len(row[i])
+		if w := ansi.StringWidth(row[i]); w > t.widths[i] {
+			t.widths[i] = w
 		}
 	}
 	t.rows = append(t.rows, row)
@@ -72,7 +74,7 @@ func (t *Table) Render() string {
 
 	// Header row
 	for i, h := range t.headers {
-		_, _ = fmt.Fprintf(&sb, "| %-*s ", t.widths[i], h)
+		_, _ = fmt.Fprintf(&sb, "| %s ", pad(h, t.widths[i]))
 	}
 	sb.WriteString("|\n")
 
@@ -85,10 +87,23 @@ func (t *Table) Render() string {
 	// Data rows
 	for _, row := range t.rows {
 		for i, v := range row {
-			_, _ = fmt.Fprintf(&sb, "| %-*s ", t.widths[i], v)
+			_, _ = fmt.Fprintf(&sb, "| %s ", pad(v, t.widths[i]))
 		}
 		sb.WriteString("|\n")
 	}
 
 	return sb.String()
+}
+
+// pad left-aligns s in a field w display columns wide, padding with spaces.
+// Width is measured with ansi.StringWidth (not len or rune count) so wide
+// runes — emoji, CJK — occupy their true terminal cell count and columns stay
+// aligned. fmt's own %-*s width counts runes, which overpads any cell holding
+// a wide rune, so it cannot be used here.
+func pad(s string, w int) string {
+	gap := w - ansi.StringWidth(s)
+	if gap <= 0 {
+		return s
+	}
+	return s + strings.Repeat(" ", gap)
 }

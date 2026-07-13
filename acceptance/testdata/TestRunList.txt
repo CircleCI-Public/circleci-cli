@@ -1,6 +1,6 @@
 # Runs
-| Ref     | Revision | Subject        | ID                                     | Created              | Status                       |
-| ------- | -------- | -------------- | -------------------------------------- | -------------------- | ---------------------------- |
-| main    | abc1234  | Fix the widget | `e0000000-0000-4000-8000-000000000001` | 2020-01-01 12:00 UTC | :white_check_mark: succeeded |
-| feature | deadbee  | Fix the widget | `e0000000-0000-4000-8000-000000000002` | 2020-01-01 12:00 UTC | :x: failed                   |
-| main    | 1111111  | Fix the widget | `e0000000-0000-4000-8000-000000000003` | 2020-01-01 12:00 UTC | :white_check_mark: succeeded |
+| Ref     | Revision | Subject        | ID                                     | Created              | Status       |
+| ------- | -------- | -------------- | -------------------------------------- | -------------------- | ------------ |
+| main    | abc1234  | Fix the widget | `e0000000-0000-4000-8000-000000000001` | 2020-01-01 12:00 UTC | ✅ succeeded |
+| feature | deadbee  | Fix the widget | `e0000000-0000-4000-8000-000000000002` | 2020-01-01 12:00 UTC | ❌ failed    |
+| main    | 1111111  | Fix the widget | `e0000000-0000-4000-8000-000000000003` | 2020-01-01 12:00 UTC | ✅ succeeded |
