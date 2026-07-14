@@ -434,7 +434,7 @@ a:hover {
 
 @media (width >= 56rem) {
   .hero-inner {
-    grid-template-columns: 1.3fr 1fr;
+    grid-template-columns: 1fr 1.2fr;
     gap: 4rem;
     padding-block: 5rem;
   }
@@ -535,6 +535,27 @@ a:hover {
 
 .hero-tip-bar .copy-btn {
   margin-right: 0.25rem;
+}
+
+/* Install command bars stack vertically (a second bar appears for two-step
+   managers — apt, rpm, snap). The [hidden] rule is explicit because
+   .hero-tip-bar sets display:flex, which otherwise defeats the attribute. */
+.hero-tip-steps {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.hero-tip-bar[hidden] { display: none; }
+
+/* The apt/rpm setup commands embed line breaks in their data-cmd so they render
+   over a few lines instead of one very wide row (which stretched the hero column
+   and shrank the screenshot). pre-wrap honours those breaks and still soft-wraps
+   on narrow screens. Single-line commands are unaffected. */
+#install-step1,
+#install-step2 {
+  white-space: pre-wrap;
 }
 
 @media (width < 56rem) {
@@ -719,14 +740,17 @@ a:hover {
 
 .install-dropdown-btn {
   display: flex;
-  flex-shrink: 0;
+  /* The picker is now a pure selector (the command moved to the Install
+     section below), so the button fills the bar with the chevron pushed
+     to the trailing edge — no divider to another element. */
+  flex: 1;
   cursor: pointer;
   align-items: center;
+  justify-content: space-between;
   gap: 0.5rem;
   /* Rounds the inset focus ring (an outline follows the element's own
      border-radius) — matches the copy button, which carries the same radius. */
   border-radius: 0.375rem;
-  border-right: 1px solid var(--color-site-border-strong);
   padding-inline: 1rem;
   padding-block: 0.75rem;
   font-family: var(--font-sans);
@@ -736,9 +760,7 @@ a:hover {
   white-space: nowrap;
   color: var(--color-site-heading);
   background: transparent;
-  border-top: none;
-  border-bottom: none;
-  border-left: none;
+  border: none;
 }
 
 @media (hover: hover) {

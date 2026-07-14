@@ -31,26 +31,76 @@
                   <path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
                 </svg>
               </button>
-              <span class="install-cmd-wrap">
-                <span class="install-prompt">$ </span><span id="install-cmd">brew install circleci-public/circleci/circleci@next</span>
-              </span>
-              {{ partial "copy-button.html" (dict "id" "install-copy-btn" "copyTarget" "install-cmd") }}
             </div>
 
             <ul class="install-menu" id="install-menu" role="listbox" aria-label="Installation method" hidden>
-              <li role="option" tabindex="-1" data-cmd="brew install circleci-public/circleci/circleci@next" aria-selected="true">macOS — Homebrew</li>
+              <li role="option"
+                  tabindex="-1"
+                  data-cmd="brew install circleci-public/circleci/circleci@next"
+                  aria-selected="true">
+                macOS — Homebrew
+              </li>
               <li class="picker-divider" aria-hidden="true"></li>
-              <li role="option" tabindex="-1" data-cmd="winget install --id CircleCI.CLI.Preview" aria-selected="false">Windows — WinGet</li>
+              <li role="option"
+                  tabindex="-1"
+                  data-cmd="winget install --id CircleCI.CLI.Preview"
+                  aria-selected="false">
+                Windows — WinGet
+              </li>
               <li class="picker-divider" aria-hidden="true"></li>
-              <li role="option" tabindex="-1" data-cmd="brew install circleci-public/circleci/circleci@next" aria-selected="false">Linux — Homebrew</li>
-              <li role="option" tabindex="-1" data-cmd="sudo snap install circleci --channel=edge" aria-selected="false">Linux — Snap</li>
+              <li role="option"
+                  tabindex="-1"
+                  data-cmd="curl -1sLf \
+  'https://packages.circleci.com/public/setup.deb.sh' \
+  | sudo -E bash"
+                  data-cmd2="sudo apt install circleci"
+                  aria-selected="false">
+                Linux — apt (Debian, Ubuntu, Mint, Raspberry Pi)
+              </li>
+              <li role="option"
+                  tabindex="-1"
+                  data-cmd="curl -1sLf \
+  'https://packages.circleci.com/public/setup.rpm.sh' \
+  | sudo -E bash"
+                  data-cmd2="sudo dnf install circleci"
+                  aria-selected="false">
+                Linux — rpm (Fedora, RHEL, SUSE, Amazon)
+              </li>
+              <li class="picker-divider" aria-hidden="true"></li>
+              <li role="option"
+                  tabindex="-1"
+                  data-cmd="brew install circleci-public/circleci/circleci@next"
+                  aria-selected="false">
+                Linux — Homebrew
+              </li>
+              <li role="option"
+                  tabindex="-1"
+                  data-cmd="sudo snap install circleci --channel=edge"
+                  data-cmd2="sudo snap connect circleci:password-manager-service"
+                  aria-selected="false">
+                Linux — Snap
+              </li>
             </ul>
           </div>
 
-          <p class="hero-ref-link"><a href="reference/">View command reference &rarr;</a></p>
+          <section class="hero-tip" aria-labelledby="hero-tip-install">
+            <h2 class="hero-tip-title" id="hero-tip-install">Install</h2>
 
-          {{/* Getting-started tip */}}
-          <section class="hero-tip" aria-labelledby="hero-tip-title">
+            {{/* Install command(s) for the platform chosen in the picker above.
+                 Step 1 always shows; step 2 appears only for package managers that
+                 need a second command (apt, rpm, snap), driven by the selected
+                 option's data-cmd2. Both are populated by the picker JS below. */}}
+            <div class="hero-tip-steps">
+              <div class="hero-tip-bar">
+                <span class="install-cmd-wrap"><span class="install-prompt">$ </span><span id="install-step1">brew install circleci-public/circleci/circleci@next</span></span>
+                {{ partial "copy-button.html" (dict "copyTarget" "install-step1") }}
+              </div>
+              <div class="hero-tip-bar" id="install-step2-bar" hidden>
+                <span class="install-cmd-wrap"><span class="install-prompt">$ </span><span id="install-step2"></span></span>
+                {{ partial "copy-button.html" (dict "copyTarget" "install-step2") }}
+              </div>
+            </div>
+
             <h2 class="hero-tip-title" id="hero-tip-title">Authenticate</h2>
             <div class="hero-tip-row">
               <div class="hero-tip-bar">
@@ -63,12 +113,15 @@
                 {{ partial "copy-button.html" (dict "cmd" "circleci auth signup") }}
               </div>
             </div>
+
             <h2 class="hero-tip-title" id="hero-tip-title-2">Ready to run</h2>
             <div class="hero-tip-bar">
               <span class="install-cmd-wrap"><span class="install-prompt">$ </span>circleci run get</span>
               {{ partial "copy-button.html" (dict "cmd" "circleci run get") }}
             </div>
           </section>
+
+          <p class="hero-ref-link"><a href="reference/">View command reference &rarr;</a></p>
 
           <p class="hero-fine">
             Looking for something else? See the
@@ -114,13 +167,29 @@
 
   <script>
   (function () {
-    var picker = document.getElementById('install-picker');
-    var btn    = document.getElementById('install-dropdown-btn');
-    var menu   = document.getElementById('install-menu');
-    var lbl    = document.getElementById('install-selected-label');
-    var cmdEl  = document.getElementById('install-cmd');
+    var picker   = document.getElementById('install-picker');
+    var btn      = document.getElementById('install-dropdown-btn');
+    var menu     = document.getElementById('install-menu');
+    var lbl      = document.getElementById('install-selected-label');
+    var step1El  = document.getElementById('install-step1');
+    var step2El  = document.getElementById('install-step2');
+    var step2Bar = document.getElementById('install-step2-bar');
 
     function opts() { return Array.from(menu.querySelectorAll('[role="option"]')); }
+
+    // Reflect the chosen platform's command(s) into the Install section. The
+    // second bar is shown only when the option carries a data-cmd2 (apt, rpm, snap).
+    function applyCmds(opt) {
+      step1El.textContent = opt.dataset.cmd;
+      var cmd2 = opt.dataset.cmd2;
+      if (cmd2) {
+        step2El.textContent = cmd2;
+        step2Bar.hidden = false;
+      } else {
+        step2El.textContent = '';
+        step2Bar.hidden = true;
+      }
+    }
 
     function open() {
       menu.hidden = false;
@@ -138,8 +207,8 @@
     function select(opt) {
       opts().forEach(function (el) { el.setAttribute('aria-selected', 'false'); });
       opt.setAttribute('aria-selected', 'true');
-      lbl.textContent = opt.textContent;
-      cmdEl.textContent = opt.dataset.cmd;
+      lbl.textContent = opt.textContent.trim();
+      applyCmds(opt);
       close(true);
     }
 
@@ -172,6 +241,10 @@
     document.addEventListener('keydown', function (e) {
       if (e.key === 'Escape' && !menu.hidden) close(true);
     });
+
+    // Sync the Install section with the initially-selected option on load.
+    var initial = menu.querySelector('[aria-selected="true"]') || opts()[0];
+    if (initial) applyCmds(initial);
   })();
 
   document.querySelectorAll('.copy-btn').forEach(function (btn) {
