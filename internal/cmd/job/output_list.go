@@ -168,14 +168,30 @@ func OutputList(ctx context.Context, client *apiclient.Client, jobID uuid.UUID, 
 }
 
 func runOutputList(ctx context.Context, client *apiclient.Client, jobID uuid.UUID, execution, tail int, jsonOut bool) error {
+	data, err := fetchOutputList(ctx, client, jobID, execution)
+	if err != nil {
+		return err
+	}
+
+	if jsonOut {
+		return iostream.PrintJSON(ctx, data)
+	}
+
+	printOutputList(ctx, data, tail)
+	return nil
+}
+
+// fetchOutputList loads one execution's steps and their replayed output into the
+// output-list struct. Shared by runOutputList and OutputListMarkdown.
+func fetchOutputList(ctx context.Context, client *apiclient.Client, jobID uuid.UUID, execution int) (*jobOutputList, error) {
 	job, err := client.GetJobV3(ctx, jobID)
 	if err != nil {
-		return cmdutil.APIErr(err, jobID.String(), "job.not_found", "No job found for %q.")
+		return nil, cmdutil.APIErr(err, jobID.String(), "job.not_found", "No job found for %q.")
 	}
 
 	steps, err := executionSteps(job, execution)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	items := make([]stepOutputItem, len(steps))
@@ -203,18 +219,22 @@ func runOutputList(ctx context.Context, client *apiclient.Client, jobID uuid.UUI
 		})
 	}
 	if err := g.Wait(); err != nil {
-		return cmdutil.APIErr(err, jobID.String(), "job.output_error",
+		return nil, cmdutil.APIErr(err, jobID.String(), "job.output_error",
 			"Failed to fetch step output for job %q.")
 	}
 
-	data := &jobOutputList{ID: job.ID, Name: job.Name, Execution: execution, Steps: items}
+	return &jobOutputList{ID: job.ID, Name: job.Name, Execution: execution, Steps: items}, nil
+}
 
-	if jsonOut {
-		return iostream.PrintJSON(ctx, data)
+// OutputListMarkdown fetches one execution's step output and returns it as
+// markdown (the same content printOutputList pages), for the interactive run-get
+// flow's in-flow "full job report" pager.
+func OutputListMarkdown(ctx context.Context, client *apiclient.Client, jobID uuid.UUID, execution, tail int) (string, error) {
+	data, err := fetchOutputList(ctx, client, jobID, execution)
+	if err != nil {
+		return "", err
 	}
-
-	printOutputList(ctx, data, tail)
-	return nil
+	return outputListMarkdown(data, tail), nil
 }
 
 // executionSteps returns the steps for the requested execution index.
@@ -274,6 +294,11 @@ func renderStepOutput(ctx context.Context, client *apiclient.Client, jobID uuid.
 }
 
 func printOutputList(ctx context.Context, data *jobOutputList, tail int) {
+	iostream.PrintMarkdown(ctx, outputListMarkdown(data, tail))
+}
+
+// outputListMarkdown builds one execution's full step-output report as markdown.
+func outputListMarkdown(data *jobOutputList, tail int) string {
 	var md strings.Builder
 	md.WriteString("# Job Output\n")
 	_, _ = fmt.Fprintf(&md, "- ID: `%s`\n", data.ID)
@@ -317,7 +342,7 @@ func printOutputList(ctx context.Context, data *jobOutputList, tail int) {
 		_, _ = fmt.Fprintf(&md, "%s\n", fence)
 	}
 
-	iostream.PrintMarkdown(ctx, md.String())
+	return md.String()
 }
 
 // tailLines returns the last limit lines of s along with the number of lines

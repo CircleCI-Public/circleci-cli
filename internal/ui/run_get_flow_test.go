@@ -952,3 +952,124 @@ func TestRunGetFlow_FilterApplyCreated(t *testing.T) {
 	v := flowSnapshot(t, tm)
 	assert.Check(t, cmp.Contains(v, "older than 1 Hour"))
 }
+
+// newSummaryFlow builds a single-execution flow (run → workflow "build" → job
+// "test" → step picker) with every summary renderer wired, so the "see all
+// workflows", "all jobs in workflow", "job report" and "full job report" options
+// open their summary in an in-flow pager whose esc returns to the offering picker
+// rather than quitting. RenderMarkdown returns the markdown verbatim so tests
+// can assert on the distinctive body each renderer emits. The step picker has a
+// passing "checkout" step and a failed "run tests" step (the default cursor).
+func newSummaryFlow() ui.RunGetFlowModel {
+	return ui.NewRunGetFlow(context.Background(), ui.RunGetFlowOptions{
+		Runs:          []ui.RunGetItem{runItem("aaaaaaa [main] - now")},
+		CurrentBranch: "main",
+		FetchWorkflows: func(context.Context, uuid.UUID) ([]ui.RunGetItem, error) {
+			return []ui.RunGetItem{{ID: uuid.New(), Icon: "✓", Label: "build"}}, nil
+		},
+		FetchJobs: func(context.Context, uuid.UUID) ([]ui.RunGetItem, error) {
+			return []ui.RunGetItem{{ID: uuid.New(), Icon: "✗", Label: "test"}}, nil
+		},
+		FetchExecutions: func(context.Context, uuid.UUID) ([]ui.RunGetExecution, error) {
+			return []ui.RunGetExecution{{Index: 0, Steps: []ui.RunGetStepItem{
+				{Label: "checkout", Icon: "✓", Execution: 0, StepNum: 100},
+				{Label: "run tests", Icon: "✗", Execution: 0, StepNum: 101},
+			}}}, nil
+		},
+		RenderRunSummary:      func(context.Context, uuid.UUID) (string, error) { return "RUN-SUMMARY-BODY", nil },
+		RenderWorkflowSummary: func(context.Context, uuid.UUID) (string, error) { return "WORKFLOW-SUMMARY-BODY", nil },
+		RenderJobSummary:      func(context.Context, uuid.UUID) (string, error) { return "JOB-REPORT-BODY", nil },
+		RenderJobOutput:       func(context.Context, uuid.UUID) (string, error) { return "FULL-JOB-OUTPUT-BODY", nil },
+		RenderMarkdown:        func(md string, _ int) string { return md },
+	})
+}
+
+// TestRunGetFlow_RunSummaryPager confirms "see all workflows" opens the run
+// summary in an in-flow pager and esc returns to the workflow picker (rather than
+// quitting the flow, as it did before the pager was embedded).
+func TestRunGetFlow_RunSummaryPager(t *testing.T) {
+	tm := startFlow(t, newSummaryFlow())
+
+	assert.Assert(t, t.Run("see all workflows opens the run summary", func(t *testing.T) {
+		tm.Send(keyEnt) // select the only run → workflow picker
+		waitForOutput(t, tm, "See all workflows")
+		tm.Send(keyEnt) // "see all workflows" is the leading row
+		waitForOutput(t, tm, "RUN-SUMMARY-BODY")
+	}))
+
+	assert.Assert(t, t.Run("esc returns to the workflow picker", func(t *testing.T) {
+		tm.Send(keyEsc)
+		v := flowSnapshot(t, tm)
+		assert.Check(t, cmp.Contains(v, "Select a workflow"))
+		assert.Check(t, cmp.Contains(v, "See all workflows"))
+	}))
+}
+
+// TestRunGetFlow_WorkflowSummaryPager confirms "all jobs in workflow" opens the
+// workflow summary in an in-flow pager and esc returns to the job picker.
+func TestRunGetFlow_WorkflowSummaryPager(t *testing.T) {
+	tm := startFlow(t, newSummaryFlow())
+
+	assert.Assert(t, t.Run("all jobs in workflow opens the workflow summary", func(t *testing.T) {
+		tm.Send(keyEnt) // run → workflow picker
+		waitForOutput(t, tm, "See all workflows")
+		tm.Send(keyDown)
+		tm.Send(keyEnt) // "build" → job picker
+		waitForOutput(t, tm, "All jobs in workflow")
+		tm.Send(keyEnt) // "all jobs in workflow" is the leading row
+		waitForOutput(t, tm, "WORKFLOW-SUMMARY-BODY")
+	}))
+
+	assert.Assert(t, t.Run("esc returns to the job picker", func(t *testing.T) {
+		tm.Send(keyEsc)
+		v := flowSnapshot(t, tm)
+		assert.Check(t, cmp.Contains(v, "Select a job"))
+		assert.Check(t, cmp.Contains(v, "All jobs in workflow"))
+	}))
+}
+
+// TestRunGetFlow_JobReportPager confirms the "job report" option on the step
+// picker opens the job report in an in-flow pager and esc returns to the step
+// picker.
+func TestRunGetFlow_JobReportPager(t *testing.T) {
+	tm := startFlow(t, newSummaryFlow())
+
+	assert.Assert(t, t.Run("job report opens in the pager", func(t *testing.T) {
+		driveToStepPicker(t, tm)
+		// The cursor starts on the failed step (below the three meta rows); four ups
+		// reach the first option, "Job report".
+		tm.Send(keyUp)
+		tm.Send(keyUp)
+		tm.Send(keyUp)
+		tm.Send(keyUp)
+		tm.Send(keyEnt)
+		waitForOutput(t, tm, "JOB-REPORT-BODY")
+	}))
+
+	assert.Assert(t, t.Run("esc returns to the step picker", func(t *testing.T) {
+		tm.Send(keyEsc)
+		assert.Check(t, cmp.Contains(flowSnapshot(t, tm), "Select a step"))
+	}))
+}
+
+// TestRunGetFlow_FullJobOutputPager confirms the "full job report" option opens
+// the full per-step output in an in-flow pager and esc returns to the step
+// picker.
+func TestRunGetFlow_FullJobOutputPager(t *testing.T) {
+	tm := startFlow(t, newSummaryFlow())
+
+	assert.Assert(t, t.Run("full job report opens in the pager", func(t *testing.T) {
+		driveToStepPicker(t, tm)
+		// Three ups from the failed step reach the second option, "Full job report".
+		tm.Send(keyUp)
+		tm.Send(keyUp)
+		tm.Send(keyUp)
+		tm.Send(keyEnt)
+		waitForOutput(t, tm, "FULL-JOB-OUTPUT-BODY")
+	}))
+
+	assert.Assert(t, t.Run("esc returns to the step picker", func(t *testing.T) {
+		tm.Send(keyEsc)
+		assert.Check(t, cmp.Contains(flowSnapshot(t, tm), "Select a step"))
+	}))
+}

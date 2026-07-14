@@ -274,12 +274,35 @@ func runGet(ctx context.Context, client *apiclient.Client, args []string, projec
 // direct "circleci run get" invocation and the interactive picker's
 // "see all workflows" choice, so both produce identical output.
 func displayRun(ctx context.Context, client *apiclient.Client, r *apiclient.RunV3, jsonOut bool) error {
+	out, err := fetchRunOutput(ctx, client, r)
+	if err != nil {
+		return err
+	}
+
+	if jsonOut {
+		return iostream.PrintJSON(ctx, out)
+	}
+
+	appURL, err := cmdutil.AppURL(ctx)
+	if err != nil {
+		return err
+	}
+
+	u := cmdutil.RunURL(appURL, r.ID)
+
+	printRun(ctx, out, u)
+	return nil
+}
+
+// fetchRunOutput loads a run's workflows and their jobs and assembles the
+// display struct. The workflows API can 404 for a run that exists (e.g.
+// workflows not yet materialised) — that is treated as "no workflows" so the run
+// still displays. Shared by displayRun and runSummaryMarkdown.
+func fetchRunOutput(ctx context.Context, client *apiclient.Client, r *apiclient.RunV3) (runGetOutput, error) {
 	workflows, err := client.GetRunWorkflowsV3(ctx, r.ID)
 	if err != nil {
-		// The workflows API can 404 for a run that exists (e.g. workflows
-		// not yet materialised) — still show the run, with no workflows.
 		if !httpcl.HasStatusCode(err, http.StatusNotFound) {
-			return apiErr(err, r.ID.String())
+			return runGetOutput{}, apiErr(err, r.ID.String())
 		}
 		workflows = nil
 	}
@@ -296,27 +319,28 @@ func displayRun(ctx context.Context, client *apiclient.Client, r *apiclient.RunV
 			wfJobs[i] = jobs
 			return nil
 		})
-		err = g.Wait()
-		if err != nil {
-			return err
+		if err := g.Wait(); err != nil {
+			return runGetOutput{}, err
 		}
 	}
 
-	out := buildOutput(r, workflows, wfJobs)
+	return buildOutput(r, workflows, wfJobs), nil
+}
 
-	if jsonOut {
-		return iostream.PrintJSON(ctx, out)
+// runSummaryMarkdown assembles the run summary as markdown, for the interactive
+// run-get flow's in-flow "see all workflows" pager (the RenderRunSummary
+// callback). It mirrors displayRun's non-JSON path but returns the markdown
+// rather than paging it, so the flow can page it in its own program.
+func runSummaryMarkdown(ctx context.Context, client *apiclient.Client, r *apiclient.RunV3) (string, error) {
+	out, err := fetchRunOutput(ctx, client, r)
+	if err != nil {
+		return "", err
 	}
-
 	appURL, err := cmdutil.AppURL(ctx)
 	if err != nil {
-		return err
+		return "", err
 	}
-
-	u := cmdutil.RunURL(appURL, r.ID)
-
-	printRun(ctx, out, u)
-	return nil
+	return runMarkdown(out, cmdutil.RunURL(appURL, r.ID)), nil
 }
 
 // createdWindow resolves the explicit [from, to] creation-time window for an
@@ -436,6 +460,22 @@ func runGetInteractive(ctx context.Context, client *apiclient.Client, projectSlu
 		FetchStepStdout:  stepStdout(client),
 		FetchStepStderr:  stepStderr(client),
 		FetchFailedTests: failedTestItems(client),
+		RenderRunSummary: func(ctx context.Context, runID uuid.UUID) (string, error) {
+			r, err := client.GetRunV3(ctx, runID)
+			if err != nil {
+				return "", apiErr(err, runID.String())
+			}
+			return runSummaryMarkdown(ctx, client, r)
+		},
+		RenderWorkflowSummary: func(ctx context.Context, workflowID uuid.UUID) (string, error) {
+			return workflow.SummaryMarkdown(ctx, client, workflowID)
+		},
+		RenderJobSummary: func(ctx context.Context, jobID uuid.UUID) (string, error) {
+			return job.SummaryMarkdown(ctx, client, jobID)
+		},
+		RenderJobOutput: func(ctx context.Context, jobID uuid.UUID) (string, error) {
+			return jobOutputMarkdown(ctx, client, jobID)
+		},
 		RenderMarkdown: func(md string, width int) string {
 			return iostream.RenderMarkdownAt(ctx, md, width)
 		},
@@ -704,6 +744,30 @@ func showJobOutput(ctx context.Context, client *apiclient.Client, jobID uuid.UUI
 	return nil
 }
 
+// jobOutputMarkdown assembles the full per-step output report (every execution)
+// as a single markdown document, for the interactive run-get flow's in-flow
+// "full job report" pager (the RenderJobOutput callback). It mirrors
+// showJobOutput but returns the concatenated markdown rather than paging each
+// execution separately.
+func jobOutputMarkdown(ctx context.Context, client *apiclient.Client, jobID uuid.UUID) (string, error) {
+	j, err := client.GetJobV3(ctx, jobID)
+	if err != nil {
+		return "", cmdutil.APIErr(err, jobID.String(), "job.not_found", "No job found for %q.")
+	}
+	var sb strings.Builder
+	for i, exec := range j.Executions {
+		md, err := job.OutputListMarkdown(ctx, client, jobID, exec.Index, job.DefaultStepOutputTail)
+		if err != nil {
+			return "", err
+		}
+		if i > 0 {
+			sb.WriteString("\n")
+		}
+		sb.WriteString(md)
+	}
+	return sb.String(), nil
+}
+
 func buildOutput(r *apiclient.RunV3, workflows []apiclient.WorkflowV3, wfJobs [][]apiclient.WorkflowJobV3) runGetOutput {
 	wflows := make([]workflowOutput, len(workflows))
 	for i, w := range workflows {
@@ -789,6 +853,14 @@ func deriveDisplayStatus(r runGetOutput) string {
 }
 
 func printRun(ctx context.Context, r runGetOutput, u string) {
+	iostream.PrintMarkdown(ctx, runMarkdown(r, u))
+}
+
+// runMarkdown builds the run summary as markdown (the whole run and every
+// workflow's jobs). printRun pages it via iostream; the interactive run-get flow
+// renders it into its own in-flow pager (see RenderRunSummary) so esc returns to
+// the workflow picker instead of quitting.
+func runMarkdown(r runGetOutput, u string) string {
 	var md strings.Builder
 	md.WriteString("# Run\n")
 
@@ -843,7 +915,7 @@ func printRun(ctx context.Context, r runGetOutput, u string) {
 		md.WriteString("\n")
 	}
 
-	iostream.PrintMarkdown(ctx, md.String())
+	return md.String()
 }
 
 // runStatusFilters are the pipeline statuses the run picker's "s" key cycles

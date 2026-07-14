@@ -713,9 +713,9 @@ func TestRunGet_Interactive_SelectStep(t *testing.T) {
 }
 
 // TestRunGet_Interactive_JobReport picks the "Job report (summary)" option at the
-// top of the step picker, which prints the short job summary. The summary lists
-// the workflow ID, which the full output report does not — so it confirms the
-// summary (not the full report) was printed.
+// top of the step picker, which pages the short job summary in-flow. The summary
+// lists the workflow ID, which the full output report does not — so it confirms
+// the summary (not the full report) was shown. ctrl+c then quits.
 func TestRunGet_Interactive_JobReport(t *testing.T) {
 	env := setupRunGetInteractiveFake(t)
 	console := startRunGetInteractive(t, env)
@@ -728,10 +728,14 @@ func TestRunGet_Interactive_JobReport(t *testing.T) {
 
 	_, err = console.ExpectString(irunWfID)
 	assert.NilError(t, err)
+
+	// The summary is paged in-flow, so the program is still running; ctrl+c quits.
+	_, err = console.Send(keyCtrlC)
+	assert.NilError(t, err)
 }
 
 // TestRunGet_Interactive_FullOutputReport picks the "Full job report" option,
-// which prints every step's rendered output.
+// which pages every step's rendered output in-flow. ctrl+c then quits.
 func TestRunGet_Interactive_FullOutputReport(t *testing.T) {
 	env := setupRunGetInteractiveFake(t)
 	console := startRunGetInteractive(t, env)
@@ -743,6 +747,10 @@ func TestRunGet_Interactive_FullOutputReport(t *testing.T) {
 	assert.NilError(t, err)
 
 	_, err = console.ExpectString("FAILURE: 2 tests failed")
+	assert.NilError(t, err)
+
+	// The report is paged in-flow, so the program is still running; ctrl+c quits.
+	_, err = console.Send(keyCtrlC)
 	assert.NilError(t, err)
 }
 
@@ -817,10 +825,16 @@ func TestRunGet_Interactive_ParallelJobReport(t *testing.T) {
 
 	_, err = console.ExpectString(irunWfID)
 	assert.NilError(t, err)
+
+	// The summary is paged in-flow, so the program is still running; ctrl+c quits.
+	_, err = console.Send(keyCtrlC)
+	assert.NilError(t, err)
 }
 
 // TestRunGet_Interactive_AllWorkflows picks a run then chooses "see all
-// workflows", which prints the same run summary as "run get <id>".
+// workflows", which pages the same run summary as "run get <id>" — but in an
+// in-flow pager, so ctrl+c is needed to quit rather than the summary printing and
+// the program exiting on its own.
 func TestRunGet_Interactive_AllWorkflows(t *testing.T) {
 	env := setupRunGetInteractiveFake(t)
 	console := startRunGetInteractive(t, env)
@@ -838,11 +852,16 @@ func TestRunGet_Interactive_AllWorkflows(t *testing.T) {
 	// The run summary carries the run UUID, which never appears in the pickers.
 	_, err = console.ExpectString(irunRun1ID)
 	assert.NilError(t, err)
+
+	// The summary is paged in-flow, so the program is still running; ctrl+c quits.
+	_, err = console.Send(keyCtrlC)
+	assert.NilError(t, err)
 }
 
 // TestRunGet_Interactive_Back exercises esc as back-navigation: from the
 // workflow picker, esc returns to the run picker (it does not quit). After
-// re-selecting, choosing "all jobs in workflow" prints the workflow summary.
+// re-selecting, choosing "all jobs in workflow" pages the workflow summary
+// in-flow (ctrl+c then quits).
 func TestRunGet_Interactive_Back(t *testing.T) {
 	env := setupRunGetInteractiveFake(t)
 	console := startRunGetInteractive(t, env)
@@ -879,6 +898,10 @@ func TestRunGet_Interactive_Back(t *testing.T) {
 
 	// The workflow summary carries the workflow UUID.
 	_, err = console.ExpectString(irunWfID)
+	assert.NilError(t, err)
+
+	// The summary is paged in-flow, so the program is still running; ctrl+c quits.
+	_, err = console.Send(keyCtrlC)
 	assert.NilError(t, err)
 }
 

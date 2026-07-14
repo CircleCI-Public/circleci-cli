@@ -123,7 +123,14 @@ func runGet(ctx context.Context, client *apiclient.Client, idStr string, jsonOut
 }
 
 func printGet(ctx context.Context, j *apiclient.JobV3, u string) {
+	iostream.PrintMarkdown(ctx, jobMarkdown(j, u))
+}
 
+// jobMarkdown builds the job report (the short per-job summary) as markdown.
+// printGet pages it via iostream; the interactive run-get flow renders it into
+// its own in-flow pager (see SummaryMarkdown) so esc returns to the picker
+// instead of quitting.
+func jobMarkdown(j *apiclient.JobV3, u string) string {
 	var md strings.Builder
 	md.WriteString("# Job\n")
 
@@ -162,7 +169,22 @@ func printGet(ctx context.Context, j *apiclient.JobV3, u string) {
 		md.WriteString(table.Render())
 	}
 
-	iostream.PrintMarkdown(ctx, md.String())
+	return md.String()
+}
+
+// SummaryMarkdown assembles the job report as markdown, for the interactive
+// run-get flow's in-flow "job report" pager (the RenderJobSummary callback). It
+// mirrors runGet's non-JSON path but returns the markdown rather than paging it.
+func SummaryMarkdown(ctx context.Context, client *apiclient.Client, jobID uuid.UUID) (string, error) {
+	j, err := client.GetJobV3(ctx, jobID)
+	if err != nil {
+		return "", cmdutil.APIErr(err, jobID.String(), "job.not_found", "No job found for %q.")
+	}
+	appURL, err := cmdutil.AppURL(ctx)
+	if err != nil {
+		return "", err
+	}
+	return jobMarkdown(j, cmdutil.JobURL(appURL, j.WorkflowID, jobID)), nil
 }
 
 func formatCommand(s string) string {

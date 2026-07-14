@@ -254,6 +254,25 @@ type RunGetFlowOptions struct {
 	// FetchFailedTests lists a job's failed tests for the "failed tests" picker.
 	// Each item carries the message shown in the pager when the test is picked.
 	FetchFailedTests func(ctx context.Context, jobID uuid.UUID) ([]RunGetTestItem, error)
+	// RenderRunSummary returns the run summary (all workflows) as markdown, shown
+	// in an in-flow pager when "see all workflows" is chosen so esc returns to the
+	// workflow picker rather than quitting the flow. When nil (or RenderMarkdown is
+	// nil) the option instead quits with RunGetActionShowRun and the caller prints
+	// the summary itself. RenderMarkdown renders the returned markdown.
+	RenderRunSummary func(ctx context.Context, runID uuid.UUID) (string, error)
+	// RenderWorkflowSummary is the counterpart for the "all jobs in workflow"
+	// option: it returns the workflow summary (all jobs) as markdown, shown in an
+	// in-flow pager whose esc returns to the job picker. When nil the option quits
+	// with RunGetActionShowWorkflow instead.
+	RenderWorkflowSummary func(ctx context.Context, workflowID uuid.UUID) (string, error)
+	// RenderJobSummary returns the job report (the short per-job summary) as
+	// markdown for the "job report" option, and RenderJobOutput the full per-step
+	// output report for the "full job report" option. Both are shown in an in-flow
+	// pager whose esc returns to whichever picker offered them (the execution
+	// picker for a parallel job, else the step picker). When nil the option quits
+	// with RunGetActionShowJob / RunGetActionShowJobOutput instead.
+	RenderJobSummary func(ctx context.Context, jobID uuid.UUID) (string, error)
+	RenderJobOutput  func(ctx context.Context, jobID uuid.UUID) (string, error)
 	Color            bool
 	// Animate reports whether the loading spinner should animate. Pass false when
 	// CIRCLE_SPINNER_DISABLED is set (or the session is non-interactive) so the
@@ -509,6 +528,8 @@ const (
 	runGetStageStepSelect
 	runGetStageLoadingStep
 	runGetStageStepPager
+	runGetStageLoadingSummary
+	runGetStageSummaryPager
 	runGetStageLoadingTests
 	runGetStageTestSelect
 	runGetStageRunFilter
@@ -638,6 +659,16 @@ type RunGetFlowModel struct {
 	// message.
 	pagerReturnStage runGetStage
 
+	// summaryPager scrolls the run/workflow/job summary markdown shown by the "see
+	// all workflows", "all jobs in workflow", "job report" and "full job report"
+	// options. Unlike the standalone run/workflow/job get commands (which page the
+	// same summary in a program that quits on esc), here esc returns to the picker
+	// that opened it — summaryReturnStage — keeping the whole flow in one program.
+	// It is a separate pager from the step pager because it reflows glamour
+	// markdown to width rather than replaying raw step output.
+	summaryPager       components.PagerModel
+	summaryReturnStage runGetStage
+
 	// help is the "?" keyboard-shortcut overlay (a scrollable markdown frame);
 	// helpReturnStage is the picker esc/q returns to when it is dismissed. help is
 	// the zero value (unusable) when RenderMarkdown is nil, in which case "?" is
@@ -676,6 +707,11 @@ type (
 	runGetTestsMsg struct {
 		items []RunGetTestItem
 		err   error
+	}
+	runGetSummaryMsg struct {
+		md          string
+		returnStage runGetStage
+		err         error
 	}
 	runGetStepStdoutMsg struct {
 		epoch    int
@@ -765,6 +801,8 @@ func (m RunGetFlowModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.onExecutions(msg)
 	case runGetTestsMsg:
 		return m.onTests(msg)
+	case runGetSummaryMsg:
+		return m.onSummary(msg)
 	case runGetStepStdoutMsg:
 		return m.onStepStdout(msg)
 	case runGetStepStderrMsg:
@@ -790,9 +828,11 @@ func (m RunGetFlowModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.updateRunFilter(msg)
 	case runGetStageStepPager:
 		return m.updateStepPager(msg)
+	case runGetStageSummaryPager:
+		return m.updateSummaryPager(msg)
 	case runGetStageHelp:
 		return m.updateHelp(msg)
-	case runGetStageLoadingRuns, runGetStageLoadingWorkflows, runGetStageLoadingJobs, runGetStageLoadingExecutions, runGetStageLoadingStep, runGetStageLoadingTests:
+	case runGetStageLoadingRuns, runGetStageLoadingWorkflows, runGetStageLoadingJobs, runGetStageLoadingExecutions, runGetStageLoadingStep, runGetStageLoadingSummary, runGetStageLoadingTests:
 		// ctrl+c can still abort while a fetch is in flight.
 		if k, ok := msg.(tea.KeyPressMsg); ok && key.Matches(k, components.KeyCtrlC) {
 			return m.quit(RunGetResult{Action: RunGetActionCancel})
@@ -819,6 +859,7 @@ func (m RunGetFlowModel) loading() bool {
 		m.stage == runGetStageLoadingJobs ||
 		m.stage == runGetStageLoadingExecutions ||
 		m.stage == runGetStageLoadingStep ||
+		m.stage == runGetStageLoadingSummary ||
 		m.stage == runGetStageLoadingTests
 }
 
@@ -1055,8 +1096,9 @@ func (m RunGetFlowModel) updateWorkflowSelect(msg tea.Msg) (tea.Model, tea.Cmd) 
 	}
 
 	sel := m.workflowSelect.Selected()
-	if sel == 0 { // "see all workflows"
-		return m.quit(RunGetResult{Action: RunGetActionShowRun, RunID: m.runID})
+	if sel == 0 { // "see all workflows" — page the run summary in-flow (esc → here)
+		return m.openSummary(m.opts.RenderRunSummary, m.runID, runGetStageWorkflowSelect,
+			"Fetching run summary", RunGetResult{Action: RunGetActionShowRun, RunID: m.runID})
 	}
 	m.workflowCursor = sel
 	m.workflowID = m.workflows[sel-1].ID
@@ -1103,8 +1145,9 @@ func (m RunGetFlowModel) updateJobSelect(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	sel := m.jobSelect.Selected()
-	if sel == 0 { // "all jobs in workflow"
-		return m.quit(RunGetResult{Action: RunGetActionShowWorkflow, WorkflowID: m.workflowID})
+	if sel == 0 { // "all jobs in workflow" — page the workflow summary in-flow (esc → here)
+		return m.openSummary(m.opts.RenderWorkflowSummary, m.workflowID, runGetStageJobSelect,
+			"Fetching workflow summary", RunGetResult{Action: RunGetActionShowWorkflow, WorkflowID: m.workflowID})
 	}
 	m.jobCursor = sel
 	m.jobID = m.jobs[sel-1].ID
@@ -1278,10 +1321,12 @@ func (m RunGetFlowModel) updateExecutionSelect(msg tea.Msg) (tea.Model, tea.Cmd)
 
 	sel := m.executionSelect.Selected()
 	switch sel {
-	case 0: // "job report" — short summary, all executions
-		return m.quit(RunGetResult{Action: RunGetActionShowJob, JobID: m.jobID})
+	case 0: // "job report" — short summary, all executions (esc → execution picker)
+		return m.openSummary(m.opts.RenderJobSummary, m.jobID, runGetStageExecutionSelect,
+			"Fetching job report", RunGetResult{Action: RunGetActionShowJob, JobID: m.jobID})
 	case 1: // "full output report" — every step's output, all executions
-		return m.quit(RunGetResult{Action: RunGetActionShowJobOutput, JobID: m.jobID})
+		return m.openSummary(m.opts.RenderJobOutput, m.jobID, runGetStageExecutionSelect,
+			"Fetching job output", RunGetResult{Action: RunGetActionShowJobOutput, JobID: m.jobID})
 	case 2: // "failed tests" — open the failed-test picker
 		return m.enterFailedTests(runGetStageExecutionSelect)
 	}
@@ -1330,10 +1375,12 @@ func (m RunGetFlowModel) updateStepSelect(msg tea.Msg) (tea.Model, tea.Cmd) {
 	sel := picked
 	if meta := m.stepMetaCount(); meta > 0 {
 		switch sel {
-		case 0: // "job report" — short summary
-			return m.quit(RunGetResult{Action: RunGetActionShowJob, JobID: m.jobID})
+		case 0: // "job report" — short summary (esc → step picker)
+			return m.openSummary(m.opts.RenderJobSummary, m.jobID, runGetStageStepSelect,
+				"Fetching job report", RunGetResult{Action: RunGetActionShowJob, JobID: m.jobID})
 		case 1: // "full output report" — every step's output
-			return m.quit(RunGetResult{Action: RunGetActionShowJobOutput, JobID: m.jobID})
+			return m.openSummary(m.opts.RenderJobOutput, m.jobID, runGetStageStepSelect,
+				"Fetching job output", RunGetResult{Action: RunGetActionShowJobOutput, JobID: m.jobID})
 		case 2: // "failed tests" — open the failed-test picker
 			return m.enterFailedTests(runGetStageStepSelect)
 		}
@@ -1504,6 +1551,84 @@ func (m RunGetFlowModel) updateStepPager(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
+// openSummary begins loading a summary (run, workflow or job) for the in-flow
+// pager, tagging it with returnStage — the picker esc returns to. When no
+// renderer is wired (fn nil, or RenderMarkdown nil — e.g. a test harness) it
+// falls back to quitting with fallback so the caller prints the summary itself,
+// preserving the pre-pager behavior.
+func (m RunGetFlowModel) openSummary(
+	fn func(ctx context.Context, id uuid.UUID) (string, error),
+	id uuid.UUID, returnStage runGetStage, label string, fallback RunGetResult,
+) (tea.Model, tea.Cmd) {
+	if fn == nil || m.opts.RenderMarkdown == nil {
+		return m.quit(fallback)
+	}
+	m.stage = runGetStageLoadingSummary
+	m.loadingLabel = label
+	return m, m.loadingCmd(m.cmdFetchSummary(fn, id, returnStage))
+}
+
+// onSummary shows the fetched summary markdown in the summary pager, or quits on
+// a fetch error (matching the other mid-flow fetches).
+func (m RunGetFlowModel) onSummary(msg runGetSummaryMsg) (tea.Model, tea.Cmd) {
+	if msg.err != nil {
+		return m.quit(RunGetResult{Action: RunGetActionCancel, Err: msg.err})
+	}
+	m.openSummaryPager(msg.md, msg.returnStage)
+	return m, nil
+}
+
+// openSummaryPager loads summary markdown into a fresh pager and shows it from
+// the top, with esc set to return to returnStage (the picker that opened it).
+// The pager reflows the markdown to width on resize via RenderMarkdown, matching
+// the standalone workflow/run get pager — only the esc handling differs.
+func (m *RunGetFlowModel) openSummaryPager(md string, returnStage runGetStage) {
+	render := func(w int) string { return m.opts.RenderMarkdown(md, w) }
+	p := components.NewPager().WithKeys(stepPagerKeys...).WithReflow(render)
+	if m.width > 0 && m.height > 0 {
+		p = p.SetSize(m.width, m.height)
+	}
+	m.summaryPager = p.GotoTop()
+	m.summaryReturnStage = returnStage
+	m.stage = runGetStageSummaryPager
+}
+
+// updateSummaryPager drives the run/workflow summary pager. As with the step
+// pager, scrolling and "/" search are the pager component's; this binds only the
+// lifecycle keys: ctrl+c quits, and esc dismisses an active search or (with none)
+// returns to the picker that opened the summary.
+func (m RunGetFlowModel) updateSummaryPager(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if k, ok := msg.(tea.KeyPressMsg); ok && !m.summaryPager.Searching() {
+		switch {
+		case key.Matches(k, components.KeyCtrlC):
+			return m.quit(RunGetResult{Action: RunGetActionCancel})
+		case key.Matches(k, components.KeyEsc):
+			if m.summaryPager.SearchActive() {
+				m.summaryPager = m.summaryPager.ClearSearch()
+				return m, nil
+			}
+			// Rebuild the picker that offered the summary so it redisplays where it
+			// was left, then return to it.
+			//nolint:exhaustive // not helpful here
+			switch m.summaryReturnStage {
+			case runGetStageWorkflowSelect:
+				m.workflowSelect = m.newWorkflowSelect()
+			case runGetStageJobSelect:
+				m.jobSelect = m.newJobSelect()
+			case runGetStageExecutionSelect:
+				m.executionSelect = m.newExecutionSelect()
+			case runGetStageStepSelect:
+				m.stepSelect = m.newStepSelect()
+			}
+			m.stage = m.summaryReturnStage
+			return m, nil
+		}
+	}
+	var cmd tea.Cmd
+	m.summaryPager, cmd = m.summaryPager.Update(msg)
+	return m, cmd
+}
+
 // helpEnabled reports whether the "?" keyboard-shortcut overlay is available:
 // true only when the caller supplied a markdown renderer.
 func (m RunGetFlowModel) helpEnabled() bool { return m.opts.RenderMarkdown != nil }
@@ -1557,7 +1682,7 @@ func (m RunGetFlowModel) View() tea.View {
 		return m.testSelect.View()
 	case runGetStageRunFilter:
 		return m.filter.View()
-	case runGetStageLoadingRuns, runGetStageLoadingWorkflows, runGetStageLoadingJobs, runGetStageLoadingExecutions, runGetStageLoadingStep, runGetStageLoadingTests:
+	case runGetStageLoadingRuns, runGetStageLoadingWorkflows, runGetStageLoadingJobs, runGetStageLoadingExecutions, runGetStageLoadingStep, runGetStageLoadingSummary, runGetStageLoadingTests:
 		label := theme.HelperStyle.Render(m.loadingLabel)
 		if m.opts.Animate {
 			label = m.spin.View() + " " + label
@@ -1565,6 +1690,8 @@ func (m RunGetFlowModel) View() tea.View {
 		return tea.NewView(label)
 	case runGetStageStepPager:
 		return m.stepPagerView()
+	case runGetStageSummaryPager:
+		return m.summaryPager.View("")
 	case runGetStageHelp:
 		return m.help.View()
 	case runGetStageDone:
@@ -1941,6 +2068,16 @@ func (m RunGetFlowModel) cmdFetchTests() tea.Cmd {
 		}
 		items, err := fn(ctx, jobID)
 		return runGetTestsMsg{items: items, err: err}
+	}
+}
+
+// cmdFetchSummary fetches summary markdown via fn(id), tagging the result with
+// the esc-return stage so onSummary knows which picker to rebuild.
+func (m RunGetFlowModel) cmdFetchSummary(fn func(context.Context, uuid.UUID) (string, error), id uuid.UUID, returnStage runGetStage) tea.Cmd {
+	ctx := m.ctx
+	return func() tea.Msg {
+		md, err := fn(ctx, id)
+		return runGetSummaryMsg{md: md, returnStage: returnStage, err: err}
 	}
 }
 
