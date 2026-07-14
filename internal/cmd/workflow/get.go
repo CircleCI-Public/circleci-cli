@@ -121,14 +121,37 @@ func runGet(ctx context.Context, client *apiclient.Client, idStr string, jsonOut
 		return err
 	}
 
+	out, err := fetchWorkflowOutput(ctx, client, id)
+	if err != nil {
+		return err
+	}
+
+	if jsonOut {
+		return iostream.PrintJSON(ctx, out)
+	}
+
+	appURL, err := cmdutil.AppURL(ctx)
+	if err != nil {
+		return err
+	}
+
+	u := cmdutil.WorkflowURL(appURL, id)
+
+	printGet(ctx, out, u)
+	return nil
+}
+
+// fetchWorkflowOutput loads a workflow and its jobs into the display struct.
+// Shared by runGet and SummaryMarkdown.
+func fetchWorkflowOutput(ctx context.Context, client *apiclient.Client, id uuid.UUID) (workflowGetOutput, error) {
 	wf, err := client.GetWorkflowV3(ctx, id)
 	if err != nil {
-		return apiErr(err, id.String())
+		return workflowGetOutput{}, apiErr(err, id.String())
 	}
 
 	jobs, err := client.GetWorkflowJobsV3(ctx, id)
 	if err != nil {
-		return apiErr(err, id.String())
+		return workflowGetOutput{}, apiErr(err, id.String())
 	}
 
 	out := workflowGetOutput{
@@ -153,23 +176,34 @@ func runGet(ctx context.Context, client *apiclient.Client, idStr string, jsonOut
 			Type:           j.Type,
 		})
 	}
+	return out, nil
+}
 
-	if jsonOut {
-		return iostream.PrintJSON(ctx, out)
+// SummaryMarkdown assembles the workflow summary as markdown, for the interactive
+// run-get flow's in-flow "all jobs in workflow" pager (the RenderWorkflowSummary
+// callback). It mirrors runGet's non-JSON path but returns the markdown rather
+// than paging it, so the flow can page it in its own program.
+func SummaryMarkdown(ctx context.Context, client *apiclient.Client, id uuid.UUID) (string, error) {
+	out, err := fetchWorkflowOutput(ctx, client, id)
+	if err != nil {
+		return "", err
 	}
-
 	appURL, err := cmdutil.AppURL(ctx)
 	if err != nil {
-		return err
+		return "", err
 	}
-
-	u := cmdutil.WorkflowURL(appURL, id)
-
-	printGet(ctx, out, u)
-	return nil
+	return workflowMarkdown(out, cmdutil.WorkflowURL(appURL, id)), nil
 }
 
 func printGet(ctx context.Context, w workflowGetOutput, u string) {
+	iostream.PrintMarkdown(ctx, workflowMarkdown(w, u))
+}
+
+// workflowMarkdown builds the workflow summary as markdown (the workflow and its
+// jobs). printGet pages it via iostream; the interactive run-get flow renders it
+// into its own in-flow pager (see SummaryMarkdown) so esc returns to the job
+// picker instead of quitting.
+func workflowMarkdown(w workflowGetOutput, u string) string {
 	var md strings.Builder
 	md.WriteString("# Workflow\n")
 
@@ -191,5 +225,5 @@ func printGet(ctx context.Context, w workflowGetOutput, u string) {
 		}
 		md.WriteString(table.Render())
 	}
-	iostream.PrintMarkdown(ctx, md.String())
+	return md.String()
 }
