@@ -51,11 +51,9 @@ A ground-up rewrite of the agent-friendly CircleCI CLI is available for preview.
 
 ## Installation
 
-### Preview installation
-
 Install the preview (v1.x) CLI via one of the following package managers:
 
-Homebrew:
+#### Homebrew
 
 *If you have the stable CLI installed:*
 ```shell
@@ -66,39 +64,123 @@ Then:
 brew install circleci-public/circleci/circleci@next
 ```
 
-Snap (edge channel):
+
+#### WinGet
+```shell
+winget install --id CircleCI.CLI.Preview
+```
+
+#### Snap (edge channel)
+
 ```shell
 sudo snap install circleci --channel=edge
 sudo snap connect circleci:password-manager-service
 ```
 
-WinGet:
+#### Debian
+
+Debian packages are hosted at `packages.circleci.com` for various operating systems including:
+
+- [Debian](https://www.debian.org/)
+- [Raspberry Pi](https://www.raspberrypi.com/)
+- [Ubuntu Linux](https://ubuntu.com/)
+
+To install packages, you can quickly setup the repository automatically:
+
 ```shell
-winget install --id CircleCI.CLI.Preview
+curl -1sLf 'https://packages.circleci.com/public/setup.deb.sh' | sudo -E bash
+```
+
+**or** you can manually configure it yourself before installing packages:
+```shell
+apt-get install -y debian-keyring  # debian only
+apt-get install -y debian-archive-keyring  # debian only
+apt-get install -y apt-transport-https
+# For Debian Stretch, Ubuntu 16.04 and later
+keyring_location=/usr/share/keyrings/circleci-deps-public-archive-keyring.gpg
+# For Debian Jessie, Ubuntu 15.10 and earlier
+keyring_location=/etc/apt/trusted.gpg.d/circleci-deps-public.gpg
+curl -1sLf 'https://packages.circleci.com/public/gpg.B3F71F41836351D6.key' |  gpg --dearmor >> ${keyring_location}
+curl -1sLf 'https://packages.circleci.com/public/config.deb.txt?distro=ubuntu&codename=xenial&component=main' > /etc/apt/sources.list.d/circleci-deps-public.list
+sudo chmod 644 ${keyring_location}
+sudo chmod 644 /etc/apt/sources.list.d/circleci-deps-public.list
+apt-get update
+```
+*Note: Please replace ubuntu, xenial and main above with your actual operating system (distribution and distribution release/version) and components (based on what's in this repository).*
+
+Then install:
+```shell
+sudo apt install circleci
+```
+
+#### RedHat
+
+RPM packages are hosted at `packages.circleci.com` for various operating systems including:
+
+- [Amazon Linux 2](https://aws.amazon.com/amazon-linux-2/)
+- [CentOS](https://www.centos.org/)
+- [Fedora](https://fedoraproject.org/)
+- [Red Hat Enterprise Linux](https://www.redhat.com/en/technologies/linux-platforms/enterprise-linux)
+- [openSUSE](https://www.opensuse.org/)
+- [SUSE](https://www.suse.com/)
+
+
+For most RPM based distributions (RHEL, CentOS, Fedora, SUSE), you can quickly setup the repository automatically:
+
+```shell
+curl -1sLf 'https://packages.circleci.com/public/setup.rpm.sh' | sudo -E bash
+```
+
+**or** manual Yum setup (RHEL, CentOS, Amazon Linux):
+```shell
+yum install yum-utils pygpgme
+
+rpm --import 'https://packages.circleci.com/public/gpg.B3F71F41836351D6.key'
+curl -1sLf 'https://packages.circleci.com/public/config.rpm.txt?distro=el&codename=7' > /tmp/circleci-deps-public.repo
+yum-config-manager --add-repo '/tmp/circleci-deps-public.repo'
+yum -q makecache -y --disablerepo='*' --enablerepo='circleci-deps-public'
+```
+*Note: Please replace el and 7 above with your actual distribution/version and use Wildcards when enabling multiple repos.*
+
+**or** manual DNF setup (Fedora):
+```shell
+dnf install yum-utils pygpgme
+
+rpm --import 'https://packages.circleci.com/public/gpg.B3F71F41836351D6.key'
+curl -1sLf 'https://packages.circleci.com/public/config.rpm.txt?distro=fedora&codename=29&dnf_version=5' > /tmp/circleci-deps-public.repo
+dnf config-manager addrepo --from-repofile='/tmp/circleci-deps-public.repo'
+dnf -q makecache -y --disablerepo='*' --enablerepo='circleci-deps-public' --enablerepo='circleci-deps-public-source'
+```
+
+*Note: Please replace fedora and 29 above with your actual distribution/version.*
+
+Then install:
+```shell
+dnf install circleci
+```
+
+or:
+```shell
+yum install circleci
 ```
 
 ### Previous stable version
 
 If you need the previous stable version, install via HomeBrew, Snap, WinGet, or Chocolatey:
 
-Homebrew:
+#### Homebrew
 ```shell
 brew install circleci
 ```
 
-Snap:
+#### Snap
 ```shell
 sudo snap install circleci
 ```
 
-WinGet:
+#### WinGet
 ```shell
 winget install --id CircleCI.CLI
-```
-
-Chocolatey:
-```shell
-choco install circleci-cli -y
 ```
 
 ## Setup
