@@ -28,6 +28,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"strings"
 	"testing"
@@ -35,12 +36,43 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/internal/httpcl"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/assert/cmp"
+	"gotest.tools/v3/fs"
+	"gotest.tools/v3/golden"
 
 	"github.com/CircleCI-Public/circleci-cli/internal/testing/binary"
 	testenv "github.com/CircleCI-Public/circleci-cli/internal/testing/env"
 	"github.com/CircleCI-Public/circleci-cli/internal/testing/fakes"
 	"github.com/CircleCI-Public/circleci-cli/internal/testing/httprecorder"
 )
+
+// Elapsed times, JUnit timestamps, and temp-dir paths are non-deterministic, so
+// they are normalized to fixed placeholders before golden comparison.
+var (
+	elapsedSecRe    = regexp.MustCompile(`\d+\.\d{3}`) // markdown table + footer seconds
+	jsonElapsedRe   = regexp.MustCompile(`"Elapsed":"[^"]*"`)
+	jsonElapsedMSRe = regexp.MustCompile(`"ElapsedMS":\d+`)
+	junitTimeRe     = regexp.MustCompile(`time="[0-9.]+"`)
+	junitTSRe       = regexp.MustCompile(`timestamp="[^"]*"`)
+)
+
+// normalizePolicyOutput replaces the temp directory and every timing value with
+// stable placeholders so policy eval/test output can be golden-compared.
+func normalizePolicyOutput(s, dir string) string {
+	// Replace JSON-escaped path first (backslashes doubled), then the plain path.
+	s = strings.ReplaceAll(s, strings.ReplaceAll(dir, `\`, `\\`), "<DIR>")
+	s = strings.ReplaceAll(s, dir, "<DIR>")
+	// Normalize backslash path separator after the placeholder (Windows).
+	s = strings.ReplaceAll(s, `<DIR>\`, "<DIR>/")
+	// Normalize Windows-specific syscall names and error messages.
+	s = strings.ReplaceAll(s, "GetFileAttributesEx ", "lstat ")
+	s = strings.ReplaceAll(s, "The system cannot find the file specified.", "no such file or directory")
+	s = jsonElapsedRe.ReplaceAllString(s, `"Elapsed":"<T>"`)
+	s = jsonElapsedMSRe.ReplaceAllString(s, `"ElapsedMS":0`)
+	s = junitTSRe.ReplaceAllString(s, `timestamp="<TS>"`)
+	s = junitTimeRe.ReplaceAllString(s, `time="<T>"`)
+	s = elapsedSecRe.ReplaceAllString(s, "<T>")
+	return s
+}
 
 const testOwnerID = "462d67f8-b232-4da4-a7de-0c86dd667d3f"
 const testPolicyCtx = "config"
@@ -54,6 +86,453 @@ func writePolicyDir(t *testing.T, name, content string) string {
 		t.Fatal(err)
 	}
 	return dir
+}
+
+// Policy/test fixtures carried over verbatim from the v0 branch's
+// cmd/policy/testdata so eval/test coverage matches the original scenarios.
+const (
+	// test0/policy.rego — a config-context policy.
+	evalBasicPolicyRego = `package org
+
+policy_name["test"]
+enable_rule["branch_is_main"]
+branch_is_main = "branch must be main!" { input.branch != "main" }
+`
+	// test0/subdir/meta-policy-subdir/meta-policy.rego — reads data.meta.
+	evalMetaPolicyRego = `package org
+
+policy_name["meta_policy_test"]
+enable_rule["enabled"] { data.meta.vcs.branch == "main" }
+enable_rule["disabled"] { data.meta.project_id != "test-project-id" }
+`
+	// test1/test.yml — the input document (deliberately has no "branch" key).
+	evalInputYAML = "test: config\n"
+	// test0/config.yml — input with a branch.
+	evalBranchInputYAML = "branch: main"
+	// test1/meta.yml — metadata as a YAML file.
+	evalMetaFileYAML = `project_id: test-project-id
+vcs:
+  branch: main
+`
+
+	// test_policies/policy.rego + policy_test.yaml — two passing tests
+	// (one PASS on main, one SOFT_FAIL on a feature branch).
+	testPolicyRego = `package org
+
+policy_name["test"]
+
+enable_rule["fail_if_not_main"]
+
+fail_if_not_main = "branch must be main!" { data.meta.vcs.branch != "main" }
+`
+	testPolicyTestsYAML = `test_main:
+  meta:
+    vcs:
+      branch: main
+  decision: &root_decision
+    status: PASS
+    enabled_rules:
+      - fail_if_not_main
+
+test_feature:
+  meta:
+    vcs:
+      branch: feature
+  decision:
+    <<: *root_decision
+    status: SOFT_FAIL
+    soft_failures:
+      - rule: fail_if_not_main
+        reason: branch must be main!
+`
+
+	// compile_policies/compile.rego + compile_test.yaml — a test that requires
+	// config compilation (compile: true + pipeline_parameters).
+	compilePolicyRego = `package org
+
+import future.keywords
+
+policy_name["example_compiled"]
+
+enable_hard["enforce_small_jobs"]
+
+enforce_small_jobs[reason] {
+	some job_name, job in input._compiled_.jobs
+	job.resource_class != "small"
+	reason = sprintf("job %s: resource_class must be small", [job_name])
+}
+`
+	compilePolicyTestsYAML = `test_compile_policy:
+  compile: true
+  pipeline_parameters:
+    parameters:
+      size: small
+  input:
+    version: 2.1
+    parameters:
+      size:
+        type: string
+        default: medium
+    jobs:
+      test:
+        docker:
+          - image: go
+        resource_class: << pipeline.parameters.size >>
+        steps:
+          - run: it
+    workflows:
+      main:
+        jobs:
+          - test
+  decision:
+    status: PASS
+    enabled_rules: [enforce_small_jobs]
+`
+	// A compiled config the fake compile endpoint returns for the compile test:
+	// jobs.test.resource_class is "small", so enforce_small_jobs finds no violation.
+	compiledSmallJobYAML = `version: "2.1"
+jobs:
+  test:
+    docker:
+      - image: go
+    resource_class: small
+    steps:
+      - run: it
+workflows:
+  main:
+    jobs:
+      - test
+`
+)
+
+// stdTestPoliciesDir builds the standard test_policies fixture (policy + its two
+// tests) as a temporary directory.
+func stdTestPoliciesDir(t *testing.T) *fs.Dir {
+	t.Helper()
+	return fs.NewDir(t, "policy",
+		fs.WithFile("policy.rego", testPolicyRego),
+		fs.WithFile("policy_test.yaml", testPolicyTestsYAML),
+	)
+}
+
+// --- policy eval ---
+
+// TestPolicyEval covers the basic local (uncompiled) raw-OPA evaluation and the
+// default "data" query, matching the v0 "config compilation is disabled" case.
+func TestPolicyEval(t *testing.T) {
+	env := testenv.New(t)
+	// No token: --no-compile eval is fully local and must not require auth.
+
+	dir := fs.NewDir(t, "policy",
+		fs.WithFile("policy.rego", evalBasicPolicyRego),
+		fs.WithFile("input.yml", evalInputYAML),
+	)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"policy", "eval", dir.Join("policy.rego"), "--input", dir.Join("input.yml"), "--no-compile"},
+		Env:     env.Environ(),
+		WorkDir: dir.Path(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(normalizePolicyOutput(result.Stdout, dir.Path()), t.Name()+".txt"))
+}
+
+// TestPolicyEval_MetaAndQuery covers --meta / --metafile seeding data.meta and
+// the --query flag, matching the four v0 meta-policy eval cases.
+func TestPolicyEval_MetaAndQuery(t *testing.T) {
+	dir := fs.NewDir(t, "policy",
+		fs.WithFile("meta-policy.rego", evalMetaPolicyRego),
+		fs.WithFile("config.yml", evalBranchInputYAML),
+		fs.WithFile("meta.yml", evalMetaFileYAML),
+	)
+	policy := dir.Join("meta-policy.rego")
+	input := dir.Join("config.yml")
+	metaFile := dir.Join("meta.yml")
+	metaJSON := `{"project_id": "test-project-id","vcs": {"branch": "main"}}`
+
+	cases := []struct {
+		name string
+		args []string
+	}{
+		{"meta full tree", []string{"--meta", metaJSON}},
+		{"metafile full tree", []string{"--metafile", metaFile}},
+		{"meta with query", []string{"--meta", metaJSON, "--query", "data.org.enable_rule"}},
+		{"metafile with query", []string{"--metafile", metaFile, "--query", "data.org.enable_rule"}},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			env := testenv.New(t)
+			args := append([]string{"policy", "eval", policy, "--input", input, "--no-compile"}, tc.args...)
+			result := binary.RunCLI(t, binary.RunOpts{
+				Binary:  binaryPath,
+				Args:    args,
+				Env:     env.Environ(),
+				WorkDir: dir.Path(),
+			})
+			assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+			assert.Check(t, golden.String(normalizePolicyOutput(result.Stdout, dir.Path()), t.Name()+".txt"))
+		})
+	}
+}
+
+// TestPolicyEval_Compile exercises the compile path: the config is compiled via
+// the API and spliced under "_compiled_" before evaluation. Mirrors the v0
+// "config compilation is enabled" case.
+func TestPolicyEval_Compile(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	fake.SetCompileResponse(true, "version: \"2.1\"\nsentinel: compiled-marker\n")
+
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+
+	dir := fs.NewDir(t, "policy",
+		fs.WithFile("policy.rego", evalBasicPolicyRego),
+		fs.WithFile("input.yml", evalInputYAML),
+	)
+
+	// Query the spliced compiled document to prove compilation happened.
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary: binaryPath,
+		Args: []string{
+			"policy", "eval", dir.Join("policy.rego"),
+			"--input", dir.Join("input.yml"),
+			"--org", testOwnerID,
+			"--query", "input._compiled_.sentinel",
+		},
+		Env:     env.Environ(),
+		WorkDir: dir.Path(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(normalizePolicyOutput(result.Stdout, dir.Path()), t.Name()+".txt"))
+	assert.Check(t, cmp.Equal(fake.LastCompileOwnerID(), testOwnerID))
+}
+
+// TestPolicyEval_Errors covers the v0 eval failure cases.
+func TestPolicyEval_Errors(t *testing.T) {
+	dir := fs.NewDir(t, "policy",
+		fs.WithFile("policy.rego", evalBasicPolicyRego),
+		fs.WithFile("input.yml", evalInputYAML),
+	)
+	policy := dir.Join("policy.rego")
+	input := dir.Join("input.yml")
+
+	cases := []struct {
+		name     string
+		args     []string
+		wantExit int // exact expected exit code
+	}{
+		// Cobra argument/flag errors are unclassified → ExitGeneralError (1).
+		{"missing policy arg", []string{"policy", "eval", "--input", input, "--no-compile"}, 1},
+		{"missing input flag", []string{"policy", "eval", policy, "--no-compile"}, 1},
+		// Structured CLIErrors carry their own exit codes.
+		{"input file not found", []string{"policy", "eval", policy, "--input", dir.Join("no_such.yml"), "--no-compile"}, 2},
+		{"policy path not found", []string{"policy", "eval", dir.Join("no_such.rego"), "--input", input, "--no-compile"}, 7},
+		{"meta and metafile conflict", []string{"policy", "eval", policy, "--input", input, "--meta", "{}", "--metafile", "somefile", "--no-compile"}, 2},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			env := testenv.New(t)
+			result := binary.RunCLI(t, binary.RunOpts{
+				Binary:  binaryPath,
+				Args:    tc.args,
+				Env:     env.Environ(),
+				WorkDir: dir.Path(),
+			})
+			assert.Check(t, cmp.Equal(result.ExitCode, tc.wantExit), "stderr: %s", result.Stderr)
+			assert.Check(t, golden.String(normalizePolicyOutput(result.Stderr, dir.Path()), t.Name()+".stderr.txt"))
+		})
+	}
+}
+
+// --- policy test ---
+
+// TestPolicyTest covers the default run over the standard test_policies fixture:
+// both tests pass, so the failures-only table is empty and only the summary
+// prints.
+func TestPolicyTest(t *testing.T) {
+	env := testenv.New(t) // no token: neither test compiles.
+	dir := stdTestPoliciesDir(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"policy", "test", dir.Path()},
+		Env:     env.Environ(),
+		WorkDir: dir.Path(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(normalizePolicyOutput(result.Stdout, dir.Path()), t.Name()+".txt"))
+}
+
+func TestPolicyTest_All(t *testing.T) {
+	env := testenv.New(t)
+	dir := stdTestPoliciesDir(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"policy", "test", dir.Path(), "--all"},
+		Env:     env.Environ(),
+		WorkDir: dir.Path(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(normalizePolicyOutput(result.Stdout, dir.Path()), t.Name()+".txt"))
+}
+
+func TestPolicyTest_AllRun(t *testing.T) {
+	env := testenv.New(t)
+	dir := stdTestPoliciesDir(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"policy", "test", dir.Path(), "--all", "--run", "test_main"},
+		Env:     env.Environ(),
+		WorkDir: dir.Path(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(normalizePolicyOutput(result.Stdout, dir.Path()), t.Name()+".txt"))
+}
+
+// TestPolicyTest_Explain covers --explain, which prints each test's full
+// evaluation context.
+func TestPolicyTest_Explain(t *testing.T) {
+	env := testenv.New(t)
+	dir := stdTestPoliciesDir(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"policy", "test", dir.Path(), "--explain"},
+		Env:     env.Environ(),
+		WorkDir: dir.Path(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(normalizePolicyOutput(result.Stdout, dir.Path()), t.Name()+".txt"))
+}
+
+// TestPolicyTest_JSON pins the JSON array shape, rendered through the shared
+// output helpers.
+func TestPolicyTest_JSON(t *testing.T) {
+	env := testenv.New(t)
+	dir := stdTestPoliciesDir(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"policy", "test", dir.Path(), "--json"},
+		Env:     env.Environ(),
+		WorkDir: dir.Path(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(normalizePolicyOutput(result.Stdout, dir.Path()), t.Name()+".txt"))
+}
+
+// TestPolicyTest_JSONJQ pins that --json routes through the shared output
+// helpers, so --jq can filter the results array.
+func TestPolicyTest_JSONJQ(t *testing.T) {
+	env := testenv.New(t)
+	dir := stdTestPoliciesDir(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"policy", "test", dir.Path(), "--json", "--jq", ".[].Name"},
+		Env:     env.Environ(),
+		WorkDir: dir.Path(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(normalizePolicyOutput(result.Stdout, dir.Path()), t.Name()+".txt"))
+}
+
+func TestPolicyTest_JUnit(t *testing.T) {
+	env := testenv.New(t)
+	dir := stdTestPoliciesDir(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"policy", "test", dir.Path(), "--junit"},
+		Env:     env.Environ(),
+		WorkDir: dir.Path(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(normalizePolicyOutput(result.Stdout, dir.Path()), t.Name()+".txt"))
+}
+
+// TestPolicyTest_JUnitBeatsJSON pins the precedence: --junit wins over --json.
+func TestPolicyTest_JUnitBeatsJSON(t *testing.T) {
+	env := testenv.New(t)
+	dir := stdTestPoliciesDir(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"policy", "test", dir.Path(), "--junit", "--json"},
+		Env:     env.Environ(),
+		WorkDir: dir.Path(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(normalizePolicyOutput(result.Stdout, dir.Path()), t.Name()+".txt"))
+}
+
+// TestPolicyTest_Failure covers a failing test: the diff is shown and the
+// command exits non-zero.
+func TestPolicyTest_Failure(t *testing.T) {
+	env := testenv.New(t)
+	dir := fs.NewDir(t, "policy",
+		fs.WithFile("policy.rego", testPolicyRego),
+		fs.WithFile("policy_test.yaml", `test_wrong:
+  meta:
+    vcs:
+      branch: main
+  decision:
+    status: HARD_FAIL
+`),
+	)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"policy", "test", dir.Path()},
+		Env:     env.Environ(),
+		WorkDir: dir.Path(),
+	})
+
+	assert.Equal(t, result.ExitCode, 7, "expected ExitValidationFail; stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(normalizePolicyOutput(result.Stdout, dir.Path()), t.Name()+".txt"))
+}
+
+// TestPolicyTest_Compile runs a test that requires config compilation, served by
+// the fake compile endpoint. Mirrors the v0 "compile" case.
+func TestPolicyTest_Compile(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	fake.SetCompileResponse(true, compiledSmallJobYAML)
+
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+
+	dir := fs.NewDir(t, "policy",
+		fs.WithFile("compile.rego", compilePolicyRego),
+		fs.WithFile("compile_test.yaml", compilePolicyTestsYAML),
+	)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"policy", "test", dir.Path(), "--json", "--org", testOwnerID},
+		Env:     env.Environ(),
+		WorkDir: dir.Path(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(normalizePolicyOutput(result.Stdout, dir.Path()), t.Name()+".txt"))
+	assert.Check(t, cmp.Equal(fake.LastCompileOwnerID(), testOwnerID))
 }
 
 // --- policy push ---

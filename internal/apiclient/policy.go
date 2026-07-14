@@ -53,13 +53,17 @@ type DecisionLogsRequest struct {
 // a diff-only check without applying changes.
 func (c *Client) CreatePolicyBundle(ctx context.Context, ownerID, policyCtx string, policies PolicyBundle, dryRun bool) (json.RawMessage, error) {
 	body := map[string]any{"policies": policies}
-	route := fmt.Sprintf("/owner/%s/context/%s/policy-bundle", ownerID, policyCtx)
 	var out json.RawMessage
 	var err error
 	if dryRun {
-		err = c.post(ctx, route, body, &out, queryParam("dry", "true"))
+		err = c.post(ctx, "/owner/%s/context/%s/policy-bundle", body, &out,
+			queryParam("dry", "true"),
+			httpcl.RouteParams(ownerID, policyCtx),
+		)
 	} else {
-		err = c.post(ctx, route, body, &out)
+		err = c.post(ctx, "/owner/%s/context/%s/policy-bundle", body, &out,
+			httpcl.RouteParams(ownerID, policyCtx),
+		)
 	}
 	if err != nil {
 		return nil, err
@@ -69,13 +73,23 @@ func (c *Client) CreatePolicyBundle(ctx context.Context, ownerID, policyCtx stri
 
 // FetchPolicyBundle downloads the full bundle or a single named policy.
 // Pass an empty policyName to fetch the entire bundle.
-func (c *Client) FetchPolicyBundle(ctx context.Context, ownerID, policyCtx, policyName string) (json.RawMessage, error) {
-	route := fmt.Sprintf("/owner/%s/context/%s/policy-bundle", ownerID, policyCtx)
-	if policyName != "" {
-		route += "/" + policyName
-	}
+func (c *Client) FetchPolicyBundle(ctx context.Context, ownerID, policyCtx string) (json.RawMessage, error) {
 	var out json.RawMessage
-	if err := c.get(ctx, route, &out); err != nil {
+	err := c.get(ctx, "/owner/%s/context/%s/policy-bundle", &out,
+		httpcl.RouteParams(ownerID, policyCtx),
+	)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *Client) FetchPolicyBundleWithName(ctx context.Context, ownerID, policyCtx, policyName string) (json.RawMessage, error) {
+	var out json.RawMessage
+	err := c.get(ctx, "/owner/%s/context/%s/policy-bundle/%s", &out,
+		httpcl.RouteParams(ownerID, policyCtx, policyName),
+	)
+	if err != nil {
 		return nil, err
 	}
 	return out, nil
@@ -84,8 +98,8 @@ func (c *Client) FetchPolicyBundle(ctx context.Context, ownerID, policyCtx, poli
 // GetDecisionLogs returns one page of policy decision logs. The caller is
 // responsible for pagination (increment Offset until an empty slice is returned).
 func (c *Client) GetDecisionLogs(ctx context.Context, ownerID, policyCtx string, req DecisionLogsRequest) ([]json.RawMessage, error) {
-	route := fmt.Sprintf("/owner/%s/context/%s/decision", ownerID, policyCtx)
 	opts := []func(*httpcl.Request){
+		httpcl.RouteParams(ownerID, policyCtx),
 		optionalQueryParam("status", req.Status),
 		optionalQueryParam("branch", req.Branch),
 		optionalQueryParam("project_id", req.ProjectID),
@@ -100,7 +114,8 @@ func (c *Client) GetDecisionLogs(ctx context.Context, ownerID, policyCtx string,
 		opts = append(opts, queryParam("offset", fmt.Sprintf("%d", req.Offset)))
 	}
 	var out []json.RawMessage
-	if err := c.get(ctx, route, &out, opts...); err != nil {
+	err := c.get(ctx, "/owner/%s/context/%s/decision", &out, opts...)
+	if err != nil {
 		return nil, err
 	}
 	return out, nil
@@ -109,12 +124,15 @@ func (c *Client) GetDecisionLogs(ctx context.Context, ownerID, policyCtx string,
 // GetDecisionLog returns a single decision log by ID.
 // When policyBundleOnly is true, returns only the policy bundle snapshot.
 func (c *Client) GetDecisionLog(ctx context.Context, ownerID, policyCtx, decisionID string, policyBundleOnly bool) (json.RawMessage, error) {
-	route := fmt.Sprintf("/owner/%s/context/%s/decision/%s", ownerID, policyCtx, decisionID)
+	route := "/owner/%s/context/%s/decision/%s"
 	if policyBundleOnly {
 		route += "/policy-bundle"
 	}
 	var out json.RawMessage
-	if err := c.get(ctx, route, &out); err != nil {
+	err := c.get(ctx, route, &out,
+		httpcl.RouteParams(ownerID, policyCtx, decisionID),
+	)
+	if err != nil {
 		return nil, err
 	}
 	return out, nil
@@ -126,9 +144,11 @@ func (c *Client) MakeDecision(ctx context.Context, ownerID, policyCtx string, in
 	if len(metadata) > 0 {
 		body["metadata"] = metadata
 	}
-	route := fmt.Sprintf("/owner/%s/context/%s/decision", ownerID, policyCtx)
 	var out json.RawMessage
-	if err := c.post(ctx, route, body, &out); err != nil {
+	err := c.post(ctx, "/owner/%s/context/%s/decision", body, &out,
+		httpcl.RouteParams(ownerID, policyCtx),
+	)
+	if err != nil {
 		return nil, err
 	}
 	return out, nil
@@ -136,9 +156,11 @@ func (c *Client) MakeDecision(ctx context.Context, ownerID, policyCtx string, in
 
 // GetPolicySettings retrieves whether policy enforcement is enabled.
 func (c *Client) GetPolicySettings(ctx context.Context, ownerID, policyCtx string) (DecisionSettings, error) {
-	route := fmt.Sprintf("/owner/%s/context/%s/decision/settings", ownerID, policyCtx)
 	var out DecisionSettings
-	if err := c.get(ctx, route, &out); err != nil {
+	err := c.get(ctx, "/owner/%s/context/%s/decision/settings", &out,
+		httpcl.RouteParams(ownerID, policyCtx),
+	)
+	if err != nil {
 		return DecisionSettings{}, err
 	}
 	return out, nil
@@ -146,9 +168,11 @@ func (c *Client) GetPolicySettings(ctx context.Context, ownerID, policyCtx strin
 
 // SetPolicySettings enables or disables policy enforcement.
 func (c *Client) SetPolicySettings(ctx context.Context, ownerID, policyCtx string, settings DecisionSettings) (DecisionSettings, error) {
-	route := fmt.Sprintf("/owner/%s/context/%s/decision/settings", ownerID, policyCtx)
 	var out DecisionSettings
-	if err := c.patch(ctx, route, settings, &out); err != nil {
+	err := c.patch(ctx, "/owner/%s/context/%s/decision/settings", settings, &out,
+		httpcl.RouteParams(ownerID, policyCtx),
+	)
+	if err != nil {
 		return DecisionSettings{}, err
 	}
 	return out, nil

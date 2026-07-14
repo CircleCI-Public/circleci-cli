@@ -54,6 +54,8 @@ func NewPolicyCmd() *cobra.Command {
 
 	cmdutil.AddGroup(cmd, "General commands",
 		newDecideCmd(),
+		newEvalCmd(),
+		newTestCmd(),
 		newPushCmd(),
 	)
 	cmdutil.AddGroup(cmd, "Targeted commands",

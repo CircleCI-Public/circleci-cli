@@ -1,0 +1,11 @@
+{
+  "meta": null,
+  "org": {
+    "enable_rule": [
+      "branch_is_main"
+    ],
+    "policy_name": [
+      "test"
+    ]
+  }
+}

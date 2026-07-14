@@ -3,7 +3,9 @@ Usage:  circleci policy <command>
 Available commands:
   decide
   diff
+  eval
   fetch
   logs
   push
   settings
+  test

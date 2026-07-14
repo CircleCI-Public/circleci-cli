@@ -1,0 +1,16 @@
+{
+  "meta": {
+    "project_id": "test-project-id",
+    "vcs": {
+      "branch": "main"
+    }
+  },
+  "org": {
+    "enable_rule": [
+      "enabled"
+    ],
+    "policy_name": [
+      "meta_policy_test"
+    ]
+  }
+}

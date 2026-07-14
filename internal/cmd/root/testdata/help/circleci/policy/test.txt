@@ -1,0 +1,74 @@
+# CircleCI CLI
+
+Discover and run policy tests locally.
+
+Tests live in *_test.yaml / *_test.yml files alongside your .rego
+policies; each test key must start with "test_". Every test compares its
+expected "decision" against the decision the policy engine produces for
+the given "input", and native OPA unit tests are run too.
+
+A test's input is compiled first only when it sets "compile: true" or
+provides "pipeline_parameters"; otherwise the raw input is evaluated.
+Compilation uses the CircleCI compile endpoint, so --org (or a git remote)
+and a token are required only when a test compiles.
+
+The command exits non-zero if any test fails.
+
+By default results print as a human-readable table showing only
+failures; pass --all to include passing tests. Use --json for a JSON
+array of results (scriptable, --jq-aware) or --junit for JUnit XML.
+
+Use --explain to print each test's full evaluation context (input,
+decision, and evaluation), which implies --all.
+
+JSON fields: Passed, Group, Name, Elapsed, ElapsedMS, Err, Ctx
+
+For more information about output formatting flags, see `circleci help formatting`.
+
+## Usage
+
+`circleci policy test <path> [flags]`
+
+## Flags
+
+| Flag           | Description                                                                                                       |
+| -------------- | ----------------------------------------------------------------------------------------------------------------- |
+| `--all`        | Show all tests, not just failures                                                                                 |
+| `--explain`    | Print each test's full evaluation context (implies --all)                                                         |
+| `--jq string`  | Process values from the response using jq syntax                                                                  |
+| `--json`       | Output as JSON                                                                                                    |
+| `--junit`      | Output results as JUnit XML                                                                                       |
+| `--org string` | Organization slug (e.g. gh/myorg) or UUID for private orb resolution when a test compiles; defaults to git remote |
+| `--run string` | Only run tests whose name matches this regexp                                                                     |
+
+## Inherited Flags
+
+| Flag                  | Description                                                  |
+| --------------------- | ------------------------------------------------------------ |
+| `-c, --config string` | Path to config file (default: ~/.config/circleci/config.yml) |
+| `--debug`             | Enable debug logging                                         |
+| `--no-color`          | Disable ANSI color output (same as setting NO_COLOR)         |
+| `-q, --quiet`         | Suppress informational output. Data on stdout is unaffected  |
+
+## Arguments
+
+`<path>` is a directory of policies and tests. Append `/...`
+to discover tests recursively in every subdirectory.
+
+## Examples
+
+- Run every test under ./policies and its subdirectories: 
+  `circleci policy test ./policies/...`
+- Run tests in a single directory, showing passing tests too: 
+  `circleci policy test ./policies --all`
+- Run only tests whose name matches a regexp: 
+  `circleci policy test ./policies/... --run 'test_enforce_.*'`
+- Emit JUnit XML for CI: 
+  `circleci policy test ./policies/... --junit`
+
+## Learn More
+
+- Use `circleci <command> <subcommand> --help` for more information about a command.
+- Read the manual at <https://cli.circleci.com/reference/>
+- Support at <https://github.com/CircleCI-Public/circleci-cli/issues>
+

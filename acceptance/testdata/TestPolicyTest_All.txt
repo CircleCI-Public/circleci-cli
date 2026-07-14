@@ -1,0 +1,8 @@
+# Policy tests
+
+| Result | Test         | Time (s) |
+| ------ | ------------ | -------- |
+| ok     | test_feature | <T>    |
+| ok     | test_main    | <T>    |
+
+**2/2 tests passed** (<T>s)
