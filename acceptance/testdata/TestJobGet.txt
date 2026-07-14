@@ -2,8 +2,8 @@
 - ID: `8e50c384-0083-43d0-bc8f-93f0db589d6b`
 - Name: yaml-lint
 - Type: build
-- URL: <http://app.circleci.test/workflow/c266c3a7-0dad-459a-aa7b-dd13e005b9a0/job/8e50c384-0083-43d0-bc8f-93f0db589d6b>
-- Status: :white_check_mark: succeeded
+- URL: http://app.circleci.test/workflow/c266c3a7-0dad-459a-aa7b-dd13e005b9a0/job/8e50c384-0083-43d0-bc8f-93f0db589d6b
+- Status: ✅ succeeded
 - Started: 2026-05-19 20:29:13 UTC
 - Stopped: 2026-05-19 20:29:22 UTC
 - Duration: 8.6s
@@ -11,15 +11,15 @@
 - Run: `682142f3-f35d-4c94-adf7-d855321716e4`
 
 ## Execution 0
-| #   | Name                | Status                       | Duration | Exit Code | Command                                         |
-| --- | ------------------- | ---------------------------- | -------- | --------- | ----------------------------------------------- |
-| 0   | Spin up environment | :white_check_mark: succeeded | 1.3s     | -         | -                                               |
-| 101 | Checkout code       | :white_check_mark: succeeded | 969ms    | -         | -                                               |
-| 103 | task lint-yaml      | :white_check_mark: succeeded | 649ms    | 0         | `#!/bin/bash -eo pipefail` … `task lint-yaml`   |
+| #   | Name                | Status       | Duration | Exit Code | Command                                       |
+| --- | ------------------- | ------------ | -------- | --------- | --------------------------------------------- |
+| 0   | Spin up environment | ✅ succeeded | 1.3s     | -         | -                                             |
+| 101 | Checkout code       | ✅ succeeded | 969ms    | -         | -                                             |
+| 103 | task lint-yaml      | ✅ succeeded | 649ms    | 0         | `#!/bin/bash -eo pipefail` … `task lint-yaml` |
 
 ## Execution 1
-| #   | Name                | Status                       | Duration | Exit Code | Command                                             |
-| --- | ------------------- | ---------------------------- | -------- | --------- | --------------------------------------------------- |
-| 0   | Spin up environment | :white_check_mark: succeeded | 1.3s     | -         | -                                                   |
-| 101 | Checkout code       | :white_check_mark: succeeded | 950ms    | -         | -                                                   |
-| 103 | task lint-yaml      | :x: failed                   | 1.6s     | 1         | `#!/bin/bash -eo pipefail` … `task lint-yaml` …     |
+| #   | Name                | Status       | Duration | Exit Code | Command                                         |
+| --- | ------------------- | ------------ | -------- | --------- | ----------------------------------------------- |
+| 0   | Spin up environment | ✅ succeeded | 1.3s     | -         | -                                               |
+| 101 | Checkout code       | ✅ succeeded | 950ms    | -         | -                                               |
+| 103 | task lint-yaml      | ❌ failed    | 1.6s     | 1         | `#!/bin/bash -eo pipefail` … `task lint-yaml` … |

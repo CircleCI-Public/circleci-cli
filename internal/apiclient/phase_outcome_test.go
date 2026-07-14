@@ -39,7 +39,7 @@ import (
 func TestPhaseOutcome_NotRun(t *testing.T) {
 	assert.Check(t, is.Equal(apiclient.PhaseOutcomeSymbol("ended", "", "not_run"), "⊘"))
 	assert.Check(t, is.Equal(apiclient.PhaseOutcomeText("ended", "", "not_run"), "not run"))
-	assert.Check(t, is.Equal(apiclient.PhaseOutcomeStatus("ended", "", "not_run"), ":no_entry_sign: not run"))
+	assert.Check(t, is.Equal(apiclient.PhaseOutcomeStatus("ended", "", "not_run"), "🚫 not run"))
 }
 
 // TestPhaseOutcome_StatusIsTextWithEmoji checks the emoji and plain-text status

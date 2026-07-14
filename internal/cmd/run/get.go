@@ -810,7 +810,7 @@ func printRun(ctx context.Context, r runGetOutput, u string) {
 			_, _ = fmt.Fprintf(&md, "- Author: %s\n", r.Commit.AuthorName)
 		}
 	}
-	_, _ = fmt.Fprintf(&md, "- URL: <%s>\n", u)
+	_, _ = fmt.Fprintf(&md, "- URL: %s\n", u)
 	_, _ = fmt.Fprintf(&md, "- Status: %s\n", deriveDisplayStatus(r))
 	_, _ = fmt.Fprintf(&md, "- Created: %s\n", r.CreatedAt)
 
