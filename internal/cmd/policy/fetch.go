@@ -43,6 +43,12 @@ func newFetchCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "fetch [policy-name]",
 		Short: "Download the remote policy bundle",
+		Annotations: map[string]string{
+			"help:arguments": heredoc.Docf(`
+				%[1]s<policy-name>%[1]s is optional and fetches a single policy.
+				When omitted, the full policy bundle is fetched.
+			`, "`"),
+		},
 		Long: heredoc.Doc(`
 			Download the remote policy bundle for the given owner and context.
 			Pass a policy name to fetch a single policy.

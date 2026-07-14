@@ -297,8 +297,8 @@ func newDeleteCmd() *cobra.Command {
 		Short:   "Delete an iOS certificate",
 		Annotations: map[string]string{
 			"help:arguments": heredoc.Docf(`
-				%[1]s<cert-id>%[1]s is the ID of the certificate to delete
-				(see: circleci certificate list).
+				%[1]s<cert-id>%[1]s is the ID of the certificate to delete.
+				Find the certificate ID with %[1]scircleci certificate list%[1]s.
 			`, "`"),
 		},
 		Long: heredoc.Doc(`

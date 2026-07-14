@@ -1,0 +1,34 @@
+# CircleCI CLI
+
+View and update advanced settings for a CircleCI organization.
+
+Use 'get' to read a setting's current value and 'set' to change it.
+Use 'list' to see all settings at once.
+
+## Usage
+
+`circleci org setting <command> [flags]`
+
+## Available Commands
+
+| Command | Description                             |
+| ------- | --------------------------------------- |
+| `get`   | Get the current value of an org setting |
+| `list`  | List all advanced settings for an org   |
+| `set`   | Set an org setting                      |
+
+## Inherited Flags
+
+| Flag                  | Description                                                  |
+| --------------------- | ------------------------------------------------------------ |
+| `-c, --config string` | Path to config file (default: ~/.config/circleci/config.yml) |
+| `--debug`             | Enable debug logging                                         |
+| `--no-color`          | Disable ANSI color output (same as setting NO_COLOR)         |
+| `-q, --quiet`         | Suppress informational output. Data on stdout is unaffected  |
+
+## Learn More
+
+- Use `circleci <command> <subcommand> --help` for more information about a command.
+- Read the manual at <https://cli.circleci.com/reference/>
+- Support at <https://github.com/CircleCI-Public/circleci-cli/issues>
+

@@ -27,6 +27,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 )
 
@@ -36,6 +37,8 @@ type TestEnv struct {
 	HomeDir string
 	// CircleCIURL overrides the CircleCI API base URL (for fake servers).
 	CircleCIURL string
+	// ExtensionRegistryURL overrides the CircleCI extension registry URL (for fake registries).
+	ExtensionRegistryURL string
 	// Token is the CircleCI API token injected via environment variable.
 	Token string
 	// Telemetry enables telemetry collection.
@@ -60,9 +63,15 @@ func (e *TestEnv) Environ() []string {
 	env := []string{
 		"HOME=" + e.HomeDir,
 		"XDG_CONFIG_HOME=" + e.ConfigDir(),
+		"XDG_DATA_HOME=" + filepath.Join(e.HomeDir, ".local", "share"),
 		"PATH=" + os.Getenv("PATH"),
 		"CIRCLE_SPINNER_DISABLED=true",
 	}
+
+	if runtime.GOOS == "windows" {
+		env = append(env, "USERPROFILE="+e.HomeDir)
+	}
+
 	if !e.Telemetry {
 		env = append(env, "CIRCLE_NO_TELEMETRY=true")
 	}
@@ -73,6 +82,9 @@ func (e *TestEnv) Environ() []string {
 		// The fake server URL is injected via a dedicated env var that
 		// the API client reads in test builds.
 		env = append(env, "CIRCLE_HOST="+e.CircleCIURL)
+	}
+	if e.ExtensionRegistryURL != "" {
+		env = append(env, "CIRCLE_EXTENSION_HOST="+e.ExtensionRegistryURL)
 	}
 	for k, v := range e.Extra {
 		env = append(env, fmt.Sprintf("%s=%s", k, v))

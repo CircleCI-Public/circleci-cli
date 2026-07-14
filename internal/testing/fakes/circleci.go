@@ -72,11 +72,12 @@ type CircleCI struct {
 	pipelineCancelResponses           map[string]int    // pipeline id → HTTP status to return
 
 	// Job (v3) state.
-	jobsV3         map[string]any    // job UUID → V3 response body
-	workflowJobsV3 map[string][]any  // workflow id → V3 job list items
-	jobStdout      map[string][]byte // "jobID/index/stepNum" → plain text stdout
-	jobStderr      map[string][]byte // "jobID/index/stepNum" → plain text stderr
-	jobTests       map[string][]any  // job UUID → test result objects (served as JSONL)
+	jobsV3             map[string]any    // job UUID → V3 response body
+	workflowJobsV3     map[string][]any  // workflow id → V3 job list items
+	jobStdout          map[string][]byte // "jobID/index/stepNum" → plain text stdout
+	jobStderr          map[string][]byte // "jobID/index/stepNum" → plain text stderr
+	jobStdoutCondensed map[string][]byte // "jobID/index/stepNum" → raw condensed text
+	jobTests           map[string][]any  // job UUID → test result objects (served as JSONL)
 
 	// Run (v3) state.
 	runsV3          map[string]any   // run UUID → V3 response data (inner, not wrapped)
@@ -103,6 +104,7 @@ type CircleCI struct {
 	projectInfos      map[string]any   // project slug → project info response
 	projectsByID      map[string]any   // project UUID → V3 project response (GET /api/v3/projects/{id})
 	projectsBySlug    map[string]any   // project slug → V3 project entity (GET /api/v3/projects?filter[slug]=)
+	projectSettings   map[string]any   // project UUID → advanced settings attributes
 	createProjectResp any              // preset response for POST /organization/{vcs}/{org}/project
 	createOrgResp     any              // preset response for POST /organization
 
@@ -168,7 +170,9 @@ type CircleCI struct {
 	lastCompileOwnerID string
 
 	// Org state.
-	orgs map[string]map[string]any
+	orgs        map[string]map[string]any
+	orgsByUUID  map[string]bool // org UUID → true
+	orgSettings map[string]any  // org UUID → attributes map
 }
 
 // orbFakeValidateResponse holds a preset validate/process response for testing.
@@ -209,6 +213,7 @@ func NewCircleCI(t *testing.T) *CircleCI {
 		workflowJobsV3:                    map[string][]any{},
 		jobStdout:                         map[string][]byte{},
 		jobStderr:                         map[string][]byte{},
+		jobStdoutCondensed:                map[string][]byte{},
 		jobTests:                          map[string][]any{},
 		runsV3:                            map[string]any{},
 		runsV3ByProject:                   map[string][]any{},
@@ -234,6 +239,7 @@ func NewCircleCI(t *testing.T) *CircleCI {
 		projectInfos:                      map[string]any{},
 		projectsByID:                      map[string]any{},
 		projectsBySlug:                    map[string]any{},
+		projectSettings:                   map[string]any{},
 		deploys:                           map[string][]any{},
 		policyBundles:                     make(map[string]map[string]string),
 		decisionLogs:                      make(map[string][]any),
@@ -259,6 +265,8 @@ func NewCircleCI(t *testing.T) *CircleCI {
 		compileValid:                      true,
 		compileOutputYAML:                 "# compiled output\nversion: \"2.1\"\n",
 		orgs:                              map[string]map[string]any{},
+		orgsByUUID:                        map[string]bool{},
+		orgSettings:                       map[string]any{},
 	}
 
 	r := newRouter()
@@ -326,11 +334,14 @@ func NewCircleCI(t *testing.T) *CircleCI {
 	// Config compile + org routes.
 	r.Post("/api/v2/compile-config-with-defaults", f.handleCompileConfig)
 	r.Get("/api/v2/organization/{vcs}/{org}", f.handleGetOrg)
+	r.Get("/api/v3/orgs/{id}/settings", f.handleGetOrgSettingsV3)
+	r.Post("/api/v3/orgs/{id}/update-settings", f.handleUpdateOrgSettingsV3)
 	// Job (v3) routes.
 	r.Get("/api/v3/jobs", f.handleListWorkflowJobsV3)
 	r.Get("/api/v3/jobs/{id}", f.handleGetJobV3)
 	r.Get("/api/v3/jobs/{id}/artifacts", f.handleGetJobArtifactsV3)
 	r.Get("/api/v3/jobs/{id}/stdout", f.handleGetJobStdout)
+	r.Get("/api/v3/jobs/{id}/stdout/condensed", f.handleGetJobStdoutCondensed)
 	r.Get("/api/v3/jobs/{id}/stderr", f.handleGetJobStderr)
 	r.Get("/api/v3/jobs/{id}/tests", f.handleGetJobTests)
 	// Workflow (v3) routes.
@@ -339,6 +350,8 @@ func NewCircleCI(t *testing.T) *CircleCI {
 	// Project (v3) routes.
 	r.Get("/api/v3/projects", f.handleResolveProjectBySlug)
 	r.Get("/api/v3/projects/{id}", f.handleGetProjectV3)
+	r.Get("/api/v3/projects/{id}/settings", f.handleGetProjectSettingsV3)
+	r.Post("/api/v3/projects/{id}/update-settings", f.handleUpdateProjectSettingsV3)
 	// Run (v3) routes.
 	r.Get("/api/v3/runs", f.handleListMyRunsV3)
 	r.Get("/api/v3/runs/{id}", f.handleGetRunV3)
@@ -506,6 +519,14 @@ func (f *CircleCI) AddJobStdout(id string, execution, stepNum int, content []byt
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.jobStdout[fmt.Sprintf("%s/%d/%d", id, execution, stepNum)] = content
+}
+
+// AddJobStdoutCondensed registers the condensed stdout for a step, served at
+// GET /api/v3/jobs/<id>/stdout/condensed?filter[execution]=<execution>&filter[step_num]=<stepNum>.
+func (f *CircleCI) AddJobStdoutCondensed(id string, execution, stepNum int, condensed string) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.jobStdoutCondensed[fmt.Sprintf("%s/%d/%d", id, execution, stepNum)] = []byte(condensed)
 }
 
 // AddJobStderr registers plain-text stderr for a step, served at
@@ -820,6 +841,19 @@ func rangeOffset(r *http.Request, n int) int {
 		off = n
 	}
 	return off
+}
+
+func (f *CircleCI) handleGetJobStdoutCondensed(w http.ResponseWriter, r *http.Request) {
+	key := jobStepKey(r)
+	f.mu.RLock()
+	content, ok := f.jobStdoutCondensed[key]
+	f.mu.RUnlock()
+	if !ok {
+		render.Status(r, http.StatusNotFound)
+		render.JSON(w, r, map[string]any{"message": "not found"})
+		return
+	}
+	render.Data(w, r, content)
 }
 
 func (f *CircleCI) handleGetJobStderr(w http.ResponseWriter, r *http.Request) {
@@ -1548,6 +1582,95 @@ func (f *CircleCI) AddProjectInfo(slug string, info any) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.projectInfos[slug] = info
+}
+
+// defaultProjectSettingsAttrs returns an all-false v3 attributes payload.
+func defaultProjectSettingsAttrs() map[string]any {
+	return map[string]any{
+		"enable_ai_error_summarization":          false,
+		"enable_auto_cancel_redundant_workflows": false,
+		"enable_building_fork_prs":               false,
+		"is_build_prs_only":                      false,
+		"can_pass_secrets_to_fork_pr_jobs":       false,
+		"can_set_github_status":                  false,
+		"is_running_disabled":                    false,
+		"is_ssh_disabled":                        false,
+		"enable_dynamic_config":                  false,
+		"is_admin_required_for_writing_settings": false,
+		"is_oss":                                 false,
+		"pr_only_branch_overrides":               []string{},
+		"enable_unversioned_config":              false,
+	}
+}
+
+// SetProjectSettings registers advanced settings for GET /api/v3/projects/:id/settings.
+// projectID should be the project UUID string.
+func (f *CircleCI) SetProjectSettings(projectID string, settings any) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.projectSettings[projectID] = settings
+}
+
+func (f *CircleCI) handleGetProjectSettingsV3(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	f.mu.RLock()
+	settings, hasSettings := f.projectSettings[id]
+	_, hasProject := f.projectsBySlug[id]
+	if !hasProject {
+		// also check by UUID in projectsByID
+		_, hasProject = f.projectsByID[id]
+	}
+	f.mu.RUnlock()
+
+	if !hasSettings && !hasProject {
+		render.Status(r, http.StatusNotFound)
+		render.JSON(w, r, map[string]any{"message": "not found"})
+		return
+	}
+	if !hasSettings {
+		settings = defaultProjectSettingsAttrs()
+	}
+	render.JSON(w, r, map[string]any{
+		"data": map[string]any{"attributes": settings},
+	})
+}
+
+func (f *CircleCI) handleUpdateProjectSettingsV3(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+
+	var patch map[string]any
+	if err := json.NewDecoder(r.Body).Decode(&patch); err != nil {
+		render.Status(r, http.StatusBadRequest)
+		render.JSON(w, r, map[string]any{"message": "invalid JSON"})
+		return
+	}
+
+	f.mu.Lock()
+	existing, hasSettings := f.projectSettings[id]
+	_, hasProject := f.projectsByID[id]
+	if !hasProject {
+		_, hasProject = f.projectsBySlug[id]
+	}
+	if !hasSettings && !hasProject {
+		f.mu.Unlock()
+		render.Status(r, http.StatusNotFound)
+		render.JSON(w, r, map[string]any{"message": "not found"})
+		return
+	}
+
+	attrs, _ := existing.(map[string]any)
+	if attrs == nil {
+		attrs = defaultProjectSettingsAttrs()
+	}
+	for k, v := range patch {
+		attrs[k] = v
+	}
+	f.projectSettings[id] = attrs
+	f.mu.Unlock()
+
+	render.JSON(w, r, map[string]any{
+		"data": map[string]any{"attributes": attrs},
+	})
 }
 
 // AddProjectV3 registers a project returned by GET /api/v3/projects/<id>,
@@ -3616,6 +3739,7 @@ func (f *CircleCI) AddOrg(id, slug, name, vcsType string) {
 		"slug":     slug,
 		"vcs_type": vcsType,
 	}
+	f.orgsByUUID[id] = true
 }
 
 func (f *CircleCI) handleCompileConfig(w http.ResponseWriter, r *http.Request) {
@@ -3658,4 +3782,88 @@ func (f *CircleCI) handleGetOrg(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	render.JSON(w, r, org)
+}
+
+// defaultOrgSettingsAttrs returns an all-false v3 attributes payload for org settings.
+func defaultOrgSettingsAttrs() map[string]any {
+	return map[string]any{
+		"is_runner_terms_of_service_accepted":      false,
+		"enable_ai_error_summarization":            false,
+		"enable_ai_agents":                         false,
+		"enable_unversioned_config":                false,
+		"enable_certified_public_orbs":             false,
+		"enable_chunk_ip_ranges":                   false,
+		"enable_minor_ai_features":                 false,
+		"enable_private_orbs":                      false,
+		"enable_uncertified_public_orbs":           false,
+		"is_bitbucket_workspace_member_org_member": false,
+		"is_user_checkout_keys_disabled":           false,
+		"is_running_disabled":                      false,
+		"enable_image_brownouts":                   false,
+		"is_context_group_restriction_required":    false,
+		"enable_resource_class_brownouts":          false,
+	}
+}
+
+// SetOrgSettings registers advanced settings for GET /api/v3/orgs/:id/settings.
+// orgUUID should be the org UUID string.
+func (f *CircleCI) SetOrgSettings(orgUUID string, settings any) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.orgSettings[orgUUID] = settings
+}
+
+func (f *CircleCI) handleGetOrgSettingsV3(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	f.mu.RLock()
+	settings, hasSettings := f.orgSettings[id]
+	hasOrg := f.orgsByUUID[id]
+	f.mu.RUnlock()
+
+	if !hasSettings && !hasOrg {
+		render.Status(r, http.StatusNotFound)
+		render.JSON(w, r, map[string]any{"message": "not found"})
+		return
+	}
+	if !hasSettings {
+		settings = defaultOrgSettingsAttrs()
+	}
+	render.JSON(w, r, map[string]any{
+		"data": map[string]any{"attributes": settings},
+	})
+}
+
+func (f *CircleCI) handleUpdateOrgSettingsV3(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+
+	var patch map[string]any
+	if err := json.NewDecoder(r.Body).Decode(&patch); err != nil {
+		render.Status(r, http.StatusBadRequest)
+		render.JSON(w, r, map[string]any{"message": "invalid JSON"})
+		return
+	}
+
+	f.mu.Lock()
+	existing, hasSettings := f.orgSettings[id]
+	hasOrg := f.orgsByUUID[id]
+	if !hasSettings && !hasOrg {
+		f.mu.Unlock()
+		render.Status(r, http.StatusNotFound)
+		render.JSON(w, r, map[string]any{"message": "not found"})
+		return
+	}
+
+	attrs, _ := existing.(map[string]any)
+	if attrs == nil {
+		attrs = defaultOrgSettingsAttrs()
+	}
+	for k, v := range patch {
+		attrs[k] = v
+	}
+	f.orgSettings[id] = attrs
+	f.mu.Unlock()
+
+	render.JSON(w, r, map[string]any{
+		"data": map[string]any{"attributes": attrs},
+	})
 }

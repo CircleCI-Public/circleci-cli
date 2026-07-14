@@ -58,7 +58,12 @@ var helpTopics = []helpTopic{
 			Run %[1]scircleci auth login%[1]s to authenticate with your CircleCI account. You can also set the
 			%[1]sCIRCLE_TOKEN%[1]s environment variable.
 
+			## Get Running
+
+			Run %[1]scircleci run get%[1]s to view the runs for the current project in an interactive terminal UI (TUI).
+
 			## Model Context Protocol
+
 			The CLI supports the MCP protocol. To enable it, run:
 			
 			Claude:
@@ -87,6 +92,10 @@ var helpTopics = []helpTopic{
 		name:  "environment",
 		short: "Environment variables that can be used with circleci",
 		long: heredoc.Docf(`
+			%[1]scircleci%[1]s reads the following environment variables to configure authentication, output, and
+			behavior. Each takes precedence over the corresponding stored setting, so they are useful for
+			scripting and CI where you want explicit, per-invocation control.
+
 			%[1]sCIRCLE_TOKEN%[1]s: an authentication token that will be used for API requests. Setting this avoids
 			being prompted to authenticate and takes precedence over previously stored credentials.
 
@@ -97,6 +106,15 @@ var helpTopics = []helpTopic{
 
 			%[1]sNO_COLOR%[1]s: set to any value to avoid printing ANSI escape sequences for color output.
 			The %[1]s--no-color%[1]s flag has the same effect.
+
+			%[1]sCIRCLE_NO_COLOR%[1]s: set to any value to disable ANSI color output, same as %[1]sNO_COLOR%[1]s.
+
+			%[1]sCIRCLE_NO_INTERACTIVE%[1]s: set to any value to suppress all interactive prompts.
+
+			%[1]sCI%[1]s: when set (as CI systems do), interactive prompts, the animated spinner, and update
+			notifications are all disabled automatically.
+
+			%[1]sCIRCLE_SPINNER_DISABLED%[1]s: set to any value to replace the animated spinner with plain text.
 
 			%[1]sCIRCLE_NO_PAGER%[1]s: set to any value to print long output directly instead of through a pager.
 
@@ -151,7 +169,7 @@ var helpTopics = []helpTopic{
 		`, "`"),
 		example: heredoc.Docf(`
 			## Default output format
-			$ circleci auth me
+			%[1]scircleci auth me%[1]s
 			%[1]s%[1]s%[1]stext
 			# User
 			- ID: %[1]sc257a143-1fde-4dfe-8cf9-2a85a955f1f7%[1]s
@@ -161,7 +179,7 @@ var helpTopics = []helpTopic{
 			%[1]s%[1]s%[1]s
 
 			## Adding the --json flag with a list of field names
-			$ circleci auth me --json
+			%[1]scircleci auth me --json%[1]s
 			%[1]s%[1]s%[1]sjson
 			{
 			  "name": "Your Name",
@@ -172,7 +190,7 @@ var helpTopics = []helpTopic{
 			%[1]s%[1]s%[1]s
 
 			## Adding the --jq flag and selecting a field
-			$ circleci auth me --json --jq '.login'
+			%[1]scircleci auth me --json --jq '.login'%[1]s
 			%[1]s%[1]s%[1]stext
 			username
 			%[1]s%[1]s%[1]s

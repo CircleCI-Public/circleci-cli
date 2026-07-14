@@ -69,13 +69,14 @@ func newWatchCmd() *cobra.Command {
 		Short: "Watch a run until it completes",
 		Annotations: map[string]string{
 			"help:arguments": heredoc.Docf(`
-				%[1]s<run-id>%[1]s is optional and selects the run to watch. It can be:
-				- a run UUID (shown in "circleci run list --json")
-				- a run number (shown in "circleci run list"); the project is
-				  inferred from the git remote unless overridden with --project
+				%[1]s<run-id>%[1]s is optional and selects the run to watch. A run can be specified by its UUID or number:
+				- A run UUID, as shown in %[1]scircleci run list --json%[1]s
+				- A run number, as shown in %[1]scircleci run list%[1]s.
+
+				The project is inferred from the git remote unless overridden with %[1]s--project%[1]s.
 
 				When omitted, the latest run for the current branch is watched
-				(override the branch with --branch, or match a commit with --sha).
+				(override the branch with %[1]s--branch%[1]s, or match a commit with %[1]s--sha%[1]s).
 			`, "`"),
 		},
 		Long: heredoc.Doc(`
@@ -438,15 +439,16 @@ func watchFingerprint(state runGetOutput) string {
 func printWatchTable(ctx context.Context, state runGetOutput, elapsed time.Duration) int {
 	lines := 0
 	for _, wf := range state.Workflows {
-		wfStatus := apiclient.PhaseOutcomeStatus(wf.Phase, wf.Outcome, wf.CurrentOutcome)
+		wfSym, wfWord := watchStatusParts(wf.Phase, wf.Outcome, wf.CurrentOutcome)
 		if wf.Duration != "" {
-			iostream.ErrPrintf(ctx, "  %-28s  %-12s  %s\n", wf.Name, wfStatus, wf.Duration)
+			iostream.ErrPrintf(ctx, "  %-28s  %s %-10s  %s\n", wf.Name, wfSym, wfWord, wf.Duration)
 		} else {
-			iostream.ErrPrintf(ctx, "  %-28s  %s\n", wf.Name, wfStatus)
+			iostream.ErrPrintf(ctx, "  %-28s  %s %s\n", wf.Name, wfSym, wfWord)
 		}
 		lines++
 		for _, j := range wf.Jobs {
-			iostream.ErrPrintf(ctx, "    %-30s  %-10s  %s\n", j.Name, apiclient.PhaseOutcomeStatus(j.Phase, j.Outcome, j.CurrentOutcome), j.Type)
+			jSym, jWord := watchStatusParts(j.Phase, j.Outcome, j.CurrentOutcome)
+			iostream.ErrPrintf(ctx, "    %-30s  %s %-10s  %s\n", j.Name, jSym, jWord, j.Type)
 			lines++
 		}
 	}
@@ -455,16 +457,30 @@ func printWatchTable(ctx context.Context, state runGetOutput, elapsed time.Durat
 	return lines
 }
 
+// watchStatusParts renders a phase/outcome as a plain status glyph and word for
+// watch's raw terminal output — e.g. ("✓", "succeeded"). PhaseOutcomeStatus
+// emits emoji shortcodes (":white_check_mark: succeeded") that only render when
+// passed through glamour markdown; watch prints raw, so it uses the emoji-free
+// PhaseOutcomeSymbol/PhaseOutcomeText pair instead — as the interactive pickers
+// and watch's own result lines already do. The symbol is returned separately so
+// callers can pad the (ASCII) word into a fixed-width column without the glyph's
+// multi-byte width throwing off the alignment.
+func watchStatusParts(phase, outcome, currentOutcome string) (symbol, word string) {
+	return apiclient.PhaseOutcomeSymbol(phase, outcome, currentOutcome),
+		apiclient.PhaseOutcomeText(phase, outcome, currentOutcome)
+}
+
 func printWatchTableFinal(ctx context.Context, state runGetOutput) {
 	for _, wf := range state.Workflows {
-		wfStatus := apiclient.PhaseOutcomeStatus(wf.Phase, wf.Outcome, wf.CurrentOutcome)
+		wfSym, wfWord := watchStatusParts(wf.Phase, wf.Outcome, wf.CurrentOutcome)
 		if wf.Duration != "" {
-			iostream.ErrPrintf(ctx, "  %-28s  %-12s  %s\n", wf.Name, wfStatus, wf.Duration)
+			iostream.ErrPrintf(ctx, "  %-28s  %s %-10s  %s\n", wf.Name, wfSym, wfWord, wf.Duration)
 		} else {
-			iostream.ErrPrintf(ctx, "  %-28s  %s\n", wf.Name, wfStatus)
+			iostream.ErrPrintf(ctx, "  %-28s  %s %s\n", wf.Name, wfSym, wfWord)
 		}
 		for _, j := range wf.Jobs {
-			iostream.ErrPrintf(ctx, "    %-30s  %-10s  %s\n", j.Name, apiclient.PhaseOutcomeStatus(j.Phase, j.Outcome, j.CurrentOutcome), j.Type)
+			jSym, jWord := watchStatusParts(j.Phase, j.Outcome, j.CurrentOutcome)
+			iostream.ErrPrintf(ctx, "    %-30s  %s %-10s  %s\n", j.Name, jSym, jWord, j.Type)
 		}
 	}
 }
@@ -472,7 +488,7 @@ func printWatchTableFinal(ctx context.Context, state runGetOutput) {
 func printWatchLine(ctx context.Context, state runGetOutput, elapsed time.Duration) {
 	parts := make([]string, 0, len(state.Workflows))
 	for _, wf := range state.Workflows {
-		parts = append(parts, fmt.Sprintf("%s=%s", wf.Name, apiclient.PhaseOutcomeStatus(wf.Phase, wf.Outcome, wf.CurrentOutcome)))
+		parts = append(parts, fmt.Sprintf("%s=%s", wf.Name, apiclient.PhaseOutcomeText(wf.Phase, wf.Outcome, wf.CurrentOutcome)))
 	}
 	iostream.ErrPrintf(ctx, "[%s]  %s\n", formatElapsed(elapsed), strings.Join(parts, "  "))
 }

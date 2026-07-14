@@ -24,6 +24,7 @@ package acceptance_test
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
@@ -217,6 +218,107 @@ func TestConfigValidate_WithOrgUUID(t *testing.T) {
 	assert.Check(t, cmp.Equal(fake.LastCompileOwnerID(), testOrgUUID))
 }
 
+// TestConfigValidate_InfersOrgFromGitRemote is the regression test for
+// https://github.com/CircleCI-Public/circleci-cli/issues/1061: with no --org,
+// the org is inferred from the git remote so private and namespaced orbs
+// resolve. The remote https://github.com/myorg/myrepo maps to project slug
+// gh/myorg/myrepo, whose org UUID must reach the compile endpoint as owner_id.
+func TestConfigValidate_InfersOrgFromGitRemote(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	fake.SetCompileResponse(true, testCompiledYAML)
+	fake.AddProjectBySlug("gh/myorg/myrepo", "00000000-0000-0000-0000-0000000000b1", "myrepo", testOrgUUID)
+
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+
+	dir := t.TempDir()
+	initGitRepoWithRemote(t, dir, "https://github.com/myorg/myrepo")
+	writeConfig(t, dir, testConfigYAML)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"config", "validate", "--config", ".circleci/config.yml"},
+		Env:     env.Environ(),
+		WorkDir: dir,
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 0), "stderr: %s", result.Stderr)
+	assert.Check(t, cmp.Contains(result.Stdout, ".circleci/config.yml"))
+	// The org inferred from the git remote reached the compile call as owner_id.
+	assert.Check(t, cmp.Equal(fake.LastCompileOwnerID(), testOrgUUID))
+}
+
+// TestConfigValidate_ProjectLinkOverridesGitRemote pins that org inference
+// honours a `circleci project link` binding (.circleci/info.yml) over the git
+// remote — the case where the remote is not the right answer (repository
+// renames, forks, standalone projects). The remote points at one org; the link
+// binds a different one, and the linked org must reach the compile endpoint.
+//
+// The linked project is deliberately NOT registered with the fake: `project
+// link` records the org UUID in info.yml, so inference uses it directly with no
+// project lookup. The linked org resolving without a matching fake project
+// proves that direct-ID path (which also works offline / with a restricted
+// token).
+func TestConfigValidate_ProjectLinkOverridesGitRemote(t *testing.T) {
+	const linkedOrgUUID = "00000000-0000-0000-0000-0000000000cc"
+	const linkedProjUUID = "00000000-0000-0000-0000-0000000000dd"
+
+	fake := fakes.NewCircleCI(t)
+	fake.SetCompileResponse(true, testCompiledYAML)
+	// The git remote resolves to a *different* org. If the link were ignored,
+	// this org would be used and the assertion below would catch it.
+	fake.AddProjectBySlug("gh/otherorg/otherrepo", "00000000-0000-0000-0000-0000000000b3", "otherrepo", testOrgUUID)
+
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+
+	dir := t.TempDir()
+	initGitRepoWithRemote(t, dir, "https://github.com/otherorg/otherrepo")
+	writeConfig(t, dir, testConfigYAML)
+	writeProjectLink(t, dir, linkedOrgUUID, linkedProjUUID)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"config", "validate", "--config", ".circleci/config.yml"},
+		Env:     env.Environ(),
+		WorkDir: dir,
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 0), "stderr: %s", result.Stderr)
+	// The linked project's org — not the git remote's — reached compile.
+	assert.Check(t, cmp.Equal(fake.LastCompileOwnerID(), linkedOrgUUID))
+}
+
+// TestConfigValidate_NoOrgOutsideGitRemote guards the other half of the #1061
+// contract: inference is best-effort. Outside a git checkout (and with no
+// --org) validation still succeeds, compiling with an empty owner_id rather
+// than failing — public configs must validate anywhere.
+func TestConfigValidate_NoOrgOutsideGitRemote(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	fake.SetCompileResponse(true, testCompiledYAML)
+
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+
+	dir := t.TempDir()
+	writeConfig(t, dir, testConfigYAML)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"config", "validate", "--config", ".circleci/config.yml"},
+		Env:     env.Environ(),
+		WorkDir: dir,
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 0), "stderr: %s", result.Stderr)
+	assert.Check(t, cmp.Contains(result.Stdout, ".circleci/config.yml"))
+	// No git remote to infer from: the compile call carries no owner.
+	assert.Check(t, cmp.Equal(fake.LastCompileOwnerID(), ""))
+}
+
 // TestConfigValidate_RemovedOrgFlags pins the clean break from the legacy org
 // flag names: --org-id and --org-slug were collapsed into --org and must no
 // longer be accepted. Cobra reports unknown flags with a non-zero exit and an
@@ -311,6 +413,35 @@ func TestConfigProcess_WithParams(t *testing.T) {
 	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 }
 
+// TestConfigProcess_InfersOrgFromGitRemote is the config process counterpart of
+// TestConfigValidate_InfersOrgFromGitRemote: process shares the same org
+// resolution, so with no --org the org is inferred from the git remote and
+// reaches the compile endpoint as owner_id.
+func TestConfigProcess_InfersOrgFromGitRemote(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	fake.SetCompileResponse(true, testCompiledYAML)
+	fake.AddProjectBySlug("gh/myorg/myrepo", "00000000-0000-0000-0000-0000000000b2", "myrepo", testOrgUUID)
+
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+
+	dir := t.TempDir()
+	initGitRepoWithRemote(t, dir, "https://github.com/myorg/myrepo")
+	writeConfig(t, dir, testConfigYAML)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"config", "process", ".circleci/config.yml"},
+		Env:     env.Environ(),
+		WorkDir: dir,
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 0), "stderr: %s", result.Stderr)
+	assert.Check(t, cmp.Contains(result.Stdout, "version"))
+	assert.Check(t, cmp.Equal(fake.LastCompileOwnerID(), testOrgUUID))
+}
+
 // --- config pack ---
 
 func TestConfigPack(t *testing.T) {
@@ -357,6 +488,18 @@ func writeConfig(t *testing.T, dir, content string) {
 	t.Helper()
 	assert.NilError(t, os.MkdirAll(filepath.Join(dir, ".circleci"), 0o755))
 	writeFile(t, filepath.Join(dir, ".circleci", "config.yml"), content)
+}
+
+// writeProjectLink writes the .circleci/info.yml that `circleci project link`
+// produces, binding the checkout to a CircleCI project by its stable UUIDs.
+func writeProjectLink(t *testing.T, dir, orgID, projectID string) {
+	t.Helper()
+	assert.NilError(t, os.MkdirAll(filepath.Join(dir, ".circleci"), 0o755))
+	content := fmt.Sprintf(
+		"organization:\n  id: %s\nproject:\n  id: %s\n  slug: circleci/%s/%s\n",
+		orgID, projectID, orgID, projectID,
+	)
+	writeFile(t, filepath.Join(dir, ".circleci", "info.yml"), content)
 }
 
 func writeFile(t *testing.T, path, content string) {

@@ -22,6 +22,14 @@ are collapsed to their final state.
 Use --strip-ansi to force this rendering even on a terminal, or
 --strip-ansi=false to pass the raw output through even when piped.
 
+Use --condensed to fetch a filtered version of stdout only, with
+noisy or repetitive lines removed server-side. This produces a much
+smaller payload suitable for feeding to an AI tool. When --condensed
+is set, output is always rendered through the plain-text renderer
+regardless of the terminal or --strip-ansi.
+
+Note: --condensed is experimental and subject to change.
+
 ## Usage
 
 `circleci job output get <job-id> [flags]`
@@ -30,6 +38,7 @@ Use --strip-ansi to force this rendering even on a terminal, or
 
 | Flag              | Description                                                                                    |
 | ----------------- | ---------------------------------------------------------------------------------------------- |
+| `--condensed`     | Fetch error-relevant lines only, filtered server-side (experimental)                           |
 | `--execution int` | Parallel execution index to read output from                                                   |
 | `--step-num int`  | Step number whose output to fetch (required)                                                   |
 | `--strip-ansi`    | Force (or with =false, disable) ANSI stripping; defaults to stripping only when not a terminal |
@@ -46,8 +55,8 @@ Use --strip-ansi to force this rendering even on a terminal, or
 ## Arguments
 
 `<job-id>` is the UUID of the job whose step output to fetch. Job UUIDs
-are shown in the output of "circleci workflow get" and "circleci job get".
-Use --step-num to select which step's output to read.
+are shown in the output of `circleci workflow get` and `circleci job get`.
+Use `--step-num` to select which step's output to read.
 
 ## Examples
 
@@ -57,6 +66,8 @@ Use --step-num to select which step's output to read.
   `circleci job output get 8e50c384-0083-43d0-bc8f-93f0db589d6b --step-num 3 --execution 1`
 - Pipe the output to a file: 
   `circleci job output get 8e50c384-0083-43d0-bc8f-93f0db589d6b --step-num 3 > step.log`
+- Pipe condensed output to an AI CLI tool: 
+  `circleci job output get 8e50c384-0083-43d0-bc8f-93f0db589d6b --step-num 3 --condensed | llm "Why did this fail?"`
 
 ## Learn More
 

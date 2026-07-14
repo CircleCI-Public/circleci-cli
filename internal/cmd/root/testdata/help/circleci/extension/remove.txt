@@ -1,0 +1,34 @@
+# CircleCI CLI
+
+Remove an installed CircleCI CLI extension.
+
+The extension binary and its manifest are deleted from the extension
+directory. After removal, the extension is no longer available as a
+CLI command.
+
+## Usage
+
+`circleci extension remove <extension> [flags]`
+
+## Inherited Flags
+
+| Flag                  | Description                                                  |
+| --------------------- | ------------------------------------------------------------ |
+| `-c, --config string` | Path to config file (default: ~/.config/circleci/config.yml) |
+| `--debug`             | Enable debug logging                                         |
+| `--no-color`          | Disable ANSI color output (same as setting NO_COLOR)         |
+| `-q, --quiet`         | Suppress informational output. Data on stdout is unaffected  |
+
+## Examples
+
+- Remove using the name of the extension: 
+  `circleci extension remove <name>`
+- Remove using the full binary name: 
+  `circleci extension remove circleci-<name>`
+
+## Learn More
+
+- Use `circleci <command> <subcommand> --help` for more information about a command.
+- Read the manual at <https://cli.circleci.com/reference/>
+- Support at <https://github.com/CircleCI-Public/circleci-cli/issues>
+

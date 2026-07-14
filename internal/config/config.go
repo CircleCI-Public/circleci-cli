@@ -50,16 +50,22 @@ type Config struct {
 }
 
 type state struct {
-	Token     string     `yaml:"token,omitempty"`
-	Host      string     `yaml:"host,omitempty"`
-	DeviceID  *uuid.UUID `yaml:"device_id,omitempty"`
-	UserID    *uuid.UUID `yaml:"user_id,omitempty"`
-	Telemetry *bool      `yaml:"telemetry,omitempty"`
-	Theme     string     `yaml:"theme,omitempty"`
+	Token         string     `yaml:"token,omitempty"`
+	Host          string     `yaml:"host,omitempty"`
+	ExtensionHost string     `yaml:"extension_host,omitempty"`
+	DeviceID      *uuid.UUID `yaml:"device_id,omitempty"`
+	UserID        *uuid.UUID `yaml:"user_id,omitempty"`
+	Telemetry     *bool      `yaml:"telemetry,omitempty"`
+	Theme         string     `yaml:"theme,omitempty"`
 }
 
-// DefaultHost is the CircleCI API host used when none is configured.
-const DefaultHost = "https://circleci.com"
+const (
+	// DefaultHost is the CircleCI API host used when none is configured.
+	DefaultHost = "https://circleci.com"
+
+	// DefaultExtensionHost is the CircleCI extension host.
+	DefaultExtensionHost = "https://circleci-binary-releases.s3.amazonaws.com"
+)
 
 // DefaultTheme is the color theme used when none is configured. It matches the
 // default of the --theme flag and detects the terminal background.
@@ -402,6 +408,22 @@ func Path() (string, error) {
 	return configPath()
 }
 
+// ExtensionsDir returns the absolute path to the extensions directory,
+// following the XDG Base Directory spec:
+//   - $XDG_DATA_HOME/circleci/extensions (when XDG_DATA_HOME is set)
+//   - ~/.local/share/circleci/extensions (default)
+func ExtensionsDir() (string, error) {
+	base := os.Getenv("XDG_DATA_HOME")
+	if base == "" {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return "", fmt.Errorf("resolving home directory: %w", err)
+		}
+		base = filepath.Join(home, ".local", "share")
+	}
+	return filepath.Join(base, "circleci", "extensions"), nil
+}
+
 // EffectiveHost returns the host, checked in priority order:
 // CIRCLE_HOST env var → config file value → DefaultHost.
 func (c *Config) EffectiveHost() string {
@@ -412,6 +434,18 @@ func (c *Config) EffectiveHost() string {
 		return c.state.Host
 	}
 	return DefaultHost
+}
+
+// EffectiveExtensionHost returns the host, checked in priority order:
+// CIRCLE_HOST env var → config file value → DefaultHost.
+func (c *Config) EffectiveExtensionHost() string {
+	if h := os.Getenv("CIRCLE_EXTENSION_HOST"); h != "" {
+		return h
+	}
+	if c.state.ExtensionHost != "" {
+		return c.state.ExtensionHost
+	}
+	return DefaultExtensionHost
 }
 
 // EffectiveToken returns the token from the config, falling back to the

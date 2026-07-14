@@ -4,6 +4,12 @@
   [1;34m"current_outcome"[m[1;37m:[m [32m"succeeded"[m[1;37m,[m
   [1;34m"branch"[m[1;37m:[m [32m"main"[m[1;37m,[m
   [1;34m"revision"[m[1;37m:[m [32m"abc1234"[m[1;37m,[m
+  [1;34m"commit"[m[1;37m:[m [1;37m{[m
+    [1;34m"subject"[m[1;37m:[m [32m"Fix the widget"[m[1;37m,[m
+    [1;34m"url"[m[1;37m:[m [32m"https://github.com/testorg/testrepo/commit/abc1234def5678"[m[1;37m,[m
+    [1;34m"author_name"[m[1;37m:[m [32m"Ada Lovelace"[m[1;37m,[m
+    [1;34m"author_login"[m[1;37m:[m [32m"ada"[m
+  [1;37m}[m[1;37m,[m
   [1;34m"created_at"[m[1;37m:[m [32m"2020-01-01 12:00:00 UTC"[m[1;37m,[m
   [1;34m"workflows"[m[1;37m:[m [1;37m[[m
     [1;37m{[m

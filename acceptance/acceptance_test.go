@@ -23,6 +23,7 @@
 package acceptance_test
 
 import (
+	"bytes"
 	"fmt"
 	"net/url"
 	"os"
@@ -30,6 +31,10 @@ import (
 	"regexp"
 	"strings"
 	"testing"
+	"text/template"
+
+	"gotest.tools/v3/assert"
+	"gotest.tools/v3/golden"
 
 	"github.com/CircleCI-Public/circleci-cli/internal/testing/binary"
 	"github.com/CircleCI-Public/circleci-cli/internal/testing/httprecorder"
@@ -103,4 +108,30 @@ func TestMain(m *testing.M) {
 	cleanup2()
 
 	os.Exit(code)
+}
+
+// goldenTemplate renders templateFile with data and asserts that actual
+// matches the result.
+func goldenTemplate(t *testing.T, actual, templateFile string, data any) {
+	t.Helper()
+
+	f := filepath.Join("testdata", templateFile)
+	tmpl, err := template.New(t.Name()).ParseFiles(f)
+	assert.NilError(t, err)
+
+	var rendered bytes.Buffer
+	err = tmpl.ExecuteTemplate(&rendered, filepath.Base(f), data)
+	assert.NilError(t, err)
+
+	tmpDir := t.TempDir()
+	goldenFile := filepath.Join(tmpDir, f+".txt")
+
+	assert.NilError(t, os.MkdirAll(filepath.Dir(goldenFile), 0750))
+
+	// windows.
+	d := bytes.ReplaceAll(rendered.Bytes(), []byte("\r\n"), []byte("\n"))
+	err = os.WriteFile(goldenFile, d, 0640)
+	assert.NilError(t, err)
+
+	assert.Check(t, golden.String(actual, goldenFile))
 }

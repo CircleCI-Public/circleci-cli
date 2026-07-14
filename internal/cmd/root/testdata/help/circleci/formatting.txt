@@ -21,7 +21,7 @@ the output is automatically pretty-printed. To learn about jq query syntax, see:
 
 Examples
   ## Default output format
-  $ circleci auth me
+  `circleci auth me`
   ```text
   # User
   - ID: `c257a143-1fde-4dfe-8cf9-2a85a955f1f7`
@@ -31,7 +31,7 @@ Examples
   ```
   
   ## Adding the --json flag with a list of field names
-  $ circleci auth me --json
+  `circleci auth me --json`
   ```json
   {
     "name": "Your Name",
@@ -42,7 +42,7 @@ Examples
   ```
   
   ## Adding the --jq flag and selecting a field
-  $ circleci auth me --json --jq '.login'
+  `circleci auth me --json --jq '.login'`
   ```text
   username
   ```

@@ -36,6 +36,7 @@ To manage environment variables directly, use the top-level alias:
 | --------- | ------------------------------------------------------ |
 | `dlc`     | Purge a project's Docker layer cache (DLC)             |
 | `envvar`  | List, set and delete a project's environment variables |
+| `setting` | View and update project advanced settings              |
 | `trigger` | Manage project triggers                                |
 
 ## Inherited Flags

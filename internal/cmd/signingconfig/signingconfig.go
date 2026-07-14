@@ -329,7 +329,7 @@ func newDeleteCmd() *cobra.Command {
 		Annotations: map[string]string{
 			"help:arguments": heredoc.Docf(`
 				%[1]s<signing-config-id>%[1]s is the ID of the signing config to delete
-				(see: circleci signing-config list).
+				Use %[1]scircleci signing-config list%[1]s to find the ID.
 			`, "`"),
 		},
 		Long: heredoc.Doc(`

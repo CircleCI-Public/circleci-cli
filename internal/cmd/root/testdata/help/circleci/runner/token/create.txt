@@ -34,7 +34,7 @@ For more information about output formatting flags, see `circleci help formattin
 ## Arguments
 
 `<resource-class>` is the runner resource class to create a token for,
-in the form "namespace/name" (e.g. my-org/my-runner).
+in the form `namespace/name` (for example, `my-org/my-runner`).
 
 ## Examples
 

@@ -5,6 +5,12 @@ Validate a CircleCI pipeline config file against the CircleCI API.
 Reads .circleci/config.yml by default. Pass --config to specify a
 different file, or "-" to read from stdin.
 
+Private and namespaced orbs are resolved against your organization.
+When --org is omitted the org is inferred from the current project —
+a 'circleci project link' binding if present, otherwise the git
+remote. Pass --org to override this, or to resolve private orbs
+outside a project.
+
 JSON fields (--json):
   valid          bool    whether the config compiled without errors
   compiled_yaml  string  the fully expanded config (when valid)
@@ -16,12 +22,12 @@ JSON fields (--json):
 
 ## Flags
 
-| Flag                  | Description                                                                    |
-| --------------------- | ------------------------------------------------------------------------------ |
-| `-c, --config string` | Path to config file (use "-" for stdin) (default ".circleci/config.yml")       |
-| `--json`              | Output as JSON                                                                 |
-| `-n, --next`          | Enable config next which previews upcoming potentially breaking config changes |
-| `--org string`        | Organization slug (e.g. gh/myorg) or UUID for private orb resolution           |
+| Flag                  | Description                                                                                  |
+| --------------------- | -------------------------------------------------------------------------------------------- |
+| `-c, --config string` | Path to config file (use "-" for stdin) (default ".circleci/config.yml")                     |
+| `--json`              | Output as JSON                                                                               |
+| `-n, --next`          | Enable config next which previews upcoming potentially breaking config changes               |
+| `--org string`        | Organization slug (e.g. gh/myorg) or UUID for private orb resolution; defaults to git remote |
 
 ## Inherited Flags
 
@@ -37,7 +43,7 @@ JSON fields (--json):
   `circleci config validate`
 - Validate a specific file: 
   `circleci config validate --config path/to/config.yml`
-- Validate with private orb resolution for your org: 
+- Validate against a specific org (otherwise inferred from the git remote): 
   `circleci config validate --org gh/myorg`
 - Validate and output as JSON: 
   `circleci config validate --json`

@@ -215,3 +215,64 @@ func (c *Client) CreateProject(ctx context.Context, vcs, org, name string) (*Pro
 	}
 	return &proj, nil
 }
+
+// ProjectSettingsAttributes is the "attributes" object returned by
+// GET /api/v3/projects/:id/settings and POST /api/v3/projects/:id/update-settings.
+type ProjectSettingsAttributes struct {
+	AIErrorSummarization      bool     `json:"enable_ai_error_summarization"`
+	AutoCancelBuilds          bool     `json:"enable_auto_cancel_redundant_workflows"`
+	BuildForkPRs              bool     `json:"enable_building_fork_prs"`
+	BuildPRsOnly              bool     `json:"is_build_prs_only"`
+	CanPassSecretsToForkPR    bool     `json:"can_pass_secrets_to_fork_pr_jobs"`
+	CanSetGitHubStatus        bool     `json:"can_set_github_status"`
+	DisableRunning            bool     `json:"is_running_disabled"`
+	DisableSSH                bool     `json:"is_ssh_disabled"`
+	DynamicConfig             bool     `json:"enable_dynamic_config"`
+	IsAdminRequiredForWriting bool     `json:"is_admin_required_for_writing_settings"`
+	IsOSS                     bool     `json:"is_oss"`
+	PROnlyBranchOverrides     []string `json:"pr_only_branch_overrides"`
+	UnversionedConfig         bool     `json:"enable_unversioned_config"`
+}
+
+// ProjectSettingsUpdate is the body for POST /api/v3/projects/:id/update-settings.
+// Only non-nil fields are sent; omitting a field leaves that setting unchanged.
+type ProjectSettingsUpdate struct {
+	AIErrorSummarization      *bool     `json:"enable_ai_error_summarization,omitempty"`
+	AutoCancelBuilds          *bool     `json:"enable_auto_cancel_redundant_workflows,omitempty"`
+	BuildForkPRs              *bool     `json:"enable_building_fork_prs,omitempty"`
+	BuildPRsOnly              *bool     `json:"is_build_prs_only,omitempty"`
+	CanPassSecretsToForkPR    *bool     `json:"can_pass_secrets_to_fork_pr_jobs,omitempty"`
+	CanSetGitHubStatus        *bool     `json:"can_set_github_status,omitempty"`
+	DisableRunning            *bool     `json:"is_running_disabled,omitempty"`
+	DisableSSH                *bool     `json:"is_ssh_disabled,omitempty"`
+	DynamicConfig             *bool     `json:"enable_dynamic_config,omitempty"`
+	IsAdminRequiredForWriting *bool     `json:"is_admin_required_for_writing_settings,omitempty"`
+	IsOSS                     *bool     `json:"is_oss,omitempty"`
+	PROnlyBranchOverrides     *[]string `json:"pr_only_branch_overrides,omitempty"`
+	UnversionedConfig         *bool     `json:"enable_unversioned_config,omitempty"`
+}
+
+type projectSettingsEnvelope struct {
+	Data struct {
+		Attributes ProjectSettingsAttributes `json:"attributes"`
+	} `json:"data"`
+}
+
+// GetProjectSettings returns settings for a project via GET /api/v3/projects/:id/settings.
+func (c *Client) GetProjectSettings(ctx context.Context, projectID uuid.UUID) (*ProjectSettingsAttributes, error) {
+	var env projectSettingsEnvelope
+	if err := c.getV3(ctx, "/projects/%s/settings", &env, routeParams(projectID)); err != nil {
+		return nil, err
+	}
+	return &env.Data.Attributes, nil
+}
+
+// UpdateProjectSettings updates project settings via POST /api/v3/projects/:id/update-settings.
+// Only the fields set in update are changed; omitted fields are left as-is.
+func (c *Client) UpdateProjectSettings(ctx context.Context, projectID uuid.UUID, update ProjectSettingsUpdate) (*ProjectSettingsAttributes, error) {
+	var env projectSettingsEnvelope
+	if err := c.postV3(ctx, "/projects/%s/update-settings", update, &env, routeParams(projectID)); err != nil {
+		return nil, err
+	}
+	return &env.Data.Attributes, nil
+}

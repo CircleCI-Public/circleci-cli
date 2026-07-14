@@ -51,6 +51,12 @@ func newValidateCmd() *cobra.Command {
 			Reads .circleci/config.yml by default. Pass --config to specify a
 			different file, or "-" to read from stdin.
 
+			Private and namespaced orbs are resolved against your organization.
+			When --org is omitted the org is inferred from the current project —
+			a 'circleci project link' binding if present, otherwise the git
+			remote. Pass --org to override this, or to resolve private orbs
+			outside a project.
+
 			JSON fields (--json):
 			  valid          bool    whether the config compiled without errors
 			  compiled_yaml  string  the fully expanded config (when valid)
@@ -63,7 +69,7 @@ func newValidateCmd() *cobra.Command {
 			# Validate a specific file
 			$ circleci config validate --config path/to/config.yml
 
-			# Validate with private orb resolution for your org
+			# Validate against a specific org (otherwise inferred from the git remote)
 			$ circleci config validate --org gh/myorg
 
 			# Validate and output as JSON
@@ -119,7 +125,7 @@ func newValidateCmd() *cobra.Command {
 	}
 
 	cmd.Flags().StringVarP(&configPath, "config", "c", ".circleci/config.yml", "Path to config file (use \"-\" for stdin)")
-	cmdutil.AddOrgFlag(cmd, &org, cmdutil.OrgFlag{Purpose: "for private orb resolution"})
+	cmdutil.AddOrgFlag(cmd, &org, cmdutil.OrgFlag{Purpose: "for private orb resolution", DefaultsToGitRemote: true})
 	cmd.Flags().BoolVarP(&previewNext, "next", "n", false, "Enable config next which previews upcoming potentially breaking config changes")
 	cmdutil.AddJSONFlag(cmd, &jsonOut)
 

@@ -41,11 +41,13 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/internal/cmd/deploy"
 	cmddlc "github.com/CircleCI-Public/circleci-cli/internal/cmd/dlc"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmd/envvar"
+	"github.com/CircleCI-Public/circleci-cli/internal/cmd/extension"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmd/job"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmd/my"
 	cmdnamespace "github.com/CircleCI-Public/circleci-cli/internal/cmd/namespace"
 	cmdonboard "github.com/CircleCI-Public/circleci-cli/internal/cmd/onboard"
 	cmdorb "github.com/CircleCI-Public/circleci-cli/internal/cmd/orb"
+	cmdorg "github.com/CircleCI-Public/circleci-cli/internal/cmd/org"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmd/pipeline"
 	cmdpolicy "github.com/CircleCI-Public/circleci-cli/internal/cmd/policy"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmd/project"
@@ -62,7 +64,6 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/internal/cmdutil"
 	"github.com/CircleCI-Public/circleci-cli/internal/config"
 	clierrors "github.com/CircleCI-Public/circleci-cli/internal/errors"
-	"github.com/CircleCI-Public/circleci-cli/internal/extension"
 	"github.com/CircleCI-Public/circleci-cli/internal/iostream"
 	"github.com/CircleCI-Public/circleci-cli/internal/telemetry"
 )
@@ -223,6 +224,7 @@ func NewRootCmd(version string) *cobra.Command {
 	cmd.AddCommand(cmdnamespace.NewNamespaceCmd())
 	cmd.AddCommand(cmdonboard.NewOnboardCmd())
 	cmd.AddCommand(cmdorb.NewOrbCmd())
+	cmd.AddCommand(cmdorg.NewOrgCmd())
 	cmd.AddCommand(cmdpolicy.NewPolicyCmd())
 	cmd.AddCommand(cmdrun.NewRunCmd())
 	cmd.AddCommand(cmdversion.NewVersionCmd(version))
@@ -241,6 +243,7 @@ func NewRootCmd(version string) *cobra.Command {
 	cmd.AddCommand(step.NewStepCmd())
 	cmd.AddCommand(cmdtestresult.NewTestResultCmd())
 	cmd.AddCommand(workflow.NewWorkflowCmd())
+	cmd.AddCommand(extension.NewExtensionCmd())
 
 	// Wire in MCP commands. ophis sets its own terse Short; override it so the
 	// root command table explains what the command actually does.
@@ -264,21 +267,7 @@ func NewRootCmd(version string) *cobra.Command {
 	// man pages
 	cmd.AddCommand(newManCmd())
 
-	// Register extensions found in PATH. Built-in commands always win on name
-	// conflicts — extensions cannot shadow them.
-	builtins := map[string]bool{}
-	for _, sub := range cmd.Commands() {
-		builtins[sub.Name()] = true
-	}
-
-	path := os.Getenv("PATH")
-	if exts := extension.FindAll(path); len(exts) > 0 {
-		for _, name := range exts {
-			if !builtins[name] {
-				cmd.AddCommand(extension.NewCmd(name))
-			}
-		}
-	}
+	extension.RegisterExtensions(cmd)
 
 	cmd.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
 		for i := range args {

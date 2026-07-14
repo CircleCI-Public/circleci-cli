@@ -30,11 +30,11 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/CircleCI-Public/circleci-cli/internal/httpcl"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/golden"
 
-	"github.com/CircleCI-Public/circleci-cli/internal/apiclient"
 	"github.com/CircleCI-Public/circleci-cli/internal/testing/binary"
 	testenv "github.com/CircleCI-Public/circleci-cli/internal/testing/env"
 	"github.com/CircleCI-Public/circleci-cli/internal/testing/fakes"
@@ -410,7 +410,7 @@ func TestContextCreate(t *testing.T) {
 			URL:    url.URL{Path: "/api/v2/context"},
 			Header: http.Header{
 				"Authorization": {"Bearer test-token"},
-				"User-Agent":    {apiclient.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "chunk")},
+				"User-Agent":    {httpcl.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "chunk")},
 			},
 			Body: new(`{"name":"new-context","owner":{"slug":"gh/testorg","type":"organization"}}`),
 		}, ignoreCommonHeaders))
@@ -493,7 +493,7 @@ func TestContextDelete(t *testing.T) {
 			URL:    url.URL{Path: "/api/v2/context/" + testContextID},
 			Header: http.Header{
 				"Authorization": {"Bearer test-token"},
-				"User-Agent":    {apiclient.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
+				"User-Agent":    {httpcl.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
 			},
 			Body: new(""),
 		}, ignoreCommonHeaders))
@@ -715,7 +715,7 @@ func TestContextSecretSet(t *testing.T) {
 			URL:    url.URL{Path: "/api/v2/context/" + testContextID + "/environment-variable/MY_VAR"},
 			Header: http.Header{
 				"Authorization": {"Bearer test-token"},
-				"User-Agent":    {apiclient.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
+				"User-Agent":    {httpcl.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
 			},
 			Body: new(`{"value":"s3cr3t"}`),
 		}, ignoreCommonHeaders))
@@ -823,7 +823,7 @@ func TestContextSecretDelete(t *testing.T) {
 			URL:    url.URL{Path: "/api/v2/context/" + testContextID + "/environment-variable/MY_VAR"},
 			Header: http.Header{
 				"Authorization": {"Bearer test-token"},
-				"User-Agent":    {apiclient.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
+				"User-Agent":    {httpcl.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
 			},
 			Body: new(""),
 		}, ignoreCommonHeaders))
@@ -928,7 +928,7 @@ func TestContextRestrictionCreate(t *testing.T) {
 			URL:    url.URL{Path: "/api/v2/context/" + testContextID + "/restrictions"},
 			Header: http.Header{
 				"Authorization": {"Bearer test-token"},
-				"User-Agent":    {apiclient.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
+				"User-Agent":    {httpcl.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
 			},
 			Body: new(`{"restriction_type":"project","restriction_value":"p0000001-0000-4000-8000-000000000001"}`),
 		}, ignoreCommonHeaders))
@@ -1084,7 +1084,7 @@ func TestContextRestrictionDelete(t *testing.T) {
 			URL:    url.URL{Path: "/api/v2/context/" + testContextID + "/restrictions/" + testRestrictionID},
 			Header: http.Header{
 				"Authorization": {"Bearer test-token"},
-				"User-Agent":    {apiclient.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
+				"User-Agent":    {httpcl.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
 			},
 			Body: new(""),
 		}, ignoreCommonHeaders))

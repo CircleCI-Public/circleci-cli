@@ -31,11 +31,11 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/CircleCI-Public/circleci-cli/internal/httpcl"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/golden"
 
-	"github.com/CircleCI-Public/circleci-cli/internal/apiclient"
 	"github.com/CircleCI-Public/circleci-cli/internal/testing/binary"
 	testenv "github.com/CircleCI-Public/circleci-cli/internal/testing/env"
 	"github.com/CircleCI-Public/circleci-cli/internal/testing/fakes"
@@ -245,7 +245,7 @@ func TestRunnerResourceClassCreate(t *testing.T) {
 			URL:    url.URL{Path: "/api/v3/runner/resource"},
 			Header: http.Header{
 				"Authorization": {"Bearer test-token"},
-				"User-Agent":    {apiclient.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
+				"User-Agent":    {httpcl.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
 			},
 			Body: new(`{"description":"New runner","resource_class":"my-org/new-runner"}`),
 		}, ignoreCommonHeaders))
@@ -341,7 +341,7 @@ func TestRunnerResourceClassDelete_Force(t *testing.T) {
 			URL:    url.URL{Path: "/api/v3/runner/resource/my-org/linux-runner"},
 			Header: http.Header{
 				"Authorization": {"Bearer test-token"},
-				"User-Agent":    {apiclient.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
+				"User-Agent":    {httpcl.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
 			},
 			Body: new(""),
 		}, ignoreCommonHeaders))
@@ -490,7 +490,7 @@ func TestRunnerTokenCreate(t *testing.T) {
 			URL:    url.URL{Path: "/api/v3/runner/token"},
 			Header: http.Header{
 				"Authorization": {"Bearer test-token"},
-				"User-Agent":    {apiclient.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
+				"User-Agent":    {httpcl.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
 			},
 			Body: new(`{"nickname":"my-server","resource_class":"my-org/linux-runner"}`),
 		}, ignoreCommonHeaders))
@@ -571,7 +571,7 @@ func TestRunnerTokenDelete(t *testing.T) {
 			URL:    url.URL{Path: "/api/v3/runner/token/tok-id-1"},
 			Header: http.Header{
 				"Authorization": {"Bearer test-token"},
-				"User-Agent":    {apiclient.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
+				"User-Agent":    {httpcl.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
 			},
 			Body: new(""),
 		}, ignoreCommonHeaders))

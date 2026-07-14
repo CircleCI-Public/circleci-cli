@@ -48,10 +48,22 @@ type runErrorWire struct {
 }
 
 type runVCSWire struct {
-	Branch        string `json:"branch"`
-	Tag           string `json:"tag"`
-	Revision      string `json:"revision"`
-	RepositoryURL string `json:"repository_url"`
+	Branch        string         `json:"branch"`
+	Tag           string         `json:"tag"`
+	Revision      string         `json:"revision"`
+	RepositoryURL string         `json:"repository_url"`
+	Commit        *runCommitWire `json:"commit,omitempty"`
+}
+
+type runCommitWire struct {
+	Subject string              `json:"subject"`
+	URL     string              `json:"url"`
+	Author  runCommitAuthorWire `json:"author"`
+}
+
+type runCommitAuthorWire struct {
+	Name  string `json:"name"`
+	Login string `json:"login"`
 }
 
 type runReferencesWire struct {
@@ -97,6 +109,14 @@ type RunError struct {
 	Message string `json:"message"`
 }
 
+// RunCommit holds the commit metadata attached to a run event.
+type RunCommit struct {
+	Subject     string `json:"subject,omitempty"`
+	URL         string `json:"url,omitempty"`
+	AuthorName  string `json:"author_name,omitempty"`
+	AuthorLogin string `json:"author_login,omitempty"`
+}
+
 // RunV3 holds run detail from the V3 API.
 type RunV3 struct {
 	ID             uuid.UUID  `json:"id"`
@@ -107,6 +127,7 @@ type RunV3 struct {
 	Tag            string     `json:"tag,omitempty"`
 	Revision       string     `json:"revision,omitempty"`
 	RepositoryURL  string     `json:"repository_url,omitempty"`
+	Commit         *RunCommit `json:"commit,omitempty"`
 	CreatedAt      time.Time  `json:"created_at"`
 	ProjectID      uuid.UUID  `json:"project_id"`
 	Errors         []RunError `json:"errors,omitempty"`
@@ -134,6 +155,14 @@ func (w runWire) toRunV3() *RunV3 {
 		r.Branch = v.Branch
 		r.Tag = v.Tag
 		r.Revision = v.Revision
+		if c := v.Commit; c != nil {
+			r.Commit = &RunCommit{
+				Subject:     c.Subject,
+				URL:         c.URL,
+				AuthorName:  c.Author.Name,
+				AuthorLogin: c.Author.Login,
+			}
+		}
 	} else if a.VCS != nil {
 		r.Branch = a.VCS.Branch
 		r.Revision = a.VCS.Revision

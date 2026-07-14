@@ -1,0 +1,11 @@
+name: ci tests
+discover: go list -f '{{ if or (len .TestGoFiles) (len .XTestGoFiles) }} {{ .ImportPath }} {{end}}' ./...
+run: go tool -modfile tools/go.mod gotestsum --junitfile="<< outputs.junit >>" -- -race -count=1 << test.atoms >>
+outputs:
+  junit: test-reports/result.xml
+---
+name: windows tests
+discover: go list -f '{{ if or (len .TestGoFiles) (len .XTestGoFiles) }} {{ .ImportPath }} {{end}}' ./...
+run: go tool -modfile tools/go.mod gotestsum --junitfile="<< outputs.junit >>" -- -count=1 << test.atoms >>
+outputs:
+  junit: test-reports/result.xml

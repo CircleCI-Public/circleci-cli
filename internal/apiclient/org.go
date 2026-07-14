@@ -22,7 +22,11 @@
 
 package apiclient
 
-import "context"
+import (
+	"context"
+
+	"github.com/google/uuid"
+)
 
 // OrgInfo is returned by GET /api/v2/organization/{slug-or-id}.
 type OrgInfo struct {
@@ -50,4 +54,69 @@ func (c *Client) CreateOrg(ctx context.Context, name, vcsType string) (*OrgInfo,
 		return nil, err
 	}
 	return &org, nil
+}
+
+// OrgSettingsAttributes is the "attributes" object returned by
+// GET /api/v3/orgs/:id/settings and POST /api/v3/orgs/:id/update-settings.
+type OrgSettingsAttributes struct {
+	RunnerTOSAccepted                   bool `json:"is_runner_terms_of_service_accepted"`
+	AIErrorSummarization                bool `json:"enable_ai_error_summarization"`
+	AIAgents                            bool `json:"enable_ai_agents"`
+	UnversionedConfig                   bool `json:"enable_unversioned_config"`
+	CertifiedPublicOrbs                 bool `json:"enable_certified_public_orbs"`
+	ChunkIPRanges                       bool `json:"enable_chunk_ip_ranges"`
+	MinorAIFeatures                     bool `json:"enable_minor_ai_features"`
+	PrivateOrbs                         bool `json:"enable_private_orbs"`
+	UncertifiedPublicOrbs               bool `json:"enable_uncertified_public_orbs"`
+	BitbucketWorkspaceMemberIsOrgMember bool `json:"is_bitbucket_workspace_member_org_member"`
+	UserCheckoutKeysDisabled            bool `json:"is_user_checkout_keys_disabled"`
+	DisableRunning                      bool `json:"is_running_disabled"`
+	ImageBrownouts                      bool `json:"enable_image_brownouts"`
+	ContextGroupRestrictionRequired     bool `json:"is_context_group_restriction_required"`
+	ResourceClassBrownouts              bool `json:"enable_resource_class_brownouts"`
+}
+
+// OrgSettingsUpdate is the body for POST /api/v3/orgs/:id/update-settings.
+// Only non-nil fields are sent; omitting a field leaves that setting unchanged.
+type OrgSettingsUpdate struct {
+	RunnerTOSAccepted                   *bool `json:"is_runner_terms_of_service_accepted,omitempty"`
+	AIErrorSummarization                *bool `json:"enable_ai_error_summarization,omitempty"`
+	AIAgents                            *bool `json:"enable_ai_agents,omitempty"`
+	UnversionedConfig                   *bool `json:"enable_unversioned_config,omitempty"`
+	CertifiedPublicOrbs                 *bool `json:"enable_certified_public_orbs,omitempty"`
+	ChunkIPRanges                       *bool `json:"enable_chunk_ip_ranges,omitempty"`
+	MinorAIFeatures                     *bool `json:"enable_minor_ai_features,omitempty"`
+	PrivateOrbs                         *bool `json:"enable_private_orbs,omitempty"`
+	UncertifiedPublicOrbs               *bool `json:"enable_uncertified_public_orbs,omitempty"`
+	BitbucketWorkspaceMemberIsOrgMember *bool `json:"is_bitbucket_workspace_member_org_member,omitempty"`
+	UserCheckoutKeysDisabled            *bool `json:"is_user_checkout_keys_disabled,omitempty"`
+	DisableRunning                      *bool `json:"is_running_disabled,omitempty"`
+	ImageBrownouts                      *bool `json:"enable_image_brownouts,omitempty"`
+	ContextGroupRestrictionRequired     *bool `json:"is_context_group_restriction_required,omitempty"`
+	ResourceClassBrownouts              *bool `json:"enable_resource_class_brownouts,omitempty"`
+}
+
+type orgSettingsEnvelope struct {
+	Data struct {
+		Attributes OrgSettingsAttributes `json:"attributes"`
+	} `json:"data"`
+}
+
+// GetOrgSettings returns settings for an organization via GET /api/v3/orgs/:id/settings.
+func (c *Client) GetOrgSettings(ctx context.Context, orgID uuid.UUID) (*OrgSettingsAttributes, error) {
+	var env orgSettingsEnvelope
+	if err := c.getV3(ctx, "/orgs/%s/settings", &env, routeParams(orgID)); err != nil {
+		return nil, err
+	}
+	return &env.Data.Attributes, nil
+}
+
+// UpdateOrgSettings updates org settings via POST /api/v3/orgs/:id/update-settings.
+// Only the fields set in update are changed; omitted fields are left as-is.
+func (c *Client) UpdateOrgSettings(ctx context.Context, orgID uuid.UUID, update OrgSettingsUpdate) (*OrgSettingsAttributes, error) {
+	var env orgSettingsEnvelope
+	if err := c.postV3(ctx, "/orgs/%s/update-settings", update, &env, routeParams(orgID)); err != nil {
+		return nil, err
+	}
+	return &env.Data.Attributes, nil
 }

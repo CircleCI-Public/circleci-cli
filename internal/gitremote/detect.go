@@ -27,14 +27,16 @@
 package gitremote
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"regexp"
 	"strings"
 
-	"github.com/go-git/go-git/v5"
-	"github.com/go-git/go-git/v5/plumbing"
+	"github.com/go-git/go-git/v6"
+	"github.com/go-git/go-git/v6/plumbing"
 
+	"github.com/CircleCI-Public/circleci-cli/internal/closer"
 	"github.com/CircleCI-Public/circleci-cli/internal/projectref"
 )
 
@@ -46,6 +48,12 @@ type ProjectInfo struct {
 	Branch string
 	// DefaultBranch is the default branch name.
 	DefaultBranch string
+	// OrgID is the organization ID recorded by `circleci project link`
+	// (.circleci/info.yml). It is empty when the project was resolved from the
+	// git remote, because the org ID is not derivable from a remote URL without
+	// an API lookup. Its form is whatever link persisted (a UUID, or a compact
+	// base62 ID); consumers that need a UUID must parse and fall back on failure.
+	OrgID string
 }
 
 var (
@@ -97,31 +105,65 @@ func DetectRepoName() string {
 // The branch is always read from git (best-effort when info.yml supplied the slug,
 // since the branch is per-checkout and never persisted in info.yml).
 func Detect() (*ProjectInfo, error) {
-	if cwd, err := os.Getwd(); err == nil {
-		if ref, err := projectref.Read(cwd); err == nil {
-			// Branch info is per-checkout and never persisted in info.yml, so
-			// read it from the repo best-effort — a missing or non-git dir just
-			// leaves the fields empty.
-			var branch, defaultBranch string
-			if repo, err := openRepo(); err == nil {
-				branch, _ = gitCurrentBranch(repo)
-				defaultBranch, _ = gitDefaultBranch(repo)
-			}
-			return &ProjectInfo{
-				Slug:          ref.EffectiveSlug(),
-				Branch:        branch,
-				DefaultBranch: defaultBranch,
-			}, nil
-		}
+	info, err := detectLinkedProject()
+	if err != nil {
+		return nil, err
+	}
+	if info != nil {
+		return info, nil
 	}
 	return DetectFromRemote()
+}
+
+// detectLinkedProject resolves the project from the .circleci/info.yml written
+// by `circleci project link`. It returns (nil, nil) when no info.yml is present
+// so Detect can fall back to the git remote; a malformed or unreadable info.yml
+// is a real error and is surfaced rather than silently ignored.
+func detectLinkedProject() (*ProjectInfo, error) {
+	cwd, err := os.Getwd()
+	if err != nil {
+		return nil, fmt.Errorf("could not determine working directory: %w", err)
+	}
+
+	ref, err := projectref.Read(cwd)
+	if errors.Is(err, projectref.ErrNotFound) {
+		return nil, nil // not linked — caller falls back to the git remote
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	// Branch and default branch are per-checkout and never persisted in
+	// info.yml, so they are read from git best-effort.
+	branch, defaultBranch := gitBranches()
+	return &ProjectInfo{
+		Slug:          ref.EffectiveSlug(),
+		Branch:        branch,
+		DefaultBranch: defaultBranch,
+		OrgID:         ref.Organization.ID,
+	}, nil
+}
+
+// gitBranches reads the current and default branch of the repository in the
+// working directory, best-effort: any failure (not a git repo, detached HEAD,
+// no origin/HEAD) leaves that field empty. The repository handle is always
+// closed, so callers on Windows can delete the checkout afterwards.
+func gitBranches() (branch, defaultBranch string) {
+	repo, err := openRepo()
+	if err != nil {
+		return "", ""
+	}
+	defer func() { _ = repo.Close() }()
+	branch, _ = gitCurrentBranch(repo)
+	defaultBranch, _ = gitDefaultBranch(repo)
+	return branch, defaultBranch
 }
 
 // DetectFromRemote resolves the project from the git "origin" remote without
 // consulting .circleci/info.yml. Use this from the `project link` command itself
 // — reading info.yml there would short-circuit the very write that link is
 // about to perform.
-func DetectFromRemote() (*ProjectInfo, error) {
+func DetectFromRemote() (_ *ProjectInfo, err error) {
 	// Both "not a git repo" and "repo without an origin remote" surface as the
 	// same user-facing failure, matching the previous `git remote get-url`
 	// behaviour.
@@ -129,6 +171,7 @@ func DetectFromRemote() (*ProjectInfo, error) {
 	if err != nil {
 		return nil, fmt.Errorf("could not read git remote: %w", err)
 	}
+	defer closer.ErrorHandler(repo, &err)
 
 	remoteURL, err := gitOriginURL(repo)
 	if err != nil {
@@ -200,6 +243,14 @@ func buildSlug(host, org, repo string) (string, error) {
 
 // openRepo opens the git repository containing the current working directory,
 // walking up parent directories to find the .git dir (like the git CLI does).
+//
+// Linked worktrees resolve correctly: inside a worktree, .git is a file pointing
+// at <main>/.git/worktrees/<name>/, which holds only per-worktree state (HEAD,
+// index), while the shared config, packed-refs, and refs/remotes live in the
+// common dir. go-git v6 always follows the worktree's "commondir" pointer, so
+// the origin remote and default branch are visible from a worktree without any
+// extra option. Callers must Close the returned repository to release its file
+// handles (Windows cannot delete files with open handles — see the tests).
 func openRepo() (*git.Repository, error) {
 	cwd, err := os.Getwd()
 	if err != nil {

@@ -62,6 +62,12 @@ func newProcessCmd() *cobra.Command {
 			CircleCI would actually execute.
 
 			Pass a file path or "-" to read from stdin.
+
+			Private and namespaced orbs are resolved against your organization.
+			When --org is omitted the org is inferred from the current project —
+			a 'circleci project link' binding if present, otherwise the git
+			remote. Pass --org to override this, or to resolve private orbs
+			outside a project.
 		`),
 		Example: heredoc.Doc(`
 			# Process the default config
@@ -70,7 +76,7 @@ func newProcessCmd() *cobra.Command {
 			# Process with pipeline parameters
 			$ circleci config process .circleci/config.yml --pipeline-parameters 'env: staging'
 
-			# Process with private orb resolution
+			# Process against a specific org (otherwise inferred from the git remote)
 			$ circleci config process .circleci/config.yml --org gh/myorg
 
 			# Read from stdin
@@ -121,7 +127,7 @@ func newProcessCmd() *cobra.Command {
 		},
 	}
 
-	cmdutil.AddOrgFlag(cmd, &org, cmdutil.OrgFlag{Purpose: "for private orb resolution"})
+	cmdutil.AddOrgFlag(cmd, &org, cmdutil.OrgFlag{Purpose: "for private orb resolution", DefaultsToGitRemote: true})
 	cmd.Flags().BoolVarP(&previewNext, "next", "n", false, "Enable config next which previews upcoming potentially breaking config changes")
 	cmd.Flags().StringVar(&pipelineParams, "pipeline-parameters", "", "Pipeline parameters as a YAML map or path to a YAML file")
 

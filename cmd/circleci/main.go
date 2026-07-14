@@ -55,9 +55,12 @@ func run() int {
 	if err := rootCmd.Execute(); err != nil {
 		// Extension binary disappeared between startup scan and exec — show a
 		// clean error rather than leaking the ErrNotFound message.
-		if notFound, ok := errors.AsType[*extension.ErrNotFound](err); ok {
-			_, _ = fmt.Fprintf(os.Stderr, "error: extension %q was found at startup but is no longer available in PATH\n", "circleci-"+notFound.Name)
-			return clierrors.ExitNotFound
+		if notFound, ok := errors.AsType[*extension.ErrExtensionBinaryNotFound](err); ok {
+			err = clierrors.New("extension.binary_unavailable", "Extension binary missing", notFound.Error()).
+				WithSuggestions("Reinstall the extension",
+					fmt.Sprintf("circleci extension install %s", notFound.Name),
+				).
+				WithExitCode(clierrors.ExitNotFound)
 		}
 		// Extension exit codes are not errors — propagate them directly.
 		if exited, ok := errors.AsType[*extension.ErrExited](err); ok {

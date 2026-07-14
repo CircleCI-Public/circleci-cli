@@ -40,6 +40,12 @@ func newGenerateCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "generate [path]",
 		Short: "Generate .circleci/config.yml from a repository scan",
+		Annotations: map[string]string{
+			"help:arguments": heredoc.Docf(`
+				%[1]s<path>%[1]s is optional and is the directory to scan. Defaults to
+				the current directory.
+			`, "`"),
+		},
 		Long: heredoc.Docf(`
 			Detect the language stack, container image, and setup commands for a
 			repository, then write a starter pipeline to %[1]s<path>/.circleci/config.yml%[1]s.

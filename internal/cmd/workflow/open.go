@@ -42,7 +42,7 @@ func newOpenCmd() *cobra.Command {
 		Annotations: map[string]string{
 			"help:arguments": heredoc.Docf(`
 				%[1]s<workflow-id>%[1]s is the UUID of the workflow to look up. Workflow IDs are
-				shown in the output of "circleci run get".
+				shown in the output of %[1]scircleci run get%[1]s.
 			`, "`"),
 		},
 		Example: heredoc.Doc(`

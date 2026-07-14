@@ -31,11 +31,11 @@ import (
 	"runtime"
 	"testing"
 
+	"github.com/CircleCI-Public/circleci-cli/internal/httpcl"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/golden"
 
-	"github.com/CircleCI-Public/circleci-cli/internal/apiclient"
 	"github.com/CircleCI-Public/circleci-cli/internal/testing/binary"
 	testenv "github.com/CircleCI-Public/circleci-cli/internal/testing/env"
 	"github.com/CircleCI-Public/circleci-cli/internal/testing/fakes"
@@ -119,7 +119,7 @@ func TestCertificateUpload(t *testing.T) {
 			URL:    url.URL{Path: "/api/v3/signing/certificates"},
 			Header: http.Header{
 				"Authorization": {"Bearer test-token"},
-				"User-Agent":    {apiclient.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
+				"User-Agent":    {httpcl.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
 			},
 			Body: new(`{"data":{"attributes":{"cert_blob":"ZmFrZS1wMTItYnl0ZXM=","cert_password":"hunter2","file_name":"Distribution.p12"},"references":{"org":{"id":"11111111-1111-1111-1111-111111111111"}}}}`),
 		}, ignoreCommonHeaders))
@@ -353,7 +353,7 @@ func TestCertificateDelete(t *testing.T) {
 			URL:    url.URL{Path: "/api/v3/signing/certificates/cccccccc-cccc-cccc-cccc-cccccccccccc"},
 			Header: http.Header{
 				"Authorization": {"Bearer test-token"},
-				"User-Agent":    {apiclient.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
+				"User-Agent":    {httpcl.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
 			},
 			Body: new(""),
 		}, ignoreCommonHeaders))

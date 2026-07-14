@@ -9,7 +9,14 @@ which is meaningless for a different project) unless --branch is set.
 
 Pass a run UUID to look up a specific run.
 
+With no run UUID in an interactive terminal, a picker walks you through
+the recent runs; --no-interactive (or --json, or a non-interactive
+session) skips it and resolves the latest run directly.
+
+Use the --mine flag to show only your runs.
+
 JSON fields: id, phase, outcome, current_outcome, branch, tag, revision,
+             repository_url, commit.subject/url/author_name/author_login,
              created_at, errors[].type/message,
              workflows[].id/name/phase/outcome/current_outcome/duration/
              jobs[].id/name/phase/outcome/current_outcome/type
@@ -27,6 +34,8 @@ For more information about output formatting flags, see `circleci help formattin
 | `-b, --branch string` | Branch name (defaults to the current branch, or main when --project is set) |
 | `--jq string`         | Process values from the response using jq syntax                            |
 | `--json`              | Output as JSON                                                              |
+| `-m, --mine`          | Filter to runs owned by you.                                                |
+| `--no-interactive`    | Skip the interactive picker and resolve the latest run directly             |
 | `--project string`    | Project slug (e.g. gh/org/repo); used for latest-run lookup                 |
 
 ## Inherited Flags
@@ -43,8 +52,8 @@ For more information about output formatting flags, see `circleci help formattin
 `<run-id>` is optional and is the UUID of the run to look up. When
 omitted, the latest run is resolved from the project and branch
 inferred from the current git repository's remote and checked-out
-branch (override with --project and --branch). With --project set, the
-branch defaults to main unless --branch is given.
+branch (override with `--project` and `--branch`). With
+`--project` set, the branch defaults to main unless `--branch` is given.
 
 ## Examples
 
@@ -54,6 +63,10 @@ branch defaults to main unless --branch is given.
   `circleci run get 5034460f-c7c4-4c43-9457-de07e2029e7b`
 - Output as JSON for scripting: 
   `circleci run get --json`
+- Get only your runs: 
+  `circleci run get --mine`
+- Skip the picker and resolve the latest run directly: 
+  `circleci run get --no-interactive`
 
 ## Learn More
 

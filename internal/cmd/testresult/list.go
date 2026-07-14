@@ -64,7 +64,7 @@ func newListCmd() *cobra.Command {
 		Annotations: map[string]string{
 			"help:arguments": heredoc.Docf(`
 				%[1]s<job-id>%[1]s is the UUID of the job whose test results to list. Job
-				UUIDs are shown in "circleci job get" and "circleci run get --json".
+				UUIDs are shown in %[1]scircleci job get%[1]s and %[1]scircleci run get --json%[1]s.
 			`, "`"),
 		},
 		Long: heredoc.Docf(`

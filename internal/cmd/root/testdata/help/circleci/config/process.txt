@@ -8,17 +8,23 @@ CircleCI would actually execute.
 
 Pass a file path or "-" to read from stdin.
 
+Private and namespaced orbs are resolved against your organization.
+When --org is omitted the org is inferred from the current project —
+a 'circleci project link' binding if present, otherwise the git
+remote. Pass --org to override this, or to resolve private orbs
+outside a project.
+
 ## Usage
 
 `circleci config process <path> [flags]`
 
 ## Flags
 
-| Flag                           | Description                                                                    |
-| ------------------------------ | ------------------------------------------------------------------------------ |
-| `-n, --next`                   | Enable config next which previews upcoming potentially breaking config changes |
-| `--org string`                 | Organization slug (e.g. gh/myorg) or UUID for private orb resolution           |
-| `--pipeline-parameters string` | Pipeline parameters as a YAML map or path to a YAML file                       |
+| Flag                           | Description                                                                                  |
+| ------------------------------ | -------------------------------------------------------------------------------------------- |
+| `-n, --next`                   | Enable config next which previews upcoming potentially breaking config changes               |
+| `--org string`                 | Organization slug (e.g. gh/myorg) or UUID for private orb resolution; defaults to git remote |
+| `--pipeline-parameters string` | Pipeline parameters as a YAML map or path to a YAML file                                     |
 
 ## Inherited Flags
 
@@ -41,7 +47,7 @@ from stdin.
   `circleci config process .circleci/config.yml`
 - Process with pipeline parameters: 
   `circleci config process .circleci/config.yml --pipeline-parameters 'env: staging'`
-- Process with private orb resolution: 
+- Process against a specific org (otherwise inferred from the git remote): 
   `circleci config process .circleci/config.yml --org gh/myorg`
 - Read from stdin: 
   `cat .circleci/config.yml | circleci config process -`

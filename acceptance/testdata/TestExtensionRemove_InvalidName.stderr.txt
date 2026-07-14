@@ -1,0 +1,4 @@
+error: "circleci-^&*" is not a valid extension name: use only letters, digits, hyphens, and underscores
+
+Suggestions:
+  • Extension names must start with a letter or digit and contain only letters (a-z, A-Z), digits (0-9), hyphens (-), and underscores (_).

@@ -26,7 +26,7 @@ The merged YAML is written to stdout.
 
 ## Arguments
 
-- `<path>`: path to an orb source directory or a single orb YAML file.
+- `<path>` is the path to an orb source directory or a single orb YAML file.
 
 ## Examples
 

@@ -31,12 +31,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/CircleCI-Public/circleci-cli/internal/httpcl"
 	"github.com/pete-woods/go-expect"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/golden"
 
-	"github.com/CircleCI-Public/circleci-cli/internal/apiclient"
 	"github.com/CircleCI-Public/circleci-cli/internal/testing/binary"
 	testenv "github.com/CircleCI-Public/circleci-cli/internal/testing/env"
 	"github.com/CircleCI-Public/circleci-cli/internal/testing/fakes"
@@ -72,6 +72,19 @@ func fakeRunV3(id, projectID, phase, outcome, branch, revision string) map[strin
 	if outcome != "" {
 		attrs["current_outcome"] = outcome
 	}
+	// The event VCS carries the commit (subject, url, author) — the only source
+	// the client reads it from. Only runs that resolved a revision have one.
+	eventVCS := map[string]any{
+		"branch":   branch,
+		"revision": revision,
+	}
+	if revision != "" {
+		eventVCS["commit"] = map[string]any{
+			"subject": "Fix the widget",
+			"url":     "https://github.com/testorg/testrepo/commit/" + revision,
+			"author":  map[string]any{"name": "Ada Lovelace", "login": "ada"},
+		}
+	}
 	return map[string]any{
 		"id":         id,
 		"attributes": attrs,
@@ -80,10 +93,7 @@ func fakeRunV3(id, projectID, phase, outcome, branch, revision string) map[strin
 			// attributes.vcs above is retained for legacy clients.
 			"event": map[string]any{
 				"attributes": map[string]any{
-					"vcs": map[string]any{
-						"branch":   branch,
-						"revision": revision,
-					},
+					"vcs": eventVCS,
 				},
 			},
 			"trigger": map[string]any{
@@ -285,6 +295,10 @@ func TestRunGet_ByID_JSON(t *testing.T) {
 	assert.Check(t, cmp.Equal(out["phase"], "ended"))
 	assert.Check(t, cmp.Equal(out["current_outcome"], "succeeded"))
 
+	commit := out["commit"].(map[string]any)
+	assert.Check(t, cmp.Equal(commit["subject"], "Fix the widget"))
+	assert.Check(t, cmp.Equal(commit["author_name"], "Ada Lovelace"))
+
 	wfs := out["workflows"].([]any)
 	assert.Check(t, cmp.Len(wfs, 1))
 	jobs := wfs[0].(map[string]any)["jobs"].([]any)
@@ -459,6 +473,33 @@ func TestRunGet_ProjectDefaultsBranchToMain(t *testing.T) {
 	var out map[string]any
 	assert.NilError(t, json.Unmarshal([]byte(result.Stdout), &out))
 	assert.Check(t, cmp.Equal(out["id"], mainRunID)) // the main-branch run, not feature
+}
+
+// TestRunGet_NoInteractive_SkipsPicker confirms --no-interactive bypasses the
+// picker even in a PTY: a session that would otherwise open the run picker
+// instead resolves the latest run and prints its summary, which carries the
+// run's full UUID (the picker's first screen never does).
+func TestRunGet_NoInteractive_SkipsPicker(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	addProjectBySlug(fake, testSlug, runTestProjectID)
+	runID := "e0000000-0000-4000-8000-0000000000c1"
+	fake.AddRunV3(runID, runTestProjectID, fakeRunV3(runID, runTestProjectID, "ended", "succeeded", "main", "abc1234def5678"))
+
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+
+	console := binary.RunCLIInteractive(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"run", "get", "--project", testSlug, "--branch", "main", "--no-interactive"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	// The run summary prints the run's full UUID; the picker would show
+	// "Select a run" instead.
+	_, err := console.ExpectString(runID)
+	assert.NilError(t, err)
 }
 
 // --- run get (interactive picker) ---
@@ -819,7 +860,7 @@ func TestRunGet_Interactive_Back(t *testing.T) {
 
 	// The run picker is shown again rather than the program exiting; its option
 	// lines are rewritten in full, so the run row reappears.
-	_, err = console.ExpectString("abc1234 [main]")
+	_, err = console.ExpectString("[main] abc1234")
 	assert.NilError(t, err)
 	_, err = console.Send("\r")
 	assert.NilError(t, err)
@@ -851,7 +892,7 @@ func TestRunGet_Interactive_SwitchBranch(t *testing.T) {
 	console := startRunGetInteractive(t, env)
 
 	// Scoped to main: the main run shows, the feature run does not yet.
-	_, err := console.ExpectString("abc1234 [main]")
+	_, err := console.ExpectString("[main] abc1234")
 	assert.NilError(t, err)
 
 	// Cycle main → all branches (no default branch is known here; the cycle is
@@ -864,7 +905,7 @@ func TestRunGet_Interactive_SwitchBranch(t *testing.T) {
 	assert.NilError(t, err)
 
 	// The feature-branch run is now listed.
-	_, err = console.ExpectString("facefee [feature]")
+	_, err = console.ExpectString("[feature] facefee")
 	assert.NilError(t, err)
 
 	// esc on the first picker quits, so the program exits cleanly.
@@ -882,7 +923,7 @@ func TestRunGet_Interactive_SwitchToMyRuns(t *testing.T) {
 	console := startRunGetInteractive(t, env)
 
 	// Scoped to main: the main run shows, the my-runs entry does not yet.
-	_, err := console.ExpectString("abc1234 [main]")
+	_, err := console.ExpectString("[main] abc1234")
 	assert.NilError(t, err)
 
 	switchSeq := "\x1b[Z" // shift+tab (CSI Z)
@@ -892,7 +933,7 @@ func TestRunGet_Interactive_SwitchToMyRuns(t *testing.T) {
 	// main → all branches → my runs.
 	_, err = console.Send(switchSeq)
 	assert.NilError(t, err)
-	_, err = console.ExpectString("facefee [feature]")
+	_, err = console.ExpectString("[feature] facefee")
 	assert.NilError(t, err)
 	_, err = console.Send(switchSeq)
 	assert.NilError(t, err)
@@ -902,7 +943,7 @@ func TestRunGet_Interactive_SwitchToMyRuns(t *testing.T) {
 	// (The picker title also names the scope "[my runs]", asserted in the ui
 	// package's flow test — the PTY renderer diffs the title line so it does not
 	// appear contiguously here.)
-	_, err = console.ExpectString("cafed00 [testorg/testrepo:mine]")
+	_, err = console.ExpectString("[testorg/testrepo:mine] cafed00")
 	assert.NilError(t, err)
 
 	// esc on the first picker quits, so the program exits cleanly.
@@ -925,7 +966,7 @@ func TestRunGet_Interactive_NoProject(t *testing.T) {
 
 	// The picker opens straight on the user's cross-project runs, its project
 	// folded into the ref bracket as "[project:branch]".
-	_, err := console.ExpectString("cafed00 [testorg/testrepo:mine]")
+	_, err := console.ExpectString("[testorg/testrepo:mine] cafed00")
 	assert.NilError(t, err)
 
 	// esc on the first picker quits, so the program exits cleanly.
@@ -946,7 +987,7 @@ func TestRunGet_Interactive_ProjectNoBranch(t *testing.T) {
 	})
 
 	// The defaulted main branch's run loads (not the feature-branch one).
-	_, err := console.ExpectString("abc1234 [main]")
+	_, err := console.ExpectString("[main] abc1234")
 	assert.NilError(t, err)
 
 	// esc on the first picker quits, so the program exits cleanly.
@@ -963,7 +1004,7 @@ func TestRunGet_Interactive_FilterStatus(t *testing.T) {
 	env := setupRunGetInteractiveFake(t)
 	console := startRunGetInteractive(t, env)
 
-	_, err := console.ExpectString("abc1234 [main]")
+	_, err := console.ExpectString("[main] abc1234")
 	assert.NilError(t, err)
 
 	// all statuses → canceled (no canceled runs on main). Match a contiguous
@@ -988,7 +1029,7 @@ func TestRunGet_Interactive_FilterStatusMyRuns(t *testing.T) {
 	env := setupRunGetInteractiveFake(t)
 	console := startRunGetInteractive(t, env)
 
-	_, err := console.ExpectString("abc1234 [main]")
+	_, err := console.ExpectString("[main] abc1234")
 	assert.NilError(t, err)
 
 	switchSeq := "\x1b[Z" // shift+tab (CSI Z)
@@ -998,11 +1039,11 @@ func TestRunGet_Interactive_FilterStatusMyRuns(t *testing.T) {
 	// main → all branches → my runs.
 	_, err = console.Send(switchSeq)
 	assert.NilError(t, err)
-	_, err = console.ExpectString("facefee [feature]")
+	_, err = console.ExpectString("[feature] facefee")
 	assert.NilError(t, err)
 	_, err = console.Send(switchSeq)
 	assert.NilError(t, err)
-	_, err = console.ExpectString("cafed00 [testorg/testrepo:mine]")
+	_, err = console.ExpectString("[testorg/testrepo:mine] cafed00")
 	assert.NilError(t, err)
 
 	// my runs, all statuses → canceled: the one user run succeeded, so the
@@ -1218,6 +1259,12 @@ func TestRunList_JSON(t *testing.T) {
 	assert.Check(t, cmp.Equal(out[0]["current_outcome"], "succeeded"))
 	assert.Check(t, cmp.Equal(out[1]["current_outcome"], "failed"))
 
+	// The JSON carries the full commit detail (the markdown shows only the subject).
+	commit := out[0]["commit"].(map[string]any)
+	assert.Check(t, cmp.Equal(commit["subject"], "Fix the widget"))
+	assert.Check(t, cmp.Equal(commit["author_name"], "Ada Lovelace"))
+	assert.Check(t, cmp.Equal(commit["author_login"], "ada"))
+
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".json"))
 }
 
@@ -1290,7 +1337,7 @@ func TestRunTrigger(t *testing.T) {
 			URL:    url.URL{Path: "/api/v2/project/" + slug + "/pipeline"},
 			Header: http.Header{
 				"Authorization": {"Bearer test-token"},
-				"User-Agent":    {apiclient.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
+				"User-Agent":    {httpcl.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
 			},
 			Body: new(`{"branch":"main"}`),
 		}, ignoreCommonHeaders))
@@ -1466,7 +1513,7 @@ func TestRunCancel(t *testing.T) {
 			URL:    url.URL{Path: "/api/v3/workflows/" + wfID + "/cancel"},
 			Header: http.Header{
 				"Authorization": {"Bearer test-token"},
-				"User-Agent":    {apiclient.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
+				"User-Agent":    {httpcl.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
 			},
 			Body: new(""),
 		}, ignoreCommonHeaders))
