@@ -1,0 +1,3 @@
+Note: once published, orbs cannot be deleted.
+Downloading orb project template into my-orb
+✓ Orb template extracted to my-orb

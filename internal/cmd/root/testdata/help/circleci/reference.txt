@@ -948,6 +948,25 @@ An orb can be specified by name or ID:
 - By name, for example, `namespace/orb-name`, optionally with a version, for example, `namespace/orb-name@1.2.3`
 - By ID, the orb ID (UUID), for example, `849e7902-802f-4082-8a70-da77dcd084e3`
 
+#### `circleci orb init <path> [flags]`
+
+Initialize a new orb project
+
+| Flag              | Description                                                                               |
+| ----------------- | ----------------------------------------------------------------------------------------- |
+| `--branch string` | primary git branch to track (default "main")                                              |
+| `--org string`    | Organization slug (e.g. gh/myorg) or UUID to own the orb namespace and publishing context |
+| `--private`       | initialize a private orb                                                                  |
+| `--remote string` | remote git repository URL (required for git setup when non-interactive)                   |
+| `--skip-git`      | skip local git repository setup                                                           |
+| `--template-only` | download the template only; skip all setup                                                |
+
+
+**Arguments:**
+
+- `<path>` is the directory to scaffold the orb project into. It is
+  created if it does not exist.
+
 #### `circleci orb list [<namespace>] [flags]`
 
 List orbs in the registry
@@ -1176,6 +1195,29 @@ Show diff between local and remote policy bundles
 for example, "./policies". Its contents are compared against the remote
 policy bundle.
 
+#### `circleci policy eval <policy-path> [flags]`
+
+Evaluate a raw OPA query against policies locally
+
+| Flag                           | Description                                                                                  |
+| ------------------------------ | -------------------------------------------------------------------------------------------- |
+| `--context string`             | Policy context (config compilation only runs when this is "config") (default "config")       |
+| `--input string`               | Path to input file (e.g. .circleci/config.yml) (required)                                    |
+| `--jq string`                  | Process values from the response using jq syntax                                             |
+| `--json`                       | Output as JSON                                                                               |
+| `--meta string`                | Decision metadata as a JSON string                                                           |
+| `--metafile string`            | Path to decision metadata file (YAML or JSON)                                                |
+| `--no-compile`                 | Evaluate the raw config without compiling it first                                           |
+| `--org string`                 | Organization slug (e.g. gh/myorg) or UUID for private orb resolution; defaults to git remote |
+| `--pipeline-parameters string` | Pipeline parameters as a YAML map or path to a YAML file                                     |
+| `--query string`               | The OPA query to evaluate (default "data")                                                   |
+
+
+**Arguments:**
+
+`<policy-path>` is the path to a .rego policy file or a directory
+of policy files to evaluate.
+
 #### `circleci policy fetch [policy-name] [flags]`
 
 Download the remote policy bundle
@@ -1264,6 +1306,26 @@ Update policy enforcement settings
 | `--org string`            | Organization slug (e.g. gh/myorg) or UUID (required) |
 | `--policy-context string` | Policy context (default "config")                    |
 
+
+#### `circleci policy test <path> [flags]`
+
+Run policy tests
+
+| Flag           | Description                                                                                                       |
+| -------------- | ----------------------------------------------------------------------------------------------------------------- |
+| `--all`        | Show all tests, not just failures                                                                                 |
+| `--explain`    | Print each test's full evaluation context (implies --all)                                                         |
+| `--jq string`  | Process values from the response using jq syntax                                                                  |
+| `--json`       | Output as JSON                                                                                                    |
+| `--junit`      | Output results as JUnit XML                                                                                       |
+| `--org string` | Organization slug (e.g. gh/myorg) or UUID for private orb resolution when a test compiles; defaults to git remote |
+| `--run string` | Only run tests whose name matches this regexp                                                                     |
+
+
+**Arguments:**
+
+`<path>` is a directory of policies and tests. Append `/...`
+to discover tests recursively in every subdirectory.
 
 ### `circleci project <command>`
 

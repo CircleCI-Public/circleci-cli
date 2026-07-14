@@ -16,6 +16,7 @@ Use 'circleci namespace' to manage namespaces before publishing orbs.
 | Command           | Description                                        |
 | ----------------- | -------------------------------------------------- |
 | `create`          | Reserve an orb name in a namespace                 |
+| `init`            | Initialize a new orb project                       |
 | `list`            | List orbs in the registry                          |
 | `list-categories` | List orb registry categories                       |
 | `pack`            | Pack a multi-file orb directory into a single YAML |

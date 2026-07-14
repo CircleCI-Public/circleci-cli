@@ -55,6 +55,7 @@ func NewOrbCmd() *cobra.Command {
 	}
 
 	cmdutil.AddGroup(cmd, "General commands",
+		newInitCmd(),
 		newCreateCmd(),
 		newListCmd(),
 		newListCategoriesCmd(),
