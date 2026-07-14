@@ -37,6 +37,7 @@
               <li role="option"
                   tabindex="-1"
                   data-cmd="brew install circleci-public/circleci/circleci@next"
+                  data-platform="macos"
                   aria-selected="true">
                 macOS — Homebrew
               </li>
@@ -44,6 +45,7 @@
               <li role="option"
                   tabindex="-1"
                   data-cmd="winget install --id CircleCI.CLI.Preview"
+                  data-platform="windows"
                   aria-selected="false">
                 Windows — WinGet
               </li>
@@ -54,6 +56,7 @@
   'https://packages.circleci.com/public/setup.deb.sh' \
   | sudo -E bash"
                   data-cmd2="sudo apt install circleci"
+                  data-platform="linux"
                   aria-selected="false">
                 Linux — apt (Debian, Ubuntu, Mint, Raspberry Pi)
               </li>
@@ -204,11 +207,17 @@
       if (returnFocus) btn.focus();
     }
 
-    function select(opt) {
+    // Apply an option as the current selection: aria state, button label, and
+    // the Install command bars. Does not open or close the menu.
+    function setSelection(opt) {
       opts().forEach(function (el) { el.setAttribute('aria-selected', 'false'); });
       opt.setAttribute('aria-selected', 'true');
       lbl.textContent = opt.textContent.trim();
       applyCmds(opt);
+    }
+
+    function select(opt) {
+      setSelection(opt);
       close(true);
     }
 
@@ -242,9 +251,27 @@
       if (e.key === 'Escape' && !menu.hidden) close(true);
     });
 
-    // Sync the Install section with the initially-selected option on load.
-    var initial = menu.querySelector('[aria-selected="true"]') || opts()[0];
-    if (initial) applyCmds(initial);
+    // Detect the visitor's OS to pre-select a sensible install method. Prefers
+    // the modern User-Agent Client Hints API (navigator.userAgentData.platform,
+    // Chromium only), falling back to the deprecated navigator.platform and then
+    // userAgent for Safari/Firefox. Returns 'macos' | 'windows' | 'linux' | null.
+    function detectPlatform() {
+      var hint = (navigator.userAgentData && navigator.userAgentData.platform) || '';
+      var s = (hint || navigator.platform || navigator.userAgent || '').toLowerCase();
+      if (/android|iphone|ipad|ipod/.test(s)) return null; // no CLI on mobile
+      if (s.indexOf('mac') !== -1) return 'macos';
+      if (s.indexOf('win') !== -1) return 'windows';
+      if (s.indexOf('linux') !== -1 || s.indexOf('x11') !== -1) return 'linux';
+      return null;
+    }
+
+    // Pre-select the option matching the visitor's OS; fall back to the HTML
+    // default (macOS) when the platform is unknown or unsupported. Runs on load.
+    var plat    = detectPlatform();
+    var initial = (plat && menu.querySelector('[data-platform="' + plat + '"]'))
+               || menu.querySelector('[aria-selected="true"]')
+               || opts()[0];
+    if (initial) setSelection(initial);
   })();
 
   document.querySelectorAll('.copy-btn').forEach(function (btn) {
