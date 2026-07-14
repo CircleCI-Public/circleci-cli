@@ -24,12 +24,9 @@ package cmdconfig
 
 import (
 	"fmt"
-	"os"
-	"strings"
 
 	"github.com/MakeNowJust/heredoc"
 	"github.com/spf13/cobra"
-	"gopkg.in/yaml.v3"
 
 	"github.com/CircleCI-Public/circleci-cli/internal/cmdutil"
 	"github.com/CircleCI-Public/circleci-cli/internal/configcmd"
@@ -137,30 +134,5 @@ func newProcessCmd() *cobra.Command {
 // parsePipelineParams parses pipeline parameters from either a YAML/JSON string
 // or a file path. File is tried first; if not found, the value is parsed as inline YAML.
 func parsePipelineParams(input string) (map[string]any, error) {
-	if input == "" {
-		return nil, nil
-	}
-
-	// Try as file first; only fall through to inline parsing when the path does not exist.
-	b, fileErr := os.ReadFile(input) //#nosec:G304 // input is a user-supplied --pipeline-parameters flag value
-	if fileErr != nil && !os.IsNotExist(fileErr) {
-		return nil, fmt.Errorf("reading parameter file: %w", fileErr)
-	}
-	if fileErr == nil {
-		var params map[string]any
-		if err := yaml.Unmarshal(b, &params); err != nil {
-			return nil, fmt.Errorf("parsing parameter file: %w", err)
-		}
-		return params, nil
-	}
-
-	// Fall back to inline YAML/JSON.
-	var params map[string]any
-	if err := yaml.Unmarshal([]byte(input), &params); err != nil {
-		return nil, fmt.Errorf("parsing inline parameters: %w", err)
-	}
-	if params == nil && strings.TrimSpace(input) != "" {
-		return nil, fmt.Errorf("parameters must be a YAML map")
-	}
-	return params, nil
+	return configcmd.ParsePipelineParams(input)
 }

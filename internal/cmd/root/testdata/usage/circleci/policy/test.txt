@@ -1,0 +1,11 @@
+Usage:  circleci policy test <path> [flags]
+
+Flags:
+  --all          Show all tests, not just failures
+  --explain      Print each test's full evaluation context (implies --all)
+  --jq string    Process values from the response using jq syntax
+  --json         Output as JSON
+  --junit        Output results as JUnit XML
+  --org string   Organization slug (e.g. gh/myorg) or UUID for private orb resolution when a test compiles; defaults to git remote
+  --run string   Only run tests whose name matches this regexp
+  

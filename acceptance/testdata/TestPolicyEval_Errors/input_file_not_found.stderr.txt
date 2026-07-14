@@ -1,0 +1,4 @@
+error: open <DIR>/no_such.yml: no such file or directory
+
+Suggestions:
+  • Check that the file exists and is readable

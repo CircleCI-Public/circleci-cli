@@ -16,10 +16,12 @@ Find it at: https://app.circleci.com/settings/organization
 
 ## General Commands
 
-| Command  | Description                               |
-| -------- | ----------------------------------------- |
-| `decide` | Evaluate a config against remote policies |
-| `push`   | Push a policy bundle to CircleCI          |
+| Command  | Description                                       |
+| -------- | ------------------------------------------------- |
+| `decide` | Evaluate a config against remote policies         |
+| `eval`   | Evaluate a raw OPA query against policies locally |
+| `push`   | Push a policy bundle to CircleCI                  |
+| `test`   | Run policy tests                                  |
 
 ## Targeted Commands
 

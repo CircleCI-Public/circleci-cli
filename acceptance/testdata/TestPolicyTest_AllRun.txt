@@ -1,0 +1,7 @@
+# Policy tests
+
+| Result | Test      | Time (s) |
+| ------ | --------- | -------- |
+| ok     | test_main | <T>    |
+
+**1/1 tests passed** (<T>s)

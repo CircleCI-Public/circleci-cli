@@ -1,0 +1,4 @@
+error: failed to walk root: lstat <DIR>/no_such.rego: no such file or directory
+
+Suggestions:
+  • Check that the policy files are valid Rego

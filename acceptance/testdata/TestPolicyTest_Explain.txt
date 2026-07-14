@@ -1,0 +1,50 @@
+# Policy tests
+
+| Result | Test         | Time (s) |
+| ------ | ------------ | -------- |
+| ok     | test_feature | <T>    |
+| ok     | test_main    | <T>    |
+
+### Debug Test Context: test_feature
+
+```yaml
+decision:
+    enabled_rules:
+        - fail_if_not_main
+    soft_failures:
+        - reason: branch must be main!
+          rule: fail_if_not_main
+    status: SOFT_FAIL
+evaluation:
+    meta:
+        vcs:
+            branch: feature
+    org:
+        enable_rule:
+            - fail_if_not_main
+        fail_if_not_main: branch must be main!
+        policy_name:
+            - test
+input: null
+```
+
+### Debug Test Context: test_main
+
+```yaml
+decision:
+    enabled_rules:
+        - fail_if_not_main
+    status: PASS
+evaluation:
+    meta:
+        vcs:
+            branch: main
+    org:
+        enable_rule:
+            - fail_if_not_main
+        policy_name:
+            - test
+input: null
+```
+
+**2/2 tests passed** (<T>s)

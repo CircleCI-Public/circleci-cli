@@ -24,6 +24,7 @@ package policy
 
 import (
 	"context"
+	"encoding/json"
 
 	"github.com/MakeNowJust/heredoc"
 	"github.com/spf13/cobra"
@@ -94,8 +95,14 @@ func newFetchCmd() *cobra.Command {
 	return cmd
 }
 
-func runFetch(ctx context.Context, client *apiclient.Client, ownerID, policyCtx, policyName string, jsonOut bool) error {
-	bundle, err := client.FetchPolicyBundle(ctx, ownerID, policyCtx, policyName)
+func runFetch(ctx context.Context, client *apiclient.Client, ownerID, policyCtx, policyName string, jsonOut bool) (err error) {
+	var bundle json.RawMessage
+	if policyName == "" {
+		bundle, err = client.FetchPolicyBundle(ctx, ownerID, policyCtx)
+	} else {
+		bundle, err = client.FetchPolicyBundleWithName(ctx, ownerID, policyCtx, policyName)
+	}
+
 	if err != nil {
 		return policyAPIErr(err, ownerID)
 	}

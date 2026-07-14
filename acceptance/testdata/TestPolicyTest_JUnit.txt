@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites name="root" tests="2" failures="0" errors="0" time="<T>">
+	<testsuite tests="2" failures="0" time="<T>" name="<DIR>" timestamp="<TS>">
+		<properties></properties>
+		<testcase classname="<DIR>" name="test_feature" time="<T>"></testcase>
+		<testcase classname="<DIR>" name="test_main" time="<T>"></testcase>
+	</testsuite>
+</testsuites>
