@@ -1,0 +1,10 @@
+Usage:  circleci orb init <path> [flags]
+
+Flags:
+  --branch string   primary git branch to track (default "main")
+  --org string      Organization slug (e.g. gh/myorg) or UUID to own the orb namespace and publishing context
+  --private         initialize a private orb
+  --remote string   remote git repository URL (required for git setup when non-interactive)
+  --skip-git        skip local git repository setup
+  --template-only   download the template only; skip all setup
+  

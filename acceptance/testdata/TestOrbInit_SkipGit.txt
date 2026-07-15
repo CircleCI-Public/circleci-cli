@@ -1,0 +1,6 @@
+Note: once published, orbs cannot be deleted.
+Downloading orb project template into my-orb
+✓ Created orb "myorg/my-orb"
+✓ Orb myorg/my-orb is ready.
+Once the first version is published it will appear at: https://circleci.com/developer/orbs/orb/myorg/my-orb
+Orb authoring guide: https://circleci.com/docs/orbs/author/orb-author/

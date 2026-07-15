@@ -5,6 +5,7 @@ Available commands:
   create
   diff
   get
+  init
   list
   list-categories
   pack

@@ -1,0 +1,1 @@
+error: Pass --org <vcs>/<org> to run orb init non-interactively.

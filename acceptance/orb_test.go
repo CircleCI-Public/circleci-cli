@@ -23,7 +23,10 @@
 package acceptance_test
 
 import (
+	"archive/zip"
+	"bytes"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/url"
 	"os"
@@ -747,4 +750,211 @@ func TestOrbDiff_SameVersion(t *testing.T) {
 	assert.Check(t, cmp.Equal(result.ExitCode, 0))
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
 	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+}
+
+// --- orb init ---
+
+// orbTemplateFiles are the files the fake orb template zip contains. They use
+// the same placeholder tokens as the real CircleCI-Public/Orb-Template so the
+// git-setup path exercises placeholder substitution.
+var orbTemplateFiles = map[string]string{
+	"README.md":                 "# <orb-name>\n\norg: <organization>, project: <project-name>\n**Meta** drop me\n",
+	"LICENSE":                   "MIT License\n",
+	"src/@orb.yml":              "version: 2.1\ndescription: <orb-name> in <namespace>\n",
+	".circleci/config.yml":      "orb: <namespace>/<orb-name>\ncontext: <publishing-context>\n",
+	".circleci/test-deploy.yml": "orb: <namespace>/<orb-name>\n",
+}
+
+// buildOrbTemplateZip returns a zip mimicking a GitHub zipball: every entry is
+// nested under a top-level wrapper directory that the extractor must strip.
+func buildOrbTemplateZip(t *testing.T) []byte {
+	t.Helper()
+	var buf bytes.Buffer
+	zw := zip.NewWriter(&buf)
+	for name, content := range orbTemplateFiles {
+		w, err := zw.Create("Orb-Template-deadbeef/" + name)
+		assert.NilError(t, err)
+		_, err = w.Write([]byte(content))
+		assert.NilError(t, err)
+	}
+	assert.NilError(t, zw.Close())
+	return buf.Bytes()
+}
+
+// registerOrbTemplate serves a fake orb template (tags list + zipball) from the
+// fake server's static-file route and points the CLI at it via env override.
+func registerOrbTemplate(t *testing.T, fake *fakes.CircleCI, env *testenv.TestEnv) {
+	t.Helper()
+	zipURL := fake.URL() + "/artifacts/orb-template/orb.zip"
+	tags := []map[string]string{
+		{"name": "nightly", "zipball_url": zipURL},
+		{"name": "v1.2.3", "zipball_url": zipURL},
+	}
+	tagsJSON, err := json.Marshal(tags)
+	assert.NilError(t, err)
+
+	fake.AddStaticFile("/artifacts/orb-template/tags", string(tagsJSON))
+	fake.AddStaticFile("/artifacts/orb-template/orb.zip", string(buildOrbTemplateZip(t)))
+	env.Extra["CIRCLE_ORB_TEMPLATE_URL"] = fake.URL() + "/artifacts/orb-template/tags"
+}
+
+// A relative <path> keeps stdout deterministic (no temp-dir prefix) so the
+// output can be compared against a golden file. Files are read back from
+// <workDir>/<orbDir>.
+const orbInitDir = "my-orb"
+
+func TestOrbInit_TemplateOnly(t *testing.T) {
+	fake, env := setupOrbFake(t)
+	registerOrbTemplate(t, fake, env)
+
+	workDir := t.TempDir()
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"orb", "init", orbInitDir, "--template-only"},
+		Env:     env.Environ(),
+		WorkDir: workDir,
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+
+	// The wrapper directory is stripped: files land directly in the orb dir.
+	// Because --template-only was used, placeholders are left untouched.
+	orbDir := filepath.Join(workDir, orbInitDir)
+	readme, err := os.ReadFile(filepath.Join(orbDir, "README.md"))
+	assert.NilError(t, err)
+	assert.Check(t, cmp.Contains(string(readme), "<orb-name>"))
+	_, err = os.Stat(filepath.Join(orbDir, "src", "@orb.yml"))
+	assert.NilError(t, err)
+	// A public template keeps its LICENSE.
+	_, err = os.Stat(filepath.Join(orbDir, "LICENSE"))
+	assert.NilError(t, err)
+}
+
+func TestOrbInit_TemplateOnly_Private(t *testing.T) {
+	fake, env := setupOrbFake(t)
+	registerOrbTemplate(t, fake, env)
+
+	workDir := t.TempDir()
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"orb", "init", orbInitDir, "--template-only", "--private"},
+		Env:     env.Environ(),
+		WorkDir: workDir,
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+
+	// A private orb has its MIT LICENSE removed.
+	_, err := os.Stat(filepath.Join(workDir, orbInitDir, "LICENSE"))
+	assert.Check(t, os.IsNotExist(err))
+}
+
+func TestOrbInit_MissingArg(t *testing.T) {
+	_, env := setupOrbFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"orb", "init"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Check(t, result.ExitCode != 0)
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+}
+
+func TestOrbInit_RequiresOrgWhenNonInteractive(t *testing.T) {
+	fake, env := setupOrbFake(t)
+	registerOrbTemplate(t, fake, env)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary: binaryPath,
+		// No --org and no TTY: setup cannot proceed.
+		Args:    []string{"orb", "init", orbInitDir, "--skip-git"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Check(t, result.ExitCode != 0)
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+}
+
+func TestOrbInit_SkipGit(t *testing.T) {
+	fake, env := setupOrbFake(t) // registers namespace "myorg"
+	registerOrbTemplate(t, fake, env)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"orb", "init", orbInitDir, "--org", "gh/myorg", "--skip-git"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+
+	// The orb was reserved via the create-package endpoint.
+	var created bool
+	for _, req := range fake.AllRequests() {
+		if req.Method == http.MethodPost && req.URL.Path == "/api/v3/orb/packages" {
+			created = true
+		}
+	}
+	assert.Check(t, created, "expected a POST to /api/v3/orb/packages")
+}
+
+func TestOrbInit_Git(t *testing.T) {
+	fake, env := setupOrbFake(t)
+	registerOrbTemplate(t, fake, env)
+	// Provide a git identity so the initial commit succeeds deterministically.
+	env.Extra["GIT_AUTHOR_NAME"] = "Test"
+	env.Extra["GIT_AUTHOR_EMAIL"] = "test@example.com"
+	env.Extra["GIT_COMMITTER_NAME"] = "Test"
+	env.Extra["GIT_COMMITTER_EMAIL"] = "test@example.com"
+
+	workDir := t.TempDir()
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary: binaryPath,
+		Args: []string{
+			"orb", "init", orbInitDir,
+			"--org", "gh/myorg",
+			"--remote", "https://github.com/myorg/my-orb.git",
+			"--branch", "main",
+		},
+		Env:     env.Environ(),
+		WorkDir: workDir,
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+
+	// A local git repository was initialized.
+	orbDir := filepath.Join(workDir, orbInitDir)
+	_, err := os.Stat(filepath.Join(orbDir, ".git"))
+	assert.NilError(t, err)
+
+	// Template placeholders were substituted in the generated config.
+	cfg, err := os.ReadFile(filepath.Join(orbDir, ".circleci", "config.yml"))
+	assert.NilError(t, err)
+	assert.Check(t, cmp.Contains(string(cfg), "myorg/my-orb"))
+	assert.Check(t, !bytes.Contains(cfg, []byte("<orb-name>")))
+
+	// A dev:alpha version was published and the project was followed.
+	var published, followed bool
+	for _, req := range fake.AllRequests() {
+		if req.Method == http.MethodPost && req.URL.Path == "/api/v3/orb/versions" {
+			published = true
+		}
+		if req.Method == http.MethodPost && req.URL.Path == fmt.Sprintf("/api/v1.1/project/%s/%s/%s/follow", "gh", "myorg", "my-orb") {
+			followed = true
+		}
+	}
+	assert.Check(t, published, "expected a POST to /api/v3/orb/versions")
+	assert.Check(t, followed, "expected a follow request")
 }

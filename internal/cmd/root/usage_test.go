@@ -105,7 +105,11 @@ func testSubCommandUsage(t *testing.T, prefix string, parent *cobra.Command, bas
 
 		assert.Check(t, golden.String(usageString, path.Join(baseDir, fmt.Sprintf("%s.txt", prefix))))
 		for _, cmd := range parent.Commands() {
-			if cmd.Hidden {
+			// Skip hidden commands (e.g. man, mcp) whose output is
+			// nondeterministic — except the "reference" help topic, whose
+			// golden is the full command reference and must stay in sync as
+			// commands are added.
+			if cmd.Hidden && cmd.Name() != "reference" {
 				continue
 			}
 			testSubCommandUsage(t, path.Join(prefix, cmd.Name()), cmd, baseDir, f)

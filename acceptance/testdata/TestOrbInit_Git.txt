@@ -1,0 +1,13 @@
+Note: once published, orbs cannot be deleted.
+Downloading orb project template into my-orb
+✓ Created orb "myorg/my-orb"
+Setting up your orb...
+✓ Published myorg/my-orb@dev:alpha
+
+An initial commit has been created. Push it with:
+  git branch -M main
+  git push origin main
+✓ Project followed on CircleCI
+✓ Your orb project is set up. You are now on the alpha branch.
+Once the first version is published it will appear at: https://circleci.com/developer/orbs/orb/myorg/my-orb
+Orb authoring guide: https://circleci.com/docs/orbs/author/orb-author/
