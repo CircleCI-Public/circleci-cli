@@ -523,10 +523,10 @@ func (f *CircleCI) AddJobStdout(id string, execution, stepNum int, content []byt
 
 // AddJobStdoutCondensed registers the condensed stdout for a step, served at
 // GET /api/v3/jobs/<id>/stdout/condensed?filter[execution]=<execution>&filter[step_num]=<stepNum>.
-func (f *CircleCI) AddJobStdoutCondensed(id string, execution, stepNum int, condensed string) {
+func (f *CircleCI) AddJobStdoutCondensed(id string, execution, stepNum int, content []byte) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	f.jobStdoutCondensed[fmt.Sprintf("%s/%d/%d", id, execution, stepNum)] = []byte(condensed)
+	f.jobStdoutCondensed[fmt.Sprintf("%s/%d/%d", id, execution, stepNum)] = content
 }
 
 // AddJobStderr registers plain-text stderr for a step, served at

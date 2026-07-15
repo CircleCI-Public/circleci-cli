@@ -36,7 +36,7 @@ import (
 
 func TestJobOutputGetCondensed(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
-	fake.AddJobStdoutCondensed(testJobID, 0, 103, "FAIL: TestSomething\nexit status 1\n")
+	fake.AddJobStdoutCondensed(testJobID, 0, 103, []byte("FAIL: TestSomething\nexit status 1\n"))
 
 	env := testenv.New(t)
 	env.Token = "testtoken"
@@ -56,7 +56,7 @@ func TestJobOutputGetCondensed(t *testing.T) {
 
 func TestJobOutputGetCondensed_Execution(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
-	fake.AddJobStdoutCondensed(testJobID, 1, 103, "execution 1 condensed output\n")
+	fake.AddJobStdoutCondensed(testJobID, 1, 103, []byte("execution 1 condensed output\n"))
 
 	env := testenv.New(t)
 	env.Token = "testtoken"
@@ -94,10 +94,11 @@ func TestJobOutputGetCondensed_MissingStepNum(t *testing.T) {
 }
 
 func TestJobOutputGetCondensed_InvalidJobID(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+
 	env := testenv.New(t)
 	env.Token = "testtoken"
-	env.CircleCIURL = "https://circleci.com" // never reached
-
+	env.CircleCIURL = fake.URL()
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
 		Args:    []string{"job", "output", "get", "not-a-uuid", "--step-num", "1", "--condensed"},
