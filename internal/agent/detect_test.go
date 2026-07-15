@@ -120,10 +120,46 @@ func TestDetect(t *testing.T) {
 			env:       map[string]string{"AI_AGENT": "bad agent", "GEMINI_CLI": "1"},
 			wantAgent: "gemini-cli",
 		},
+		{
+			name:      "CIRCLECI_MCP alone produces mcp",
+			env:       map[string]string{"CIRCLECI_MCP": "1"},
+			wantAgent: "mcp",
+		},
+		{
+			name:      "CIRCLECI_MCP with CLAUDECODE produces mcp/claude-code",
+			env:       map[string]string{"CIRCLECI_MCP": "1", "CLAUDECODE": "1"},
+			wantAgent: "mcp/claude-code",
+		},
+		{
+			name:      "CIRCLECI_MCP with AGENT=amp produces mcp/amp",
+			env:       map[string]string{"CIRCLECI_MCP": "1", "AGENT": "amp"},
+			wantAgent: "mcp/amp",
+		},
+		{
+			name:      "CIRCLECI_MCP with GEMINI_CLI produces mcp/gemini-cli",
+			env:       map[string]string{"CIRCLECI_MCP": "1", "GEMINI_CLI": "1"},
+			wantAgent: "mcp/gemini-cli",
+		},
+		{
+			name:      "AI_AGENT takes priority over CIRCLECI_MCP composite",
+			env:       map[string]string{"CIRCLECI_MCP": "1", "CLAUDECODE": "1", "AI_AGENT": "custom"},
+			wantAgent: "custom",
+		},
+	}
+
+	// All env vars that Detect() inspects — must be cleared before each case
+	// so ambient vars (e.g. CLAUDECODE=1 from Claude Code) don't leak through.
+	allDetectionVars := []string{
+		"AI_AGENT", "AGENT", "CIRCLECI_MCP",
+		"CODEX_SANDBOX", "CODEX_CI", "CODEX_THREAD_ID",
+		"GEMINI_CLI", "COPILOT_CLI", "OPENCODE", "CLAUDECODE",
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			for _, k := range allDetectionVars {
+				t.Setenv(k, "")
+			}
 			for k, v := range tt.env {
 				t.Setenv(k, v)
 			}
