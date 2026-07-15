@@ -935,7 +935,7 @@ a:hover {
 .content h4,
 .content h5,
 .content h6 {
-  scroll-margin-top: 1rem;
+  scroll-margin-top: calc(var(--nav-height) + 1rem);
   font-family: var(--font-mono);
   line-height: 1.25;
   /* The base reset zeroes heading weight to inherit (400); restore a semibold
