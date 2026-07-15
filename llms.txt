@@ -1077,6 +1077,25 @@ An orb can be specified by name or ID:
 - By name, for example, `namespace/orb-name`, optionally with a version, for example, `namespace/orb-name@1.2.3`
 - By ID, the orb ID (UUID), for example, `849e7902-802f-4082-8a70-da77dcd084e3`
 
+#### `circleci orb init <path> [flags]`
+
+Initialize a new orb project
+
+| Flag              | Description                                                                               |
+| ----------------- | ----------------------------------------------------------------------------------------- |
+| `--branch string` | primary git branch to track (default "main")                                              |
+| `--org string`    | Organization slug (e.g. gh/myorg) or UUID to own the orb namespace and publishing context |
+| `--private`       | initialize a private orb                                                                  |
+| `--remote string` | remote git repository URL (required for git setup when non-interactive)                   |
+| `--skip-git`      | skip local git repository setup                                                           |
+| `--template-only` | download the template only; skip all setup                                                |
+
+
+**Arguments:**
+
+- `<path>` is the directory to scaffold the orb project into. It is
+  created if it does not exist.
+
 #### `circleci orb list [<namespace>] [flags]`
 
 List orbs in the registry
