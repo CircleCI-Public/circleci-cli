@@ -42,10 +42,6 @@ Cobra alias string. Four levels must never occur — restructure or alias down t
 Examples are "by far the most-read section of help text." Use `github.com/MakeNowJust/heredoc`
 for all multi-line strings. No blank `Long` descriptions.
 
-**7. Telemetry must be disclosed, opt-out, and auto-disabled in CI.**
-On first run, print a one-time notice. Respect `CIRCLE_NO_TELEMETRY`, `NO_ANALYTICS`,
-`DO_NOT_TRACK`. When `CI=true` is set, skip the notice and disable telemetry automatically.
-
 ---
 
 ## Design guidelines
