@@ -23,6 +23,7 @@
 package agent
 
 import (
+	"fmt"
 	"os"
 	"regexp"
 )
@@ -33,6 +34,7 @@ const (
 	agentCodex      = "codex"
 	agentCopilotCLI = "copilot-cli"
 	agentGeminiCLI  = "gemini-cli"
+	agentMCP        = "mcp"
 	agentOpencode   = "opencode"
 )
 
@@ -43,6 +45,27 @@ func Detect() string {
 		}
 	}
 
+	mcp := isMCP()
+	underlying := detectUnderlying()
+
+	if mcp && underlying != "" {
+		return fmt.Sprintf("%s/%s", agentMCP, underlying)
+	}
+	if mcp {
+		return agentMCP
+	}
+	return underlying
+}
+
+// isMCP reports whether the CLI is running as a subprocess of the MCP server.
+func isMCP() bool {
+	v, ok := os.LookupEnv("CIRCLE_MCP")
+	return ok && v != ""
+}
+
+// detectUnderlying returns the coding agent name based on well-known environment
+// variables, without considering the MCP context.
+func detectUnderlying() string {
 	// Check AGENT=amp before the more generic CLAUDECODE=1 since Amp sets both.
 	if v, ok := os.LookupEnv("AGENT"); ok && v == "amp" {
 		return agentAmp
