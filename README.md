@@ -2,7 +2,7 @@
 
 > **Preview release** — this branch (`main`) tracks the new CLI rewrite. It is under
 > active development and not yet stable. For the current stable CLI, see
-> [stable installation](#stable-installation).
+> [stable installation](#previous-stable-version).
 
 This is CircleCI's command-line application.
 
