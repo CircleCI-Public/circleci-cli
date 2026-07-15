@@ -121,28 +121,28 @@ func TestDetect(t *testing.T) {
 			wantAgent: "gemini-cli",
 		},
 		{
-			name:      "CIRCLECI_MCP alone produces mcp",
-			env:       map[string]string{"CIRCLECI_MCP": "1"},
+			name:      "CIRCLE_MCP alone produces mcp",
+			env:       map[string]string{"CIRCLE_MCP": "1"},
 			wantAgent: "mcp",
 		},
 		{
-			name:      "CIRCLECI_MCP with CLAUDECODE produces mcp/claude-code",
-			env:       map[string]string{"CIRCLECI_MCP": "1", "CLAUDECODE": "1"},
+			name:      "CIRCLE_MCP with CLAUDECODE produces mcp/claude-code",
+			env:       map[string]string{"CIRCLE_MCP": "1", "CLAUDECODE": "1"},
 			wantAgent: "mcp/claude-code",
 		},
 		{
-			name:      "CIRCLECI_MCP with AGENT=amp produces mcp/amp",
-			env:       map[string]string{"CIRCLECI_MCP": "1", "AGENT": "amp"},
+			name:      "CIRCLE_MCP with AGENT=amp produces mcp/amp",
+			env:       map[string]string{"CIRCLE_MCP": "1", "AGENT": "amp"},
 			wantAgent: "mcp/amp",
 		},
 		{
-			name:      "CIRCLECI_MCP with GEMINI_CLI produces mcp/gemini-cli",
-			env:       map[string]string{"CIRCLECI_MCP": "1", "GEMINI_CLI": "1"},
+			name:      "CIRCLE_MCP with GEMINI_CLI produces mcp/gemini-cli",
+			env:       map[string]string{"CIRCLE_MCP": "1", "GEMINI_CLI": "1"},
 			wantAgent: "mcp/gemini-cli",
 		},
 		{
-			name:      "AI_AGENT takes priority over CIRCLECI_MCP composite",
-			env:       map[string]string{"CIRCLECI_MCP": "1", "CLAUDECODE": "1", "AI_AGENT": "custom"},
+			name:      "AI_AGENT takes priority over CIRCLE_MCP composite",
+			env:       map[string]string{"CIRCLE_MCP": "1", "CLAUDECODE": "1", "AI_AGENT": "custom"},
 			wantAgent: "custom",
 		},
 	}
@@ -150,7 +150,7 @@ func TestDetect(t *testing.T) {
 	// All env vars that Detect() inspects — must be cleared before each case
 	// so ambient vars (e.g. CLAUDECODE=1 from Claude Code) don't leak through.
 	allDetectionVars := []string{
-		"AI_AGENT", "AGENT", "CIRCLECI_MCP",
+		"AI_AGENT", "AGENT", "CIRCLE_MCP",
 		"CODEX_SANDBOX", "CODEX_CI", "CODEX_THREAD_ID",
 		"GEMINI_CLI", "COPILOT_CLI", "OPENCODE", "CLAUDECODE",
 	}

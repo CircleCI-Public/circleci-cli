@@ -59,7 +59,7 @@ func Detect() string {
 
 // isMCP reports whether the CLI is running as a subprocess of the MCP server.
 func isMCP() bool {
-	v, ok := os.LookupEnv("CIRCLECI_MCP")
+	v, ok := os.LookupEnv("CIRCLE_MCP")
 	return ok && v != ""
 }
 

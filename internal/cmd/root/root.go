@@ -248,13 +248,13 @@ func NewRootCmd(version string) *cobra.Command {
 	// Wire in MCP commands. ophis sets its own terse Short; override it so the
 	// root command table explains what the command actually does.
 	//
-	// DefaultEnv injects CIRCLECI_MCP=1 into the editor config that ophis writes
+	// DefaultEnv injects CIRCLE_MCP=1 into the editor config that ophis writes
 	// (e.g. claude_desktop_config.json). The MCP host passes it to the server
 	// process, which inherits it into every subprocess spawned per tool call.
 	// agent.Detect() then produces "mcp/<agent>" instead of just "<agent>".
 	mcpCmd := ophis.Command(&ophis.Config{
 		DefaultEnv: map[string]string{
-			"CIRCLECI_MCP": "1",
+			"CIRCLE_MCP": "1",
 		},
 	})
 	mcpCmd.Short = "Run the CLI as an MCP server for AI tools"
