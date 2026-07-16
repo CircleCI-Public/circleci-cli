@@ -65,18 +65,18 @@ var helpTopics = []helpTopic{
 			## Model Context Protocol
 
 			The CLI supports the MCP protocol. To enable it, run:
-			
+
 			Claude:
 			%[1]s%[1]s%[1]sshell
 			circleci mcp claude enable # Enable in Claude desktop
 			claude mcp add-from-claude-desktop -s user # Add with current user scope
 			%[1]s%[1]s%[1]s
-			
+
 			Cursor:
 			%[1]s%[1]s%[1]sshell
 			circleci mcp cursor enable
 			%[1]s%[1]s%[1]s
-			
+
 			VS Code:
 			%[1]s%[1]s%[1]sshell
 			circleci mcp vscode enable
@@ -134,7 +134,7 @@ var helpTopics = []helpTopic{
 			circleci collects telemetry to help us understand how the CLI is being used and to improve it.
 
 			To learn more about what data is collected, how it is used, and how to opt out, see:
-			<https://circleci.com/docs/local-cli>
+			<https://circleci.com/docs/circleci-cli/#telemetry>
 		`),
 	},
 	{
