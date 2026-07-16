@@ -247,19 +247,29 @@ func NewRootCmd(version string) *cobra.Command {
 
 	// Wire in MCP commands. ophis sets its own terse Short; override it so the
 	// root command table explains what the command actually does.
-	//
-	// DefaultEnv injects CIRCLE_MCP=1 into the editor config that ophis writes
-	// (e.g. claude_desktop_config.json). The MCP host passes it to the server
-	// process, which inherits it into every subprocess spawned per tool call.
-	// agent.Detect() then produces "mcp/<agent>" instead of just "<agent>".
-	mcpCmd := ophis.Command(&ophis.Config{
-		DefaultEnv: map[string]string{
-			"CIRCLE_MCP": "1",
-		},
-	})
+	mcpCmd := ophis.Command(nil)
 	mcpCmd.Short = "Run the CLI as an MCP server for AI tools"
 	mcpCmd.GroupID = "user"
 	cmd.AddCommand(mcpCmd)
+
+	// The MCP server (`mcp start` / `mcp stream`) spawns a fresh CLI subprocess
+	// per tool call, and those inherit the server process's environment. Setting
+	// CIRCLE_MCP on the server here — rather than baking it into the editor
+	// config that `mcp <editor> enable` writes to disk — makes agent.Detect()
+	// report "mcp/<agent>" in every tool-call subprocess. Scoped to the server
+	// commands so `mcp <editor> enable` and friends aren't misattributed to MCP.
+	// Wrapping RunE (which spawns the subprocesses) keeps the root bootstrap's
+	// PersistentPreRunE unshadowed.
+	for _, sub := range mcpCmd.Commands() {
+		switch sub.Name() {
+		case "start", "stream":
+			orig := sub.RunE
+			sub.RunE = func(cmd *cobra.Command, args []string) error {
+				_ = os.Setenv("CIRCLE_MCP", "1")
+				return orig(cmd, args)
+			}
+		}
+	}
 
 	// Help topics
 	var referenceCmd *cobra.Command
