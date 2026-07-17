@@ -2099,6 +2099,14 @@ Call the CircleCI REST API directly
 (for example, "projects/{project-id}"). To target
 a different version prefix, include it explicitly, for example, "api/v2/me".
 
+### `circleci env <command>`
+
+Work with environment variables
+
+#### `circleci env subst [string]`
+
+Substitute environment variables in a string
+
 ### `circleci version [flags]`
 
 Print version information

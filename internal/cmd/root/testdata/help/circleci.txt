@@ -58,6 +58,7 @@ Work with CircleCI from the command line.
 | Command   | Description                         |
 | --------- | ----------------------------------- |
 | `api`     | Call the CircleCI REST API directly |
+| `env`     | Work with environment variables     |
 | `version` | Print version information           |
 
 ## Help Topics
