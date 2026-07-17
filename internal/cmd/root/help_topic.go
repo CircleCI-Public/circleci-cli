@@ -134,7 +134,7 @@ var helpTopics = []helpTopic{
 			circleci collects telemetry to help us understand how the CLI is being used and to improve it.
 
 			To learn more about what data is collected, how it is used, and how to opt out, see:
-			<https://circleci.com/docs/circleci-cli/#telemetry>
+			<https://circleci.com/docs/guides/toolkit/circleci-cli/#telemetry>
 		`),
 	},
 	{
