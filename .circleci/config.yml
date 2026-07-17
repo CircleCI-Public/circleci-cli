@@ -34,7 +34,7 @@ executors:
   linux:
     machine:
       image: ubuntu-2604:current
-    resource_class: medium.gen3
+    resource_class: large.gen3
 
   macos:
     macos:
