@@ -24,6 +24,7 @@ package acceptance_test
 
 import (
 	"encoding/json"
+	"fmt"
 	"strings"
 	"testing"
 
@@ -184,6 +185,40 @@ func TestMyRuns_JSON(t *testing.T) {
 	assert.Check(t, cmp.Equal(out[2]["project"], "acme/api"))
 	assert.Check(t, cmp.Equal(out[2]["project_id"], "a0000000-0000-4000-8000-00000000aa02"))
 	assert.Check(t, cmp.Equal(out[2]["current_outcome"], "failed"))
+}
+
+// TestMyRuns_PaginatesMultiPage verifies that my runs transparently paginates
+// when the requested limit exceeds the API's max page size (20). With 25 user
+// runs in the fake and --limit 25, the client must make two requests and return
+// all 25 results — not just the first page of 20.
+func TestMyRuns_PaginatesMultiPage(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	runs := make([]any, 25)
+	for i := range runs {
+		id := fmt.Sprintf("e0000000-0000-4000-8000-%012x", i+1)
+		rev := fmt.Sprintf("%016x", i+1)
+		runs[i] = fakeMyRunV3(id, "a0000000-0000-4000-8000-00000000aa01", "ended", "succeeded",
+			"https://github.com/acme/web", "main", rev, "2026-06-19T10:00:00Z")
+	}
+	fake.SetUserRuns(runs...)
+
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"my", "runs", "--limit", "25", "--json"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	var out []map[string]any
+	assert.NilError(t, json.Unmarshal([]byte(result.Stdout), &out))
+	assert.Check(t, cmp.Len(out, 25), "expected 25 runs across two pages, got %d", len(out))
+	assert.Check(t, cmp.Equal(out[0]["id"], "e0000000-0000-4000-8000-000000000001"))
+	assert.Check(t, cmp.Equal(out[24]["id"], "e0000000-0000-4000-8000-000000000019"))
 }
 
 func TestMyRuns_NoToken(t *testing.T) {
