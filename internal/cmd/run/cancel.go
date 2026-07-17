@@ -55,6 +55,7 @@ func newCancelCmd() *cobra.Command {
 
 				The project is inferred from the git remote unless overridden with %[1]s--project%[1]s.
 			`, "`"),
+			"destructiveHint": "true",
 		},
 		Long: heredoc.Doc(`
 			Cancel a running CircleCI run by number or UUID.

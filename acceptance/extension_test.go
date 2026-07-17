@@ -381,7 +381,7 @@ func TestExtensionRemove(t *testing.T) {
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"extension", "remove", extName},
+		Args:    []string{"extension", "remove", "--force", extName},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
@@ -401,12 +401,28 @@ func TestExtensionRemove_NotInstalled(t *testing.T) {
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"extension", "remove", "testextension"},
+		Args:    []string{"extension", "remove", "--force", "testextension"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
 
 	assert.Check(t, cmp.Equal(result.ExitCode, 5))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+}
+
+func TestExtensionRemove_RequiresForce(t *testing.T) {
+	env := testenv.New(t)
+	env.Token = testToken
+
+	// In non-interactive mode (no TTY), --force is required.
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"extension", "remove", "testextension"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 2))
 	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 }
 
@@ -416,7 +432,7 @@ func TestExtensionRemove_InvalidName(t *testing.T) {
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"extension", "remove", "^&*"},
+		Args:    []string{"extension", "remove", "--force", "^&*"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})

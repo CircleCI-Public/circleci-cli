@@ -10,6 +10,12 @@ CLI command.
 
 `circleci extension remove <extension> [flags]`
 
+## Flags
+
+| Flag          | Description              |
+| ------------- | ------------------------ |
+| `-f, --force` | Skip confirmation prompt |
+
 ## Inherited Flags
 
 | Flag                  | Description                                                  |
@@ -25,6 +31,8 @@ CLI command.
   `circleci extension remove <name>`
 - Remove using the full binary name: 
   `circleci extension remove circleci-<name>`
+- Remove without confirmation prompt: 
+  `circleci extension remove <name> --force`
 
 ## Learn More
 

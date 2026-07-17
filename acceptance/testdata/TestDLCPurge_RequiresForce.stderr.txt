@@ -1,0 +1,4 @@
+error: Purging DLC for "gh/myorg/myrepo" will discard all cached Docker layers.
+
+Suggestions:
+  • Pass --force (-f) to skip this prompt in non-interactive mode

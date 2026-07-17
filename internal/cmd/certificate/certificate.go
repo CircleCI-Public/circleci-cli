@@ -300,6 +300,7 @@ func newDeleteCmd() *cobra.Command {
 				%[1]s<cert-id>%[1]s is the ID of the certificate to delete.
 				Find the certificate ID with %[1]scircleci certificate list%[1]s.
 			`, "`"),
+			"destructiveHint": "true",
 		},
 		Long: heredoc.Doc(`
 			Remove an Apple certificate from your organization's secure storage.

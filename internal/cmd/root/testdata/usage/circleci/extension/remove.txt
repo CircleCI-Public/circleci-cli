@@ -1,1 +1,5 @@
-Usage:  circleci extension remove <extension>
+Usage:  circleci extension remove <extension> [flags]
+
+Flags:
+  -f, --force   Skip confirmation prompt
+  

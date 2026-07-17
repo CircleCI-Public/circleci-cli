@@ -244,6 +244,7 @@ func NewEnvDeleteCmd() *cobra.Command {
 				%[1]s<name>%[1]s is the name of the environment variable to delete from
 				the project. This action is irreversible.
 			`, "`"),
+			"destructiveHint": "true",
 		},
 		Long: heredoc.Doc(`
 			Delete an environment variable from a CircleCI project.

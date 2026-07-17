@@ -40,12 +40,16 @@ import (
 func NewPurgeCmd() *cobra.Command {
 	var (
 		projectSlug string
+		force       bool
 		jsonOut     bool
 	)
 
 	cmd := &cobra.Command{
 		Use:   "purge",
 		Short: "Purge the Docker Layer Cache for a project",
+		Annotations: map[string]string{
+			"destructiveHint": "true",
+		},
 		Long: heredoc.Doc(`
 			Purge the docker layer cache (DLC) for a project.
 
@@ -67,8 +71,11 @@ func NewPurgeCmd() *cobra.Command {
 			# Purge DLC for a specific project
 			$ circleci dlc purge --project gh/myorg/myrepo
 
+			# Skip the confirmation prompt (for scripting)
+			$ circleci dlc purge --project gh/myorg/myrepo --force
+
 			# Purge DLC and output result as JSON
-			$ circleci dlc purge --project gh/myorg/myrepo --json
+			$ circleci dlc purge --project gh/myorg/myrepo --force --json
 
 			# Purge DLC for a Bitbucket project
 			$ circleci dlc purge --project bb/myorg/myrepo
@@ -105,6 +112,18 @@ func NewPurgeCmd() *cobra.Command {
 					"Use 'circleci project list' to see followed projects")
 			}
 
+			if err := cmdutil.ConfirmOrForce(ctx, iostream.Get(ctx), force,
+				fmt.Sprintf("Purge DLC for %q? All cached Docker layers will be discarded.", projectSlug),
+				clierrors.New("dlc.purge_aborted", "Purge aborted",
+					"DLC purge was not confirmed.").
+					WithExitCode(clierrors.ExitCancelled),
+				clierrors.New("dlc.purge_requires_force", "Purge requires --force",
+					fmt.Sprintf("Purging DLC for %q will discard all cached Docker layers.", projectSlug)).
+					WithExitCode(clierrors.ExitBadArguments),
+			); err != nil {
+				return err
+			}
+
 			if err := client.PurgeDLC(ctx, proj.ID.String()); err != nil {
 				if errors.Is(err, apiclient.ErrDLCGone) {
 					return clierrors.New("dlc.gone", "DLC purge unavailable",
@@ -135,6 +154,7 @@ func NewPurgeCmd() *cobra.Command {
 	}
 
 	cmd.Flags().StringVar(&projectSlug, "project", "", "Project slug (e.g. gh/org/repo); defaults to git remote")
+	cmd.Flags().BoolVarP(&force, "force", "f", false, "Skip confirmation prompt")
 	cmd.Flags().BoolVar(&jsonOut, "json", false, "Output as JSON")
 
 	return cmd

@@ -265,6 +265,7 @@ func newResourceClassDeleteCmd() *cobra.Command {
 				The resource class to delete, given in the form %[1]snamespace/name%[1]s,
 				where namespace is your organization name (for example, %[1]smy-org/my-runner%[1]s).
 			`, "`"),
+			"destructiveHint": "true",
 		},
 		Long: heredoc.Doc(`
 			Delete a CircleCI runner resource class.

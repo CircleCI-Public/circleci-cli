@@ -1,0 +1,4 @@
+error: Removing extension "circleci-testextension" will delete the binary and manifest.
+
+Suggestions:
+  • Pass --force (-f) to skip this prompt in non-interactive mode

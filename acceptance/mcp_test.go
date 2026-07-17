@@ -24,20 +24,107 @@ package acceptance_test
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http/httptest"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"testing"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"gotest.tools/v3/assert"
+	"gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/poll"
 
 	"github.com/CircleCI-Public/circleci-cli/internal/iostream"
 	"github.com/CircleCI-Public/circleci-cli/internal/telemetry"
+	"github.com/CircleCI-Public/circleci-cli/internal/testing/binary"
 	testenv "github.com/CircleCI-Public/circleci-cli/internal/testing/env"
 	"github.com/CircleCI-Public/circleci-cli/internal/testing/fakesegment"
 )
+
+// mcpTool mirrors the relevant fields of the JSON objects written by
+// "circleci mcp tools".
+type mcpTool struct {
+	Name        string         `json:"name"`
+	Annotations map[string]any `json:"annotations"`
+}
+
+func runMCPTools(t *testing.T) []mcpTool {
+	t.Helper()
+	env := testenv.New(t)
+	env.Token = testToken
+	workDir := t.TempDir()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"mcp", "tools"},
+		Env:     env.Environ(),
+		WorkDir: workDir,
+	})
+	assert.Equal(t, result.ExitCode, 0, "mcp tools failed\nstderr: %s", result.Stderr)
+
+	data, err := os.ReadFile(filepath.Join(workDir, "mcp-tools.json"))
+	assert.NilError(t, err)
+
+	var tools []mcpTool
+	assert.NilError(t, json.Unmarshal(data, &tools))
+	return tools
+}
+
+// TestMCPTools_DestructiveHints verifies that all known destructive commands
+// are exported with destructiveHint: true, and that a sampling of read-only
+// commands are not marked destructive.
+func TestMCPTools_DestructiveHints(t *testing.T) {
+	tools := runMCPTools(t)
+
+	byName := make(map[string]mcpTool, len(tools))
+	for _, tool := range tools {
+		byName[tool.Name] = tool
+	}
+
+	wantDestructive := []string{
+		"circleci_certificate_delete",
+		"circleci_context_delete",
+		"circleci_context_restriction_delete",
+		"circleci_context_secret_delete",
+		"circleci_dlc_purge",
+		"circleci_envvar_delete",
+		"circleci_extension_remove",
+		"circleci_namespace_delete",
+		"circleci_project_dlc_purge",
+		"circleci_project_envvar_delete",
+		"circleci_run_cancel",
+		"circleci_runner_resource-class_delete",
+		"circleci_runner_token_delete",
+		"circleci_signing-config_delete",
+		"circleci_workflow_cancel",
+	}
+	for _, name := range wantDestructive {
+		t.Run(name, func(t *testing.T) {
+			tool, ok := byName[name]
+			assert.Assert(t, ok, "tool %q not found in mcp-tools.json", name)
+			assert.Check(t, cmp.Equal(tool.Annotations["destructiveHint"], true),
+				"expected destructiveHint: true on %s", name)
+		})
+	}
+
+	wantReadOnly := []string{
+		"circleci_run_list",
+		"circleci_context_list",
+		"circleci_pipeline_list",
+		"circleci_workflow_list",
+	}
+	for _, name := range wantReadOnly {
+		t.Run(name+"_not_destructive", func(t *testing.T) {
+			tool, ok := byName[name]
+			assert.Assert(t, ok, "tool %q not found in mcp-tools.json", name)
+			assert.Check(t, cmp.Equal(tool.Annotations["destructiveHint"], nil),
+				"expected no destructiveHint on %s", name)
+		})
+	}
+}
 
 // TestMCPServerAttributesToolCallsAsMCP verifies the CIRCLE_MCP plumbing in
 // internal/cmd/root: `mcp start` sets CIRCLE_MCP=1 on itself before serving, so

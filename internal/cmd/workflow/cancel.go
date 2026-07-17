@@ -47,6 +47,7 @@ func newCancelCmd() *cobra.Command {
 				%[1]s<workflow-id>%[1]s is the UUID of the workflow to cancel. Workflow IDs are
 				shown in the output of %[1]scircleci run get%[1]s.
 			`, "`"),
+			"destructiveHint": "true",
 		},
 		Long: heredoc.Doc(`
 			Cancel a running CircleCI workflow.
