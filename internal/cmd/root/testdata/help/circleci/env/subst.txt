@@ -1,0 +1,40 @@
+# CircleCI CLI
+
+Substitute environment variables in a string, similar to the POSIX envsubst utility.
+
+Pass the string as an argument, or pipe it through stdin. The command writes
+the substituted result to stdout with no trailing newline added.
+
+Supports $VAR and ${VAR} syntax. References to unset variables are replaced
+with an empty string.
+
+## Usage
+
+`circleci env subst [string] [flags]`
+
+## Inherited Flags
+
+| Flag                  | Description                                                  |
+| --------------------- | ------------------------------------------------------------ |
+| `-c, --config string` | Path to config file (default: ~/.config/circleci/config.yml) |
+| `--debug`             | Enable debug logging                                         |
+| `--no-color`          | Disable ANSI color output (same as setting NO_COLOR)         |
+| `-q, --quiet`         | Suppress informational output. Data on stdout is unaffected  |
+
+## Examples
+
+- Substitute a single variable: 
+  `export API_URL=https://circleci.com`
+- `circleci env subst "Base URL: $API_URL"`
+- Substitute variables in a JSON payload via stdin: 
+  `export TOKEN=abc123`
+- `echo '{"token": "$TOKEN"}' | circleci env subst`
+- Substitute into a config file before uploading: 
+  `circleci env subst < .circleci/config.template.yml > .circleci/config.yml`
+
+## Learn More
+
+- Use `circleci <command> <subcommand> --help` for more information about a command.
+- Read the manual at <https://cli.circleci.com/reference/>
+- Support at <https://github.com/CircleCI-Public/circleci-cli/issues>
+

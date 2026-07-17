@@ -10,6 +10,7 @@ Available commands:
   context
   deploy
   dlc
+  env
   envvar
   extension
   job

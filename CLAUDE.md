@@ -4,9 +4,9 @@ A new CircleCI CLI built from scratch in Go + Cobra, targeting exemplary CLI des
 
 Full architecture, command surface, and phased roadmap: `docs/build-plan.md`
 
-> **Branch context:** `next` is the active v2 rewrite. `main` is the legacy CLI that ships
-> today. These are independent codebases — `next` does not import from `main`. All new feature
-> work happens on `next`; `main` receives only critical fixes.
+> **Branch context:** `main` is the active v1 rewrite. `v0` is the legacy CLI that ships
+> today. These are independent codebases — `main` does not import from `v0`. All new feature
+> work happens on `main`; `v0` receives only critical fixes.
 
 ---
 
@@ -54,6 +54,7 @@ agents/01-philosophy.md      ← the 9 core principles
 agents/04-output.md          ← --json, color, TTY detection
 agents/05-errors.md          ← error format, exit codes
 agents/06-arguments-and-flags.md ← flag naming, short forms, env vars
+14-testing.md                ← how to write the tests
 ```
 
 ---
