@@ -63,7 +63,11 @@ func loadPolicyBundle(root string) (apiclient.PolicyBundle, error) {
 			return clierrors.New("policy.bundle_read_failed", "Could not read policy file",
 				err.Error()).WithExitCode(clierrors.ExitBadArguments)
 		}
-		bundle[path] = string(content)
+		rel, err := filepath.Rel(root, path)
+		if err != nil {
+			return err
+		}
+		bundle[rel] = string(content)
 		return nil
 	})
 	if err != nil {

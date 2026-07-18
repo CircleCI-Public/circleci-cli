@@ -594,9 +594,12 @@ func TestPolicyPush_DryRun(t *testing.T) {
 	})
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
-	var out map[string]any
+	var out struct {
+		Created []string `json:"created"`
+	}
 	assert.NilError(t, json.Unmarshal([]byte(result.Stdout), &out))
-	assert.Check(t, out["created"] != nil)
+	assert.Equal(t, len(out.Created), 1)
+	assert.Equal(t, out.Created[0], "my_policy.rego")
 }
 
 // --- policy diff ---
