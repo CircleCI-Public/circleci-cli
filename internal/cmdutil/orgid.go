@@ -25,6 +25,7 @@ package cmdutil
 import (
 	"context"
 	"fmt"
+	"os"
 	"strings"
 
 	"github.com/google/uuid"
@@ -44,6 +45,9 @@ import (
 func ResolveOrgSlug(orgSlug, cmdName string) (string, error) {
 	if orgSlug != "" {
 		return orgSlug, nil
+	}
+	if envOrg := orgFromEnv(); envOrg != "" {
+		return envOrg, nil
 	}
 	info, err := gitremote.Detect()
 	if err != nil {
@@ -74,6 +78,9 @@ func orgSlugFromProjectSlug(projectSlug string) string {
 // "circleci runner instance list".
 func ResolveOrgSlugOrID(ctx context.Context, client *apiclient.Client, ref, cmdName string) (uuid.UUID, error) {
 	if ref == "" {
+		ref = orgFromEnv()
+	}
+	if ref == "" {
 		raw, err := orgIDFromGitRemote(ctx, client,
 			"Or specify the organization: "+cmdName+" --org <vcs>/<org>",
 			"Pass --org <vcs>/<org> or the org UUID explicitly")
@@ -99,6 +106,10 @@ func ResolveOrgSlugOrID(ctx context.Context, client *apiclient.Client, ref, cmdN
 			WithExitCode(clierrors.ExitBadArguments)
 	}
 	return parseOrgID(org.ID)
+}
+
+func orgFromEnv() string {
+	return strings.TrimSpace(os.Getenv("CIRCLE_ORG"))
 }
 
 // InferOrgID best-effort resolves the org UUID for the current directory's

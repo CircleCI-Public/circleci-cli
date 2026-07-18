@@ -101,6 +101,9 @@ var helpTopics = []helpTopic{
 
 			%[1]sCIRCLE_HOST%[1]s: specify the CircleCI hostname.
 
+			%[1]sCIRCLE_ORG%[1]s: default organization for org-scoped commands when %[1]s--org%[1]s is omitted.
+			Use an organization slug such as %[1]sgh/myorg%[1]s.
+
 			%[1]sNO_COLOR%[1]s: set to any value to avoid printing ANSI escape sequences for color output.
 			The %[1]s--no-color%[1]s flag has the same effect.
 
