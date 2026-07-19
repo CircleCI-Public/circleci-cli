@@ -1031,13 +1031,23 @@ func (f *CircleCI) handleListMyRunsV3(w http.ResponseWriter, r *http.Request) {
 	}
 	f.mu.RUnlock()
 
-	if size, err := strconv.Atoi(r.URL.Query().Get("page[limit]")); err == nil && size > 0 && len(results) > size {
-		results = results[:size]
+	offset, _ := strconv.Atoi(r.URL.Query().Get("page[cursor]"))
+	if offset > len(results) {
+		offset = len(results)
+	}
+	page := results[offset:]
+	if size, err := strconv.Atoi(r.URL.Query().Get("page[limit]")); err == nil && size > 0 && len(page) > size {
+		page = page[:size]
+	}
+
+	var next any
+	if nextOff := offset + len(page); nextOff < len(results) {
+		next = strconv.Itoa(nextOff)
 	}
 
 	render.JSON(w, r, map[string]any{
-		"data": results,
-		"page": map[string]any{"next": nil, "prev": nil},
+		"data": page,
+		"page": map[string]any{"next": next, "prev": nil},
 	})
 }
 
@@ -1062,7 +1072,8 @@ func (f *CircleCI) handleSearchRunsV3(w http.ResponseWriter, r *http.Request) {
 		} `json:"scope"`
 		Filter string `json:"filter"`
 		Page   struct {
-			Limit int `json:"limit"`
+			Cursor string `json:"cursor"`
+			Limit  int    `json:"limit"`
 		} `json:"page"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
@@ -1075,7 +1086,7 @@ func (f *CircleCI) handleSearchRunsV3(w http.ResponseWriter, r *http.Request) {
 	status := runStatusFilterExpr(body.Filter)
 
 	f.mu.RLock()
-	var results []any
+	var all []any
 	for _, pid := range body.Scope.ProjectIDs {
 		for _, run := range f.runsV3ByProject[pid] {
 			if branch != "" && runBranch(run) != branch {
@@ -1084,18 +1095,29 @@ func (f *CircleCI) handleSearchRunsV3(w http.ResponseWriter, r *http.Request) {
 			if status != "" && runStatus(run) != status {
 				continue
 			}
-			results = append(results, run)
+			all = append(all, run)
 		}
 	}
 	f.mu.RUnlock()
 
-	if body.Page.Limit > 0 && len(results) > body.Page.Limit {
-		results = results[:body.Page.Limit]
+	offset, _ := strconv.Atoi(body.Page.Cursor)
+	if offset > len(all) {
+		offset = len(all)
+	}
+	page := all[offset:]
+	if body.Page.Limit > 0 && len(page) > body.Page.Limit {
+		page = page[:body.Page.Limit]
+	}
+
+	var next any
+	if nextOff := offset + len(page); nextOff < len(all) {
+		s := strconv.Itoa(nextOff)
+		next = s
 	}
 
 	render.JSON(w, r, map[string]any{
-		"data": results,
-		"page": map[string]any{"next": nil, "prev": nil},
+		"data": page,
+		"page": map[string]any{"next": next, "prev": nil},
 	})
 }
 

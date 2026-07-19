@@ -24,6 +24,7 @@ package acceptance_test
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/url"
 	"runtime"
@@ -1326,6 +1327,70 @@ func TestRunList_NoToken(t *testing.T) {
 
 	assert.Equal(t, result.ExitCode, 3, "stderr: %s", result.Stderr) // ExitAuthError
 	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+}
+
+// TestRunList_PaginatesMultiPage verifies that run list transparently paginates
+// when the requested limit exceeds the API's max page size (20). With 25 runs
+// in the fake and --limit 25, the client must make two requests and return all
+// 25 results — not just the first page of 20.
+func TestRunList_PaginatesMultiPage(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	slug := watchSlug
+	addProjectBySlug(fake, slug, runTestProjectID)
+	for i := 1; i <= 25; i++ {
+		id := fmt.Sprintf("e0000000-0000-4000-8000-%012x", i)
+		rev := fmt.Sprintf("%016x", i)
+		fake.AddRunV3(id, runTestProjectID, fakeRunV3(id, runTestProjectID, "ended", "succeeded", "main", rev))
+	}
+
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"run", "list", "--project", slug, "--limit", "25", "--json"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	var out []map[string]any
+	assert.NilError(t, json.Unmarshal([]byte(result.Stdout), &out))
+	assert.Check(t, cmp.Len(out, 25), "expected 25 runs across two pages, got %d", len(out))
+	assert.Check(t, cmp.Equal(out[0]["id"], "e0000000-0000-4000-8000-000000000001"))
+	assert.Check(t, cmp.Equal(out[24]["id"], "e0000000-0000-4000-8000-000000000019"))
+}
+
+// TestRunList_PaginatesExhausted verifies that run list stops fetching pages as
+// soon as the server signals there are no more results, even when the requested
+// limit has not been reached. With 15 runs and --limit 25, a single page covers
+// all results (next is nil) and the client returns 15, not 25.
+func TestRunList_PaginatesExhausted(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	slug := watchSlug
+	addProjectBySlug(fake, slug, runTestProjectID)
+	for i := 1; i <= 15; i++ {
+		id := fmt.Sprintf("e0000000-0000-4000-8000-%012x", i)
+		rev := fmt.Sprintf("%016x", i)
+		fake.AddRunV3(id, runTestProjectID, fakeRunV3(id, runTestProjectID, "ended", "succeeded", "main", rev))
+	}
+
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"run", "list", "--project", slug, "--limit", "25", "--json"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	var out []map[string]any
+	assert.NilError(t, json.Unmarshal([]byte(result.Stdout), &out))
+	assert.Check(t, cmp.Len(out, 15), "expected 15 runs (server exhausted before limit), got %d", len(out))
 }
 
 // --- run trigger (still V2) ---

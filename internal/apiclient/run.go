@@ -216,36 +216,67 @@ type runSearchPage struct {
 	Limit  int    `json:"limit"`
 }
 
+// maxRunsPageSize is the maximum page size accepted by the runs API endpoints.
+// Requests with a larger page size are rejected with 400 "Invalid page size".
+const maxRunsPageSize = 20
+
+// paginateRunsV3 drives the common pagination loop shared by SearchRunsV3 and
+// ListMyRunsV3. fetch is called once per page with the clamped page size and
+// current cursor; it returns the raw response page. The loop stops when the
+// response carries no next cursor, returns an empty page, or the requested
+// total has been collected.
+func paginateRunsV3(
+	limit int,
+	cursor string,
+	fetch func(pageSize int, cursor string) (v3List[runWire], error),
+) ([]RunV3, error) {
+	if limit <= 0 {
+		limit = 10
+	}
+	var allRuns []RunV3
+	remaining := limit
+	for remaining > 0 {
+		pageSize := remaining
+		if pageSize > maxRunsPageSize {
+			pageSize = maxRunsPageSize
+		}
+		resp, err := fetch(pageSize, cursor)
+		if err != nil {
+			return nil, err
+		}
+		for _, w := range resp.Data {
+			allRuns = append(allRuns, *w.toRunV3())
+		}
+		remaining -= len(resp.Data)
+		if resp.Page.Next == nil || len(resp.Data) == 0 {
+			break
+		}
+		cursor = *resp.Page.Next
+	}
+	return allRuns, nil
+}
+
 // SearchRunsV3 searches for runs using the V3 search endpoint.
+// It paginates transparently when params.Limit exceeds maxRunsPageSize.
 func (c *Client) SearchRunsV3(ctx context.Context, params RunSearchParams) ([]RunV3, error) {
-	if params.Limit <= 0 {
-		params.Limit = 10
-	}
-
-	body := runSearchRequest{
-		Scope: runSearchScope{
-			ProjectIDs: params.ProjectIDs,
-			From:       params.From.Format(time.RFC3339),
-			To:         params.To.Format(time.RFC3339),
-		},
-		Filter:  params.Filter,
-		OrderBy: params.OrderBy,
-		Page: runSearchPage{
-			Cursor: params.Cursor,
-			Limit:  params.Limit,
-		},
-	}
-
-	var resp v3List[runWire]
-	if err := c.postV3(ctx, "/runs/search", body, &resp); err != nil {
-		return nil, err
-	}
-
-	runs := make([]RunV3, len(resp.Data))
-	for i, w := range resp.Data {
-		runs[i] = *w.toRunV3()
-	}
-	return runs, nil
+	return paginateRunsV3(params.Limit, params.Cursor, func(pageSize int, cursor string) (v3List[runWire], error) {
+		body := runSearchRequest{
+			Scope: runSearchScope{
+				ProjectIDs: params.ProjectIDs,
+				From:       params.From.Format(time.RFC3339),
+				To:         params.To.Format(time.RFC3339),
+			},
+			Filter:  params.Filter,
+			OrderBy: params.OrderBy,
+			Page: runSearchPage{
+				Cursor: cursor,
+				Limit:  pageSize,
+			},
+		}
+		var resp v3List[runWire]
+		err := c.postV3(ctx, "/runs/search", body, &resp)
+		return resp, err
+	})
 }
 
 // MyRunsParams configures a ListMyRunsV3 request. All fields are optional: the
@@ -264,29 +295,26 @@ type MyRunsParams struct {
 }
 
 // ListMyRunsV3 lists runs triggered by the authenticated user across all
-// projects, via GET /api/v3/runs?filter[user_id]=me.
+// projects, via GET /api/v3/runs?filter[user_id]=me. Paginates transparently
+// when params.Limit exceeds maxRunsPageSize.
 //
 // Unlike the runs/search endpoint, this endpoint has no pipeline.status filter —
 // it filters on the run's own phase and current_outcome — so the status is
 // converted to those via StatusPhaseOutcome.
 func (c *Client) ListMyRunsV3(ctx context.Context, params MyRunsParams) ([]RunV3, error) {
 	phase, currentOutcome := StatusPhaseOutcome(params.Status)
-	var resp v3List[runWire]
-	if err := c.getV3(ctx, "/runs", &resp,
-		filterParam("user_id", "me"),
-		filterParam("phase", phase),
-		filterParam("current_outcome", currentOutcome),
-		filterParam("from", rfc3339OrEmpty(params.From)),
-		filterParam("to", rfc3339OrEmpty(params.To)),
-		pageLimit(params.Limit)); err != nil {
-		return nil, err
-	}
-
-	runs := make([]RunV3, len(resp.Data))
-	for i, w := range resp.Data {
-		runs[i] = *w.toRunV3()
-	}
-	return runs, nil
+	return paginateRunsV3(params.Limit, "", func(pageSize int, cursor string) (v3List[runWire], error) {
+		var resp v3List[runWire]
+		err := c.getV3(ctx, "/runs", &resp,
+			filterParam("user_id", "me"),
+			filterParam("phase", phase),
+			filterParam("current_outcome", currentOutcome),
+			filterParam("from", rfc3339OrEmpty(params.From)),
+			filterParam("to", rfc3339OrEmpty(params.To)),
+			pageLimit(pageSize),
+			pageCursor(cursor))
+		return resp, err
+	})
 }
 
 // Pipeline status values, as reported by the V3 runs API and accepted by the
