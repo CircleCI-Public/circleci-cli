@@ -288,6 +288,7 @@ func newTokenDeleteCmd() *cobra.Command {
 				%[1]s<token-id>%[1]s is the ID of the token to delete (a UUID). Find token IDs
 				with: %[1]scircleci runner token list --resource-class <namespace/name>%[1]s
 			`, "`"),
+			"destructiveHint": "true",
 		},
 		Long: heredoc.Docf(`
 			Delete a CircleCI runner authentication token by its ID.

@@ -24,6 +24,7 @@ package extension
 
 import (
 	"errors"
+	"fmt"
 	"strings"
 
 	"github.com/MakeNowJust/heredoc"
@@ -37,9 +38,14 @@ import (
 )
 
 func newRemoveCmd() *cobra.Command {
+	var force bool
+
 	cmd := &cobra.Command{
 		Use:   "remove <extension>",
 		Short: "Remove an installed extension",
+		Annotations: map[string]string{
+			"destructiveHint": "true",
+		},
 		Long: heredoc.Doc(`
 			Remove an installed CircleCI CLI extension.
 
@@ -53,6 +59,9 @@ func newRemoveCmd() *cobra.Command {
 
 			# Remove using the full binary name
 			$ circleci extension remove circleci-<name>
+
+			# Remove without confirmation prompt
+			$ circleci extension remove <name> --force
 		`),
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -81,6 +90,18 @@ func newRemoveCmd() *cobra.Command {
 				name = "circleci-" + name
 			}
 
+			if err := cmdutil.ConfirmOrForce(ctx, iostream.Get(ctx), force,
+				fmt.Sprintf("Remove extension %q? The binary and manifest will be deleted.", name),
+				clierrors.New("extension.remove_aborted", "Removal aborted",
+					"Extension removal was not confirmed.").
+					WithExitCode(clierrors.ExitCancelled),
+				clierrors.New("extension.remove_requires_force", "Removal requires --force",
+					fmt.Sprintf("Removing extension %q will delete the binary and manifest.", name)).
+					WithExitCode(clierrors.ExitBadArguments),
+			); err != nil {
+				return err
+			}
+
 			err = m.Remove(ctx, name)
 			if err != nil {
 				return removeCLIError(err)
@@ -90,6 +111,8 @@ func newRemoveCmd() *cobra.Command {
 			return nil
 		},
 	}
+
+	cmd.Flags().BoolVarP(&force, "force", "f", false, "Skip confirmation prompt")
 
 	return cmd
 }

@@ -1,6 +1,7 @@
 Usage:  circleci dlc purge [flags]
 
 Flags:
-  --json             Output as JSON
-  --project string   Project slug (e.g. gh/org/repo); defaults to git remote
+  -f, --force            Skip confirmation prompt
+      --json             Output as JSON
+      --project string   Project slug (e.g. gh/org/repo); defaults to git remote
   

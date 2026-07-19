@@ -33,6 +33,7 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/internal/httpcl"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/assert/cmp"
+	"gotest.tools/v3/golden"
 
 	"github.com/CircleCI-Public/circleci-cli/internal/testing/binary"
 	testenv "github.com/CircleCI-Public/circleci-cli/internal/testing/env"
@@ -58,7 +59,7 @@ func TestDLCPurge(t *testing.T) {
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"dlc", "purge", "--project", "gh/myorg/myrepo"},
+		Args:    []string{"dlc", "purge", "--project", "gh/myorg/myrepo", "--force"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
@@ -84,7 +85,7 @@ func TestDLCPurge_JSON(t *testing.T) {
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"dlc", "purge", "--project", "gh/myorg/myrepo", "--json"},
+		Args:    []string{"dlc", "purge", "--project", "gh/myorg/myrepo", "--force", "--json"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
@@ -103,7 +104,7 @@ func TestDLCPurge_Color(t *testing.T) {
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"dlc", "purge", "--project", "gh/myorg/myrepo"},
+		Args:    []string{"dlc", "purge", "--project", "gh/myorg/myrepo", "--force"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 		TTY:     true,
@@ -118,7 +119,7 @@ func TestDLCPurge_ProjectSlug(t *testing.T) {
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"dlc", "purge", "--project", "gh/myorg/myrepo"},
+		Args:    []string{"dlc", "purge", "--project", "gh/myorg/myrepo", "--force"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
@@ -133,7 +134,7 @@ func TestDLCPurge_Gone(t *testing.T) {
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"dlc", "purge", "--project", "gh/myorg/myrepo"},
+		Args:    []string{"dlc", "purge", "--project", "gh/myorg/myrepo", "--force"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
@@ -172,12 +173,27 @@ func TestDLCPurge_NoToken(t *testing.T) {
 	assert.Equal(t, result.ExitCode, 3, "stderr: %s", result.Stderr)
 }
 
+func TestDLCPurge_RequiresForce(t *testing.T) {
+	_, env := setupDLCFake(t)
+
+	// In non-interactive mode (no TTY), --force is required.
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"dlc", "purge", "--project", "gh/myorg/myrepo"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 2, "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+}
+
 func TestProjectDLCPurge(t *testing.T) {
 	_, env := setupDLCFake(t)
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"project", "dlc", "purge", "--project", "gh/myorg/myrepo"},
+		Args:    []string{"project", "dlc", "purge", "--project", "gh/myorg/myrepo", "--force"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})

@@ -290,6 +290,7 @@ func newSecretDeleteCmd() *cobra.Command {
 				- By name, for example, %[1]scontext-name%[1]s
 				- By ID, for example, %[1]s849e7902-802f-4082-8a70-da77dcd084e3%[1]s
 			`, "`"),
+			"destructiveHint": "true",
 		},
 		Long: heredoc.Doc(`
 			Remove an environment variable from a CircleCI context.

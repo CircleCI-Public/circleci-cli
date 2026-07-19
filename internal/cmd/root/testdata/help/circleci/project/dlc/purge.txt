@@ -21,6 +21,7 @@ JSON fields (--json): project_id, project_slug
 
 | Flag               | Description                                             |
 | ------------------ | ------------------------------------------------------- |
+| `-f, --force`      | Skip confirmation prompt                                |
 | `--json`           | Output as JSON                                          |
 | `--project string` | Project slug (e.g. gh/org/repo); defaults to git remote |
 
@@ -39,8 +40,10 @@ JSON fields (--json): project_id, project_slug
   `circleci dlc purge`
 - Purge DLC for a specific project: 
   `circleci dlc purge --project gh/myorg/myrepo`
+- Skip the confirmation prompt (for scripting): 
+  `circleci dlc purge --project gh/myorg/myrepo --force`
 - Purge DLC and output result as JSON: 
-  `circleci dlc purge --project gh/myorg/myrepo --json`
+  `circleci dlc purge --project gh/myorg/myrepo --force --json`
 - Purge DLC for a Bitbucket project: 
   `circleci dlc purge --project bb/myorg/myrepo`
 

@@ -47,6 +47,7 @@ func newDeleteCmd() *cobra.Command {
 			"help:arguments": heredoc.Docf(`
 				%[1]s<name>%[1]s is the name of the namespace to delete, for example, "myorg".
 			`, "`"),
+			"destructiveHint": "true",
 		},
 		Long: heredoc.Doc(`
 			Delete a CircleCI orb namespace and all orbs published under it.
