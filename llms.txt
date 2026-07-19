@@ -891,6 +891,7 @@ Purge the Docker Layer Cache for a project
 
 | Flag               | Description                                             |
 | ------------------ | ------------------------------------------------------- |
+| `-f, --force`      | Skip confirmation prompt                                |
 | `--json`           | Output as JSON                                          |
 | `--project string` | Project slug (e.g. gh/org/repo); defaults to git remote |
 
@@ -1487,6 +1488,7 @@ Purge the Docker Layer Cache for a project
 
 | Flag               | Description                                             |
 | ------------------ | ------------------------------------------------------- |
+| `-f, --force`      | Skip confirmation prompt                                |
 | `--json`           | Output as JSON                                          |
 | `--project string` | Project slug (e.g. gh/org/repo); defaults to git remote |
 
@@ -2199,9 +2201,14 @@ Manage CLI extensions
 
 Install an extension
 
-#### `circleci extension remove <extension>`
+#### `circleci extension remove <extension> [flags]`
 
 Remove an installed extension
+
+| Flag          | Description              |
+| ------------- | ------------------------ |
+| `-f, --force` | Skip confirmation prompt |
+
 
 ### `circleci testsuite`
 
