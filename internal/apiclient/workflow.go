@@ -139,33 +139,6 @@ func (c *Client) CancelWorkflow(ctx context.Context, id uuid.UUID) error {
 	)
 }
 
-// WorkflowJob is a job belonging to a workflow (V2 API).
-// Used by artifacts and logs which need JobNumber and ProjectSlug.
-type WorkflowJob struct {
-	ID          string    `json:"id"`
-	Name        string    `json:"name"`
-	JobNumber   int64     `json:"job_number"`
-	Status      string    `json:"status"`
-	Type        string    `json:"type"`
-	ProjectSlug string    `json:"project_slug"`
-	StartedAt   time.Time `json:"started_at"`
-	StoppedAt   time.Time `json:"stopped_at"`
-}
-
-// GetWorkflowJobs returns all jobs belonging to a workflow via V2.
-func (c *Client) GetWorkflowJobs(ctx context.Context, workflowID string) ([]WorkflowJob, error) {
-	var resp struct {
-		Items []WorkflowJob `json:"items"`
-	}
-	err := c.get(ctx, "/workflow/%s/job", &resp,
-		routeParams(workflowID),
-	)
-	if err != nil {
-		return nil, err
-	}
-	return resp.Items, nil
-}
-
 // --- V3 workflow jobs ---
 
 type workflowJobAttributesWire struct {

@@ -37,21 +37,6 @@ type Artifact struct {
 	NodeIndex int    `json:"node_index"`
 }
 
-// GetJobArtifacts returns the artifacts produced by a specific job number
-// within a project.
-func (c *Client) GetJobArtifacts(ctx context.Context, projectSlug string, jobNumber int64) ([]Artifact, error) {
-	var resp struct {
-		Items []Artifact `json:"items"`
-	}
-	err := c.get(ctx, "/project/%s/%d/artifacts", &resp,
-		routeParams(projectSlug, jobNumber),
-	)
-	if err != nil {
-		return nil, err
-	}
-	return resp.Items, nil
-}
-
 // --- V3 wire types ---
 
 type artifactAttributesWire struct {

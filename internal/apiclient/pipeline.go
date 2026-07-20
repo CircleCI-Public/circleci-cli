@@ -24,12 +24,9 @@ package apiclient
 
 import (
 	"context"
-	"net/http"
 	"time"
 
 	"github.com/google/uuid"
-
-	"github.com/CircleCI-Public/circleci-cli/internal/httpcl"
 )
 
 // Pipeline represents a CircleCI pipeline.
@@ -116,26 +113,6 @@ func (c *Client) GetPipelineByNumber(ctx context.Context, projectSlug string, nu
 		return nil, err
 	}
 	return &p, nil
-}
-
-// GetLatestPipeline returns the most recent pipeline for the given project slug
-// and branch. Pass an empty branch to get the latest pipeline regardless of branch.
-func (c *Client) GetLatestPipeline(ctx context.Context, projectSlug, branch string) (*Pipeline, error) {
-	var resp struct {
-		Items []Pipeline `json:"items"`
-	}
-	err := c.get(ctx, "/project/%s/pipeline", &resp,
-		routeParams(projectSlug),
-		optionalQueryParam("branch", branch),
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	if len(resp.Items) == 0 {
-		return nil, &httpcl.HTTPError{Method: http.MethodGet, Route: "/project/%s/pipeline", StatusCode: http.StatusNotFound}
-	}
-	return &resp.Items[0], nil
 }
 
 // TriggerResponse is the response body from triggering a pipeline.
