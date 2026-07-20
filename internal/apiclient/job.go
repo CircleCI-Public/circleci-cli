@@ -26,9 +26,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"net/url"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -68,59 +66,6 @@ type LogLine struct {
 	Type    string `json:"type"` // "out" or "err"
 	Time    string `json:"time"`
 	Message string `json:"message"`
-}
-
-// GetJob fetches full job details including steps and their output URLs.
-// The v2 API returns job metadata but often omits step output; if steps are
-// absent, GetJob transparently retries against the v1.1 API which always
-// includes step output.
-func (c *Client) GetJob(ctx context.Context, projectSlug string, jobNumber int64) (*Job, error) {
-	var job Job
-	err := c.get(ctx, "/project/%s/job/%d", &job,
-		routeParams(projectSlug, jobNumber),
-	)
-	if err != nil {
-		return nil, err
-	}
-
-	if len(job.Steps) == 0 {
-		if steps, err := c.getJobStepsV1(ctx, projectSlug, jobNumber); err == nil {
-			job.Steps = steps
-		}
-	}
-
-	return &job, nil
-}
-
-// getJobStepsV1 fetches step output from the v1.1 API, which includes output_url
-// fields not present in the v2 job response.
-func (c *Client) getJobStepsV1(ctx context.Context, projectSlug string, jobNumber int64) ([]JobStep, error) {
-	var resp struct {
-		Steps []JobStep `json:"steps"`
-	}
-	err := c.getV1(ctx, v1ProjectPath(projectSlug, jobNumber), &resp)
-	if err != nil {
-		return nil, err
-	}
-	return resp.Steps, nil
-}
-
-// v1ProjectPath converts a v2 project slug and job number into a v1.1 API path.
-// v2 slugs use short VCS prefixes (gh, bb, gl); v1.1 uses full names.
-func v1ProjectPath(projectSlug string, jobNumber int64) string {
-	vcs, rest, ok := strings.Cut(projectSlug, "/")
-	if !ok {
-		return fmt.Sprintf("/project/%s/%d", url.PathEscape(projectSlug), jobNumber)
-	}
-	switch vcs {
-	case "gh":
-		vcs = "github"
-	case "bb":
-		vcs = "bitbucket"
-	case "gl":
-		vcs = "gitlab"
-	}
-	return fmt.Sprintf("/project/%s/%s/%d", vcs, rest, jobNumber)
 }
 
 // --- V3 wire types ---
