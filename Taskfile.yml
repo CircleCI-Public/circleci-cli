@@ -363,6 +363,11 @@ tasks:
       - go run ./cmd/cloudsmith push deb {{if .DRY_RUN}}--dry-run {{end}}--repo '{{.CLOUDSMITH_REPO}}' dist/*.deb
       - go run ./cmd/cloudsmith push rpm {{if .DRY_RUN}}--dry-run {{end}}--repo '{{.CLOUDSMITH_REPO}}' dist/*.rpm
 
+  security:scan:
+    desc: Scan MCP server tool descriptions for security issues with Snyk agent scan
+    cmds:
+      - uvx snyk-agent-scan@latest
+
   ci:build:
     desc: Dry-run a release — build a snapshot (incl. nfpms) and dry-run the packagecloud publish
     vars:
