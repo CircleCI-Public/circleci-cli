@@ -30,6 +30,17 @@ import (
 	"github.com/spf13/pflag"
 )
 
+const telemetryPropPrefix = "telemetry_prop:"
+
+// SetTelemetryProp attaches an extra property to cmd that RecordTelemetryNow
+// will include in the command_invocation event.
+func SetTelemetryProp(cmd *cobra.Command, key, value string) {
+	if cmd.Annotations == nil {
+		cmd.Annotations = map[string]string{}
+	}
+	cmd.Annotations[telemetryPropPrefix+key] = value
+}
+
 func DisableEverything(cmd *cobra.Command) {
 	if cmd.Annotations == nil {
 		cmd.Annotations = map[string]string{}
@@ -101,10 +112,16 @@ func RecordTelemetryNow(cmd *cobra.Command) {
 	if tc == nil {
 		return
 	}
-	_ = tc.Track("command_invocation",
-		map[string]any{
-			"command": cmd.CommandPath(),
-			"flags":   strings.Join(flags, ","),
-		},
-	)
+
+	props := map[string]any{
+		"command": cmd.CommandPath(),
+		"flags":   strings.Join(flags, ","),
+	}
+	for k, v := range cmd.Annotations {
+		if after, ok := strings.CutPrefix(k, telemetryPropPrefix); ok {
+			props[after] = v
+		}
+	}
+
+	_ = tc.Track("command_invocation", props)
 }
