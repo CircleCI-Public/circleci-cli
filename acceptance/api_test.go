@@ -23,17 +23,27 @@
 package acceptance_test
 
 import (
+	"context"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/segmentio/analytics-go/v3"
+	"github.com/shirou/gopsutil/v4/host"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/golden"
+	"gotest.tools/v3/poll"
 
+	"github.com/CircleCI-Public/circleci-cli/internal/config"
+	"github.com/CircleCI-Public/circleci-cli/internal/iostream"
+	"github.com/CircleCI-Public/circleci-cli/internal/telemetry"
 	"github.com/CircleCI-Public/circleci-cli/internal/testing/binary"
 	testenv "github.com/CircleCI-Public/circleci-cli/internal/testing/env"
+	"github.com/CircleCI-Public/circleci-cli/internal/testing/fakesegment"
 	"github.com/CircleCI-Public/circleci-cli/internal/testing/fakes"
 )
 
@@ -371,6 +381,80 @@ func TestAPI_ProjectIDSubstitution_NoProject(t *testing.T) {
 	// The git-detect failure embeds git's own (version/platform-dependent)
 	// message, so match a stable substring rather than golden the whole thing.
 	assert.Check(t, cmp.Contains(result.Stderr, "could not read git remote"))
+}
+
+// TestAPI_Telemetry verifies that a circleci api call emits a command_invocation
+// event with the api_path property set to the raw path the user typed.
+func TestAPI_Telemetry(t *testing.T) {
+	ctx := iostream.Testing(context.Background())
+
+	fake := fakes.NewCircleCI(t)
+	fake.AddRunV3(getRunID, runTestProjectID,
+		fakeRunV3(getRunID, runTestProjectID, "ended", "succeeded", "main", "abc1234def5678"))
+
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+	env.Telemetry = true
+	fs := fakesegment.New(ctx, telemetry.SegmentKey)
+	fsSrv := httptest.NewServer(fs)
+	t.Cleanup(fsSrv.Close)
+	env.Extra["CIRCLE_TELEMETRY_ENDPOINT"] = fsSrv.URL
+
+	const apiPath = "api/v3/runs/" + getRunID
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"api", apiPath},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+	assert.Check(t, cmp.Equal(result.ExitCode, 0))
+
+	cfg, err := config.Load(ctx, env.ConfigDir()+"/circleci/config.yml", false)
+	assert.NilError(t, err)
+
+	hostInfo, err := host.Info()
+	assert.NilError(t, err)
+
+	poll.WaitOn(t, func(t poll.LogT) poll.Result {
+		batches := fs.Batches()
+		now := time.Now()
+		return poll.Compare(cmp.DeepEqual(batches, []fakesegment.Batch{
+			{
+				SentAt: now,
+				Messages: []analytics.Track{
+					{
+						Type:      "track",
+						MessageId: "ignored",
+						Timestamp: now,
+						UserId:    telemetry.AnonymousID.String(),
+						Event:     "command_invocation",
+						Properties: analytics.Properties{
+							"command":  "circleci api",
+							"flags":    "debug,insecure-storage,theme",
+							"api_path": apiPath,
+						},
+						Context: &analytics.Context{
+							App: analytics.AppInfo{Name: "circleci-cli", Version: "dev"},
+							Device: analytics.DeviceInfo{
+								Id:    cfg.DeviceID().String(),
+								Model: hostInfo.KernelArch,
+								Type:  hostInfo.PlatformFamily,
+							},
+							OS: analytics.OSInfo{Name: hostInfo.OS, Version: hostInfo.PlatformVersion},
+							Traits: map[string]any{
+								"agent":          "",
+								"is_self_hosted": true, // fake server URL is not https://circleci.com
+								"is_tty":         false,
+							},
+						},
+						Integrations: analytics.NewIntegrations().Enable("Amplitude"),
+					},
+				},
+			},
+		}, fakesegment.CompareTrack, fakesegment.CompareTime))
+	})
 }
 
 // When the project lookup itself fails (slug resolves but the API has no such
