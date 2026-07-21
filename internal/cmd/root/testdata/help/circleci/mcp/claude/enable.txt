@@ -13,7 +13,7 @@ Add this application as an MCP server in Claude Desktop
 | `--config-path string`     | Path to Claude config file                                                     |
 | `-e, --env stringToString` | Environment variables (e.g., --env KEY1=value1 --env KEY2=value2) (default []) |
 | `--log-level string`       | Log level (debug, info, warn, error)                                           |
-| `--server-name string`     | Name for the MCP server (default: derived from executable name)                |
+| `--server-name string`     | Name for the MCP server (default "circleci-cli")                               |
 
 ## Inherited Flags
 
