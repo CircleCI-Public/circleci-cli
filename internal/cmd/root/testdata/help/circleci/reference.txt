@@ -1857,10 +1857,10 @@ Manage Claude Desktop MCP servers
 
 Remove server from Claude config
 
-| Flag                   | Description                                                              |
-| ---------------------- | ------------------------------------------------------------------------ |
-| `--config-path string` | Path to Claude config file                                               |
-| `--server-name string` | Name of the MCP server to remove (default: derived from executable name) |
+| Flag                   | Description                                               |
+| ---------------------- | --------------------------------------------------------- |
+| `--config-path string` | Path to Claude config file                                |
+| `--server-name string` | Name of the MCP server to remove (default "circleci-cli") |
 
 
 ##### `circleci mcp claude enable [flags]`
@@ -1872,7 +1872,7 @@ Add server to Claude config
 | `--config-path string`     | Path to Claude config file                                                     |
 | `-e, --env stringToString` | Environment variables (e.g., --env KEY1=value1 --env KEY2=value2) (default []) |
 | `--log-level string`       | Log level (debug, info, warn, error)                                           |
-| `--server-name string`     | Name for the MCP server (default: derived from executable name)                |
+| `--server-name string`     | Name for the MCP server (default "circleci-cli")                               |
 
 
 ##### `circleci mcp claude list [flags]`
@@ -1895,7 +1895,7 @@ Remove server from Cursor config
 | Flag                   | Description                                                                |
 | ---------------------- | -------------------------------------------------------------------------- |
 | `--config-path string` | Path to Cursor config file                                                 |
-| `--server-name string` | Name of the MCP server to remove (default: derived from executable name)   |
+| `--server-name string` | Name of the MCP server to remove (default "circleci-cli")                  |
 | `--workspace`          | Remove from workspace settings (.cursor/mcp.json) instead of user settings |
 
 
@@ -1908,7 +1908,7 @@ Add server to Cursor config
 | `--config-path string`     | Path to Cursor config file                                                     |
 | `-e, --env stringToString` | Environment variables (e.g., --env KEY1=value1 --env KEY2=value2) (default []) |
 | `--log-level string`       | Log level (debug, info, warn, error)                                           |
-| `--server-name string`     | Name for the MCP server (default: derived from executable name)                |
+| `--server-name string`     | Name for the MCP server (default "circleci-cli")                               |
 | `--workspace`              | Add to workspace settings (.cursor/mcp.json) instead of user settings          |
 
 
@@ -1962,7 +1962,7 @@ Remove server from VSCode config
 | Flag                   | Description                                                                |
 | ---------------------- | -------------------------------------------------------------------------- |
 | `--config-path string` | Path to VSCode config file                                                 |
-| `--server-name string` | Name of the MCP server to remove (default: derived from executable name)   |
+| `--server-name string` | Name of the MCP server to remove (default "circleci-cli")                  |
 | `--workspace`          | Remove from workspace settings (.vscode/mcp.json) instead of user settings |
 
 
@@ -1975,7 +1975,7 @@ Add server to VSCode config
 | `--config-path string`     | Path to VSCode config file                                                     |
 | `-e, --env stringToString` | Environment variables (e.g., --env KEY1=value1 --env KEY2=value2) (default []) |
 | `--log-level string`       | Log level (debug, info, warn, error)                                           |
-| `--server-name string`     | Name for the MCP server (default: derived from executable name)                |
+| `--server-name string`     | Name for the MCP server (default "circleci-cli")                               |
 | `--workspace`              | Add to workspace settings (.vscode/mcp.json) instead of user settings          |
 
 

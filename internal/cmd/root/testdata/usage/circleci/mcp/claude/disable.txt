@@ -2,5 +2,5 @@ Usage:  circleci mcp claude disable [flags]
 
 Flags:
   --config-path string   Path to Claude config file
-  --server-name string   Name of the MCP server to remove (default: derived from executable name)
+  --server-name string   Name of the MCP server to remove (default "circleci-cli")
   

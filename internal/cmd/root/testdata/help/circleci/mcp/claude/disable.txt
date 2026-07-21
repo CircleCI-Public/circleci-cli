@@ -8,10 +8,10 @@ Remove this application from Claude Desktop MCP servers
 
 ## Flags
 
-| Flag                   | Description                                                              |
-| ---------------------- | ------------------------------------------------------------------------ |
-| `--config-path string` | Path to Claude config file                                               |
-| `--server-name string` | Name of the MCP server to remove (default: derived from executable name) |
+| Flag                   | Description                                               |
+| ---------------------- | --------------------------------------------------------- |
+| `--config-path string` | Path to Claude config file                                |
+| `--server-name string` | Name of the MCP server to remove (default "circleci-cli") |
 
 ## Inherited Flags
 

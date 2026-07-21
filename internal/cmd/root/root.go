@@ -270,6 +270,30 @@ func NewRootCmd(version string) *cobra.Command {
 				_ = os.Setenv("CIRCLE_MCP", "1")
 				return orig(cmd, args)
 			}
+		default:
+			// Editor groups (claude/cursor/vscode). ophis defaults the
+			// generated MCP server-config key to the executable basename
+			// ("circleci"); override it to "circleci-cli". Setting the flag
+			// value (rather than DefValue, which is help-text only) writes
+			// through the bound variable so it becomes the effective default,
+			// while an explicit `--server-name` from the user still wins.
+			// TODO: Remove this if/when https://github.com/njayp/ophis/pull/49 is released.
+			for _, editorSub := range sub.Commands() {
+				if editorSub.Name() != "enable" && editorSub.Name() != "disable" {
+					continue
+				}
+				if f := editorSub.Flags().Lookup("server-name"); f != nil {
+					_ = f.Value.Set("circleci-cli")
+					f.DefValue = "circleci-cli"
+					// Strip ophis's hand-written "(default: derived from
+					// executable name)" clause — it's no longer accurate and
+					// would sit next to the "(default "circleci-cli")" clause
+					// cobra appends from DefValue, producing a doubled,
+					// contradictory note in the help text. Trim only the clause
+					// so each command keeps its own phrasing (enable vs remove).
+					f.Usage = strings.TrimSuffix(f.Usage, " (default: derived from executable name)")
+				}
+			}
 		}
 	}
 

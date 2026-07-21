@@ -2,6 +2,6 @@ Usage:  circleci mcp vscode disable [flags]
 
 Flags:
   --config-path string   Path to VSCode config file
-  --server-name string   Name of the MCP server to remove (default: derived from executable name)
+  --server-name string   Name of the MCP server to remove (default "circleci-cli")
   --workspace            Remove from workspace settings (.vscode/mcp.json) instead of user settings
   
