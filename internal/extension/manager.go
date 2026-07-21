@@ -140,7 +140,7 @@ func (m *Manager) Get(ctx context.Context, binaryName string) (Extension, error)
 	}, nil
 }
 
-func (m *Manager) Install(ctx context.Context, ext Extension) error {
+func (m *Manager) Install(ctx context.Context, ext Extension) (Manifest, error) {
 	buf := bytes.NewBuffer(nil)
 
 	hasher := sha256.New()
@@ -156,24 +156,24 @@ func (m *Manager) Install(ctx context.Context, ext Extension) error {
 	_, err := m.client.Call(ctx, req)
 	if err != nil {
 		if httpErr, ok := errors.AsType[*httpcl.HTTPError](err); ok {
-			return &ErrDownloadFailed{StatusCode: httpErr.StatusCode}
+			return Manifest{}, &ErrDownloadFailed{StatusCode: httpErr.StatusCode}
 		}
-		return err
+		return Manifest{}, err
 	}
 
 	got := hex.EncodeToString(hasher.Sum(nil))
 	if got != ext.Sha256 {
-		return &ErrChecksumMismatch{Expected: ext.Sha256, Got: got}
+		return Manifest{}, &ErrChecksumMismatch{Expected: ext.Sha256, Got: got}
 	}
 
 	// Ensure the extensions directory exists.
 	if err := os.MkdirAll(m.extensionsDir, 0750); err != nil {
-		return err
+		return Manifest{}, err
 	}
 
 	fsRoot, err := os.OpenRoot(m.extensionsDir)
 	if err != nil {
-		return err
+		return Manifest{}, err
 	}
 
 	defer func() { _ = fsRoot.Close() }()
@@ -184,41 +184,47 @@ func (m *Manager) Install(ctx context.Context, ext Extension) error {
 	}
 
 	if err := fsRoot.MkdirAll(filepath.Dir(target), 0750); err != nil {
-		return err
+		return Manifest{}, err
 	}
 
 	out, err := fsRoot.OpenFile(target, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0750)
 	if err != nil {
-		return err
+		return Manifest{}, err
 	}
 	defer func() { _ = out.Close() }()
 
 	zr, err := gzip.NewReader(buf)
 	if err != nil {
 		_ = os.Remove(target)
-		return err
+		return Manifest{}, err
 	}
 	defer func() { _ = zr.Close() }()
 
 	n, err := io.CopyN(out, zr, maxExtensionSize+1)
 	if err != nil {
 		if !errors.Is(err, io.EOF) {
-			return err
+			return Manifest{}, err
 		}
 	}
 
 	if n > maxExtensionSize {
-		return &ErrExtensionTooLarge{Name: ext.BinaryName, MaxSize: maxExtensionSize}
+		return Manifest{}, &ErrExtensionTooLarge{Name: ext.BinaryName, MaxSize: maxExtensionSize}
 	}
 
-	return m.writeManifest(fsRoot, Manifest{
+	manifest := Manifest{
 		Name:       strings.TrimPrefix(ext.BinaryName, "circleci-"),
 		BinaryName: ext.BinaryName,
 		Version:    ext.Version,
 		Sha256:     ext.Sha256,
 		URL:        ext.URL,
 		Path:       filepath.Join(fsRoot.Name(), target),
-	})
+	}
+
+	if err := m.writeManifest(fsRoot, manifest); err != nil {
+		return Manifest{}, err
+	}
+
+	return manifest, nil
 }
 
 // Remove removes the given extension.

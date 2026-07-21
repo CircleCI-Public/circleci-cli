@@ -30,6 +30,7 @@
 package extension
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -115,7 +116,12 @@ func newPromptCmd(name string) *cobra.Command {
 			if s.IsInteractive() {
 				prompt := fmt.Sprintf("%q is not installed. Install %q now?", name, name)
 				if s.Confirm(ctx, prompt) {
-					return installExtension(ctx, name)
+					ext, err := installExtension(ctx, name)
+					if err != nil {
+						return err
+					}
+
+					return runExtension(ctx, cmd, ext)
 				}
 			}
 
@@ -168,30 +174,32 @@ func newManagedCmd(ext extension.Manifest) *cobra.Command {
 		DisableFlagParsing: true,
 		SilenceUsage:       true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx := cmd.Context()
-
-			extArgs := ParseRootFlags(cmd)
-
-			// Some extensions do not need a CCI account, load the client and suppress
-			// any errors; extensions are expected to handle any missing vars.
-			client, _ := cmdutil.LoadClient(ctx)
-
-			err := ext.Run(ctx, client, extArgs)
-			if err != nil {
-				if exitErr, ok := errors.AsType[*extension.ErrExited](err); ok {
-					return exitErr
-				}
-
-				return clierrors.New(
-					"extension.exec_failed",
-					"Extension failed",
-					fmt.Sprintf("extension %q could not be executed: %s", ext.BinaryName, err),
-				)
-			}
-
-			return nil
+			return runExtension(cmd.Context(), cmd, ext)
 		},
 	}
+}
+
+func runExtension(ctx context.Context, cmd *cobra.Command, ext extension.Manifest) error {
+	extArgs := ParseRootFlags(cmd)
+
+	// Some extensions do not need a CCI account, load the client and suppress
+	// any errors; extensions are expected to handle any missing vars.
+	client, _ := cmdutil.LoadClient(ctx)
+
+	err := ext.Run(ctx, client, extArgs)
+	if err != nil {
+		if exitErr, ok := errors.AsType[*extension.ErrExited](err); ok {
+			return exitErr
+		}
+
+		return clierrors.New(
+			"extension.exec_failed",
+			"Extension failed",
+			fmt.Sprintf("extension %q could not be executed: %s", ext.BinaryName, err),
+		)
+	}
+
+	return nil
 }
 
 // newUnmanagedCmd returns a cobra command that dispatches to the circleci-<name>

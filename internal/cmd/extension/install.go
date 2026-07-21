@@ -62,17 +62,22 @@ func newInstallCmd() *cobra.Command {
 			}
 
 			ctx := cmd.Context()
-			return installExtension(ctx, args[0])
+			_, err := installExtension(ctx, args[0])
+			if err != nil {
+				return err
+			}
+
+			return nil
 		},
 	}
 
 	return cmd
 }
 
-func installExtension(ctx context.Context, name string) error {
+func installExtension(ctx context.Context, name string) (extension.Manifest, error) {
 	extDir, err := config.ExtensionsDir()
 	if err != nil {
-		return err
+		return extension.Manifest{}, err
 	}
 
 	cfg := cmdutil.GetConfig(ctx)
@@ -90,18 +95,18 @@ func installExtension(ctx context.Context, name string) error {
 	}
 	ext, err := m.Get(ctx, n)
 	if err != nil {
-		return installCLIError(err)
+		return extension.Manifest{}, installCLIError(err)
 	}
 
 	iostream.Printf(ctx, "Installing %s version %s...\n", ext.BinaryName, ext.Version)
 
-	err = m.Install(ctx, ext)
+	manifest, err := m.Install(ctx, ext)
 	if err != nil {
-		return installCLIError(err)
+		return extension.Manifest{}, installCLIError(err)
 	}
 
 	iostream.Printf(ctx, "%s Installed %s version %s\n", iostream.SymbolOK(ctx), ext.BinaryName, ext.Version)
-	return nil
+	return manifest, nil
 }
 
 func installCLIError(err error) error {

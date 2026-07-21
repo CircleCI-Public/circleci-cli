@@ -106,6 +106,10 @@ func TestExtensionInstall_OfficialExtensionNotFound_Interactive(t *testing.T) {
 
 	_, err = console.Send("Y\r")
 	assert.NilError(t, err)
+
+	// expect the test binary to run after installation.
+	_, err = console.ExpectString("args []")
+	assert.NilError(t, err)
 }
 
 func TestExtensionInstall_InvalidExtensionName(t *testing.T) {
