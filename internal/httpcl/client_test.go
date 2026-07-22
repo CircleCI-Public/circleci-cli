@@ -203,3 +203,68 @@ func TestClient_Call(t *testing.T) {
 	})
 
 }
+
+func TestDeprecationWarning_SunsetHeader(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Deprecation", "true")
+		w.Header().Set("Sunset", "Sat, 01 Jan 2028 00:00:00 GMT")
+		w.WriteHeader(http.StatusOK)
+	}))
+	t.Cleanup(srv.Close)
+
+	var msgs []string
+	c := httpcl.New(httpcl.Config{BaseURL: srv.URL, OnWarn: func(msg string) { msgs = append(msgs, msg) }})
+
+	ctx := iostream.Testing(context.Background())
+	_, err := c.Call(ctx, httpcl.NewRequest(http.MethodGet, "/"))
+	assert.NilError(t, err)
+	assert.Check(t, cmp.Equal(len(msgs), 1), "expected one warning, got %v", msgs)
+	assert.Check(t, cmp.Contains(msgs[0], "deprecated"))
+	assert.Check(t, cmp.Contains(msgs[0], "days"))
+}
+
+func TestDeprecationWarning_DeprecationOnly(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Deprecation", "true")
+		w.WriteHeader(http.StatusOK)
+	}))
+	t.Cleanup(srv.Close)
+
+	var msgs []string
+	c := httpcl.New(httpcl.Config{BaseURL: srv.URL, OnWarn: func(msg string) { msgs = append(msgs, msg) }})
+
+	ctx := iostream.Testing(context.Background())
+	_, err := c.Call(ctx, httpcl.NewRequest(http.MethodGet, "/"))
+	assert.NilError(t, err)
+	assert.Check(t, cmp.Equal(len(msgs), 1), "expected one warning, got %v", msgs)
+	assert.Check(t, cmp.Contains(msgs[0], "deprecated"))
+}
+
+func TestDeprecationWarning_NoCallback(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Deprecation", "true")
+		w.Header().Set("Sunset", "Sat, 01 Jan 2027 00:00:00 GMT")
+		w.WriteHeader(http.StatusOK)
+	}))
+	t.Cleanup(srv.Close)
+
+	// no OnWarn — must not panic
+	c := httpcl.New(httpcl.Config{BaseURL: srv.URL})
+	ctx := iostream.Testing(context.Background())
+	_, err := c.Call(ctx, httpcl.NewRequest(http.MethodGet, "/"))
+	assert.NilError(t, err)
+}
+
+func TestDeprecationWarning_NoHeadersNoCallback(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	t.Cleanup(srv.Close)
+
+	called := false
+	c := httpcl.New(httpcl.Config{BaseURL: srv.URL, OnWarn: func(string) { called = true }})
+	ctx := iostream.Testing(context.Background())
+	_, err := c.Call(ctx, httpcl.NewRequest(http.MethodGet, "/"))
+	assert.NilError(t, err)
+	assert.Check(t, cmp.Equal(called, false), "OnWarn should not fire without deprecation headers")
+}

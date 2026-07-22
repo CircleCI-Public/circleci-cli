@@ -47,7 +47,12 @@ import (
 type CircleCI struct {
 	*httprecorder.RequestRecorder
 
-	server *httptest.Server
+	server  *httptest.Server
+	handler http.Handler
+
+	// ExtraHeaders are added to every response. Use to inject Deprecation/Sunset
+	// headers without changing individual handler logic.
+	ExtraHeaders http.Header
 
 	mu                                sync.RWMutex
 	pipelines                         map[string]any
@@ -397,9 +402,23 @@ func NewCircleCI(t *testing.T) *CircleCI {
 	// GraphQL endpoint — dispatches by operation within the request body.
 	r.Post("/graphql-unstable", f.handleGraphQL)
 
-	f.server = httptest.NewServer(r)
+	f.handler = r
+	f.server = httptest.NewServer(f)
 	t.Cleanup(f.server.Close)
 	return f
+}
+
+// ServeHTTP injects ExtraHeaders into every response before delegating to the
+// chi router. Headers must be set before the first Write/WriteHeader call.
+func (f *CircleCI) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	f.mu.RLock()
+	for k, vals := range f.ExtraHeaders {
+		for _, v := range vals {
+			w.Header().Add(k, v)
+		}
+	}
+	f.mu.RUnlock()
+	f.handler.ServeHTTP(w, r)
 }
 
 // URL returns the base URL of the fake server.

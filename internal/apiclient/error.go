@@ -79,6 +79,28 @@ func (e *Error) Message() string {
 	return b.String()
 }
 
+// ParseServerMessage tries to extract a human-readable message from an error
+// response body. It checks "error" and "message" JSON fields, falling back to
+// the raw body string. Returns "" for an empty body.
+func ParseServerMessage(body []byte) string {
+	if len(body) == 0 {
+		return ""
+	}
+	var payload struct {
+		Error   string `json:"error"`
+		Message string `json:"message"`
+	}
+	if err := json.Unmarshal(body, &payload); err == nil {
+		if payload.Error != "" {
+			return payload.Error
+		}
+		if payload.Message != "" {
+			return payload.Message
+		}
+	}
+	return string(body)
+}
+
 // ParseError extracts the v3 error envelope from the response body of an
 // *httpcl.HTTPError. It returns false when err is not an HTTP error or the
 // body does not carry the envelope (e.g. v1/v2 endpoints, HTML error pages).

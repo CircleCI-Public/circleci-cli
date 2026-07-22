@@ -26,13 +26,16 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 
+	"github.com/CircleCI-Public/circleci-cli/internal/apiclient"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmd/root"
 	clierrors "github.com/CircleCI-Public/circleci-cli/internal/errors"
 	"github.com/CircleCI-Public/circleci-cli/internal/extension"
+	"github.com/CircleCI-Public/circleci-cli/internal/httpcl"
 	"github.com/CircleCI-Public/circleci-cli/internal/jq"
 )
 
@@ -88,6 +91,20 @@ func run() int {
 					"See the jq manual: https://jqlang.github.io/jq/manual/",
 				).
 				WithExitCode(clierrors.ExitBadArguments)
+		}
+		// A 410 anywhere means the server dropped this API version — override
+		// before display so it renders as a "CLI out of date" error.
+		if httpcl.HasStatusCode(err, http.StatusGone) {
+			he, _ := errors.AsType[*httpcl.HTTPError](err)
+			detail := "This version of circleci CLI is out of date."
+			if he != nil {
+				if msg := apiclient.ParseServerMessage(he.Body); msg != "" {
+					detail = "This version of circleci CLI is out of date. " + msg
+				}
+			}
+			err = clierrors.New("api.gone", "CLI out of date", detail).
+				WithSuggestions("Upgrade to the latest version: https://circleci.com/docs/local-cli/").
+				WithExitCode(clierrors.ExitAPIError)
 		}
 		if cliErr, ok := errors.AsType[*clierrors.CLIError](err); ok {
 			if jsonFlagPresent() {

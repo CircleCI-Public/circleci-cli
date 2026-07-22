@@ -60,6 +60,10 @@ type Config struct {
 	DisableRetries bool
 	// Transport overrides the HTTP transport (useful for testing).
 	Transport http.RoundTripper
+	// OnWarn, when non-nil, is called with a plain-text warning message when the
+	// server signals endpoint removal via Deprecation or Sunset response headers.
+	// The caller controls formatting (prefix, newline, colour).
+	OnWarn func(msg string)
 }
 
 // Client is a simple HTTP client with JSON defaults and automatic retries.
@@ -69,6 +73,7 @@ type Client struct {
 	authHeader string
 	userAgent  string
 	timeout    time.Duration
+	onWarn     func(string)
 	http       *retryablehttp.Client
 }
 
@@ -99,6 +104,7 @@ func New(cfg Config) *Client {
 		authHeader: cfg.AuthHeader,
 		userAgent:  cfg.UserAgent,
 		timeout:    timeout,
+		onWarn:     cfg.OnWarn,
 		http:       rc,
 	}
 }
@@ -197,6 +203,9 @@ func (c *Client) Call(ctx context.Context, r Request) (status int, err error) {
 	status = resp.StatusCode
 
 	if status >= 200 && status < 300 {
+		if c.onWarn != nil {
+			checkDeprecation(c.onWarn, resp.Header)
+		}
 		if r.respHeader != nil {
 			*r.respHeader = resp.Header
 		}
@@ -222,4 +231,29 @@ func UserAgent(goos, goarch, version, agent string) string {
 		return fmt.Sprintf("circleci-cli (%s/%s; %s; %s)", goos, goarch, version, agent)
 	}
 	return fmt.Sprintf("circleci-cli (%s/%s; %s)", goos, goarch, version)
+}
+
+// checkDeprecation calls onWarn when the response carries Deprecation or Sunset
+// headers signalling that the endpoint will be removed. The message is plain
+// text — no prefix or newline — so the caller controls formatting.
+func checkDeprecation(onWarn func(string), h http.Header) {
+	dep := h.Get("Deprecation")
+	sunset := h.Get("Sunset")
+	if dep == "" && sunset == "" {
+		return
+	}
+	if sunset != "" {
+		if t, err := http.ParseTime(sunset); err == nil {
+			days := int(time.Until(t).Hours() / 24)
+			if days > 0 {
+				onWarn(fmt.Sprintf("this API endpoint is deprecated and will be removed in %d days — upgrade circleci CLI", days))
+			} else {
+				onWarn("this API endpoint is deprecated and removal is imminent — upgrade circleci CLI")
+			}
+		} else {
+			onWarn(fmt.Sprintf("this API endpoint is deprecated and will be removed on %s — upgrade circleci CLI", sunset))
+		}
+	} else {
+		onWarn("this API endpoint is deprecated and will be removed — upgrade circleci CLI")
+	}
 }
