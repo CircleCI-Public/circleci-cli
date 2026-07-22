@@ -47,11 +47,10 @@ import (
 type CircleCI struct {
 	*httprecorder.RequestRecorder
 
-	server  *httptest.Server
-	handler http.Handler
+	server *httptest.Server
 
-	// ExtraHeaders are added to every response. Use to inject Deprecation/Sunset
-	// headers without changing individual handler logic.
+	// ExtraHeaders are added to every response via middleware. Use to inject
+	// Deprecation/Sunset headers without changing individual handler logic.
 	ExtraHeaders http.Header
 
 	mu                                sync.RWMutex
@@ -276,6 +275,18 @@ func NewCircleCI(t *testing.T) *CircleCI {
 
 	r := newRouter()
 	r.Use(chirecorder.Middleware(f.RequestRecorder))
+	r.Use(func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+			f.mu.RLock()
+			for k, vals := range f.ExtraHeaders {
+				for _, v := range vals {
+					w.Header().Add(k, v)
+				}
+			}
+			f.mu.RUnlock()
+			next.ServeHTTP(w, req)
+		})
+	})
 	r.Get("/api/v2/pipeline/{id}", f.handleGetPipeline)
 	r.Post("/api/v2/pipeline/{id}/cancel", f.handleCancelPipeline)
 	r.Post("/api/v3/workflows/{id}/rerun", f.handleRerunWorkflow)
@@ -402,23 +413,9 @@ func NewCircleCI(t *testing.T) *CircleCI {
 	// GraphQL endpoint — dispatches by operation within the request body.
 	r.Post("/graphql-unstable", f.handleGraphQL)
 
-	f.handler = r
-	f.server = httptest.NewServer(f)
+	f.server = httptest.NewServer(r)
 	t.Cleanup(f.server.Close)
 	return f
-}
-
-// ServeHTTP injects ExtraHeaders into every response before delegating to the
-// chi router. Headers must be set before the first Write/WriteHeader call.
-func (f *CircleCI) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	f.mu.RLock()
-	for k, vals := range f.ExtraHeaders {
-		for _, v := range vals {
-			w.Header().Add(k, v)
-		}
-	}
-	f.mu.RUnlock()
-	f.handler.ServeHTTP(w, r)
 }
 
 // URL returns the base URL of the fake server.
