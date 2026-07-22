@@ -117,6 +117,8 @@ func NewAPICmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 
+			cmdutil.SetTelemetryProp(cmd, "api_path", args[0])
+
 			client, cliErr := cmdutil.LoadClient(ctx)
 			if cliErr != nil {
 				return cliErr

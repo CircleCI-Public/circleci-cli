@@ -249,6 +249,48 @@ func TestRecordTelemetry(t *testing.T) {
 		assert.NilError(t, cmd.RunE(cmd, nil))
 		assert.Check(t, cmp.Len(recorder.Tracks(), 0))
 	})
+
+	t.Run("includes extra props set via SetTelemetryProp", func(t *testing.T) {
+		recorder, client := newTelemetry(t)
+		cmd := &cobra.Command{
+			Use: "api",
+			RunE: func(cmd *cobra.Command, args []string) error {
+				cmdutil.SetTelemetryProp(cmd, "api_path", "api/v2/me")
+				return nil
+			},
+		}
+		cmd.SetContext(cmdutil.WithTelemetry(context.Background(), client))
+		cmdutil.RecordTelemetry(cmd)
+		assert.NilError(t, cmd.RunE(cmd, nil))
+		assert.NilError(t, client.Close())
+
+		now := time.Now()
+		assert.Check(t, cmp.DeepEqual(recorder.Tracks(), []analytics.Track{
+			{
+				Timestamp: now,
+				UserId:    userID,
+				Event:     "command_invocation",
+				Properties: analytics.Properties{
+					"command":  "api",
+					"flags":    "",
+					"api_path": "api/v2/me",
+				},
+				Context: &analytics.Context{
+					App: analytics.AppInfo{
+						Name:    "circleci-cli",
+						Version: "1.2.3",
+					},
+					Device: analytics.DeviceInfo{
+						Id:    instanceID,
+						Model: "x86_64",
+						Type:  "debian",
+					},
+					OS: analytics.OSInfo{Name: "linux", Version: "24.04"},
+				},
+				Integrations: analytics.NewIntegrations().Enable("Amplitude"),
+			},
+		}, fakesegment.CompareTrack, fakesegment.CompareTime))
+	})
 }
 
 func TestRecordTelemetryForSubcommands(t *testing.T) {
