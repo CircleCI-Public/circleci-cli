@@ -43,8 +43,8 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/internal/telemetry"
 	"github.com/CircleCI-Public/circleci-cli/internal/testing/binary"
 	testenv "github.com/CircleCI-Public/circleci-cli/internal/testing/env"
-	"github.com/CircleCI-Public/circleci-cli/internal/testing/fakesegment"
 	"github.com/CircleCI-Public/circleci-cli/internal/testing/fakes"
+	"github.com/CircleCI-Public/circleci-cli/internal/testing/fakesegment"
 )
 
 // IDs used by the {project-id}/{org-id} substitution tests.
