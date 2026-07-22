@@ -46,6 +46,9 @@ type Config struct {
 	Agent   string
 
 	Transport http.RoundTripper
+	// OnWarn, when non-nil, is called with a plain-text deprecation warning.
+	// See httpcl.Config.OnWarn for details.
+	OnWarn func(msg string)
 }
 
 // New creates a Client. baseURL should be the CircleCI host, e.g. "https://circleci.com".
@@ -61,6 +64,7 @@ func New(cfg Config) *Client {
 		AuthHeader: "Authorization",
 		UserAgent:  httpcl.UserAgent(runtime.GOOS, runtime.GOARCH, cfg.Version, cfg.Agent),
 		Transport:  cfg.Transport,
+		OnWarn:     cfg.OnWarn,
 	}
 
 	mainCfg := baseCfg

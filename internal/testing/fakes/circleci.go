@@ -49,6 +49,10 @@ type CircleCI struct {
 
 	server *httptest.Server
 
+	// ExtraHeaders are added to every response via middleware. Use to inject
+	// Deprecation/Sunset headers without changing individual handler logic.
+	ExtraHeaders http.Header
+
 	mu                                sync.RWMutex
 	pipelines                         map[string]any
 	projects                          map[string][]any  // project slug → ordered list of pipelines
@@ -271,6 +275,18 @@ func NewCircleCI(t *testing.T) *CircleCI {
 
 	r := newRouter()
 	r.Use(chirecorder.Middleware(f.RequestRecorder))
+	r.Use(func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+			f.mu.RLock()
+			for k, vals := range f.ExtraHeaders {
+				for _, v := range vals {
+					w.Header().Add(k, v)
+				}
+			}
+			f.mu.RUnlock()
+			next.ServeHTTP(w, req)
+		})
+	})
 	r.Get("/api/v2/pipeline/{id}", f.handleGetPipeline)
 	r.Post("/api/v2/pipeline/{id}/cancel", f.handleCancelPipeline)
 	r.Post("/api/v3/workflows/{id}/rerun", f.handleRerunWorkflow)

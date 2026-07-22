@@ -39,6 +39,7 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/internal/config"
 	clierrors "github.com/CircleCI-Public/circleci-cli/internal/errors"
 	"github.com/CircleCI-Public/circleci-cli/internal/httpcl"
+	"github.com/CircleCI-Public/circleci-cli/internal/iostream"
 	"github.com/CircleCI-Public/circleci-cli/internal/keyring"
 	"github.com/CircleCI-Public/circleci-cli/internal/telemetry"
 )
@@ -172,6 +173,9 @@ func LoadClient(ctx context.Context) (*apiclient.Client, error) {
 		Token:   token,
 		Version: GetVersion(ctx),
 		Agent:   GetAgentName(ctx),
+		OnWarn: func(msg string) {
+			iostream.ErrPrintf(ctx, "warning: %s\n", msg)
+		},
 	}), nil
 }
 
@@ -195,6 +199,18 @@ func AppURL(ctx context.Context) (string, error) {
 // Optional notFoundSuggestions are appended to the 404 error (useful for
 // pointing users toward a list command, for example).
 func APIErr(err error, subject, notFoundCode, notFoundMsg string, notFoundSuggestions ...string) *clierrors.CLIError {
+	if httpcl.HasStatusCode(err, http.StatusGone) {
+		he, _ := errors.AsType[*httpcl.HTTPError](err)
+		detail := "This version of circleci CLI is out of date."
+		if he != nil {
+			if msg := apiclient.ParseServerMessage(he.Body); msg != "" {
+				detail = "This version of circleci CLI is out of date. " + msg
+			}
+		}
+		return clierrors.New("api.gone", "CLI out of date", detail).
+			WithSuggestions("Upgrade to the latest version: https://circleci.com/docs/local-cli/").
+			WithExitCode(clierrors.ExitAPIError)
+	}
 	if httpcl.HasStatusCode(err, http.StatusUnauthorized) {
 		return clierrors.New("auth.token_invalid", "Authentication failed",
 			"The API token was rejected by CircleCI.").
