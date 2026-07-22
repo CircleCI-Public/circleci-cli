@@ -333,7 +333,7 @@ func NewCircleCI(t *testing.T) *CircleCI {
 	r.Delete("/api/v3/signing/configs/{id}", f.handleDeleteIOSBundle)
 	// Config compile + org routes.
 	r.Post("/api/v2/compile-config-with-defaults", f.handleCompileConfig)
-	r.Get("/api/v2/organization/{vcs}/{org}", f.handleGetOrg)
+	r.Get("/api/v3/orgs", f.handleResolveOrg)
 	r.Get("/api/v3/orgs/{id}/settings", f.handleGetOrgSettingsV3)
 	r.Post("/api/v3/orgs/{id}/update-settings", f.handleUpdateOrgSettingsV3)
 	// Job (v3) routes.
@@ -3751,7 +3751,7 @@ func (f *CircleCI) LastCompileOwnerID() string {
 	return f.lastCompileOwnerID
 }
 
-// AddOrg registers an org returned by GET /api/v2/organization/{slug}.
+// AddOrg registers an org resolvable by slug via GET /api/v3/orgs.
 func (f *CircleCI) AddOrg(id, slug, name, vcsType string) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -3794,16 +3794,23 @@ func (f *CircleCI) handleCompileConfig(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func (f *CircleCI) handleGetOrg(w http.ResponseWriter, r *http.Request) {
-	slug := chi.URLParam(r, "vcs") + "/" + chi.URLParam(r, "org")
+// handleResolveOrg serves GET /api/v3/orgs?filter[slug]=<slug>, resolving a
+// single org by its slug. An unknown slug returns 200 with an empty data
+// array (not a 404), matching the real API.
+func (f *CircleCI) handleResolveOrg(w http.ResponseWriter, r *http.Request) {
+	slug := r.URL.Query().Get("filter[slug]")
 	f.mu.RLock()
 	org, ok := f.orgs[slug]
 	f.mu.RUnlock()
-	if !ok {
-		http.NotFound(w, r)
-		return
+
+	data := []map[string]any{}
+	if ok {
+		data = append(data, map[string]any{"id": org["id"]})
 	}
-	render.JSON(w, r, org)
+	render.JSON(w, r, map[string]any{
+		"data": data,
+		"page": map[string]any{"next": nil, "prev": nil},
+	})
 }
 
 // defaultOrgSettingsAttrs returns an all-false v3 attributes payload for org settings.

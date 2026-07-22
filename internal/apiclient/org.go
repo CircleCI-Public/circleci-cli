@@ -24,11 +24,13 @@ package apiclient
 
 import (
 	"context"
+	"errors"
+	"fmt"
 
 	"github.com/google/uuid"
 )
 
-// OrgInfo is returned by GET /api/v2/organization/{slug-or-id}.
+// OrgInfo is returned by POST /api/v2/organization.
 type OrgInfo struct {
 	ID      string `json:"id"`
 	Name    string `json:"name"`
@@ -36,13 +38,28 @@ type OrgInfo struct {
 	VCSType string `json:"vcs_type"`
 }
 
-// GetOrg fetches an organization by its slug or UUID.
-func (c *Client) GetOrg(ctx context.Context, slugOrID string) (*OrgInfo, error) {
-	var org OrgInfo
-	if err := c.get(ctx, "/organization/"+slugOrID, &org); err != nil {
-		return nil, err
+// ErrOrgNotFound is returned by ResolveOrgID when no org matches the slug.
+var ErrOrgNotFound = errors.New("organization not found")
+
+// orgRef is a single entry in the GET /api/v3/orgs response.
+type orgRef struct {
+	ID uuid.UUID `json:"id"`
+}
+
+// ResolveOrgID resolves an organization slug (e.g. "gh/acme") to its UUID via
+// GET /api/v3/orgs?filter[slug]=<slug>.
+//
+// The endpoint is a collection: a slug matching no org returns an empty list
+// (not a 404), which is surfaced as ErrOrgNotFound.
+func (c *Client) ResolveOrgID(ctx context.Context, slug string) (uuid.UUID, error) {
+	var env v3List[orgRef]
+	if err := c.getV3(ctx, "/orgs", &env, filterParam("slug", slug)); err != nil {
+		return uuid.Nil, err
 	}
-	return &org, nil
+	if len(env.Data) == 0 {
+		return uuid.Nil, fmt.Errorf("%w: %q", ErrOrgNotFound, slug)
+	}
+	return env.Data[0].ID, nil
 }
 
 // CreateOrg creates a new organization. vcsType must be one of "github",
