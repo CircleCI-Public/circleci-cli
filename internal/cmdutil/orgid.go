@@ -88,7 +88,7 @@ func ResolveOrgSlugOrID(ctx context.Context, client *apiclient.Client, ref, cmdN
 		return id, nil
 	}
 
-	org, err := client.GetOrg(ctx, ref)
+	id, err := client.ResolveOrgID(ctx, ref)
 	if err != nil {
 		return uuid.Nil, clierrors.New("org.resolve_failed", "Could not resolve organization",
 			fmt.Sprintf("Failed to look up organization %q: %s", ref, err.Error())).
@@ -98,7 +98,7 @@ func ResolveOrgSlugOrID(ctx context.Context, client *apiclient.Client, ref, cmdN
 			).
 			WithExitCode(clierrors.ExitBadArguments)
 	}
-	return parseOrgID(org.ID)
+	return id, nil
 }
 
 // InferOrgID best-effort resolves the org UUID for the current directory's
