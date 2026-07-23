@@ -67,6 +67,7 @@ type Extension struct {
 	Sys        string
 	Sha256     string
 	URL        string
+	Ref        *Reference
 }
 
 type Binary struct {
@@ -77,8 +78,9 @@ type Binary struct {
 }
 
 type LatestData struct {
-	Version  string   `json:"version"`
-	Binaries []Binary `json:"binaries"`
+	Version  string     `json:"version"`
+	Binaries []Binary   `json:"binaries"`
+	Ref      *Reference `json:"reference,omitempty"`
 }
 
 // validExtensionName matches names that are safe to use as a URL path segment
@@ -125,6 +127,7 @@ func (m *Manager) Get(ctx context.Context, binaryName string) (Extension, error)
 		Sys:        b.Sys,
 		Sha256:     b.Sha256,
 		URL:        path.Join("/circleci-cli-plugins", binaryName, resp.Version, b.Path),
+		Ref:        resp.Ref,
 	}, nil
 }
 

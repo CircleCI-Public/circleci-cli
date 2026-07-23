@@ -177,9 +177,15 @@ tasks:
           --execute.timeout 60s
           --output docs/demos/run-get.{{.ITEM}}
 
+  extensions:install:
+    desc: Install known official extensions
+    cmds:
+      - go run ./cmd/circleci extension install testsuite
 
   docs:reference:
     desc: Generate the reference page from the live command tree
+    deps:
+      - extensions:install
     cmds:
       - mkdir -p {{.SITE_DIR}}/content/reference {{.SITE_DIR}}/static/img
       # The landing page (/) is a hand-written template; the screenshot it shows

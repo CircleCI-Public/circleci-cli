@@ -38,12 +38,52 @@ import (
 )
 
 type Manifest struct {
-	Name       string `yaml:"name"`
-	BinaryName string `yaml:"binary_name"`
-	Version    string `yaml:"version"`
-	Sha256     string `yaml:"sha256"`
-	URL        string `yaml:"url"`
-	Path       string `yaml:"path"`
+	Name       string     `yaml:"name"`
+	BinaryName string     `yaml:"binary_name"`
+	Version    string     `yaml:"version"`
+	Sha256     string     `yaml:"sha256"`
+	URL        string     `yaml:"url"`
+	Path       string     `yaml:"path"`
+	Ref        *Reference `yaml:"reference,omitempty"`
+}
+
+// ReferenceAnnotation is the cobra command annotation key for when an
+// extension provides reference documentation.
+const ReferenceAnnotation = "extension:reference"
+
+// Reference describes an extension command and, recursively, its subcommands.
+// It is owned by the extension and fetched from the extension registry's
+// release.json. When present, it enriches the CLI's generated reference docs;
+// when absent, the CLI falls back to the base extension docs.
+type Reference struct {
+	Use         string          `json:"use,omitempty" yaml:"use,omitempty"`
+	Short       string          `json:"short,omitempty" yaml:"short,omitempty"`
+	Long        string          `json:"long,omitempty" yaml:"long,omitempty"`
+	Args        []ReferenceArg  `json:"args,omitempty" yaml:"args,omitempty"`
+	Flags       []ReferenceFlag `json:"flags,omitempty" yaml:"flags,omitempty"`
+	Subcommands []ReferenceSub  `json:"subcommands,omitempty" yaml:"subcommands,omitempty"`
+}
+
+type ReferenceSub struct {
+	Name string `json:"name,omitempty" yaml:"name,omitempty"`
+	Reference
+}
+
+// ReferenceFlag describes a single flag for Reference.
+type ReferenceFlag struct {
+	Name      string `json:"name" yaml:"name"`
+	Shorthand string `json:"shorthand,omitempty" yaml:"shorthand,omitempty"`
+	Usage     string `json:"usage,omitempty" yaml:"usage,omitempty"`
+	// Type is the value placeholder shown after the flag name, e.g. "string".
+	// Empty means the flag takes no value (boolean-style).
+	Type    string `json:"type,omitempty" yaml:"type,omitempty"`
+	Default string `json:"default,omitempty" yaml:"default,omitempty"`
+}
+
+// ReferenceArg describes a single argument for Reference.
+type ReferenceArg struct {
+	Name string `json:"name" yaml:"name"`
+	Help string `json:"help,omitempty" yaml:"help,omitempty"`
 }
 
 // Run executes the extension binary with args, injecting CircleCI environment

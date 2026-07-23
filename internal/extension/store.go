@@ -185,6 +185,7 @@ func (m *Store) Write(ext Extension, binary io.Reader) (_ Manifest, err error) {
 		Sha256:     ext.Sha256,
 		URL:        ext.URL,
 		Path:       filepath.Join(fsRoot.Name(), binaryTarget),
+		Ref:        ext.Ref,
 	}
 
 	b, err := yaml.Marshal(manifest)

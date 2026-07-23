@@ -540,6 +540,136 @@ func TestUnmanagedExtensionNestedUnknownNotIntercepted(t *testing.T) {
 	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 }
 
+func TestExtensionDocsEnrichReference(t *testing.T) {
+	f := fakes.NewExtensionRegistry(t)
+	env := testenv.New(t)
+	env.Token = testToken
+	env.ExtensionRegistryURL = f.URL()
+
+	extName := "testextension"
+	f.WithExtension(t,
+		extension.Manifest{
+			Name:       extName,
+			BinaryName: "circleci-" + extName,
+			Version:    "1.0.0",
+			Path:       testBinaryPath,
+			Ref: &extension.Reference{
+				Use:   "<command>",
+				Short: "Documented test extension",
+				Long:  "A test extension with enriched command documentation.",
+				Subcommands: []extension.ReferenceSub{
+					{
+						Name: "do",
+						Reference: extension.Reference{
+							Use:   "<name> [flags]",
+							Short: "Do a thing",
+							Long:  "Do a thing with the given name.",
+							Args: []extension.ReferenceArg{
+								{Name: "<name>", Help: "The name to operate on."},
+							},
+							Flags: []extension.ReferenceFlag{
+								{Name: "parallel", Shorthand: "p", Type: "int", Default: "4", Usage: "Parallel workers"},
+							},
+						},
+					},
+				},
+			},
+		},
+		fakes.ExtensionMeta{Arch: runtime.GOARCH, Sys: runtime.GOOS},
+	)
+
+	installResult := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"extension", "install", extName},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+	assert.Assert(t, cmp.Equal(installResult.ExitCode, 0))
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"help", "reference"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+	assert.Check(t, cmp.Equal(result.ExitCode, 0))
+
+	// The reference documents every command, find the extension section.
+	section := findSection(t, result.Stdout, "### `circleci testextension <command>`")
+	assert.Check(t, golden.String(section, t.Name()+".txt"))
+}
+
+func TestExtensionNoDocsFallsBackToBaseReference(t *testing.T) {
+	f := fakes.NewExtensionRegistry(t)
+	env := testenv.New(t)
+	env.Token = testToken
+	env.ExtensionRegistryURL = f.URL()
+
+	extName := "testextension"
+	installExtension(t, f, env, extName, runtime.GOARCH, runtime.GOOS)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"help", "reference"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+	assert.Check(t, cmp.Equal(result.ExitCode, 0))
+
+	// With no docs the extension renders via the base reference path, so scope
+	// the golden to its section to keep it stable against unrelated command
+	// changes.
+	section := findSection(t, result.Stdout, "### `circleci "+extName+"`")
+	assert.Check(t, golden.String(section, t.Name()+".txt"))
+}
+
+// referenceSection returns the slice of `help reference` output documenting a
+// single top-level command: from its heading line up to (but not including) the
+// next heading at the same or higher level. Deeper subcommand headings are kept.
+func findSection(t *testing.T, doc, heading string) string {
+	t.Helper()
+
+	sectionHead := heading + "\n"
+	lvl := headingLevel(sectionHead)
+
+	sb := strings.Builder{}
+	found := false
+
+	for l := range strings.Lines(doc) {
+		if l == sectionHead {
+			found = true
+			sb.WriteString(l)
+			continue
+		}
+
+		if found {
+			if headingLevel(l) == lvl {
+				break
+			}
+			sb.WriteString(l)
+		}
+	}
+	assert.Assert(t, len(sb.String()) > 0, "heading %q not found in reference:\n%s", heading, doc)
+
+	return sb.String()
+}
+
+// headingLevel reports the Markdown heading level of a line (the count of
+// leading '#' characters followed by a space), or 0 if the line is not a
+// heading.
+func headingLevel(line string) int {
+	before, after, found := strings.Cut(line, " ")
+	if !found || len(after) == 0 {
+		return 0
+	}
+
+	if strings.Count(before, "#") == len(before) {
+		return len(before)
+	}
+
+	return 0
+}
+
 // withExtDir prepends extDir to PATH in the given environ slice.
 func withExtDir(environ []string, extDir string) []string {
 	out := make([]string, 0, len(environ)+1)
