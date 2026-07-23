@@ -64,7 +64,8 @@ func RegisterExtensions(rootCmd *cobra.Command) {
 	extsDir, err := config.ExtensionsDir()
 	cobra.CheckErr(err)
 
-	managedExts, err := extension.FindAll(extsDir)
+	store := extension.NewStore(extsDir)
+	managedExts, err := store.FindAll()
 	cobra.CheckErr(err)
 
 	officialInstalled := map[string]bool{

@@ -24,15 +24,10 @@ package extension
 
 import (
 	"context"
-	"errors"
 	"fmt"
-	"io/fs"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
-
-	"gopkg.in/yaml.v3"
 
 	"github.com/CircleCI-Public/circleci-cli/internal/apiclient"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmdutil"
@@ -87,63 +82,6 @@ func (ext *Manifest) Run(ctx context.Context, client *apiclient.Client, args []s
 		return err
 	}
 	return nil
-}
-
-// FindAll scans path for extension manifest.yml files. It loads extension data
-// from each manifest.yml and returns all loaded extension manifests.
-func FindAll(path string) ([]Manifest, error) {
-	var exts []Manifest
-
-	err := filepath.Walk(path, func(path string, info fs.FileInfo, err error) error {
-		// The extensions directory may not have been created if no extensions
-		// are installed
-		if errors.Is(err, fs.ErrNotExist) {
-			return nil
-		}
-
-		if err != nil {
-			return err
-		}
-
-		// continue if path is a directory
-		if info.IsDir() {
-			return nil
-		}
-
-		// if the basename is `manifest.yml` load the manifest and add to results
-		// Then return filepath.SkipDir
-		if filepath.Base(path) == "manifest.yml" {
-			// path is passed from filepath.Walk
-			// nolint:gosec
-			f, err := os.Open(path)
-			if err != nil {
-				return err
-			}
-			defer func() { _ = f.Close() }()
-
-			var ext Manifest
-
-			decoder := yaml.NewDecoder(f)
-			err = decoder.Decode(&ext)
-			if err != nil {
-				return &ErrCorruptExtensionManifest{
-					ManifestPath: path,
-					Err:          err,
-				}
-			}
-
-			exts = append(exts, ext)
-
-			return filepath.SkipDir
-		}
-
-		return nil
-	})
-	if err != nil {
-		return nil, err
-	}
-
-	return exts, nil
 }
 
 // buildEnv constructs the environment for the extension process. It starts

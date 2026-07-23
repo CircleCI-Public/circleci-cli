@@ -76,14 +76,7 @@ func newRemoveCmd() *cobra.Command {
 				return err
 			}
 
-			cfg := cmdutil.GetConfig(ctx)
-
-			m := extension.NewManager(extension.Config{
-				Version:       cmdutil.GetVersion(ctx),
-				Agent:         cmdutil.GetAgentName(ctx),
-				ExtensionsDir: extDir,
-				BaseURL:       cfg.EffectiveExtensionHost(),
-			})
+			store := extension.NewStore(extDir)
 
 			name := args[0]
 			if !strings.HasPrefix(name, "circleci-") {
@@ -102,7 +95,7 @@ func newRemoveCmd() *cobra.Command {
 				return err
 			}
 
-			err = m.Remove(ctx, name)
+			err = store.Remove(name)
 			if err != nil {
 				return removeCLIError(err)
 			}
