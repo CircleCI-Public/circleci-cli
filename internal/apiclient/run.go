@@ -38,7 +38,6 @@ type runAttributesWire struct {
 	Outcome        string         `json:"outcome,omitempty"`
 	CurrentOutcome string         `json:"current_outcome,omitempty"`
 	CreatedAt      time.Time      `json:"created_at"`
-	VCS            *runVCSWire    `json:"vcs,omitempty"`
 	Errors         []runErrorWire `json:"errors,omitempty"`
 }
 
@@ -48,11 +47,11 @@ type runErrorWire struct {
 }
 
 type runVCSWire struct {
-	Branch        string         `json:"branch"`
-	Tag           string         `json:"tag"`
-	Revision      string         `json:"revision"`
-	RepositoryURL string         `json:"repository_url"`
-	Commit        *runCommitWire `json:"commit,omitempty"`
+	Branch              string         `json:"branch"`
+	Tag                 string         `json:"tag"`
+	Revision            string         `json:"revision"`
+	OriginRepositoryURL string         `json:"origin_repository_url"`
+	Commit              *runCommitWire `json:"commit,omitempty"`
 }
 
 type runCommitWire struct {
@@ -67,8 +66,7 @@ type runCommitAuthorWire struct {
 }
 
 type runReferencesWire struct {
-	// Event carries the VCS details of the event that triggered the run,
-	// including the tag — which the legacy top-level attributes.vcs lacks.
+	// Event carries the VCS details of the event that triggered the run.
 	Event   runEventRefWire   `json:"event"`
 	Trigger runTriggerRefWire `json:"trigger"`
 	Project struct {
@@ -148,13 +146,11 @@ func (w runWire) toRunV3() *RunV3 {
 		CreatedAt:      a.CreatedAt,
 		ProjectID:      w.References.Project.ID,
 	}
-	// VCS details now live on the event reference, which is the only source
-	// that carries the tag. Fall back to the legacy top-level attributes.vcs
-	// (branch/revision only) while the API still serves it during rollout.
 	if v := w.References.Event.Attributes.VCS; v != nil {
 		r.Branch = v.Branch
 		r.Tag = v.Tag
 		r.Revision = v.Revision
+		r.RepositoryURL = v.OriginRepositoryURL
 		if c := v.Commit; c != nil {
 			r.Commit = &RunCommit{
 				Subject:     c.Subject,
@@ -163,14 +159,6 @@ func (w runWire) toRunV3() *RunV3 {
 				AuthorLogin: c.Author.Login,
 			}
 		}
-	} else if a.VCS != nil {
-		r.Branch = a.VCS.Branch
-		r.Revision = a.VCS.Revision
-	}
-	// repository_url is only carried by the top-level attributes.vcs, not the
-	// event reference — set it independently of the branch/tag source above.
-	if a.VCS != nil {
-		r.RepositoryURL = a.VCS.RepositoryURL
 	}
 	for _, e := range a.Errors {
 		r.Errors = append(r.Errors, RunError(e))
