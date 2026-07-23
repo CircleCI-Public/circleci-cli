@@ -37,14 +37,18 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/internal/testing/fakes"
 )
 
-// fakeMyRunV3 builds a V3 run payload with a repository_url and an explicit
-// created_at, as returned by GET /api/v3/runs?filter[user_id]=me. Output groups
-// these by repository, most recent run first.
+// fakeMyRunV3 builds a V3 run payload with an origin_repository_url and an
+// explicit created_at, as returned by GET /api/v3/runs?filter[user_id]=me.
+// Output groups these by repository, most recent run first.
 func fakeMyRunV3(id, projectID, phase, outcome, repoURL, branch, revision, createdAt string) map[string]any {
 	run := fakeRunV3(id, projectID, phase, outcome, branch, revision)
+
 	attrs := run["attributes"].(map[string]any)
-	attrs["vcs"].(map[string]any)["repository_url"] = repoURL
 	attrs["created_at"] = createdAt
+
+	vcs := run["references"].(map[string]any)["event"].(map[string]any)["attributes"].(map[string]any)["vcs"].(map[string]any)
+	vcs["origin_repository_url"] = repoURL
+
 	return run
 }
 
@@ -97,12 +101,12 @@ func TestMyRuns_Empty(t *testing.T) {
 	assert.Check(t, strings.Contains(result.Stderr, "No runs found."))
 }
 
-// TestMyRuns_UnknownProject covers a run the my-runs API returns without a
-// repository_url: the Project column shows "(unknown)" (the project name is not
-// looked up), and the run still lists.
+// TestMyRuns_UnknownProject covers a run the my-runs API returns without an
+// origin_repository_url: the Project column shows "(unknown)" (the project name
+// is not looked up), and the run still lists.
 func TestMyRuns_UnknownProject(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
-	// fakeRunV3 carries no repository_url.
+	// fakeRunV3 carries no origin_repository_url.
 	fake.SetUserRuns(
 		fakeRunV3("e0000000-0000-4000-8000-00000000b001", "a0000000-0000-4000-8000-00000000bb01", "ended", "succeeded", "main", "abc1234def5678"),
 	)

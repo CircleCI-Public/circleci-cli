@@ -1166,13 +1166,16 @@ func runAttr(run any, key string) string {
 	return s
 }
 
-// runBranch reads attributes.vcs.branch from a stored fake run, or "" if absent.
+// runBranch reads references.event.attributes.vcs.branch from a stored fake
+// run, or "" if absent.
 func runBranch(run any) string {
 	m, ok := run.(map[string]any)
 	if !ok {
 		return ""
 	}
-	attrs, _ := m["attributes"].(map[string]any)
+	refs, _ := m["references"].(map[string]any)
+	event, _ := refs["event"].(map[string]any)
+	attrs, _ := event["attributes"].(map[string]any)
 	vcs, _ := attrs["vcs"].(map[string]any)
 	branch, _ := vcs["branch"].(string)
 	return branch
