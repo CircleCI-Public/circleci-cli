@@ -63,18 +63,14 @@ func fakeRunV3(id, projectID, phase, outcome, branch, revision string) map[strin
 	attrs := map[string]any{
 		"phase":      phase,
 		"created_at": createdAt.Format(v3TimeFormat),
-		"vcs": map[string]any{
-			"branch":   branch,
-			"revision": revision,
-		},
 	}
 	// The real V3 runs API reports only current_outcome, never outcome,
 	// regardless of phase.
 	if outcome != "" {
 		attrs["current_outcome"] = outcome
 	}
-	// The event VCS carries the commit (subject, url, author) — the only source
-	// the client reads it from. Only runs that resolved a revision have one.
+	// VCS (branch, revision, commit, origin_repository_url) lives on the event
+	// reference. Only runs that resolved a revision have a commit.
 	eventVCS := map[string]any{
 		"branch":   branch,
 		"revision": revision,
@@ -90,8 +86,6 @@ func fakeRunV3(id, projectID, phase, outcome, branch, revision string) map[strin
 		"id":         id,
 		"attributes": attrs,
 		"references": map[string]any{
-			// VCS now lives on the event reference (and carries the tag);
-			// attributes.vcs above is retained for legacy clients.
 			"event": map[string]any{
 				"attributes": map[string]any{
 					"vcs": eventVCS,
@@ -547,7 +541,7 @@ func setupRunGetInteractiveFake(t *testing.T) *testenv.TestEnv {
 	// It carries a repository URL, which the picker folds into its ref bracket as
 	// "[org/repo:branch]".
 	myRun := fakeRunV3(irunRun4ID, runTestProjectID, "ended", "succeeded", "mine", "cafed00d12345678")
-	myRun["attributes"].(map[string]any)["vcs"].(map[string]any)["repository_url"] = "https://github.com/testorg/testrepo"
+	myRun["references"].(map[string]any)["event"].(map[string]any)["attributes"].(map[string]any)["vcs"].(map[string]any)["origin_repository_url"] = "https://github.com/testorg/testrepo"
 	fake.SetUserRuns(myRun)
 
 	wf := fakeWorkflowV3(irunWfID, "build", irunRun1ID, runTestProjectID, "ended", "succeeded")
