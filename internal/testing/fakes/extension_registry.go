@@ -151,8 +151,9 @@ type extensionBinary struct {
 }
 
 type extensionLatestData struct {
-	Version  string            `json:"version"`
-	Binaries []extensionBinary `json:"binaries"`
+	Version  string               `json:"version"`
+	Binaries []extensionBinary    `json:"binaries"`
+	Ref      *extension.Reference `json:"reference,omitempty"`
 }
 
 func (e *ExtensionRegistry) handleGetLatest(w http.ResponseWriter, r *http.Request) {
@@ -183,6 +184,7 @@ func (e *ExtensionRegistry) handleGetLatest(w http.ResponseWriter, r *http.Reque
 				Sha256: ext.meta.Sha256,
 			},
 		},
+		Ref: ext.manifest.Ref,
 	}
 
 	render.JSON(w, r, d)
