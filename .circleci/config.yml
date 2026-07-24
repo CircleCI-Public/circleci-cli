@@ -14,7 +14,7 @@ commands:
 
   install-go:
     steps:
-      - run: circleci run circleci/setup-go@0.0.5-bf6c59b -- --version << pipeline.parameters.go_version_with_patch >> --go-cache-checksum '{{ checksum "go.sum" }}_{{ checksum "tools/go.sum" }}'
+      - run: circleci run circleci/setup-go@0.0.10-5577d2a -- --version << pipeline.parameters.go_version_with_patch >> --go-cache-checksum '{{ checksum "go.sum" }}_{{ checksum "tools/go.sum" }}'
       - run: go version
 
   install-task:
