@@ -102,8 +102,8 @@ type GitHubAppRepository struct {
 
 // ListGitHubAppRepositories returns one page of repositories the GitHub App can
 // access for the organization, along with the total repository count. orgID
-// must be the organization UUID. page is 1-based; limit is capped at 100 by the
-// server. Passing both page and limit > 0 selects the paginated response shape.
+// must be the organization UUID. page is 1-based; limit is the page size (max
+// 100 by the server).
 func (c *Client) ListGitHubAppRepositories(ctx context.Context, orgID string, page, limit int) ([]GitHubAppRepository, int, error) {
 	var resp struct {
 		Items      []GitHubAppRepository `json:"items"`
