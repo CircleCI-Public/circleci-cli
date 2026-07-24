@@ -32,32 +32,21 @@ import (
 	"fmt"
 	"io"
 	"net/http"
-	"os"
 	"path"
-	"path/filepath"
 	"regexp"
 	"runtime"
-	"strings"
-
-	"gopkg.in/yaml.v3"
 
 	"github.com/CircleCI-Public/circleci-cli/internal/httpcl"
 )
 
-// maxExtensionSize is the maximum size of a binary to prevent
-// potential DoS vulnerability (G110). Set to 512MB.
-const maxExtensionSize int64 = 512 * 1024 * 1024
-
 type Manager struct {
-	client        *httpcl.Client
-	extensionsDir string
+	client *httpcl.Client
 }
 
 type Config struct {
-	Version       string
-	Agent         string
-	BaseURL       string
-	ExtensionsDir string
+	Version string
+	Agent   string
+	BaseURL string
 }
 
 func NewManager(cfg Config) *Manager {
@@ -67,8 +56,7 @@ func NewManager(cfg Config) *Manager {
 	}
 
 	return &Manager{
-		client:        httpcl.New(clientCfg),
-		extensionsDir: cfg.ExtensionsDir,
+		client: httpcl.New(clientCfg),
 	}
 }
 
@@ -79,6 +67,7 @@ type Extension struct {
 	Sys        string
 	Sha256     string
 	URL        string
+	Ref        *Reference
 }
 
 type Binary struct {
@@ -89,8 +78,9 @@ type Binary struct {
 }
 
 type LatestData struct {
-	Version  string   `json:"version"`
-	Binaries []Binary `json:"binaries"`
+	Version  string     `json:"version"`
+	Binaries []Binary   `json:"binaries"`
+	Ref      *Reference `json:"reference,omitempty"`
 }
 
 // validExtensionName matches names that are safe to use as a URL path segment
@@ -137,10 +127,11 @@ func (m *Manager) Get(ctx context.Context, binaryName string) (Extension, error)
 		Sys:        b.Sys,
 		Sha256:     b.Sha256,
 		URL:        path.Join("/circleci-cli-plugins", binaryName, resp.Version, b.Path),
+		Ref:        resp.Ref,
 	}, nil
 }
 
-func (m *Manager) Install(ctx context.Context, ext Extension) (Manifest, error) {
+func (m *Manager) Download(ctx context.Context, ext Extension) (io.ReadCloser, error) {
 	buf := bytes.NewBuffer(nil)
 
 	hasher := sha256.New()
@@ -156,106 +147,17 @@ func (m *Manager) Install(ctx context.Context, ext Extension) (Manifest, error) 
 	_, err := m.client.Call(ctx, req)
 	if err != nil {
 		if httpErr, ok := errors.AsType[*httpcl.HTTPError](err); ok {
-			return Manifest{}, &ErrDownloadFailed{StatusCode: httpErr.StatusCode}
+			return nil, &ErrDownloadFailed{StatusCode: httpErr.StatusCode}
 		}
-		return Manifest{}, err
+		return nil, err
 	}
 
 	got := hex.EncodeToString(hasher.Sum(nil))
 	if got != ext.Sha256 {
-		return Manifest{}, &ErrChecksumMismatch{Expected: ext.Sha256, Got: got}
+		return nil, &ErrChecksumMismatch{Expected: ext.Sha256, Got: got}
 	}
 
-	// Ensure the extensions directory exists.
-	if err := os.MkdirAll(m.extensionsDir, 0750); err != nil {
-		return Manifest{}, err
-	}
-
-	fsRoot, err := os.OpenRoot(m.extensionsDir)
-	if err != nil {
-		return Manifest{}, err
-	}
-
-	defer func() { _ = fsRoot.Close() }()
-
-	target := filepath.Join(ext.BinaryName, ext.BinaryName)
-	if runtime.GOOS == "windows" {
-		target += ".exe"
-	}
-
-	if err := fsRoot.MkdirAll(filepath.Dir(target), 0750); err != nil {
-		return Manifest{}, err
-	}
-
-	out, err := fsRoot.OpenFile(target, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0750)
-	if err != nil {
-		return Manifest{}, err
-	}
-	defer func() { _ = out.Close() }()
-
-	zr, err := gzip.NewReader(buf)
-	if err != nil {
-		_ = os.Remove(target)
-		return Manifest{}, err
-	}
-	defer func() { _ = zr.Close() }()
-
-	n, err := io.CopyN(out, zr, maxExtensionSize+1)
-	if err != nil {
-		if !errors.Is(err, io.EOF) {
-			return Manifest{}, err
-		}
-	}
-
-	if n > maxExtensionSize {
-		return Manifest{}, &ErrExtensionTooLarge{Name: ext.BinaryName, MaxSize: maxExtensionSize}
-	}
-
-	manifest := Manifest{
-		Name:       strings.TrimPrefix(ext.BinaryName, "circleci-"),
-		BinaryName: ext.BinaryName,
-		Version:    ext.Version,
-		Sha256:     ext.Sha256,
-		URL:        ext.URL,
-		Path:       filepath.Join(fsRoot.Name(), target),
-	}
-
-	if err := m.writeManifest(fsRoot, manifest); err != nil {
-		return Manifest{}, err
-	}
-
-	return manifest, nil
-}
-
-// Remove removes the given extension.
-// The full contents of the extension directory are removed.
-// If the extension manifest points to a binary outside the
-// directory, the binary is not removed.
-// Returns ErrExtensionNotInstalled if the extension is not installed.
-func (m *Manager) Remove(_ context.Context, binaryName string) error {
-	if err := validateName(binaryName); err != nil {
-		return err
-	}
-
-	fsRoot, err := os.OpenRoot(m.extensionsDir)
-	if err != nil {
-		if os.IsNotExist(err) {
-			return &ErrExtensionNotInstalled{Name: binaryName}
-		}
-
-		return err
-	}
-	defer func() { _ = fsRoot.Close() }()
-
-	if _, err := fsRoot.Stat(binaryName); err != nil {
-		if os.IsNotExist(err) {
-			return &ErrExtensionNotInstalled{Name: binaryName}
-		}
-
-		return err
-	}
-
-	return fsRoot.RemoveAll(binaryName)
+	return gzip.NewReader(buf)
 }
 
 func validateName(name string) error {
@@ -263,20 +165,4 @@ func validateName(name string) error {
 		return &ErrInvalidName{Name: name}
 	}
 	return nil
-}
-
-func (m *Manager) writeManifest(fs *os.Root, manifest Manifest) error {
-	target := filepath.Join(manifest.BinaryName, "manifest.yml")
-
-	err := fs.MkdirAll(filepath.Dir(target), 0750)
-	if err != nil {
-		return err
-	}
-
-	b, err := yaml.Marshal(manifest)
-	if err != nil {
-		return err
-	}
-
-	return fs.WriteFile(target, b, 0600)
 }

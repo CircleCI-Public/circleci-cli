@@ -1,0 +1,21 @@
+### `circleci testextension <command>`
+
+Documented test extension
+
+A test extension with enriched command documentation.
+
+#### `circleci testextension do <name> [flags]`
+
+Do a thing
+
+Do a thing with the given name.
+
+| Flag                 | Description                  |
+| -------------------- | ---------------------------- |
+| `-p, --parallel int` | Parallel workers (default 4) |
+
+
+**Arguments:**
+
+`<name>` The name to operate on.
+

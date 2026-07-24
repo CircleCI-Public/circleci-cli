@@ -83,11 +83,12 @@ func installExtension(ctx context.Context, name string) (extension.Manifest, err
 	cfg := cmdutil.GetConfig(ctx)
 
 	m := extension.NewManager(extension.Config{
-		Version:       cmdutil.GetVersion(ctx),
-		Agent:         cmdutil.GetAgentName(ctx),
-		ExtensionsDir: extDir,
-		BaseURL:       cfg.EffectiveExtensionHost(),
+		Version: cmdutil.GetVersion(ctx),
+		Agent:   cmdutil.GetAgentName(ctx),
+		BaseURL: cfg.EffectiveExtensionHost(),
 	})
+
+	store := extension.NewStore(extDir)
 
 	n := name
 	if !strings.HasPrefix(n, "circleci-") {
@@ -100,7 +101,14 @@ func installExtension(ctx context.Context, name string) (extension.Manifest, err
 
 	iostream.Printf(ctx, "Installing %s version %s...\n", ext.BinaryName, ext.Version)
 
-	manifest, err := m.Install(ctx, ext)
+	binary, err := m.Download(ctx, ext)
+	if err != nil {
+		return extension.Manifest{}, installCLIError(err)
+	}
+
+	defer func() { _ = binary.Close() }()
+
+	manifest, err := store.Write(ext, binary)
 	if err != nil {
 		return extension.Manifest{}, installCLIError(err)
 	}

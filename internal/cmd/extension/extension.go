@@ -64,7 +64,8 @@ func RegisterExtensions(rootCmd *cobra.Command) {
 	extsDir, err := config.ExtensionsDir()
 	cobra.CheckErr(err)
 
-	managedExts, err := extension.FindAll(extsDir)
+	store := extension.NewStore(extsDir)
+	managedExts, err := store.FindAll()
 	cobra.CheckErr(err)
 
 	officialInstalled := map[string]bool{
@@ -167,7 +168,7 @@ func NewExtensionCmd() *cobra.Command {
 // ParseRootFlags so they are available for stream setup and auth injection
 // without being forwarded to the extension.
 func newManagedCmd(ext extension.Manifest) *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:                ext.Name,
 		Short:              "Extension (" + ext.BinaryName + ")",
 		GroupID:            "extension",
@@ -177,6 +178,16 @@ func newManagedCmd(ext extension.Manifest) *cobra.Command {
 			return runExtension(cmd.Context(), cmd, ext)
 		},
 	}
+
+	if ext.Ref != nil {
+		if cmd.Annotations == nil {
+			cmd.Annotations = make(map[string]string)
+		}
+
+		cmd.Annotations[extension.ReferenceAnnotation] = ext.BinaryName
+	}
+
+	return cmd
 }
 
 func runExtension(ctx context.Context, cmd *cobra.Command, ext extension.Manifest) error {

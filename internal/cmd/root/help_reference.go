@@ -29,6 +29,9 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
+
+	"github.com/CircleCI-Public/circleci-cli/internal/config"
+	"github.com/CircleCI-Public/circleci-cli/internal/extension"
 )
 
 func stringifyReference(cmd *cobra.Command) string {
@@ -63,6 +66,20 @@ func stringifyReference(cmd *cobra.Command) string {
 }
 
 func cmdRef(w io.Writer, cmd *cobra.Command, depth int) {
+	// Managed extensions can supply their own documentation.
+	// If extension.ReferenceAnnotation is set, the manifest contains
+	// a reference field, use that to build the reference instead.
+	if binaryName, ok := cmd.Annotations[extension.ReferenceAnnotation]; ok {
+		extDir, err := config.ExtensionsDir()
+		if err == nil {
+			store := extension.NewStore(extDir)
+			if manifest, err := store.Get(binaryName); err == nil {
+				extensionCmdRef(w, cmd.CommandPath(), manifest.Ref, depth)
+				return
+			}
+		}
+	}
+
 	_, _ = fmt.Fprintf(w, "%s `%s`\n\n", strings.Repeat("#", depth), cmd.UseLine())
 	_, _ = fmt.Fprintf(w, "%s\n\n", cmd.Short)
 
@@ -92,4 +109,72 @@ func cmdRef(w io.Writer, cmd *cobra.Command, depth int) {
 		}
 		cmdRef(w, c, depth+1)
 	}
+}
+
+// extensionCmdRef renders a documented extension command from its extension.Reference.
+func extensionCmdRef(w io.Writer, path string, ref *extension.Reference, depth int) {
+	useLine := path
+	if ref.Use != "" {
+		useLine += " " + ref.Use
+	}
+	_, _ = fmt.Fprintf(w, "%s `%s`\n\n", strings.Repeat("#", depth), useLine)
+
+	if ref.Short != "" {
+		_, _ = fmt.Fprintf(w, "%s\n\n", ref.Short)
+	}
+	if long := strings.TrimSpace(ref.Long); long != "" {
+		_, _ = fmt.Fprintf(w, "%s\n\n", long)
+	}
+
+	if rows := docFlagRows(ref.Flags); len(rows) > 0 {
+		_, _ = fmt.Fprintf(w, "%s\n\n", mdTable("Flag", "Description", rows))
+	}
+
+	if args := ref.Args; len(args) > 0 {
+		_, _ = fmt.Fprint(w, "**Arguments:**\n\n")
+
+		for _, arg := range args {
+			_, _ = fmt.Fprintf(w, "`%s` %s\n", arg.Name, arg.Help)
+		}
+
+		_, _ = fmt.Fprint(w, "\n")
+	}
+
+	for i := range ref.Subcommands {
+		sub := &ref.Subcommands[i]
+		subPath := path
+		if sub.Name != "" {
+			subPath = path + " " + sub.Name
+		}
+		extensionCmdRef(w, subPath, &sub.Reference, depth+1)
+	}
+}
+
+// docFlagRows turns documented flags into (name, description) table rows,
+// mirroring the "-s, --name TYPE usage (default …)" formatting that flagRows
+// produces for cobra pflag.FlagSet.
+func docFlagRows(flags []extension.ReferenceFlag) [][2]string {
+	var rows [][2]string
+	for _, f := range flags {
+		if f.Name == "" {
+			continue
+		}
+		name := "--" + f.Name
+		if f.Shorthand != "" {
+			name = "-" + f.Shorthand + ", " + name
+		}
+		if f.Type != "" {
+			name += " " + f.Type
+		}
+		usage := f.Usage
+		if f.Default != "" {
+			if f.Type == "string" || f.Type == "" {
+				usage += fmt.Sprintf(" (default %q)", f.Default)
+			} else {
+				usage += fmt.Sprintf(" (default %s)", f.Default)
+			}
+		}
+		rows = append(rows, [2]string{"`" + name + "`", usage})
+	}
+	return rows
 }
