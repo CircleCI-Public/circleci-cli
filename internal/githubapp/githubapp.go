@@ -99,13 +99,14 @@ func EnsureInstalled(ctx context.Context, client *apiclient.Client, orgID, retur
 func pollInstalled(ctx context.Context, client *apiclient.Client, orgID string) (bool, error) {
 	ticker := time.NewTicker(pollInterval)
 	defer ticker.Stop()
-	timeout := time.After(pollTimeout)
+	timer := time.NewTimer(pollTimeout)
+	defer timer.Stop()
 
 	for {
 		select {
 		case <-ctx.Done():
 			return false, ctx.Err()
-		case <-timeout:
+		case <-timer.C:
 			return false, nil
 		case <-ticker.C:
 			_, err := client.GetGitHubAppInstallation(ctx, orgID)
