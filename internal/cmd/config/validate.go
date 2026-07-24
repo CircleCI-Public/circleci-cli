@@ -43,13 +43,21 @@ func newValidateCmd() *cobra.Command {
 	)
 
 	cmd := &cobra.Command{
-		Use:   "validate",
+		Use:   "validate [path]",
 		Short: "Validate a pipeline config file",
+		Annotations: map[string]string{
+			"help:arguments": heredoc.Docf(`
+				%[1]s[path]%[1]s is the path to a pipeline config file to validate,
+				for example, %[1]s.circleci/config.yml%[1]s. Pass %[1]s-%[1]s to read the config
+				from stdin. When omitted, --config is used (default %[1]s.circleci/config.yml%[1]s).
+			`, "`"),
+		},
 		Long: heredoc.Doc(`
 			Validate a CircleCI pipeline config file against the CircleCI API.
 
-			Reads .circleci/config.yml by default. Pass --config to specify a
-			different file, or "-" to read from stdin.
+			Reads the config at [path]. When [path] is omitted it falls back to
+			--config, which defaults to .circleci/config.yml. Pass "-" (as the
+			path or via --config) to read from stdin.
 
 			Private and namespaced orbs are resolved against your organization.
 			When --org is omitted the org is inferred from the current project —
@@ -66,7 +74,10 @@ func newValidateCmd() *cobra.Command {
 			# Validate the default config file
 			$ circleci config validate
 
-			# Validate a specific file
+			# Validate a specific file (positional path)
+			$ circleci config validate path/to/config.yml
+
+			# Validate a specific file (--config flag)
 			$ circleci config validate --config path/to/config.yml
 
 			# Validate against a specific org (otherwise inferred from the git remote)
@@ -75,15 +86,31 @@ func newValidateCmd() *cobra.Command {
 			# Validate and output as JSON
 			$ circleci config validate --json
 		`),
-		RunE: func(cmd *cobra.Command, _ []string) error {
+		Args: cobra.MaximumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
+
+			// A positional <path> takes precedence over --config so that
+			// `circleci config validate <path>` honours the path (matching
+			// `config process` and the 0.1.x CLI). Reject the ambiguous case
+			// where both a positional path and an explicit --config are given
+			// rather than silently ignoring one.
+			path := configPath
+			if len(args) > 0 {
+				if cmd.Flags().Changed("config") {
+					return clierrors.New("config.conflicting_path", "Conflicting config path",
+						"A config path was given both as a positional argument and with --config. Pass it one way, not both.").
+						WithExitCode(clierrors.ExitBadArguments)
+				}
+				path = args[0]
+			}
 
 			client, err := cmdutil.LoadClient(ctx)
 			if err != nil {
 				return err
 			}
 
-			yaml, err := readConfigInput(ctx, configPath)
+			yaml, err := readConfigInput(ctx, path)
 			if err != nil {
 				return err
 			}
@@ -104,7 +131,7 @@ func newValidateCmd() *cobra.Command {
 				}
 				if !result.Valid {
 					return clierrors.New("config.invalid", "Config is invalid",
-						fmt.Sprintf("Config file %q contains compilation errors.", configPath)).
+						fmt.Sprintf("Config file %q contains compilation errors.", path)).
 						WithExitCode(clierrors.ExitValidationFail)
 				}
 				return nil
@@ -115,11 +142,11 @@ func newValidateCmd() *cobra.Command {
 					iostream.ErrPrintf(ctx, "  • %s\n", e)
 				}
 				return clierrors.New("config.invalid", "Config is invalid",
-					fmt.Sprintf("Config file %q contains compilation errors.", configPath)).
+					fmt.Sprintf("Config file %q contains compilation errors.", path)).
 					WithExitCode(clierrors.ExitValidationFail)
 			}
 
-			iostream.Printf(ctx, "Config file at %q is valid.\n", configPath)
+			iostream.Printf(ctx, "Config file at %q is valid.\n", path)
 			return nil
 		},
 	}
