@@ -2210,9 +2210,28 @@ Remove an installed extension
 | `-f, --force` | Skip confirmation prompt |
 
 
-### `circleci testsuite`
+### `circleci testsuite <suite-name> [flags]`
 
-Extension (circleci-testsuite)
+Reduce test execution time while maintaining test confidence by running CircleCI's testsuite tooling.
+The testsuite provides three independent features:
+- Test impact analysis - run only the tests impacted by your code changes.
+- Dynamic test splitting - evenly distribute tests across parallel execution nodes.
+- Auto rerun failed tests - automatically retry failed tests.
+
+| Flag                                           | Description                                                                                 |
+| ---------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| `--analyze-tests all\|impacted\|none\|default` | Which tests to analyze for generating impact data (default default)                         |
+| `--run-tests all\|impacted\|none\|default`     | Which tests to select and run (default default)                                             |
+| `--list-tests-only`                            | List selected test atoms on stdout                                                          |
+| `--verbose`                                    | Enable verbose debug logging                                                                |
+| `--local`                                      | Use locally stored impact data for selection and analysis instead of fetching from CircleCI |
+| `--doctor`                                     | Run diagnostics to check your test suite setup                                              |
+| `--json`                                       | Output doctor results as JSON. Requires --doctor                                            |
+
+
+**Arguments:**
+
+`<suite-name>` is the name of the test suite to run, matching a suite defined in .circleci/test-suites.yml.
 
 ## Additional Commands
 
