@@ -183,15 +183,15 @@ func DetectFromRemote() (_ *ProjectInfo, err error) {
 		return nil, err
 	}
 
-	branch, err := gitCurrentBranch(repo)
-	if err != nil {
-		return nil, fmt.Errorf("could not determine current branch: %w", err)
-	}
-
-	defaultBranch, err := gitDefaultBranch(repo)
-	if err != nil {
-		return nil, fmt.Errorf("could not determine default branch: %w", err)
-	}
+	// The slug is the only required field. Branch and default branch are
+	// best-effort, matching gitBranches() on the linked-project path: a
+	// locally-created repo (git init + remote add + push, rather than clone)
+	// has no refs/remotes/origin/HEAD, and a fresh or detached checkout has no
+	// current branch. None of these should turn a resolvable project into a
+	// "could not detect project" failure — no consumer of ProjectInfo requires
+	// either branch to be non-empty.
+	branch, _ := gitCurrentBranch(repo)
+	defaultBranch, _ := gitDefaultBranch(repo)
 
 	return &ProjectInfo{
 		Slug:          slug,
