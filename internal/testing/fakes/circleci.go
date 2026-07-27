@@ -71,9 +71,14 @@ type CircleCI struct {
 	createPipelineDefinitionResponses map[string]any    // projectID → response body
 	createTriggerResponses            map[string]any    // "projectID/pipelineDefinitionID" → response body
 	listTriggerResponses              map[string][]any  // "projectID/pipelineDefinitionID" → list of triggers
-	rerunResponses                    map[string]int    // workflow id → HTTP status to return
-	cancelResponses                   map[string]int    // workflow id → HTTP status to return
-	pipelineCancelResponses           map[string]int    // pipeline id → HTTP status to return
+
+	// GitHub App state.
+	githubAppInstalled      map[string]bool  // orgID → app installed (200) vs not (404)
+	githubAppRepos          map[string][]any // orgID → repositories the app can access
+	githubAppInstallResp    any              // response body for POST /github-app/install
+	rerunResponses          map[string]int   // workflow id → HTTP status to return
+	cancelResponses         map[string]int   // workflow id → HTTP status to return
+	pipelineCancelResponses map[string]int   // pipeline id → HTTP status to return
 
 	// Job (v3) state.
 	jobsV3             map[string]any    // job UUID → V3 response body
@@ -210,6 +215,8 @@ func NewCircleCI(t *testing.T) *CircleCI {
 		createPipelineDefinitionResponses: map[string]any{},
 		createTriggerResponses:            map[string]any{},
 		listTriggerResponses:              map[string][]any{},
+		githubAppInstalled:                map[string]bool{},
+		githubAppRepos:                    map[string][]any{},
 		rerunResponses:                    map[string]int{},
 		cancelResponses:                   map[string]int{},
 		pipelineCancelResponses:           map[string]int{},
@@ -327,6 +334,10 @@ func NewCircleCI(t *testing.T) *CircleCI {
 	r.Post("/api/v2/projects/{projectID}/pipeline-definitions", f.handleCreatePipelineDefinition)
 	r.Get("/api/v2/projects/{projectID}/pipeline-definitions/{pipelineDefinitionID}/triggers", f.handleListTriggers)
 	r.Post("/api/v2/projects/{projectID}/pipeline-definitions/{pipelineDefinitionID}/triggers", f.handleCreateTrigger)
+	// GitHub App routes.
+	r.Get("/api/v2/github-app/organization/{orgID}/installation", f.handleGetGitHubAppInstallation)
+	r.Post("/api/v2/github-app/install", f.handleInstallGitHubApp)
+	r.Get("/api/v2/github-app/organization/{orgID}/repositories", f.handleListGitHubAppRepositories)
 	// Policy routes.
 	r.Route("/api/v2/owner/{ownerID}/context/{policyCtx}", func(r chi.Router) {
 		r.Post("/policy-bundle", f.handleCreatePolicyBundle)
@@ -2322,6 +2333,73 @@ func (f *CircleCI) handleCreateTrigger(w http.ResponseWriter, r *http.Request) {
 	}
 	render.Status(r, http.StatusCreated)
 	render.JSON(w, r, resp)
+}
+
+// SetGitHubAppInstalled controls whether GET
+// /api/v2/github-app/organization/{orgID}/installation returns 200 (installed)
+// or 404 (not installed) for the org.
+func (f *CircleCI) SetGitHubAppInstalled(orgID string, installed bool) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.githubAppInstalled[orgID] = installed
+}
+
+// AddGitHubAppRepository registers a repository returned by GET
+// /api/v2/github-app/organization/{orgID}/repositories.
+func (f *CircleCI) AddGitHubAppRepository(orgID string, repo any) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.githubAppRepos[orgID] = append(f.githubAppRepos[orgID], repo)
+}
+
+// SetGitHubAppInstallResponse registers the body returned by POST
+// /api/v2/github-app/install.
+func (f *CircleCI) SetGitHubAppInstallResponse(resp any) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.githubAppInstallResp = resp
+}
+
+func (f *CircleCI) handleGetGitHubAppInstallation(w http.ResponseWriter, r *http.Request) {
+	orgID := chi.URLParam(r, "orgID")
+	f.mu.RLock()
+	installed := f.githubAppInstalled[orgID]
+	f.mu.RUnlock()
+
+	if !installed {
+		render.Status(r, http.StatusNotFound)
+		render.JSON(w, r, map[string]any{"message": "not found"})
+		return
+	}
+	render.JSON(w, r, map[string]any{
+		"id":                   12345678,
+		"target_type":          "Organization",
+		"login":                "my-org",
+		"repository_selection": "all",
+	})
+}
+
+func (f *CircleCI) handleInstallGitHubApp(w http.ResponseWriter, r *http.Request) {
+	f.mu.RLock()
+	resp := f.githubAppInstallResp
+	f.mu.RUnlock()
+
+	if resp == nil {
+		resp = map[string]any{"redirect_url": "https://github.com/apps/circleci/installations/new?state=test"}
+	}
+	render.JSON(w, r, resp)
+}
+
+func (f *CircleCI) handleListGitHubAppRepositories(w http.ResponseWriter, r *http.Request) {
+	orgID := chi.URLParam(r, "orgID")
+	f.mu.RLock()
+	repos := f.githubAppRepos[orgID]
+	f.mu.RUnlock()
+
+	if repos == nil {
+		repos = []any{}
+	}
+	render.JSON(w, r, map[string]any{"items": repos, "total_count": len(repos)})
 }
 
 func (f *CircleCI) handleGetProjectInfo(w http.ResponseWriter, r *http.Request) {
