@@ -553,6 +553,61 @@ func TestOnboard_PostSignup_Rerun_Idempotent(t *testing.T) {
 	assert.Check(t, !strings.Contains(second.Stderr, "already exists"), "re-run should not surface a conflict")
 }
 
+// TestOnboard_PostSignup_LinkedProjectInAnotherOrg covers a repository already
+// linked to a project in a different organization — a classic VCS project being
+// onboarded into a CircleCI-native org, which is what a migration looks like.
+//
+// The link must not be reused: it would set up pipelines in an organization the
+// user did not choose. It is ignored, onboard proceeds to create, and the name
+// collision that follows points at `project link --force`, since plain
+// `project link` refuses while .circleci/info.yml exists.
+func TestOnboard_PostSignup_LinkedProjectInAnotherOrg(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("test runner uses sh -c")
+	}
+	dir := t.TempDir()
+	copyFixture(t, "testdata/test-run/dotnet", dir)
+	initGitRepoWithRemote(t, dir, "https://github.com/myorg/my-repo.git")
+
+	// A resolvable link, but to a project owned by a different org. Both IDs are
+	// recorded against a classic slug, exactly as `circleci project link` writes
+	// it — the slug must be used as-is rather than rebuilt into the circleci/ form.
+	assert.NilError(t, os.MkdirAll(filepath.Join(dir, ".circleci"), 0o755))
+	assert.NilError(t, os.WriteFile(filepath.Join(dir, ".circleci", "info.yml"), []byte(
+		"organization:\n  id: other-org-uuid\n  name: myorg\n"+
+			"project:\n  id: other-proj-uuid\n  slug: gh/myorg/my-repo\n  name: my-repo\n",
+	), 0o644))
+
+	fake, env := onboardStandaloneEnv(t, "testuser")
+	fake.AddProjectInfo("gh/myorg/my-repo", map[string]any{
+		"id":                "other-proj-uuid",
+		"slug":              "gh/myorg/my-repo",
+		"name":              "my-repo",
+		"organization_name": "myorg",
+		"organization_slug": "gh/myorg",
+		"organization_id":   "other-org-uuid",
+	})
+	fake.SetCreateProjectConflict()
+	addFakeDotnet(t, env, false)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"onboard", "--scan"},
+		Env:     env.Environ(),
+		WorkDir: dir,
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, !strings.Contains(result.Stdout, "Using existing project"),
+		"a project in another organization must not be reused")
+	assert.Check(t, strings.Contains(result.Stderr, `project named "my-repo" already exists`))
+	// The guidance has to terminate: --force because info.yml exists, and --project
+	// because otherwise link re-derives the same foreign slug from the git remote.
+	assert.Check(t, strings.Contains(result.Stdout,
+		"circleci project link --force --project circleci/myorg/<projectID>"))
+	assert.Check(t, !strings.Contains(result.Stderr, "409"), "stderr should not leak an HTTP status")
+}
+
 // TestOnboard_PostSignup_ProjectNameConflict covers a name collision that onboard
 // cannot resolve: the org already has a project with this name, but the checkout
 // has no .circleci/info.yml recording its ID. Since a project cannot be looked up
@@ -579,7 +634,8 @@ func TestOnboard_PostSignup_ProjectNameConflict(t *testing.T) {
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
 	assert.Check(t, strings.Contains(result.Stderr, `project named "my-repo" already exists`))
-	assert.Check(t, strings.Contains(result.Stdout, "circleci project link"))
+	assert.Check(t, strings.Contains(result.Stdout, "circleci project link --project circleci/myorg/<projectID>"))
+	assert.Check(t, !strings.Contains(result.Stdout, "--force"), "no info.yml to overwrite")
 	// No raw HTTP internals for a conflict the user can resolve with one command.
 	assert.Check(t, !strings.Contains(result.Stderr, "409"), "stderr should not leak an HTTP status")
 	assert.Check(t, !strings.Contains(result.Stderr, "/api/v2/"), "stderr should not leak an API path")

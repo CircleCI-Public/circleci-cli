@@ -233,7 +233,7 @@ func postSignupGuidance(ctx context.Context, dir string, opts Options) error {
 	// opaque IDs rather than a repository name.
 	var proj *apiclient.ProjectInfo
 	if selectedOrg.VCSType == "circleci" {
-		proj = resolveLinkedProject(ctx, client, dir)
+		proj = resolveLinkedProject(ctx, client, dir, selectedOrg.ID)
 	}
 
 	if proj == nil {
@@ -250,10 +250,9 @@ func postSignupGuidance(ctx context.Context, dir string, opts Options) error {
 		created, err := client.CreateProject(ctx, vcs, orgName, name)
 		if err != nil {
 			if httpcl.HasStatusCode(err, http.StatusConflict) {
-				iostream.ErrPrintf(ctx,
-					"%s A project named %q already exists in %s, but this repository is not linked to it.\n",
+				iostream.ErrPrintf(ctx, "%s A project named %q already exists in %s.\n",
 					iostream.SymbolWarn(ctx), name, selectedOrg.Slug)
-				printLinkGuidance(ctx)
+				printLinkGuidance(ctx, dir, selectedOrg.Slug)
 				return nil
 			}
 			iostream.ErrPrintf(ctx, "%s Could not create project: %s\n", iostream.SymbolWarn(ctx), err)
@@ -315,16 +314,20 @@ func refreshConfig(ctx context.Context, opts Options) context.Context {
 	return cmdutil.WithConfig(ctx, cfg)
 }
 
-// resolveLinkedProject returns the project this repository is already linked to,
-// or nil when there is no usable link.
+// resolveLinkedProject returns the project recorded in .circleci/info.yml, or nil
+// when this checkout has no link onboard can use.
 //
-// The link comes from .circleci/info.yml, written by a previous onboard run or by
-// `circleci project link`. That local record is the only way to find an existing
-// project: a CircleCI-native slug is "circleci/<orgID>/<projectID>" — opaque IDs,
-// not the repository name — and no API maps a name to a project within an org.
-// Resolving before creating also means a re-run never attempts a create that
-// could only conflict.
-func resolveLinkedProject(ctx context.Context, client *apiclient.Client, workDir string) *apiclient.ProjectInfo {
+// That local record is the only way to find an existing project: a CircleCI-native
+// slug is "circleci/<orgID>/<projectID>" — opaque IDs, not the repository name —
+// and no API maps a name to a project within an org. Resolving before creating
+// keeps a re-run from attempting a create that could only conflict.
+//
+// A link only counts when its project belongs to orgID. A repository linked
+// elsewhere — a classic VCS project being migrated to a CircleCI-native org, say —
+// is ignored, so onboard sets up the organization the user actually chose. An
+// unresolvable link is ignored the same way; the create path below handles
+// everything a link cannot supply.
+func resolveLinkedProject(ctx context.Context, client *apiclient.Client, workDir, orgID string) *apiclient.ProjectInfo {
 	if workDir == "" {
 		return nil
 	}
@@ -332,12 +335,8 @@ func resolveLinkedProject(ctx context.Context, client *apiclient.Client, workDir
 	if err != nil {
 		return nil
 	}
-	slug := info.EffectiveSlug()
-	if slug == "" {
-		return nil
-	}
-	proj, err := client.GetProjectInfo(ctx, slug)
-	if err != nil {
+	proj, err := client.GetProjectInfo(ctx, info.EffectiveSlug())
+	if err != nil || proj.OrganizationID != orgID {
 		return nil
 	}
 	return proj
@@ -551,12 +550,23 @@ func printManualGuidance(ctx context.Context) {
 	iostream.Printf(ctx, "\nRun 'circleci project create' to connect this repo to CircleCI.\n")
 }
 
-// printLinkGuidance covers the case where the project exists but this checkout
-// has no record of it. A project cannot be looked up by name, so linking is the
-// step that recovers the ID — after which onboard can finish the job.
-func printLinkGuidance(ctx context.Context) {
-	iostream.Printf(ctx, "\nRun 'circleci project link' to connect this repository to that project,\n")
-	iostream.Printf(ctx, "then re-run 'circleci onboard' to finish setting up your pipeline.\n")
+// printLinkGuidance covers a project that exists in the organization but is not
+// the one this checkout resolves to. No API maps a project name to its ID, so the
+// ID has to come from the user — the same conclusion `circleci project link`
+// reaches when it cannot resolve a slug on its own.
+//
+// The command is spelled out with the organization already filled in. --project is
+// load-bearing: without it, link re-derives the slug from the git remote and a
+// repository linked elsewhere lands straight back where it started. --force is
+// added when .circleci/info.yml is present, since plain link refuses while it is.
+func printLinkGuidance(ctx context.Context, workDir, orgSlug string) {
+	args := "--project " + orgSlug + "/<projectID>"
+	if _, err := os.Stat(projectref.Path(workDir)); err == nil {
+		args = "--force " + args
+	}
+	iostream.Printf(ctx, "\nCopy that project's ID from its settings in CircleCI, then run:\n")
+	iostream.Printf(ctx, "  circleci project link %s\n", args)
+	iostream.Printf(ctx, "  circleci onboard\n")
 }
 
 func trackOnboard(ctx context.Context, event string, props map[string]any) {

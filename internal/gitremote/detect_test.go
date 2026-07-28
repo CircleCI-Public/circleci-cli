@@ -115,16 +115,31 @@ func TestDetect_PrefersInfoYml(t *testing.T) {
 		wantOrgID string
 	}{
 		{
-			name: "uuids present yields canonical slug",
+			name: "circleci slug with uuids yields canonical slug",
 			info: projectref.Info{
 				Organization: projectref.Organization{ID: "E6i3yYZeWZhcf8UNqcKfjN"},
 				Project: projectref.Project{
-					Slug: "gh/myorg/myrepo",
+					Slug: "circleci/OrgShortId/ProjShortId",
 					ID:   "13c8F7nusayivoSxC6GMsw",
 				},
 			},
 			wantSlug:  "circleci/E6i3yYZeWZhcf8UNqcKfjN/13c8F7nusayivoSxC6GMsw",
 			wantOrgID: "E6i3yYZeWZhcf8UNqcKfjN",
+		},
+		{
+			// The ID form addresses CircleCI-native projects only — the API answers
+			// 404 for a classic project addressed that way, even though
+			// `circleci project link` records both IDs for one.
+			name: "classic slug with uuids keeps its own slug",
+			info: projectref.Info{
+				Organization: projectref.Organization{ID: "c1e89d5c-d2e5-4db2-b2d7-a35cf73160ad"},
+				Project: projectref.Project{
+					Slug: "gh/myorg/myrepo",
+					ID:   "52404b72-02fb-482e-9bd8-846bbc048eea",
+				},
+			},
+			wantSlug:  "gh/myorg/myrepo",
+			wantOrgID: "c1e89d5c-d2e5-4db2-b2d7-a35cf73160ad",
 		},
 		{
 			name:     "slug-only falls through verbatim",
