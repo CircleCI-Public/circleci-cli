@@ -257,7 +257,7 @@ func waitForRunBySHA(ctx context.Context, client *apiclient.Client, projectSlug,
 			fmt.Sprintf("Commit %q does not exist in the local repository.", sha)).
 			WithSuggestions(
 				"Check the SHA is correct: git log --oneline",
-				"Pass the full 40-character SHA to skip local resolution",
+				"If using a shallow clone, pass the full 40-character SHA obtained from the remote",
 			).
 			WithExitCode(clierrors.ExitNotFound)
 	}

@@ -255,6 +255,28 @@ func TestRunWatch_SHA_NotFound(t *testing.T) {
 	assert.Check(t, cmp.Contains(result.Stderr, "No run found"), "stderr: %s", result.Stderr)
 }
 
+// --- --sha: short SHA outside a git repo → exit 2 (bad arguments) ---
+
+func TestRunWatch_SHA_ShortOutsideGitRepo(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	addProjectBySlug(fake, watchSlug, watchProjectID)
+
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary: binaryPath,
+		Args: []string{"run", "watch", "--sha", "abc1234",
+			"--project", watchSlug, "--branch", "main"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 2, "stderr: %s", result.Stderr) // ExitBadArguments
+	assert.Check(t, cmp.Contains(result.Stderr, "Could not resolve short SHA"), "stderr: %s", result.Stderr)
+}
+
 // --- --failfast: exit immediately when a job fails, without waiting for the rest of the run ---
 
 func TestRunWatch_FailFast(t *testing.T) {
