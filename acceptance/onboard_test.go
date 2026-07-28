@@ -468,6 +468,14 @@ func TestOnboard_PostSignup_FirstPipeline_GitHubAppResolvesRepo(t *testing.T) {
 	assert.Check(t, strings.Contains(result.Stdout, "Your project is ready!"))
 }
 
+// TestOnboard_PostSignup_Rerun_Idempotent runs onboard twice over the same
+// repository. The first run creates the project and records it in
+// .circleci/info.yml; the second resolves it from that file instead of
+// attempting a create that could only conflict.
+//
+// That local record is what makes a re-run recoverable at all: a CircleCI-native
+// project slug is circleci/<orgID>/<projectID> — opaque IDs, not the repository
+// name — and no API maps a project name to its ID within an org.
 func TestOnboard_PostSignup_Rerun_Idempotent(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("test runner uses sh -c")
@@ -477,17 +485,6 @@ func TestOnboard_PostSignup_Rerun_Idempotent(t *testing.T) {
 	initGitRepoWithRemote(t, dir, "https://github.com/myorg/my-repo.git")
 
 	fake, env := onboardStandaloneEnv(t, "testuser")
-	// Simulate a prior onboard run: project creation now conflicts, and the
-	// project already has its pipeline definition + trigger.
-	fake.SetCreateProjectResponse(nil) // create fails → resolve the existing project
-	fake.AddProjectInfo("circleci/myorg/my-repo", map[string]any{
-		"id":                "proj-uuid-5678",
-		"slug":              "circleci/myorg/my-repo",
-		"name":              "my-repo",
-		"organization_name": "myorg",
-		"organization_slug": "circleci/myorg",
-		"organization_id":   "org-uuid-1234",
-	})
 	fake.SetGitHubAppInstalled("org-uuid-1234", true)
 	fake.AddGitHubAppRepository("org-uuid-1234", map[string]any{
 		"id":             987654321,
@@ -495,6 +492,40 @@ func TestOnboard_PostSignup_Rerun_Idempotent(t *testing.T) {
 		"repo_name":      "my-repo",
 		"owner":          "myorg",
 	})
+	fake.SetCreatePipelineDefinitionResponse("proj-uuid-5678", map[string]any{
+		"id":   "pdef-uuid-1",
+		"name": "my-repo",
+	})
+	fake.SetCreateTriggerResponse("proj-uuid-5678", "pdef-uuid-1", map[string]any{
+		"id":           "trig-uuid-1",
+		"event_preset": "all-pushes",
+	})
+	// The second run looks the project up by the slug projectref derives from the
+	// recorded UUIDs. The real API accepts that form and canonicalises it to the
+	// short-ID slug.
+	fake.AddProjectInfo("circleci/org-uuid-1234/proj-uuid-5678", map[string]any{
+		"id":                "proj-uuid-5678",
+		"slug":              "circleci/Org1234ShortId/Proj5678ShortId",
+		"name":              "my-repo",
+		"organization_name": "myorg",
+		"organization_slug": "circleci/Org1234ShortId",
+		"organization_id":   "org-uuid-1234",
+	})
+	addFakeDotnet(t, env, false)
+
+	first := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"onboard", "--scan"},
+		Env:     env.Environ(),
+		WorkDir: dir,
+	})
+	assert.Equal(t, first.ExitCode, 0, "stderr: %s", first.Stderr)
+	assert.Check(t, strings.Contains(first.Stdout, "Project created: my-repo"))
+	assert.Check(t, strings.Contains(first.Stdout, "Linked this repository to the project"))
+	_, err := os.Stat(filepath.Join(dir, ".circleci", "info.yml"))
+	assert.NilError(t, err, "first run should record the project locally")
+
+	// The project now has its pipeline definition and trigger.
 	fake.AddPipelineDefinition("proj-uuid-5678", map[string]any{
 		"id":   "pdef-uuid-1",
 		"name": "my-repo",
@@ -507,7 +538,38 @@ func TestOnboard_PostSignup_Rerun_Idempotent(t *testing.T) {
 		"id":           "trig-uuid-1",
 		"event_preset": "all-pushes",
 	})
+
+	second := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"onboard", "--scan"},
+		Env:     env.Environ(),
+		WorkDir: dir,
+	})
+	assert.Equal(t, second.ExitCode, 0, "stderr: %s", second.Stderr)
+	assert.Check(t, strings.Contains(second.Stdout, "Using existing project: my-repo"))
+	assert.Check(t, strings.Contains(second.Stdout, "Pipeline definition already exists: my-repo"))
+	assert.Check(t, strings.Contains(second.Stdout, "Trigger already exists"))
+	assert.Check(t, !strings.Contains(second.Stdout, "Project created"), "re-run should not create a second project")
+	assert.Check(t, !strings.Contains(second.Stderr, "already exists"), "re-run should not surface a conflict")
+}
+
+// TestOnboard_PostSignup_ProjectNameConflict covers a name collision that onboard
+// cannot resolve: the org already has a project with this name, but the checkout
+// has no .circleci/info.yml recording its ID. Since a project cannot be looked up
+// by name, onboard points at `circleci project link` rather than reporting a raw
+// HTTP conflict.
+func TestOnboard_PostSignup_ProjectNameConflict(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("test runner uses sh -c")
+	}
+	dir := t.TempDir()
+	copyFixture(t, "testdata/test-run/dotnet", dir)
+	initGitRepoWithRemote(t, dir, "https://github.com/myorg/my-repo.git")
+
+	fake, env := onboardStandaloneEnv(t, "testuser")
+	fake.SetCreateProjectConflict()
 	addFakeDotnet(t, env, false)
+
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
 		Args:    []string{"onboard", "--scan"},
@@ -516,10 +578,11 @@ func TestOnboard_PostSignup_Rerun_Idempotent(t *testing.T) {
 	})
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
-	assert.Check(t, strings.Contains(result.Stdout, "Using existing project: my-repo"))
-	assert.Check(t, strings.Contains(result.Stdout, "Pipeline definition already exists: my-repo"))
-	assert.Check(t, strings.Contains(result.Stdout, "Trigger already exists"))
-	assert.Check(t, !strings.Contains(result.Stderr, "Could not create project"), "re-run should not surface a creation error")
+	assert.Check(t, strings.Contains(result.Stderr, `project named "my-repo" already exists`))
+	assert.Check(t, strings.Contains(result.Stdout, "circleci project link"))
+	// No raw HTTP internals for a conflict the user can resolve with one command.
+	assert.Check(t, !strings.Contains(result.Stderr, "409"), "stderr should not leak an HTTP status")
+	assert.Check(t, !strings.Contains(result.Stderr, "/api/v2/"), "stderr should not leak an API path")
 }
 
 func TestOnboard_PostSignup_FirstPipeline_RepoNotAccessible(t *testing.T) {
@@ -664,12 +727,16 @@ func onboardStandaloneEnv(t *testing.T, login string) (*fakes.CircleCI, *testenv
 	fake.SetCollaborations([]any{
 		map[string]any{"id": "org-uuid-1234", "name": "myorg", "slug": "circleci/myorg", "vcs_type": "circleci"},
 	})
+	// A CircleCI-native project slug embeds opaque org and project short IDs, not
+	// the repository name — mirroring the real API, where a name-based slug is
+	// rejected outright. The UUIDs are separate values used by the pipeline
+	// definition and GitHub App calls.
 	fake.SetCreateProjectResponse(map[string]any{
 		"id":                "proj-uuid-5678",
-		"slug":              "circleci/myorg/my-repo",
+		"slug":              "circleci/Org1234ShortId/Proj5678ShortId",
 		"name":              "my-repo",
 		"organization_name": "myorg",
-		"organization_slug": "circleci/myorg",
+		"organization_slug": "circleci/Org1234ShortId",
 		"organization_id":   "org-uuid-1234",
 	})
 

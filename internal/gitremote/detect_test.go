@@ -175,6 +175,56 @@ func TestDetect_SurfacesMalformedInfoYml(t *testing.T) {
 	assert.Check(t, err != nil, "expected Detect to surface a malformed info.yml rather than fall back")
 }
 
+// TestDetectRepoName_IgnoresInfoYml pins DetectRepoName to the git remote. A
+// linked standalone project records "circleci/<orgID>/<projectID>" in info.yml,
+// so resolving through Detect would hand callers an opaque project ID where they
+// show the user a suggested project name (onboard, `project create`).
+func TestDetectRepoName_IgnoresInfoYml(t *testing.T) {
+	dir := t.TempDir()
+	repo, err := git.PlainInit(dir, false)
+	assert.NilError(t, err)
+	_, err = repo.CreateRemote(&config.RemoteConfig{
+		Name: "origin",
+		URLs: []string{"https://github.com/myorg/my-repo.git"},
+	})
+	assert.NilError(t, err)
+
+	// Detection needs a resolvable HEAD and an origin/HEAD symref. Signing is
+	// disabled locally so an ambient commit.gpgSign=true cannot fail the commit.
+	cfg, err := repo.Config()
+	assert.NilError(t, err)
+	cfg.Raw.Section("commit").SetOption("gpgsign", "false")
+	assert.NilError(t, repo.SetConfig(cfg))
+
+	wt, err := repo.Worktree()
+	assert.NilError(t, err)
+	commit, err := wt.Commit("init", &git.CommitOptions{
+		AllowEmptyCommits: true,
+		Author:            &object.Signature{Name: "test", Email: "test@test.com"},
+	})
+	assert.NilError(t, err)
+	assert.NilError(t, repo.Storer.SetReference(
+		plumbing.NewHashReference("refs/remotes/origin/main", commit)))
+	assert.NilError(t, repo.Storer.SetReference(
+		plumbing.NewSymbolicReference("refs/remotes/origin/HEAD", "refs/remotes/origin/main")))
+
+	assert.NilError(t, projectref.Write(dir, &projectref.Info{
+		Organization: projectref.Organization{ID: "3b524838-a95e-44eb-bc56-deb0af23ef19"},
+		Project: projectref.Project{
+			Slug: "circleci/8KsBMffqgArk2xVzYAC5ag/Y5nuJ5ZzavVEhGCEjV2rfA",
+			ID:   "fbb68fb9-71c3-4b79-a9be-68721332e871",
+			Name: "my-repo",
+		},
+	}))
+
+	cwd, err := os.Getwd()
+	assert.NilError(t, err)
+	t.Cleanup(func() { _ = os.Chdir(cwd) })
+	assert.NilError(t, os.Chdir(dir))
+
+	assert.Check(t, cmp.Equal(DetectRepoName(), "my-repo"))
+}
+
 // Sanity check that DetectFromRemote does not consult info.yml — used by
 // `project link` to avoid short-circuiting against an existing entry.
 func TestDetectFromRemote_IgnoresInfoYml(t *testing.T) {

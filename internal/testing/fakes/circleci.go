@@ -106,16 +106,17 @@ type CircleCI struct {
 	deletedRCs      map[string]bool  // resource class → deleted
 
 	// Project / env-var state.
-	followedProjects  []any            // list of project objects for GET /api/v1.1/projects
-	followedSlugs     map[string]bool  // vcs+org+repo → true (for follow idempotency)
-	envVars           map[string][]any // project slug → env vars
-	deletedEnvVars    map[string]bool  // "slug/name" → deleted
-	projectInfos      map[string]any   // project slug → project info response
-	projectsByID      map[string]any   // project UUID → V3 project response (GET /api/v3/projects/{id})
-	projectsBySlug    map[string]any   // project slug → V3 project entity (GET /api/v3/projects?filter[slug]=)
-	projectSettings   map[string]any   // project UUID → advanced settings attributes
-	createProjectResp any              // preset response for POST /organization/{vcs}/{org}/project
-	createOrgResp     any              // preset response for POST /organization
+	followedProjects    []any            // list of project objects for GET /api/v1.1/projects
+	followedSlugs       map[string]bool  // vcs+org+repo → true (for follow idempotency)
+	envVars             map[string][]any // project slug → env vars
+	deletedEnvVars      map[string]bool  // "slug/name" → deleted
+	projectInfos        map[string]any   // project slug → project info response
+	projectsByID        map[string]any   // project UUID → V3 project response (GET /api/v3/projects/{id})
+	projectsBySlug      map[string]any   // project slug → V3 project entity (GET /api/v3/projects?filter[slug]=)
+	projectSettings     map[string]any   // project UUID → advanced settings attributes
+	createProjectResp   any              // preset response for POST /organization/{vcs}/{org}/project
+	createProjectStatus int              // HTTP status for that POST (0 → 201 Created)
+	createOrgResp       any              // preset response for POST /organization
 
 	// Context state.
 	contexts                   map[string]any   // context id → context object
@@ -1838,6 +1839,16 @@ func (f *CircleCI) SetCreateProjectResponse(resp any) {
 	f.createProjectResp = resp
 }
 
+// SetCreateProjectConflict makes POST /api/v2/organization/{vcs}/{org}/project
+// answer 409, as the real API does when the organization already has a project
+// with that name.
+func (f *CircleCI) SetCreateProjectConflict() {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.createProjectStatus = http.StatusConflict
+	f.createProjectResp = map[string]any{"message": "A project with this name already exists"}
+}
+
 // AddEnvVar registers an env var for a project.
 // slug should be in "vcs/org/repo" form.
 func (f *CircleCI) AddEnvVar(slug, name, value string, createdAt *time.Time) {
@@ -1901,8 +1912,14 @@ func (f *CircleCI) handleCreateOrg(w http.ResponseWriter, r *http.Request) {
 func (f *CircleCI) handleCreateProject(w http.ResponseWriter, r *http.Request) {
 	f.mu.RLock()
 	resp := f.createProjectResp
+	status := f.createProjectStatus
 	f.mu.RUnlock()
 
+	if status != 0 {
+		render.Status(r, status)
+		render.JSON(w, r, resp)
+		return
+	}
 	if resp == nil {
 		render.Status(r, http.StatusUnprocessableEntity)
 		render.JSON(w, r, map[string]any{"message": "project creation not configured"})

@@ -81,8 +81,13 @@ func DetectNamespace() (string, error) {
 
 // DetectRepoName returns the repository name from the git remote, or "" if it
 // cannot be detected.
+//
+// This reads the remote directly rather than going through Detect, which prefers
+// .circleci/info.yml. A linked standalone project's slug is
+// "circleci/<orgID>/<projectID>", so its last segment is an opaque ID — useless
+// as the repository name callers want to show a user.
 func DetectRepoName() string {
-	info, err := Detect()
+	info, err := DetectFromRemote()
 	if err != nil {
 		return ""
 	}
