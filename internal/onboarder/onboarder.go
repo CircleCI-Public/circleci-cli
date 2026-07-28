@@ -34,6 +34,7 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/internal/apiclient"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmd/cmdauth"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmdutil"
+	"github.com/CircleCI-Public/circleci-cli/internal/config"
 	"github.com/CircleCI-Public/circleci-cli/internal/configgen"
 	clierrors "github.com/CircleCI-Public/circleci-cli/internal/errors"
 	"github.com/CircleCI-Public/circleci-cli/internal/gitremote"
@@ -81,7 +82,7 @@ func Run(ctx context.Context, dir string, opts Options) error {
 			"mode":    "signup",
 			"outcome": string(result.Outcome),
 		})
-		return postSignupGuidance(ctx)
+		return postSignupGuidance(ctx, opts)
 	}
 
 	dir, err = filepath.Abs(dir)
@@ -157,7 +158,29 @@ func Run(ctx context.Context, dir string, opts Options) error {
 		"outcome": string(signupResult.Outcome),
 	})
 
-	return postSignupGuidance(ctx)
+	return postSignupGuidance(ctx, opts)
+}
+
+// refreshConfig re-reads the config from disk when the cached copy carries no
+// token.
+//
+// A fresh signup persists the token to the keyring (or the config file), but the
+// *config.Config in ctx was loaded during root's bootstrap — before that write —
+// so it still looks unauthenticated. Without this reload, LoadClient fails with
+// auth.token_missing on the very run that just signed the user up, and project
+// creation degrades to manual guidance.
+//
+// A reload failure is not fatal: returning the unchanged ctx degrades exactly as
+// it would have anyway.
+func refreshConfig(ctx context.Context, opts Options) context.Context {
+	if cmdutil.GetConfig(ctx).EffectiveToken() != "" {
+		return ctx
+	}
+	cfg, err := config.Load(ctx, opts.ConfigPath, opts.SecureStorage)
+	if err != nil {
+		return ctx
+	}
+	return cmdutil.WithConfig(ctx, cfg)
 }
 
 // postSignupGuidance offers inline project creation and prints a follow-up
@@ -165,7 +188,9 @@ func Run(ctx context.Context, dir string, opts Options) error {
 //
 // Errors are handled gracefully: project creation failure falls through to
 // manual guidance rather than failing the onboard command.
-func postSignupGuidance(ctx context.Context) error {
+func postSignupGuidance(ctx context.Context, opts Options) error {
+	ctx = refreshConfig(ctx, opts)
+
 	client, err := cmdutil.LoadClient(ctx)
 	if err != nil {
 		printManualGuidance(ctx)
