@@ -304,6 +304,92 @@ func TestOnboard_PostSignup_ProjectCreated(t *testing.T) {
 	assert.Check(t, strings.Contains(result.Stdout, "Commit .circleci/config.yml"))
 }
 
+// TestOnboard_PostSignup_FreshSignup_ContinuesToProjectSetup is a regression test
+// for a fresh signup dead-ending at "Run 'circleci project create'" instead of
+// continuing into project, pipeline, and trigger setup.
+//
+// Signup writes the token to disk part-way through the run, but the config cached
+// in the context was loaded during bootstrap — before that write — so without a
+// reload LoadClient sees no token and the whole setup chain degrades to manual
+// guidance on the one run where it matters most.
+//
+// This test must NOT set env.Token: CIRCLE_TOKEN is read ahead of the cached
+// config, which masks the bug — and is why the other PostSignup tests, which all
+// pass a token through the environment, never caught it.
+func TestOnboard_PostSignup_FreshSignup_ContinuesToProjectSetup(t *testing.T) {
+	dir := t.TempDir()
+	initGitRepoWithRemote(t, dir, "https://github.com/myorg/my-repo.git")
+
+	fake := fakes.NewCircleCI(t)
+	fake.SetMe(map[string]any{
+		"id": "e4a72497-7c55-400d-a72d-dadc4b92255d",
+		"attributes": map[string]any{
+			"name":  "New User",
+			"login": "newuser",
+		},
+	})
+	fake.SetOAuthTokenResponse(map[string]any{
+		"access_token": "test-signup-token",
+		"token_type":   "Bearer",
+		"expires_in":   int64(7776000),
+	})
+	fake.SetCollaborations([]any{
+		map[string]any{"id": "org-uuid-1234", "name": "myorg", "slug": "circleci/myorg", "vcs_type": "circleci"},
+	})
+	fake.SetCreateProjectResponse(map[string]any{
+		"id":                "proj-uuid-5678",
+		"slug":              "circleci/myorg/my-repo",
+		"name":              "my-repo",
+		"organization_name": "myorg",
+		"organization_slug": "circleci/myorg",
+		"organization_id":   "org-uuid-1234",
+	})
+	fake.SetCreatePipelineDefinitionResponse("proj-uuid-5678", map[string]any{
+		"id":   "pdef-uuid-1",
+		"name": "my-repo",
+	})
+	fake.SetCreateTriggerResponse("proj-uuid-5678", "pdef-uuid-1", map[string]any{
+		"id":           "trig-uuid-1",
+		"event_preset": "all-pushes",
+	})
+
+	env := testenv.New(t)
+	env.CircleCIURL = fake.URL()
+	// Deliberately no env.Token — see the note above.
+	env.Extra["CIRCLE_LOGIN_TIMEOUT"] = "20s"
+	// Suppress the project-name prompt so the run completes without further input.
+	env.Extra["CIRCLE_NO_INTERACTIVE"] = "true"
+
+	console := binary.RunCLIInteractive(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"onboard", "--signup", "--no-browser", "--repo-id", "123456789"},
+		Env:     env.Environ(),
+		WorkDir: dir,
+	})
+
+	assert.Assert(t, t.Run("waits for browser callback", func(t *testing.T) {
+		_, err := console.ExpectString("Waiting for browser authentication")
+		assert.NilError(t, err)
+	}))
+
+	assert.Assert(t, t.Run("browser callback", func(t *testing.T) {
+		callbackViaPAR(t, fake)
+	}))
+
+	assert.Assert(t, t.Run("continues into project and pipeline setup", func(t *testing.T) {
+		_, err := console.ExpectString("Logged in as newuser")
+		assert.NilError(t, err)
+		_, err = console.ExpectString("Project created: my-repo")
+		assert.NilError(t, err)
+		_, err = console.ExpectString("Pipeline definition created: my-repo")
+		assert.NilError(t, err)
+		_, err = console.ExpectString("Trigger created: all-pushes")
+		assert.NilError(t, err)
+		_, err = console.ExpectString("Your project is ready!")
+		assert.NilError(t, err)
+	}))
+}
+
 func TestOnboard_PostSignup_FirstPipelineCreated(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("test runner uses sh -c")
