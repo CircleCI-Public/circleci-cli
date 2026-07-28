@@ -41,11 +41,11 @@ For more information about output formatting flags, see `circleci help formattin
 ## Examples
 
 - List settings for the current project: 
-  `circleci project settings list`
+  `circleci project setting list`
 - List settings for a specific project: 
-  `circleci project settings list --project gh/myorg/myrepo`
+  `circleci project setting list --project gh/myorg/myrepo`
 - Output as JSON: 
-  `circleci project settings list --json`
+  `circleci project setting list --json`
 
 ## Learn More
 

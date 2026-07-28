@@ -1,6 +1,0 @@
-Usage:  circleci project settings <command>
-
-Available commands:
-  get
-  list
-  set

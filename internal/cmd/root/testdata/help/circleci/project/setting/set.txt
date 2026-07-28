@@ -46,11 +46,11 @@ For more information about output formatting flags, see `circleci help formattin
 ## Examples
 
 - Enable a setting for the current project: 
-  `circleci project settings set build-forked-pull-requests true`
+  `circleci project setting set build-forked-pull-requests true`
 - Disable a setting for a specific project: 
-  `circleci project settings set build-forked-pull-requests false --project gh/myorg/myrepo`
+  `circleci project setting set build-forked-pull-requests false --project gh/myorg/myrepo`
 - Output the updated value as JSON: 
-  `circleci project settings set auto-cancel-builds true --json`
+  `circleci project setting set auto-cancel-builds true --json`
 
 ## Learn More
 
