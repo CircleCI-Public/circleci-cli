@@ -225,28 +225,41 @@ func runWatch(ctx context.Context, client *apiclient.Client, args []string, proj
 	return watchUntilDone(ctx, client, r.ID, timeout, failFast)
 }
 
+// isHexSHA reports whether s has the form every git object ID takes: a non-empty
+// run of hex characters. This lives here rather than in gitremote because a
+// non-hex --sha is a bad-argument error, not a git failure — and because
+// gitremote's expansion would otherwise happily resolve branch names and tags,
+// silently watching the wrong commit.
+func isHexSHA(s string) bool {
+	if s == "" {
+		return false
+	}
+	for _, r := range s {
+		switch {
+		case r >= '0' && r <= '9', r >= 'a' && r <= 'f', r >= 'A' && r <= 'F':
+		default:
+			return false
+		}
+	}
+	return true
+}
+
 // waitForRunBySHA searches for a run matching the given commit SHA via V3 search,
 // polling every 5 seconds for up to shaWaitDuration() if not immediately found.
 func waitForRunBySHA(ctx context.Context, client *apiclient.Client, projectSlug, branch, sha string) (*apiclient.RunV3, error) {
-	proj, err := client.GetProjectBySlug(ctx, projectSlug)
-	if err != nil {
-		return nil, apiErr(err, projectSlug)
+	// The SHA is resolved before the project lookup so a --sha that cannot work
+	// costs no API call.
+	if !isHexSHA(sha) {
+		return nil, clierrors.New("run.invalid_sha_format", "Invalid SHA format",
+			fmt.Sprintf("%q does not look like a commit SHA; expected hex characters only.", sha)).
+			WithSuggestions("Pass a hex commit SHA, e.g. from 'git log --oneline'").
+			WithExitCode(clierrors.ExitBadArguments)
 	}
-
-	waitDur := shaWaitDuration()
-	deadline := time.Now().Add(waitDur)
-	interval := 5 * time.Second
-	printed := false
 
 	expanded, expandErr := gitremote.ExpandSHA(sha)
 	switch {
 	case expandErr == nil:
 		sha = expanded
-	case errors.Is(expandErr, gitremote.ErrSHANotHex):
-		return nil, clierrors.New("run.invalid_sha_format", "Invalid SHA format",
-			fmt.Sprintf("%q does not look like a commit SHA; expected hex characters only.", sha)).
-			WithSuggestions("Pass a hex commit SHA, e.g. from 'git log --oneline'").
-			WithExitCode(clierrors.ExitBadArguments)
 	case errors.Is(expandErr, gitremote.ErrSHARepoInaccessible):
 		return nil, clierrors.New("run.sha_unresolvable", "Could not resolve short SHA",
 			fmt.Sprintf("Cannot expand %q: local git repository is not accessible.", sha)).
@@ -261,6 +274,16 @@ func waitForRunBySHA(ctx context.Context, client *apiclient.Client, projectSlug,
 			).
 			WithExitCode(clierrors.ExitNotFound)
 	}
+
+	proj, err := client.GetProjectBySlug(ctx, projectSlug)
+	if err != nil {
+		return nil, apiErr(err, projectSlug)
+	}
+
+	waitDur := shaWaitDuration()
+	deadline := time.Now().Add(waitDur)
+	interval := 5 * time.Second
+	printed := false
 
 	filter := fmt.Sprintf("pipeline.git.revision == %q", sha)
 	if branch != "" {

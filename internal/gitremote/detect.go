@@ -63,14 +63,9 @@ var (
 	sshProtoRemote = regexp.MustCompile(`^ssh://git@([^/]+)/([^/]+)/(.+?)(?:\.git)?$`)
 	// matches https://github.com/org/repo.git
 	httpsRemote = regexp.MustCompile(`^https?://([^/]+)/([^/]+)/(.+?)(?:\.git)?$`)
-
-	hexRE = regexp.MustCompile(`^[0-9a-fA-F]+$`)
 )
 
 var (
-	// ErrSHANotHex is returned by ExpandSHA when the input contains non-hex
-	// characters (e.g. a branch name passed by mistake).
-	ErrSHANotHex = errors.New("input is not a valid hex SHA")
 	// ErrSHARepoInaccessible is returned by ExpandSHA when the local git
 	// repository cannot be opened, so a short SHA cannot be expanded.
 	ErrSHARepoInaccessible = errors.New("local git repository is not accessible")
@@ -270,7 +265,14 @@ func openRepo() (*git.Repository, error) {
 	if err != nil {
 		return nil, err
 	}
-	return git.PlainOpenWithOptions(cwd, &git.PlainOpenOptions{DetectDotGit: true})
+	return openRepoAt(cwd)
+}
+
+// openRepoAt is openRepo for an explicit starting directory, letting tests point
+// at a temporary checkout instead of mutating the process working directory. The
+// same worktree resolution and handle-closing notes on openRepo apply.
+func openRepoAt(dir string) (*git.Repository, error) {
+	return git.PlainOpenWithOptions(dir, &git.PlainOpenOptions{DetectDotGit: true})
 }
 
 // gitOriginURL returns the first configured URL for the "origin" remote,
@@ -297,21 +299,37 @@ func gitCurrentBranch(repo *git.Repository) (string, error) {
 	return head.Name().Short(), nil
 }
 
-// ExpandSHA attempts to resolve an abbreviated git SHA to its full 40-character
-// form. It returns the (possibly expanded) SHA and nil on success, or the
-// original input and one of ErrSHANotHex, ErrSHARepoInaccessible, or
-// ErrSHANotFound on failure.
+// ExpandSHA resolves an abbreviated git SHA against the repository containing
+// the current working directory. See ExpandSHAIn for the contract.
 func ExpandSHA(sha string) (string, error) {
-	if !hexRE.MatchString(sha) {
-		return sha, ErrSHANotHex
-	}
-	if len(sha) == 40 {
-		return sha, nil
-	}
-	repo, err := openRepo()
+	cwd, err := os.Getwd()
 	if err != nil {
 		return sha, ErrSHARepoInaccessible
 	}
+	return ExpandSHAIn(cwd, sha)
+}
+
+// ExpandSHAIn attempts to resolve an abbreviated git SHA to its full
+// 40-character form using the repository containing dir. It returns the
+// (possibly expanded) SHA and nil on success, or the original input and either
+// ErrSHARepoInaccessible or ErrSHANotFound on failure. A SHA that is already 40
+// characters is returned as-is without opening a repository, so callers holding
+// a full SHA never depend on local git state.
+//
+// sha must already be known to be hex; callers validate that themselves, since a
+// non-SHA argument is a bad-argument error rather than a git failure.
+// ResolveRevision accepts any revision expression — branch names, tags, HEAD~3 —
+// so passing unvalidated input here would silently resolve those instead.
+func ExpandSHAIn(dir, sha string) (string, error) {
+	if len(sha) == 40 {
+		return sha, nil
+	}
+	repo, err := openRepoAt(dir)
+	if err != nil {
+		return sha, ErrSHARepoInaccessible
+	}
+	defer func() { _ = repo.Close() }()
+
 	hash, err := repo.ResolveRevision(plumbing.Revision(sha))
 	if err != nil {
 		return sha, ErrSHANotFound

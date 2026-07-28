@@ -277,6 +277,31 @@ func TestRunWatch_SHA_ShortOutsideGitRepo(t *testing.T) {
 	assert.Check(t, cmp.Contains(result.Stderr, "local git repository is not accessible"), "stderr: %s", result.Stderr)
 }
 
+// --- --sha: a revision that is not a hex SHA → exit 2 without any API call ---
+
+// A branch name is the likely mistake here, and it must not reach local
+// expansion: go-git would resolve it to that branch's tip and watch the wrong
+// commit. No project is registered on the fake, so reaching the API at all would
+// surface as a different exit code.
+func TestRunWatch_SHA_NotHex(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary: binaryPath,
+		Args: []string{"run", "watch", "--sha", "main",
+			"--project", watchSlug, "--branch", "main"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 2, "stderr: %s", result.Stderr) // ExitBadArguments
+	assert.Check(t, cmp.Contains(result.Stderr, "does not look like a commit SHA"), "stderr: %s", result.Stderr)
+}
+
 // --- --failfast: exit immediately when a job fails, without waiting for the rest of the run ---
 
 func TestRunWatch_FailFast(t *testing.T) {

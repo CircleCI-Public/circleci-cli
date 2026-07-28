@@ -177,50 +177,68 @@ func TestDetect_SurfacesMalformedInfoYml(t *testing.T) {
 	assert.Check(t, err != nil, "expected Detect to surface a malformed info.yml rather than fall back")
 }
 
-func TestExpandSHA(t *testing.T) {
-	origDir, err := os.Getwd()
-	assert.NilError(t, err)
+func TestExpandSHAIn(t *testing.T) {
+	t.Parallel()
 
 	t.Run("already 40 hex chars returns input unchanged", func(t *testing.T) {
+		t.Parallel()
+		// Passed a directory that is not a repository to pin down that a full SHA
+		// never touches local git state — the property the scripted
+		// ($CIRCLE_SHA1) path relies on.
 		full := "1234567890abcdef1234567890abcdef12345678"
-		got, err := ExpandSHA(full)
+		got, err := ExpandSHAIn(t.TempDir(), full)
 		assert.NilError(t, err)
 		assert.Check(t, cmp.Equal(got, full))
 	})
 
-	t.Run("non-hex input returns ErrSHANotHex", func(t *testing.T) {
-		_, err := ExpandSHA("main")
-		assert.Check(t, errors.Is(err, ErrSHANotHex), "got: %v", err)
-	})
-
 	t.Run("repo inaccessible returns ErrSHARepoInaccessible", func(t *testing.T) {
-		dir := t.TempDir()
-		assert.NilError(t, os.Chdir(dir))
-		t.Cleanup(func() { _ = os.Chdir(origDir) })
-
-		_, err := ExpandSHA("abc1234")
+		t.Parallel()
+		_, err := ExpandSHAIn(t.TempDir(), "abc1234")
 		assert.Check(t, errors.Is(err, ErrSHARepoInaccessible), "got: %v", err)
 	})
 
 	t.Run("SHA not found in repo returns ErrSHANotFound", func(t *testing.T) {
+		t.Parallel()
 		dir := t.TempDir()
-		_, err := git.PlainInit(dir, false)
+		repo, err := git.PlainInit(dir, false)
 		assert.NilError(t, err)
-		assert.NilError(t, os.Chdir(dir))
-		t.Cleanup(func() { _ = os.Chdir(origDir) })
+		t.Cleanup(func() { _ = repo.Close() })
 
-		_, err = ExpandSHA("deadbeef")
+		_, err = ExpandSHAIn(dir, "deadbeef")
 		assert.Check(t, errors.Is(err, ErrSHANotFound), "got: %v", err)
 	})
 
 	t.Run("short SHA expands to full 40-char hash", func(t *testing.T) {
+		t.Parallel()
 		dir := t.TempDir()
 		fullHash := initRepoWithCommit(t, dir)
-		assert.NilError(t, os.Chdir(dir))
-		t.Cleanup(func() { _ = os.Chdir(origDir) })
 
-		short := fullHash[:7]
-		got, err := ExpandSHA(short)
+		got, err := ExpandSHAIn(dir, fullHash[:7])
+		assert.NilError(t, err)
+		assert.Check(t, cmp.Equal(got, fullHash))
+	})
+
+	t.Run("resolves a subdirectory to its containing repo", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		fullHash := initRepoWithCommit(t, dir)
+		sub := filepath.Join(dir, "nested", "deeper")
+		assert.NilError(t, os.MkdirAll(sub, 0o755))
+
+		got, err := ExpandSHAIn(sub, fullHash[:7])
+		assert.NilError(t, err)
+		assert.Check(t, cmp.Equal(got, fullHash))
+	})
+
+	// Documents why callers must reject non-hex input before calling: go-git
+	// resolves any revision expression, so a branch name would expand to that
+	// branch's tip and silently watch the wrong commit.
+	t.Run("resolves branch names, which is why callers validate hex first", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		fullHash := initRepoWithCommit(t, dir)
+
+		got, err := ExpandSHAIn(dir, "HEAD")
 		assert.NilError(t, err)
 		assert.Check(t, cmp.Equal(got, fullHash))
 	})
@@ -232,6 +250,7 @@ func initRepoWithCommit(t *testing.T, dir string) string {
 	t.Helper()
 	repo, err := git.PlainInit(dir, false)
 	assert.NilError(t, err)
+	t.Cleanup(func() { _ = repo.Close() })
 
 	err = os.WriteFile(filepath.Join(dir, "README"), []byte("test"), 0o644)
 	assert.NilError(t, err)
