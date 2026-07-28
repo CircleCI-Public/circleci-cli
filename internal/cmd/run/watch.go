@@ -547,8 +547,6 @@ func failedJobLogSuggestions(state runGetOutput) []string {
 			}
 		}
 	}
-	suggestions = append(suggestions,
-		"Or fetch logs for the latest failed job: circleci logs --last-failed")
 	return suggestions
 }
 

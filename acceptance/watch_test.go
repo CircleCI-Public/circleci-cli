@@ -158,7 +158,6 @@ func TestRunWatch_Failed(t *testing.T) {
 
 	assert.Equal(t, result.ExitCode, 1, "stderr: %s", result.Stderr)
 	assert.Check(t, cmp.Contains(result.Stderr, "failed"), "stderr: %s", result.Stderr)
-	assert.Check(t, cmp.Contains(result.Stderr, "circleci logs --last-failed"), "stderr: %s", result.Stderr)
 }
 
 // --- failed pipeline with a failed job → suggests viewing logs ---
@@ -196,7 +195,6 @@ func TestRunWatch_Failed_SuggestsJobLogs(t *testing.T) {
 	assert.Equal(t, result.ExitCode, 1, "stderr: %s", result.Stderr)
 	assert.Check(t, cmp.Contains(result.Stderr, `"integration-test"`), "stderr: %s", result.Stderr)
 	assert.Check(t, cmp.Contains(result.Stderr, "circleci job get <job-id>"), "stderr: %s", result.Stderr)
-	assert.Check(t, cmp.Contains(result.Stderr, "circleci logs --last-failed"), "stderr: %s", result.Stderr)
 }
 
 // --- cancelled run → exit 6 ---
