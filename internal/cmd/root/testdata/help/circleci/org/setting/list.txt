@@ -44,11 +44,11 @@ For more information about output formatting flags, see `circleci help formattin
 ## Examples
 
 - List settings for the current org: 
-  `circleci org setting list`
+  `circleci org settings list`
 - List settings for a specific org: 
-  `circleci org setting list --org gh/myorg`
+  `circleci org settings list --org gh/myorg`
 - Output as JSON: 
-  `circleci org setting list --json`
+  `circleci org settings list --json`
 
 ## Learn More
 

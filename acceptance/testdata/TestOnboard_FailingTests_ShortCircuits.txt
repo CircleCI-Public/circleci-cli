@@ -4,7 +4,7 @@
 Running tests ...
 fake dotnet test --framework net8.0 --filter FullyQualifiedName!~BufferErroringWithInvalidSize&FullyQualifiedName!~MemoryTraceWriter&FullyQualifiedName!~Issue1619&FullyQualifiedName!~SerializeFormattedDateTimeNewZealandCulture
 
-My tests failed when running `circleci onboard`.
+My tests failed when running `circleci test run`.
 
 Project stack: dotnet
 Image: mcr.microsoft.com/dotnet/sdk:8.0
@@ -16,4 +16,4 @@ fake dotnet test --framework net8.0 --filter FullyQualifiedName!~BufferErroringW
 fake failure details
 
 Please diagnose the failure from the output above and propose a fix.
-Once fixed, I will re-run `circleci onboard`.
+Once fixed, I will re-run `circleci test run`.

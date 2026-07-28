@@ -304,6 +304,198 @@ func TestOnboard_PostSignup_ProjectCreated(t *testing.T) {
 	assert.Check(t, strings.Contains(result.Stdout, "Commit .circleci/config.yml"))
 }
 
+func TestOnboard_PostSignup_FirstPipelineCreated(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("test runner uses sh -c")
+	}
+	dir := t.TempDir()
+	copyFixture(t, "testdata/test-run/dotnet", dir)
+	initGitRepoWithRemote(t, dir, "https://github.com/myorg/my-repo.git")
+
+	fake, env := onboardStandaloneEnv(t, "testuser")
+	fake.SetCreatePipelineDefinitionResponse("proj-uuid-5678", map[string]any{
+		"id":         "pdef-uuid-1",
+		"name":       "my-repo",
+		"created_at": "2026-07-23T00:00:00Z",
+	})
+	fake.SetCreateTriggerResponse("proj-uuid-5678", "pdef-uuid-1", map[string]any{
+		"id":           "trig-uuid-1",
+		"created_at":   "2026-07-23T00:00:00Z",
+		"event_preset": "all-pushes",
+	})
+	addFakeDotnet(t, env, false)
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"onboard", "--scan", "--repo-id", "123456789"},
+		Env:     env.Environ(),
+		WorkDir: dir,
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, strings.Contains(result.Stdout, "Project created: my-repo"))
+	assert.Check(t, strings.Contains(result.Stdout, "Pipeline definition created: my-repo"))
+	assert.Check(t, strings.Contains(result.Stdout, "Trigger created: all-pushes"))
+	assert.Check(t, strings.Contains(result.Stdout, "Your project is ready!"))
+	assert.Check(t, strings.Contains(result.Stdout, "git push"))
+}
+
+func TestOnboard_PostSignup_FirstPipeline_GitHubAppResolvesRepo(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("test runner uses sh -c")
+	}
+	dir := t.TempDir()
+	copyFixture(t, "testdata/test-run/dotnet", dir)
+	initGitRepoWithRemote(t, dir, "https://github.com/myorg/my-repo.git")
+
+	fake, env := onboardStandaloneEnv(t, "testuser")
+	// GitHub App is installed for the org and can access the repo, so the repo's
+	// external ID is resolved automatically — no --repo-id needed.
+	fake.SetGitHubAppInstalled("org-uuid-1234", true)
+	fake.AddGitHubAppRepository("org-uuid-1234", map[string]any{
+		"id":             987654321,
+		"repo_full_name": "myorg/my-repo",
+		"repo_name":      "my-repo",
+		"owner":          "myorg",
+		"default_branch": "main",
+		"private":        false,
+	})
+	fake.SetCreatePipelineDefinitionResponse("proj-uuid-5678", map[string]any{
+		"id":   "pdef-uuid-1",
+		"name": "my-repo",
+	})
+	fake.SetCreateTriggerResponse("proj-uuid-5678", "pdef-uuid-1", map[string]any{
+		"id":           "trig-uuid-1",
+		"event_preset": "all-pushes",
+	})
+	addFakeDotnet(t, env, false)
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"onboard", "--scan"},
+		Env:     env.Environ(),
+		WorkDir: dir,
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, strings.Contains(result.Stdout, "Found repository myorg/my-repo"))
+	assert.Check(t, strings.Contains(result.Stdout, "Pipeline definition created: my-repo"))
+	assert.Check(t, strings.Contains(result.Stdout, "Trigger created: all-pushes"))
+	assert.Check(t, strings.Contains(result.Stdout, "Your project is ready!"))
+}
+
+func TestOnboard_PostSignup_Rerun_Idempotent(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("test runner uses sh -c")
+	}
+	dir := t.TempDir()
+	copyFixture(t, "testdata/test-run/dotnet", dir)
+	initGitRepoWithRemote(t, dir, "https://github.com/myorg/my-repo.git")
+
+	fake, env := onboardStandaloneEnv(t, "testuser")
+	// Simulate a prior onboard run: project creation now conflicts, and the
+	// project already has its pipeline definition + trigger.
+	fake.SetCreateProjectResponse(nil) // create fails → resolve the existing project
+	fake.AddProjectInfo("circleci/myorg/my-repo", map[string]any{
+		"id":                "proj-uuid-5678",
+		"slug":              "circleci/myorg/my-repo",
+		"name":              "my-repo",
+		"organization_name": "myorg",
+		"organization_slug": "circleci/myorg",
+		"organization_id":   "org-uuid-1234",
+	})
+	fake.SetGitHubAppInstalled("org-uuid-1234", true)
+	fake.AddGitHubAppRepository("org-uuid-1234", map[string]any{
+		"id":             987654321,
+		"repo_full_name": "myorg/my-repo",
+		"repo_name":      "my-repo",
+		"owner":          "myorg",
+	})
+	fake.AddPipelineDefinition("proj-uuid-5678", map[string]any{
+		"id":   "pdef-uuid-1",
+		"name": "my-repo",
+		"config_source": map[string]any{
+			"provider": "github_app",
+			"repo":     map[string]any{"external_id": "987654321"},
+		},
+	})
+	fake.AddTrigger("proj-uuid-5678", "pdef-uuid-1", map[string]any{
+		"id":           "trig-uuid-1",
+		"event_preset": "all-pushes",
+	})
+	addFakeDotnet(t, env, false)
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"onboard", "--scan"},
+		Env:     env.Environ(),
+		WorkDir: dir,
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, strings.Contains(result.Stdout, "Using existing project: my-repo"))
+	assert.Check(t, strings.Contains(result.Stdout, "Pipeline definition already exists: my-repo"))
+	assert.Check(t, strings.Contains(result.Stdout, "Trigger already exists"))
+	assert.Check(t, !strings.Contains(result.Stderr, "Could not create project"), "re-run should not surface a creation error")
+}
+
+func TestOnboard_PostSignup_FirstPipeline_RepoNotAccessible(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("test runner uses sh -c")
+	}
+	dir := t.TempDir()
+	copyFixture(t, "testdata/test-run/dotnet", dir)
+	initGitRepoWithRemote(t, dir, "https://github.com/myorg/my-repo.git")
+
+	fake, env := onboardStandaloneEnv(t, "testuser")
+	// App is installed, but the repo the user is in was not granted to it.
+	fake.SetGitHubAppInstalled("org-uuid-1234", true)
+	fake.AddGitHubAppRepository("org-uuid-1234", map[string]any{
+		"id":             111,
+		"repo_full_name": "myorg/some-other-repo",
+		"repo_name":      "some-other-repo",
+		"owner":          "myorg",
+	})
+	addFakeDotnet(t, env, false)
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"onboard", "--scan"},
+		Env:     env.Environ(),
+		WorkDir: dir,
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, strings.Contains(result.Stderr, "can't access myorg/my-repo"))
+	assert.Check(t, strings.Contains(result.Stdout, "Commit .circleci/config.yml"))
+	assert.Check(t, !strings.Contains(result.Stdout, "Pipeline definition created"), "no pipeline def without a repo ID")
+}
+
+func TestOnboard_PostSignup_FirstPipeline_TriggerFails(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("test runner uses sh -c")
+	}
+	dir := t.TempDir()
+	copyFixture(t, "testdata/test-run/dotnet", dir)
+	initGitRepoWithRemote(t, dir, "https://github.com/myorg/my-repo.git")
+
+	fake, env := onboardStandaloneEnv(t, "testuser")
+	fake.SetCreatePipelineDefinitionResponse("proj-uuid-5678", map[string]any{
+		"id":   "pdef-uuid-1",
+		"name": "my-repo",
+	})
+	// No trigger response registered → the trigger create returns 404 and the
+	// flow degrades to manual guidance.
+	addFakeDotnet(t, env, false)
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"onboard", "--scan", "--repo-id", "123456789"},
+		Env:     env.Environ(),
+		WorkDir: dir,
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, strings.Contains(result.Stdout, "Pipeline definition created: my-repo"))
+	assert.Check(t, strings.Contains(result.Stderr, "Could not create trigger"))
+	assert.Check(t, strings.Contains(result.Stdout, "Commit .circleci/config.yml"))
+}
+
 func TestOnboard_PostSignup_ClassicOrg_FollowsProject(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("test runner uses sh -c")

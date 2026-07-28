@@ -28,6 +28,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	tea "charm.land/bubbletea/v2"
 
@@ -36,6 +37,7 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/internal/cmdutil"
 	"github.com/CircleCI-Public/circleci-cli/internal/configgen"
 	clierrors "github.com/CircleCI-Public/circleci-cli/internal/errors"
+	"github.com/CircleCI-Public/circleci-cli/internal/githubapp"
 	"github.com/CircleCI-Public/circleci-cli/internal/gitremote"
 	"github.com/CircleCI-Public/circleci-cli/internal/iostream"
 	"github.com/CircleCI-Public/circleci-cli/internal/org"
@@ -58,6 +60,11 @@ type Options struct {
 	SecureStorage bool
 	Scan          bool
 	Signup        bool
+	// RepoID is the VCS repository external ID (the numeric GitHub repo ID) used
+	// to wire up the first pipeline definition and trigger. When empty, it is
+	// prompted for interactively; in non-interactive mode an empty value falls
+	// back to manual guidance.
+	RepoID string
 }
 
 // Run scans a repository, verifies its tests, generates a starter config when
@@ -81,7 +88,7 @@ func Run(ctx context.Context, dir string, opts Options) error {
 			"mode":    "signup",
 			"outcome": string(result.Outcome),
 		})
-		return postSignupGuidance(ctx)
+		return postSignupGuidance(ctx, opts)
 	}
 
 	dir, err = filepath.Abs(dir)
@@ -157,15 +164,17 @@ func Run(ctx context.Context, dir string, opts Options) error {
 		"outcome": string(signupResult.Outcome),
 	})
 
-	return postSignupGuidance(ctx)
+	return postSignupGuidance(ctx, opts)
 }
 
 // postSignupGuidance offers inline project creation and prints a follow-up
-// message after the user has authenticated.
+// message after the user has authenticated. For modern (CircleCI-native) orgs
+// it continues past project creation to set up the first pipeline definition
+// and trigger, so a subsequent push starts a build.
 //
-// Errors are handled gracefully: project creation failure falls through to
-// manual guidance rather than failing the onboard command.
-func postSignupGuidance(ctx context.Context) error {
+// Errors are handled gracefully: any failure falls through to manual guidance
+// rather than failing the onboard command.
+func postSignupGuidance(ctx context.Context, opts Options) error {
 	client, err := cmdutil.LoadClient(ctx)
 	if err != nil {
 		printManualGuidance(ctx)
@@ -239,20 +248,205 @@ func postSignupGuidance(ctx context.Context) error {
 		return followClassicProject(ctx, client, appURL, vcs, orgName, name)
 	}
 
-	proj, err := client.CreateProject(ctx, vcs, orgName, name)
+	proj, created, err := createOrResolveProject(ctx, client, vcs, orgName, name)
 	if err != nil {
 		iostream.ErrPrintf(ctx, "%s Could not create project: %s\n", iostream.SymbolWarn(ctx), err)
 		printManualGuidance(ctx)
 		return nil
 	}
 
-	iostream.Printf(ctx, "%s Project created: %s\n", iostream.SymbolOK(ctx), proj.Name)
+	if created {
+		iostream.Printf(ctx, "%s Project created: %s\n", iostream.SymbolOK(ctx), proj.Name)
+	} else {
+		iostream.Printf(ctx, "%s Using existing project: %s\n", iostream.SymbolOK(ctx), proj.Name)
+	}
 	iostream.Printf(ctx, "  Organization: %s\n", proj.OrganizationName)
 	if pipelinesURL, err := cmdutil.RunSlugURL(appURL, proj.Slug); err == nil {
 		iostream.Printf(ctx, "  Pipelines: %s\n", pipelinesURL)
 	}
-	iostream.Printf(ctx, "\nCommit .circleci/config.yml. After your project is connected in CircleCI, pushing will start your first pipeline.\n")
+
+	return setupFirstPipeline(ctx, client, appURL, proj, name, repoFullName(), opts.RepoID, opts.NoBrowser)
+}
+
+// createOrResolveProject creates the project, or resolves the existing one when
+// creation fails because it was already created by a previous onboard run. The
+// returned bool reports whether the project was newly created. Only the original
+// creation error is surfaced when the project genuinely does not exist.
+func createOrResolveProject(ctx context.Context, client *apiclient.Client, vcs, orgName, name string) (*apiclient.ProjectInfo, bool, error) {
+	proj, err := client.CreateProject(ctx, vcs, orgName, name)
+	if err == nil {
+		return proj, true, nil
+	}
+
+	slug := fmt.Sprintf("%s/%s/%s", vcs, orgName, name)
+	if existing, rerr := client.GetProjectInfo(ctx, slug); rerr == nil {
+		return existing, false, nil
+	}
+	return nil, false, err
+}
+
+// repoFullName returns "owner/repo" from the git remote URL, or "" when not detectable.
+func repoFullName() string {
+	info, err := gitremote.DetectFromRemote()
+	if err != nil {
+		return ""
+	}
+	parts := strings.Split(info.Slug, "/")
+	if len(parts) != 3 {
+		return ""
+	}
+	return parts[1] + "/" + parts[2]
+}
+
+// setupFirstPipeline wires up a pipeline definition and an all-pushes trigger
+// for a freshly created project so the first push starts a build. It uses the
+// same v2 endpoints as `circleci pipeline create` and `circleci project trigger
+// create`, with sensible zero-prompt defaults (config at .circleci/config.yml,
+// the github_app provider, and the repo's external ID for both config and
+// checkout sources).
+//
+// Every step degrades gracefully: the project already exists, so any failure
+// prints manual guidance rather than returning an error.
+func setupFirstPipeline(ctx context.Context, client *apiclient.Client, appURL string, proj *apiclient.ProjectInfo, repoName, fullName, repoID string, noBrowser bool) error {
+	repoID = resolveRepoID(ctx, client, appURL, proj, fullName, repoID, noBrowser)
+	if repoID == "" {
+		// Without the repo's external ID we can't create the pipeline
+		// definition. The project still exists; guide the user to finish setup.
+		trackOnboard(ctx, "onboard_project_setup", map[string]any{"outcome": "skipped_no_repo_id"})
+		printManualPipelineGuidance(ctx)
+		return nil
+	}
+
+	def, err := ensurePipelineDefinition(ctx, client, proj.ID, repoName, repoID)
+	if err != nil {
+		iostream.ErrPrintf(ctx, "%s Could not create pipeline definition: %s\n", iostream.SymbolWarn(ctx), err)
+		trackOnboard(ctx, "onboard_project_setup", map[string]any{"outcome": "pipeline_definition_failed"})
+		printManualPipelineGuidance(ctx)
+		return nil
+	}
+
+	if err := ensureTrigger(ctx, client, proj.ID, def.ID, repoID); err != nil {
+		iostream.ErrPrintf(ctx, "%s Could not create trigger: %s\n", iostream.SymbolWarn(ctx), err)
+		trackOnboard(ctx, "onboard_project_setup", map[string]any{"outcome": "trigger_failed"})
+		printManualPipelineGuidance(ctx)
+		return nil
+	}
+
+	trackOnboard(ctx, "onboard_project_setup", map[string]any{"outcome": "created"})
+	printPipelineReadyGuidance(ctx, appURL, proj.Slug)
 	return nil
+}
+
+// ensurePipelineDefinition returns the pipeline definition already configured
+// for the repo, or creates one. Reusing an existing definition keeps re-runs of
+// onboard from creating duplicates.
+func ensurePipelineDefinition(ctx context.Context, client *apiclient.Client, projectID, name, repoID string) (*apiclient.PipelineDefinition, error) {
+	if defs, err := client.ListPipelineDefinitions(ctx, projectID); err == nil {
+		for i := range defs {
+			cs := defs[i].ConfigSource
+			if cs != nil && cs.Repo != nil && cs.Repo.ExternalID == repoID {
+				iostream.Printf(ctx, "%s Pipeline definition already exists: %s\n", iostream.SymbolOK(ctx), defs[i].Name)
+				return &defs[i], nil
+			}
+		}
+	}
+
+	def, err := client.CreatePipelineDefinition(ctx, projectID, apiclient.CreatePipelineDefinitionInput{
+		Name:             name,
+		ConfigProvider:   "github_app",
+		ConfigRepoID:     repoID,
+		ConfigFilePath:   ".circleci/config.yml",
+		CheckoutProvider: "github_app",
+		CheckoutRepoID:   repoID,
+	})
+	if err != nil {
+		return nil, err
+	}
+	iostream.Printf(ctx, "%s Pipeline definition created: %s\n", iostream.SymbolOK(ctx), def.Name)
+	return def, nil
+}
+
+// ensureTrigger creates an all-pushes trigger for the pipeline definition unless
+// one already exists, so re-runs of onboard don't add duplicate triggers.
+func ensureTrigger(ctx context.Context, client *apiclient.Client, projectID, definitionID, repoID string) error {
+	if trigs, err := client.ListTriggers(ctx, projectID, definitionID); err == nil && len(trigs) > 0 {
+		iostream.Printf(ctx, "%s Trigger already exists\n", iostream.SymbolOK(ctx))
+		return nil
+	}
+
+	trig, err := client.CreateTrigger(ctx, projectID, definitionID, "github_app", repoID, "all-pushes", "", "")
+	if err != nil {
+		return err
+	}
+	preset := trig.EventPreset
+	if preset == "" {
+		preset = "all-pushes"
+	}
+	iostream.Printf(ctx, "%s Trigger created: %s\n", iostream.SymbolOK(ctx), preset)
+	return nil
+}
+
+// resolveRepoID determines the repo external ID for the pipeline definition and
+// trigger. An explicit --repo-id wins. Otherwise it ensures the CircleCI GitHub
+// App is installed for the org and matches the git remote against the app's
+// accessible repositories. Any failure returns "" so the caller degrades to
+// manual guidance rather than prompting for an opaque numeric ID.
+func resolveRepoID(ctx context.Context, client *apiclient.Client, appURL string, proj *apiclient.ProjectInfo, fullName, repoID string, noBrowser bool) string {
+	if repoID != "" {
+		return repoID
+	}
+	if proj.OrganizationID == "" || fullName == "" {
+		return ""
+	}
+
+	returnURL := appURL
+	if u, err := cmdutil.RunSlugURL(appURL, proj.Slug); err == nil {
+		returnURL = u
+	}
+
+	installed, err := githubapp.EnsureInstalled(ctx, client, proj.OrganizationID, returnURL, noBrowser)
+	if err != nil {
+		iostream.ErrPrintf(ctx, "%s Could not check GitHub App installation: %s\n", iostream.SymbolWarn(ctx), err)
+		return ""
+	}
+	if !installed {
+		return ""
+	}
+
+	id, err := githubapp.ResolveRepoID(ctx, client, proj.OrganizationID, fullName)
+	if err != nil {
+		iostream.ErrPrintf(ctx, "%s Could not list GitHub App repositories: %s\n", iostream.SymbolWarn(ctx), err)
+		return ""
+	}
+	if id == "" {
+		iostream.ErrPrintf(ctx, "%s The GitHub App can't access %s yet. Grant it access to this repository, then re-run.\n",
+			iostream.SymbolWarn(ctx), fullName)
+		return ""
+	}
+
+	iostream.Printf(ctx, "%s Found repository %s\n", iostream.SymbolOK(ctx), fullName)
+	return id
+}
+
+// printPipelineReadyGuidance prints the happy-path next steps once the pipeline
+// definition and trigger have been created.
+func printPipelineReadyGuidance(ctx context.Context, appURL, slug string) {
+	iostream.Printf(ctx, "\nYour project is ready! Next steps:\n")
+	iostream.Printf(ctx, "  1. git add .circleci/config.yml\n")
+	iostream.Printf(ctx, "  2. git commit -m \"Add CircleCI config\"\n")
+	iostream.Printf(ctx, "  3. git push\n")
+	iostream.Printf(ctx, "\nPushing will trigger your first pipeline.\n")
+	if url, err := cmdutil.RunSlugURL(appURL, slug); err == nil {
+		iostream.Printf(ctx, "%s\n", url)
+	}
+}
+
+// printManualPipelineGuidance is the fallback when the pipeline definition or
+// trigger could not be created. The project exists, so point the user at the
+// commands that finish the job.
+func printManualPipelineGuidance(ctx context.Context) {
+	iostream.Printf(ctx, "\nCommit .circleci/config.yml. After your project is connected in CircleCI, pushing will start your first pipeline.\n")
+	iostream.Printf(ctx, "To set up a trigger now, run 'circleci pipeline create' then 'circleci project trigger create'.\n")
 }
 
 func followClassicProject(ctx context.Context, client *apiclient.Client, appURL, vcs, orgName, repoName string) error {
@@ -349,6 +543,8 @@ func displayPreamble(ctx context.Context, dir string) error {
 			"Run your tests locally",
 			"Generate a starter .circleci/config.yml",
 			"Sign you up for CircleCI",
+			"Create your project and connect it to GitHub",
+			"Set up your first pipeline trigger",
 		},
 	)
 	p := tea.NewProgram(model,

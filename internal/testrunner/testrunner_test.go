@@ -91,7 +91,7 @@ func TestRun_TestFails_PrintsPromptAndReturnsStructuredError(t *testing.T) {
 	})
 
 	assertCLIError(t, err, "test.tests_failed", clierrors.ExitGeneralError)
-	assert.Check(t, cmp.Contains(outBuf.String(), "My tests failed when running `circleci onboard`."))
+	assert.Check(t, cmp.Contains(outBuf.String(), "My tests failed when running `circleci test run`."))
 	assert.Check(t, cmp.Contains(outBuf.String(), "Command run: printf 'boom\\n'; printf 'details\\n' >&2; exit 7"))
 	assert.Check(t, cmp.Contains(outBuf.String(), "Exit code: 7"))
 	assert.Check(t, cmp.Contains(outBuf.String(), "boom"))

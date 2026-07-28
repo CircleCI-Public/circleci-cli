@@ -42,7 +42,7 @@ func NewProjectCmd() *cobra.Command {
 			A project corresponds to a version-control repository connected
 			to CircleCI. Use 'circleci project list' to see all followed projects,
 			'circleci project follow' to start following a new project, and
-			'circleci project envvar' to manage environment variables.
+			'circleci project env' to manage environment variables.
 
 			To manage environment variables directly, use the top-level alias:
 			  circleci envvar list --project gh/org/repo

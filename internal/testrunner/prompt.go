@@ -27,7 +27,7 @@ import (
 	"strings"
 )
 
-const agentPromptTemplate = `My tests failed when running ` + "`circleci onboard`" + `.
+const agentPromptTemplate = `My tests failed when running ` + "`circleci test run`" + `.
 
 Project stack: %s
 Image: %s
@@ -38,7 +38,7 @@ Failing test output:
 %s
 
 Please diagnose the failure from the output above and propose a fix.
-Once fixed, I will re-run ` + "`circleci onboard`" + `.
+Once fixed, I will re-run ` + "`circleci test run`" + `.
 `
 
 // RenderPrompt returns the hardcoded POC prompt shown after local tests fail.

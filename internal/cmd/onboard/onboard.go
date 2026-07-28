@@ -38,6 +38,7 @@ func NewOnboardCmd() *cobra.Command {
 		noBrowser bool
 		scan      bool
 		signup    bool
+		repoID    string
 	)
 
 	cmd := &cobra.Command{
@@ -52,10 +53,18 @@ func NewOnboardCmd() *cobra.Command {
 		},
 		Long: heredoc.Doc(`
 			Guided onboarding: scan a local repository, run its detected tests,
-			generate a starter .circleci/config.yml, and sign up for CircleCI.
+			generate a starter .circleci/config.yml, sign up for CircleCI, and —
+			for CircleCI-native organizations — create the project along with a
+			pipeline definition and an all-pushes trigger so your next push starts
+			a build.
 
 			When run interactively without --scan or --signup, a prompt lets you
 			choose between scanning the current repo or signing up directly.
+
+			Setting up the pipeline needs your GitHub repository's numeric ID.
+			Pass it with --repo-id to skip the prompt (required in non-interactive
+			sessions); without it, project creation still completes and prints the
+			steps to finish setup by hand.
 		`),
 		Example: heredoc.Doc(`
 			# Interactive mode: choose scan or signup
@@ -63,6 +72,9 @@ func NewOnboardCmd() *cobra.Command {
 
 			# Scan the current directory (skip the choice prompt)
 			$ circleci onboard --scan
+
+			# Scan and wire up the first pipeline without prompts
+			$ circleci onboard --scan --repo-id 123456789
 
 			# Sign up for CircleCI (no repo needed)
 			$ circleci onboard --signup
@@ -95,6 +107,7 @@ func NewOnboardCmd() *cobra.Command {
 				ConfigPath:    configPath,
 				Scan:          scan,
 				Signup:        signup,
+				RepoID:        repoID,
 			})
 		},
 	}
@@ -102,5 +115,6 @@ func NewOnboardCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&noBrowser, "no-browser", false, "Print the signup URL instead of opening a browser")
 	cmd.Flags().BoolVar(&scan, "scan", false, "Skip prompt: scan the repo and generate config")
 	cmd.Flags().BoolVar(&signup, "signup", false, "Skip prompt: sign up for CircleCI")
+	cmd.Flags().StringVar(&repoID, "repo-id", "", "GitHub repository external ID (numeric) for the pipeline definition and trigger")
 	return cmd
 }
