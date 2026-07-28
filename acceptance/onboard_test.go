@@ -32,6 +32,7 @@ import (
 	"testing"
 
 	"gotest.tools/v3/assert"
+	"gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/golden"
 
 	"github.com/CircleCI-Public/circleci-cli/internal/testing/binary"
@@ -388,6 +389,190 @@ func TestOnboard_PostSignup_FreshSignup_ContinuesToProjectSetup(t *testing.T) {
 		_, err = console.ExpectString("Your project is ready!")
 		assert.NilError(t, err)
 	}))
+}
+
+// TestOnboard_PostSignup_KeepsExistingProjectRef pins that onboard never rewrites
+// an existing .circleci/info.yml.
+//
+// The file is meant to be committed, and it may record a project in another
+// organization that this run has no mandate to replace — `circleci project link`
+// requires --force for exactly that reason.
+func TestOnboard_PostSignup_KeepsExistingProjectRef(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("test runner uses sh -c")
+	}
+	dir := t.TempDir()
+	copyFixture(t, "testdata/test-run/dotnet", dir)
+	initGitRepoWithRemote(t, dir, "https://github.com/myorg/my-repo.git")
+
+	// A link to a project in a different organization, so it is ignored and onboard
+	// proceeds to create — the path that reaches the write.
+	existing := "organization:\n  id: other-org-uuid\n" +
+		"project:\n  id: other-proj-uuid\n  slug: gh/myorg/my-repo\n  name: my-repo\n"
+	refPath := filepath.Join(dir, ".circleci", "info.yml")
+	mkErr := os.MkdirAll(filepath.Dir(refPath), 0o755)
+	assert.NilError(t, mkErr)
+	writeErr := os.WriteFile(refPath, []byte(existing), 0o644)
+	assert.NilError(t, writeErr)
+
+	_, env := onboardStandaloneEnv(t, "testuser")
+	addFakeDotnet(t, env, false)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"onboard", "--scan"},
+		Env:     env.Environ(),
+		WorkDir: dir,
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	body, readErr := os.ReadFile(refPath)
+	assert.NilError(t, readErr)
+	assert.Check(t, cmp.Equal(string(body), existing), "info.yml must be left byte-for-byte alone")
+	assert.Check(t, cmp.Contains(result.Stderr, "already records a different project"))
+	assert.Check(t, cmp.Contains(result.Stderr, "circleci project link --force --project"))
+}
+
+// TestOnboard_PostSignup_AddsPushTriggerAlongsideOthers pins that only an
+// all-pushes trigger satisfies onboard. A definition carrying just a schedule
+// trigger would otherwise be reported as ready, and the push onboard tells the
+// user to make would build nothing.
+func TestOnboard_PostSignup_AddsPushTriggerAlongsideOthers(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("test runner uses sh -c")
+	}
+	dir := t.TempDir()
+	copyFixture(t, "testdata/test-run/dotnet", dir)
+	initGitRepoWithRemote(t, dir, "https://github.com/myorg/my-repo.git")
+
+	fake, env := onboardStandaloneEnv(t, "testuser")
+	fake.AddPipelineDefinition("proj-uuid-5678", map[string]any{
+		"id":   "pdef-uuid-1",
+		"name": "my-repo",
+		"config_source": map[string]any{
+			"provider": "github_app",
+			"repo":     map[string]any{"external_id": "123456789"},
+		},
+	})
+	// Only a schedule trigger exists — no push would build anything.
+	fake.AddTrigger("proj-uuid-5678", "pdef-uuid-1", map[string]any{
+		"id":           "trig-schedule",
+		"event_preset": "schedule",
+	})
+	fake.SetCreateTriggerResponse("proj-uuid-5678", "pdef-uuid-1", map[string]any{
+		"id":           "trig-uuid-1",
+		"event_preset": "all-pushes",
+	})
+	addFakeDotnet(t, env, false)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"onboard", "--scan", "--repo-id", "123456789"},
+		Env:     env.Environ(),
+		WorkDir: dir,
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, cmp.Contains(result.Stdout, "Trigger created: all-pushes"))
+	assert.Check(t, !strings.Contains(result.Stdout, "Trigger already exists"),
+		"a schedule-only definition is not ready for a push")
+	assert.Check(t, cmp.Contains(result.Stdout, "Your project is ready!"))
+}
+
+// TestOnboard_SignupFlag_RecordsProjectRefAtRepoRoot pins where --signup records
+// the project link when run from a subdirectory.
+//
+// info.yml belongs beside config.yml at the top of the checkout. Writing it into
+// whatever directory the command was invoked from would leave it unreachable to
+// every command that looks for it at the root — and, run somewhere that is not a
+// repository at all, would litter a home directory.
+func TestOnboard_SignupFlag_RecordsProjectRefAtRepoRoot(t *testing.T) {
+	root := t.TempDir()
+	initGitRepoWithRemote(t, root, "https://github.com/myorg/my-repo.git")
+	sub := filepath.Join(root, "services", "api")
+	mkErr := os.MkdirAll(sub, 0o755)
+	assert.NilError(t, mkErr)
+
+	_, env := onboardStandaloneEnv(t, "testuser")
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"onboard", "--signup"},
+		Env:     env.Environ(),
+		WorkDir: sub,
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	_, rootErr := os.Stat(filepath.Join(root, ".circleci", "info.yml"))
+	assert.NilError(t, rootErr, "the link belongs at the repository root")
+	_, subErr := os.Stat(filepath.Join(sub, ".circleci", "info.yml"))
+	assert.Check(t, os.IsNotExist(subErr), "must not record the link in the invocation directory")
+}
+
+// TestOnboard_SignupFlag_WritesNoProjectRefOutsideRepo is the other half: with no
+// repository there is nothing to link, so nothing is written.
+func TestOnboard_SignupFlag_WritesNoProjectRefOutsideRepo(t *testing.T) {
+	dir := t.TempDir() // deliberately not a git checkout
+
+	_, env := onboardStandaloneEnv(t, "testuser")
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"onboard", "--signup"},
+		Env:     env.Environ(),
+		WorkDir: dir,
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	_, statErr := os.Stat(filepath.Join(dir, ".circleci"))
+	assert.Check(t, os.IsNotExist(statErr), "must not create .circleci outside a repository")
+}
+
+// TestOnboard_PathArgument_UsesGivenDirectory pins that a path argument selects
+// the repository onboard describes.
+//
+// The process runs from a *different* checkout with a different remote, so any
+// detection that reads the working directory instead of the argument would name
+// the project after the wrong repository and wire the pipeline to the wrong repo —
+// silently, since every step still reports success.
+func TestOnboard_PathArgument_UsesGivenDirectory(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("test runner uses sh -c")
+	}
+	dir := t.TempDir()
+	copyFixture(t, "testdata/test-run/dotnet", dir)
+	initGitRepoWithRemote(t, dir, "https://github.com/myorg/my-repo.git")
+
+	// A second, unrelated checkout to run from.
+	otherDir := t.TempDir()
+	initGitRepoWithRemote(t, otherDir, "https://github.com/myorg/wrong-repo.git")
+
+	fake, env := onboardStandaloneEnv(t, "testuser")
+	fake.SetCreatePipelineDefinitionResponse("proj-uuid-5678", map[string]any{
+		"id":   "pdef-uuid-1",
+		"name": "my-repo",
+	})
+	fake.SetCreateTriggerResponse("proj-uuid-5678", "pdef-uuid-1", map[string]any{
+		"id":           "trig-uuid-1",
+		"event_preset": "all-pushes",
+	})
+	addFakeDotnet(t, env, false)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"onboard", "--scan", "--repo-id", "123456789", dir},
+		Env:     env.Environ(),
+		WorkDir: otherDir,
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, cmp.Contains(result.Stdout, "Project created: my-repo"))
+	assert.Check(t, cmp.Contains(result.Stdout, "Your project is ready!"))
+	assert.Check(t, !strings.Contains(result.Stdout, "wrong-repo"),
+		"the working directory's repository must not leak into the run")
+	// The link belongs to the directory that was onboarded, not the cwd.
+	_, err := os.Stat(filepath.Join(dir, ".circleci", "info.yml"))
+	assert.NilError(t, err)
+	_, err = os.Stat(filepath.Join(otherDir, ".circleci", "info.yml"))
+	assert.Check(t, os.IsNotExist(err), "must not write into the working directory")
 }
 
 func TestOnboard_PostSignup_FirstPipelineCreated(t *testing.T) {

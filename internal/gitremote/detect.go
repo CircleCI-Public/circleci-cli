@@ -169,10 +169,20 @@ func gitBranches() (branch, defaultBranch string) {
 // — reading info.yml there would short-circuit the very write that link is
 // about to perform.
 func DetectFromRemote() (_ *ProjectInfo, err error) {
+	return DetectFromRemoteIn("")
+}
+
+// DetectFromRemoteIn is DetectFromRemote scoped to the repository containing dir.
+// An empty dir means the process working directory.
+//
+// Commands that accept a directory argument must use this: reading the process
+// working directory instead would describe a different repository than the one
+// being operated on — or an enclosing one, since detection walks upward.
+func DetectFromRemoteIn(dir string) (_ *ProjectInfo, err error) {
 	// Both "not a git repo" and "repo without an origin remote" surface as the
 	// same user-facing failure, matching the previous `git remote get-url`
 	// behaviour.
-	repo, err := openRepo()
+	repo, err := openRepoIn(dir)
 	if err != nil {
 		return nil, fmt.Errorf("could not read git remote: %w", err)
 	}
@@ -257,11 +267,41 @@ func buildSlug(host, org, repo string) (string, error) {
 // extra option. Callers must Close the returned repository to release its file
 // handles (Windows cannot delete files with open handles — see the tests).
 func openRepo() (*git.Repository, error) {
-	cwd, err := os.Getwd()
+	return openRepoIn("")
+}
+
+// RepoRootIn returns the root of the working tree containing dir, or an error
+// when dir is not inside a git repository. An empty dir means the process working
+// directory.
+//
+// Callers that write files describing the repository use this so that running
+// from a subdirectory records them at the root, where they belong, rather than
+// wherever the command happened to be invoked.
+func RepoRootIn(dir string) (_ string, err error) {
+	repo, err := openRepoIn(dir)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
-	return git.PlainOpenWithOptions(cwd, &git.PlainOpenOptions{DetectDotGit: true})
+	defer closer.ErrorHandler(repo, &err)
+
+	wt, err := repo.Worktree()
+	if err != nil {
+		return "", err
+	}
+	return wt.Filesystem().Root(), nil
+}
+
+// openRepoIn opens the repository containing dir, walking upward to find it. An
+// empty dir means the process working directory.
+func openRepoIn(dir string) (*git.Repository, error) {
+	if dir == "" {
+		cwd, err := os.Getwd()
+		if err != nil {
+			return nil, err
+		}
+		dir = cwd
+	}
+	return git.PlainOpenWithOptions(dir, &git.PlainOpenOptions{DetectDotGit: true})
 }
 
 // gitOriginURL returns the first configured URL for the "origin" remote,

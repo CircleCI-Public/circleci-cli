@@ -61,10 +61,11 @@ func NewOnboardCmd() *cobra.Command {
 			When run interactively without --scan or --signup, a prompt lets you
 			choose between scanning the current repo or signing up directly.
 
-			Setting up the pipeline needs your GitHub repository's numeric ID.
-			Pass it with --repo-id to skip the prompt (required in non-interactive
-			sessions); without it, project creation still completes and prints the
-			steps to finish setup by hand.
+			Setting up the pipeline needs your repository's numeric ID. For a GitHub
+			repository it is resolved through the CircleCI GitHub App. Pass --repo-id
+			to skip that lookup, or when the repository is not on GitHub. Without an
+			ID the project is still created and the steps to finish setup by hand are
+			printed.
 		`),
 		Example: heredoc.Doc(`
 			# Interactive mode: choose scan or signup
@@ -115,6 +116,6 @@ func NewOnboardCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&noBrowser, "no-browser", false, "Print the signup URL instead of opening a browser")
 	cmd.Flags().BoolVar(&scan, "scan", false, "Skip prompt: scan the repo and generate config")
 	cmd.Flags().BoolVar(&signup, "signup", false, "Skip prompt: sign up for CircleCI")
-	cmd.Flags().StringVar(&repoID, "repo-id", "", "GitHub repository external ID (numeric) for the pipeline definition and trigger")
+	cmd.Flags().StringVar(&repoID, "repo-id", "", "Repository external ID (numeric) for the pipeline")
 	return cmd
 }

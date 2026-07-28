@@ -2013,12 +2013,12 @@ List your recent runs grouped by project
 
 Guided onboarding: scan, test, generate config, sign up
 
-| Flag               | Description                                                                     |
-| ------------------ | ------------------------------------------------------------------------------- |
-| `--no-browser`     | Print the signup URL instead of opening a browser                               |
-| `--repo-id string` | GitHub repository external ID (numeric) for the pipeline definition and trigger |
-| `--scan`           | Skip prompt: scan the repo and generate config                                  |
-| `--signup`         | Skip prompt: sign up for CircleCI                                               |
+| Flag               | Description                                       |
+| ------------------ | ------------------------------------------------- |
+| `--no-browser`     | Print the signup URL instead of opening a browser |
+| `--repo-id string` | Repository external ID (numeric) for the pipeline |
+| `--scan`           | Skip prompt: scan the repo and generate config    |
+| `--signup`         | Skip prompt: sign up for CircleCI                 |
 
 
 **Arguments:**

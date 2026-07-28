@@ -201,8 +201,14 @@ type SaveResult struct {
 	KeyringErr error
 }
 
-func SetLogin(ctx context.Context, host, token string, userID uuid.UUID, secureStorage bool) (SaveResult, error) {
-	return saveToIncludingToken(ctx, "", secureStorage, func(cfg *Config) error {
+// SetLogin persists the host, token, and user ID to path, or to the default XDG
+// location when path is empty.
+//
+// Honouring path matters because the caller reports it as the save location and
+// may re-read it afterwards; writing elsewhere makes both the message and the
+// re-read describe a file that was never written.
+func SetLogin(ctx context.Context, path, host, token string, userID uuid.UUID, secureStorage bool) (SaveResult, error) {
+	return saveToIncludingToken(ctx, path, secureStorage, func(cfg *Config) error {
 		cfg.state.Host = host
 		cfg.state.Token = token
 		cfg.state.UserID = &userID

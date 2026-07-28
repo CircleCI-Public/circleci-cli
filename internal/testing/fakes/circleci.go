@@ -1925,6 +1925,22 @@ func (f *CircleCI) handleCreateProject(w http.ResponseWriter, r *http.Request) {
 		render.JSON(w, r, map[string]any{"message": "project creation not configured"})
 		return
 	}
+	// Echo the requested name, as the real API does. Returning a canned name
+	// regardless of the request would let a caller send the wrong one and still
+	// look correct in the output a test asserts on.
+	if body, ok := resp.(map[string]any); ok {
+		var req struct {
+			Name string `json:"name"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&req); err == nil && req.Name != "" {
+			echoed := make(map[string]any, len(body))
+			for k, v := range body {
+				echoed[k] = v
+			}
+			echoed["name"] = req.Name
+			resp = echoed
+		}
+	}
 	render.Status(r, http.StatusCreated)
 	render.JSON(w, r, resp)
 }
