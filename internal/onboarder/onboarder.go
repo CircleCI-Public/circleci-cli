@@ -25,9 +25,12 @@ package onboarder
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 
 	tea "charm.land/bubbletea/v2"
 
@@ -38,8 +41,10 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/internal/configgen"
 	clierrors "github.com/CircleCI-Public/circleci-cli/internal/errors"
 	"github.com/CircleCI-Public/circleci-cli/internal/gitremote"
+	"github.com/CircleCI-Public/circleci-cli/internal/httpcl"
 	"github.com/CircleCI-Public/circleci-cli/internal/iostream"
 	"github.com/CircleCI-Public/circleci-cli/internal/org"
+	"github.com/CircleCI-Public/circleci-cli/internal/projectref"
 	"github.com/CircleCI-Public/circleci-cli/internal/reposcan"
 	"github.com/CircleCI-Public/circleci-cli/internal/testrunner"
 	"github.com/CircleCI-Public/circleci-cli/internal/ui"
@@ -82,7 +87,11 @@ func Run(ctx context.Context, dir string, opts Options) error {
 			"mode":    "signup",
 			"outcome": string(result.Outcome),
 		})
-		return postSignupGuidance(ctx, opts)
+		// --signup may be run anywhere — it needs no repository — so the directory
+		// has been through none of the validation below. repoDir yields "" unless it
+		// really is a checkout, which keeps a run from a home directory out of
+		// ~/.circleci/info.yml.
+		return postSignupGuidance(ctx, repoDir(dir), opts)
 	}
 
 	dir, err = filepath.Abs(dir)
@@ -158,7 +167,7 @@ func Run(ctx context.Context, dir string, opts Options) error {
 		"outcome": string(signupResult.Outcome),
 	})
 
-	return postSignupGuidance(ctx, opts)
+	return postSignupGuidance(ctx, dir, opts)
 }
 
 // refreshConfig re-reads the config from disk when the cached copy carries no
@@ -183,12 +192,27 @@ func refreshConfig(ctx context.Context, opts Options) context.Context {
 	return cmdutil.WithConfig(ctx, cfg)
 }
 
+// repoDir returns the root of the repository containing dir, and "" when dir is
+// not inside one. A "" result disables everything that reads or writes repository
+// state, which is the right behaviour when there is no repository to describe.
+//
+// Resolving to the root matters: run from a subdirectory, .circleci/info.yml
+// belongs beside .circleci/config.yml at the top of the checkout, not wherever the
+// command was invoked.
+func repoDir(dir string) string {
+	root, err := gitremote.RepoRootIn(dir)
+	if err != nil {
+		return ""
+	}
+	return root
+}
+
 // postSignupGuidance offers inline project creation and prints a follow-up
 // message after the user has authenticated.
 //
 // Errors are handled gracefully: project creation failure falls through to
 // manual guidance rather than failing the onboard command.
-func postSignupGuidance(ctx context.Context, opts Options) error {
+func postSignupGuidance(ctx context.Context, dir string, opts Options) error {
 	ctx = refreshConfig(ctx, opts)
 
 	client, err := cmdutil.LoadClient(ctx)
@@ -237,54 +261,191 @@ func postSignupGuidance(ctx context.Context, opts Options) error {
 		return nil
 	}
 
-	defaultName := gitremote.DetectRepoName()
-	var name string
-	if iostream.IsInteractive(ctx) {
-		name, err = iostream.PromptText(ctx, "Project name", defaultName)
+	// Resolve a project this repository is already linked to before asking for a
+	// name. On a re-run the answer would be discarded, and offering one is
+	// actively misleading: the recorded slug of a standalone project carries
+	// opaque IDs rather than a repository name.
+	var proj *apiclient.ProjectInfo
+	if selectedOrg.VCSType == "circleci" {
+		proj = resolveLinkedProject(ctx, client, dir, selectedOrg.ID)
+	}
+
+	if proj == nil {
+		name := promptProjectName(ctx, repoNameIn(dir))
+		if name == "" {
+			printManualGuidance(ctx)
+			return nil
+		}
+
+		if selectedOrg.VCSType != "circleci" {
+			followClassicProject(ctx, client, appURL, vcs, orgName, name)
+			return nil
+		}
+
+		created, err := client.CreateProject(ctx, vcs, orgName, name)
 		if err != nil {
+			if httpcl.HasStatusCode(err, http.StatusConflict) {
+				iostream.ErrPrintf(ctx, "%s A project named %q already exists in %s.\n",
+					iostream.SymbolWarn(ctx), name, selectedOrg.Slug)
+				printLinkGuidance(ctx, dir, selectedOrg.Slug)
+				return nil
+			}
+			iostream.ErrPrintf(ctx, "%s Could not create project: %s\n", iostream.SymbolWarn(ctx), err)
 			printManualGuidance(ctx)
 			return nil
 		}
-		if name == "" {
-			name = defaultName
-		}
-		if name == "" {
-			printManualGuidance(ctx)
-			return nil
-		}
+		proj = created
+		iostream.Printf(ctx, "%s Project created: %s\n", iostream.SymbolOK(ctx), proj.Name)
+		writeProjectRef(ctx, dir, proj)
 	} else {
-		name = defaultName
-		if name == "" {
-			printManualGuidance(ctx)
-			return nil
-		}
+		iostream.Printf(ctx, "%s Using existing project: %s\n", iostream.SymbolOK(ctx), proj.Name)
 	}
 
-	if selectedOrg.VCSType != "circleci" {
-		return followClassicProject(ctx, client, appURL, vcs, orgName, name)
-	}
-
-	proj, err := client.CreateProject(ctx, vcs, orgName, name)
-	if err != nil {
-		iostream.ErrPrintf(ctx, "%s Could not create project: %s\n", iostream.SymbolWarn(ctx), err)
-		printManualGuidance(ctx)
-		return nil
-	}
-
-	iostream.Printf(ctx, "%s Project created: %s\n", iostream.SymbolOK(ctx), proj.Name)
 	iostream.Printf(ctx, "  Organization: %s\n", proj.OrganizationName)
 	if pipelinesURL, err := cmdutil.RunSlugURL(appURL, proj.Slug); err == nil {
 		iostream.Printf(ctx, "  Pipelines: %s\n", pipelinesURL)
 	}
-	iostream.Printf(ctx, "\nCommit .circleci/config.yml. After your project is connected in CircleCI, pushing will start your first pipeline.\n")
+	// Stage the whole directory: info.yml records the project's ID, and that ID is
+	// not recoverable from its name — no API maps one to the other. Committing it is
+	// what lets a fresh clone, a teammate, or a later run find this project instead
+	// of colliding with it.
+	iostream.Printf(ctx, "\nCommit .circleci/ (config.yml and info.yml). After your project is connected in CircleCI, pushing will start your first pipeline.\n")
 	return nil
 }
 
-func followClassicProject(ctx context.Context, client *apiclient.Client, appURL, vcs, orgName, repoName string) error {
+// promptProjectName asks for the project name, offering defaultName. It returns
+// "" when no name could be determined, which callers treat as "fall back to
+// manual guidance".
+func promptProjectName(ctx context.Context, defaultName string) string {
+	if !iostream.IsInteractive(ctx) {
+		return defaultName
+	}
+	name, err := iostream.PromptText(ctx, "Project name", defaultName)
+	if err != nil {
+		return ""
+	}
+	if name == "" {
+		return defaultName
+	}
+	return name
+}
+
+// repoNameIn returns the repository name of the checkout at dir, or "" when there
+// is no readable remote there.
+func repoNameIn(dir string) string {
+	if dir == "" {
+		return ""
+	}
+	info, err := gitremote.DetectFromRemoteIn(dir)
+	if err != nil {
+		return ""
+	}
+	parts := strings.Split(info.Slug, "/")
+	if len(parts) != 3 {
+		return ""
+	}
+	return parts[2]
+}
+
+// resolveLinkedProject returns the project recorded in .circleci/info.yml, or nil
+// when this checkout has no link onboard can use.
+//
+// That local record is the only way to find an existing project: a CircleCI-native
+// slug is "circleci/<orgID>/<projectID>" — opaque IDs, not the repository name —
+// and no API maps a name to a project within an org. Resolving before creating
+// keeps a re-run from attempting a create that could only conflict.
+//
+// A link only counts when its project belongs to orgID. A repository linked
+// elsewhere — a classic VCS project being migrated to a CircleCI-native org, say —
+// is ignored, so onboard sets up the organization the user actually chose. An
+// unresolvable link is ignored the same way; the create path handles everything a
+// link cannot supply.
+func resolveLinkedProject(ctx context.Context, client *apiclient.Client, workDir, orgID string) *apiclient.ProjectInfo {
+	if workDir == "" {
+		return nil
+	}
+	info, err := projectref.Read(workDir)
+	if err != nil {
+		// An absent file just means "not linked". Anything else is a file the user
+		// can fix, and every other command reports it rather than proceeding as if
+		// the checkout were unlinked.
+		if !errors.Is(err, projectref.ErrNotFound) {
+			iostream.ErrPrintf(ctx, "%s Ignoring %s: %s\n",
+				iostream.SymbolWarn(ctx), projectref.FilePath, err)
+		}
+		return nil
+	}
+	// Compare the recorded org before spending a request: a link to another org is
+	// rejected for free. Both IDs must be present — treating two empty strings as
+	// a match would reuse a foreign project while appearing to have checked.
+	if orgID == "" || (info.Organization.ID != "" && info.Organization.ID != orgID) {
+		return nil
+	}
+	proj, err := client.GetProjectInfo(ctx, info.EffectiveSlug())
+	if err != nil || proj.OrganizationID != orgID {
+		return nil
+	}
+	return proj
+}
+
+// writeProjectRef records the new project in .circleci/info.yml so a re-run of
+// onboard — and every other command in this repository — can resolve it without
+// asking the user for an opaque project ID.
+//
+// An existing file is never overwritten. It may be committed, and it may record a
+// project in another organization that this run has no mandate to replace —
+// `circleci project link` itself demands --force for exactly that reason.
+//
+// Failure is not fatal: the project exists and setup continues using the ID
+// already in hand. Only the next run loses the shortcut.
+func writeProjectRef(ctx context.Context, workDir string, proj *apiclient.ProjectInfo) {
+	if workDir == "" {
+		return
+	}
+	if _, err := os.Stat(projectref.Path(workDir)); err == nil {
+		iostream.ErrPrintf(ctx, "%s %s already records a different project; leaving it as it is.\n",
+			iostream.SymbolWarn(ctx), projectref.FilePath)
+		iostream.ErrPrintf(ctx, "  To point it at %s: circleci project link --force --project %s\n",
+			proj.Name, proj.Slug)
+		return
+	}
+	err := projectref.Write(workDir, &projectref.Info{
+		Organization: projectref.Organization{ID: proj.OrganizationID, Name: proj.OrganizationName},
+		Project:      projectref.Project{ID: proj.ID, Slug: proj.Slug, Name: proj.Name},
+	})
+	if err != nil {
+		iostream.ErrPrintf(ctx, "%s Could not write %s: %s\n",
+			iostream.SymbolWarn(ctx), projectref.FilePath, err)
+		return
+	}
+	iostream.Printf(ctx, "%s Linked this repository to the project in %s\n",
+		iostream.SymbolOK(ctx), projectref.FilePath)
+}
+
+// printLinkGuidance covers a project that exists in the organization but is not
+// the one this checkout resolves to. No API maps a project name to its ID, so the
+// ID has to come from the user — the same conclusion `circleci project link`
+// reaches when it cannot resolve a slug on its own.
+//
+// The command is spelled out with the organization already filled in. --project is
+// load-bearing: without it, link re-derives the slug from the git remote and a
+// repository linked elsewhere lands straight back where it started. --force is
+// added when .circleci/info.yml is present, since plain link refuses while it is.
+func printLinkGuidance(ctx context.Context, workDir, orgSlug string) {
+	args := "--project " + orgSlug + "/<projectID>"
+	if _, err := os.Stat(projectref.Path(workDir)); err == nil {
+		args = "--force " + args
+	}
+	iostream.Printf(ctx, "\nCopy that project's ID from its settings in CircleCI, then run:\n")
+	iostream.Printf(ctx, "  circleci project link %s\n", args)
+	iostream.Printf(ctx, "  circleci onboard\n")
+}
+
+func followClassicProject(ctx context.Context, client *apiclient.Client, appURL, vcs, orgName, repoName string) {
 	if err := client.FollowProject(ctx, vcs, orgName, repoName); err != nil {
 		iostream.ErrPrintf(ctx, "%s Could not connect project: %s\n", iostream.SymbolWarn(ctx), err)
 		printManualGuidance(ctx)
-		return nil
+		return
 	}
 
 	slug := fmt.Sprintf("%s/%s/%s", vcs, orgName, repoName)
@@ -294,7 +455,6 @@ func followClassicProject(ctx context.Context, client *apiclient.Client, appURL,
 		iostream.Printf(ctx, "  Pipelines: %s\n", pipelinesURL)
 	}
 	iostream.Printf(ctx, "\nCommit and push .circleci/config.yml to start your first pipeline.\n")
-	return nil
 }
 
 func printManualGuidance(ctx context.Context) {
