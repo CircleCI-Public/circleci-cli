@@ -511,8 +511,12 @@ func resolveRepoID(ctx context.Context, client *apiclient.Client, appURL string,
 // printPipelineReadyGuidance prints the happy-path next steps once the pipeline
 // definition and trigger have been created.
 func printPipelineReadyGuidance(ctx context.Context, appURL, slug string) {
+	// Stage the whole directory rather than just config.yml: info.yml records the
+	// project's ID, and that ID is not recoverable from its name — no API maps one
+	// to the other. Committing it is what lets a fresh clone, a teammate, or a
+	// later onboard run find this project instead of colliding with it.
 	iostream.Printf(ctx, "\nYour project is ready! Next steps:\n")
-	iostream.Printf(ctx, "  1. git add .circleci/config.yml\n")
+	iostream.Printf(ctx, "  1. git add .circleci/\n")
 	iostream.Printf(ctx, "  2. git commit -m \"Add CircleCI config\"\n")
 	iostream.Printf(ctx, "  3. git push\n")
 	iostream.Printf(ctx, "\nPushing will trigger your first pipeline.\n")

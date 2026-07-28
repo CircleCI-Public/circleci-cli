@@ -524,6 +524,11 @@ func TestOnboard_PostSignup_Rerun_Idempotent(t *testing.T) {
 	assert.Check(t, strings.Contains(first.Stdout, "Linked this repository to the project"))
 	_, err := os.Stat(filepath.Join(dir, ".circleci", "info.yml"))
 	assert.NilError(t, err, "first run should record the project locally")
+	// The recorded ID is unrecoverable from the project name, so the next steps
+	// have to stage info.yml, not just config.yml.
+	assert.Check(t, strings.Contains(first.Stdout, "git add .circleci/"))
+	assert.Check(t, !strings.Contains(first.Stdout, "git add .circleci/config.yml"),
+		"staging only config.yml would leave the project ID uncommitted")
 
 	// The project now has its pipeline definition and trigger.
 	fake.AddPipelineDefinition("proj-uuid-5678", map[string]any{
