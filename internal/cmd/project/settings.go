@@ -205,13 +205,13 @@ func newSettingsGetCmd() *cobra.Command {
 		`, projectSettingTable()),
 		Example: heredoc.Doc(`
 			# Get a setting for the current project
-			$ circleci project settings get build-forked-pull-requests
+			$ circleci project setting get build-forked-pull-requests
 
 			# Get a setting for a specific project
-			$ circleci project settings get build-forked-pull-requests --project gh/myorg/myrepo
+			$ circleci project setting get build-forked-pull-requests --project gh/myorg/myrepo
 
 			# Output as JSON
-			$ circleci project settings get build-forked-pull-requests --json
+			$ circleci project setting get build-forked-pull-requests --json
 		`),
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -219,7 +219,7 @@ func newSettingsGetCmd() *cobra.Command {
 			if !ok {
 				return clierrors.New("settings.unknown", "Unknown setting",
 					fmt.Sprintf("%q is not a known project setting.", args[0])).
-					WithSuggestions("Run 'circleci project settings list' to see all available settings",
+					WithSuggestions("Run 'circleci project setting list' to see all available settings",
 						"Valid settings: "+projectSettingNames()).
 					WithExitCode(clierrors.ExitBadArguments)
 			}
@@ -265,13 +265,13 @@ func newSettingsSetCmd() *cobra.Command {
 		`, projectSettingTable()),
 		Example: heredoc.Doc(`
 			# Enable a setting for the current project
-			$ circleci project settings set build-forked-pull-requests true
+			$ circleci project setting set build-forked-pull-requests true
 
 			# Disable a setting for a specific project
-			$ circleci project settings set build-forked-pull-requests false --project gh/myorg/myrepo
+			$ circleci project setting set build-forked-pull-requests false --project gh/myorg/myrepo
 
 			# Output the updated value as JSON
-			$ circleci project settings set auto-cancel-builds true --json
+			$ circleci project setting set auto-cancel-builds true --json
 		`),
 		Args: cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -279,7 +279,7 @@ func newSettingsSetCmd() *cobra.Command {
 			if !ok {
 				return clierrors.New("settings.unknown", "Unknown setting",
 					fmt.Sprintf("%q is not a known project setting.", args[0])).
-					WithSuggestions("Run 'circleci project settings list' to see all available settings",
+					WithSuggestions("Run 'circleci project setting list' to see all available settings",
 						"Valid settings: "+projectSettingNames()).
 					WithExitCode(clierrors.ExitBadArguments)
 			}
@@ -415,13 +415,13 @@ func newSettingsListCmd() *cobra.Command {
 		`),
 		Example: heredoc.Doc(`
 			# List settings for the current project
-			$ circleci project settings list
+			$ circleci project setting list
 
 			# List settings for a specific project
-			$ circleci project settings list --project gh/myorg/myrepo
+			$ circleci project setting list --project gh/myorg/myrepo
 
 			# Output as JSON
-			$ circleci project settings list --json
+			$ circleci project setting list --json
 		`),
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
