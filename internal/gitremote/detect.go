@@ -79,18 +79,34 @@ func DetectNamespace() (string, error) {
 	return parts[1], nil
 }
 
-// DetectRepoName returns the repository name from the git remote, or "" if it
-// cannot be detected.
+// DetectRepoName returns a human-readable name for the checkout in the working
+// directory, or "" when none can be determined. Callers use it as the suggested
+// project name.
+//
+// The git remote is preferred. It is read directly rather than through Detect,
+// which prefers .circleci/info.yml: a linked standalone project's slug is
+// "circleci/<orgID>/<projectID>", so its last segment is an opaque ID — useless as
+// a name to show a user.
+//
+// When the remote cannot be read — no origin, no origin/HEAD, an unsupported host
+// — the name recorded by `circleci project link` is used instead. That is the only
+// other place a readable name for this checkout exists, and without it a linked
+// repository with no usable remote would offer no name at all.
 func DetectRepoName() string {
-	info, err := Detect()
+	if info, err := DetectFromRemote(); err == nil {
+		if parts := strings.Split(info.Slug, "/"); len(parts) == 3 {
+			return parts[2]
+		}
+	}
+	cwd, err := os.Getwd()
 	if err != nil {
 		return ""
 	}
-	parts := strings.Split(info.Slug, "/")
-	if len(parts) == 3 {
-		return parts[2]
+	ref, err := projectref.Read(cwd)
+	if err != nil {
+		return ""
 	}
-	return ""
+	return ref.Project.Name
 }
 
 // Detect resolves the CircleCI project for the current working directory.
@@ -164,10 +180,20 @@ func gitBranches() (branch, defaultBranch string) {
 // — reading info.yml there would short-circuit the very write that link is
 // about to perform.
 func DetectFromRemote() (_ *ProjectInfo, err error) {
+	return DetectFromRemoteIn("")
+}
+
+// DetectFromRemoteIn is DetectFromRemote scoped to the repository containing dir.
+// An empty dir means the process working directory.
+//
+// Commands that accept a directory argument must use this: reading the process
+// working directory instead would describe a different repository than the one
+// being operated on — or an enclosing one, since detection walks upward.
+func DetectFromRemoteIn(dir string) (_ *ProjectInfo, err error) {
 	// Both "not a git repo" and "repo without an origin remote" surface as the
 	// same user-facing failure, matching the previous `git remote get-url`
 	// behaviour.
-	repo, err := openRepo()
+	repo, err := openRepoIn(dir)
 	if err != nil {
 		return nil, fmt.Errorf("could not read git remote: %w", err)
 	}
@@ -252,11 +278,41 @@ func buildSlug(host, org, repo string) (string, error) {
 // extra option. Callers must Close the returned repository to release its file
 // handles (Windows cannot delete files with open handles — see the tests).
 func openRepo() (*git.Repository, error) {
-	cwd, err := os.Getwd()
+	return openRepoIn("")
+}
+
+// RepoRootIn returns the root of the working tree containing dir, or an error
+// when dir is not inside a git repository. An empty dir means the process working
+// directory.
+//
+// Callers that write files describing the repository use this so that running
+// from a subdirectory records them at the root, where they belong, rather than
+// wherever the command happened to be invoked.
+func RepoRootIn(dir string) (_ string, err error) {
+	repo, err := openRepoIn(dir)
 	if err != nil {
-		return nil, err
+		return "", err
 	}
-	return git.PlainOpenWithOptions(cwd, &git.PlainOpenOptions{DetectDotGit: true})
+	defer closer.ErrorHandler(repo, &err)
+
+	wt, err := repo.Worktree()
+	if err != nil {
+		return "", err
+	}
+	return wt.Filesystem().Root(), nil
+}
+
+// openRepoIn opens the repository containing dir, walking upward to find it. An
+// empty dir means the process working directory.
+func openRepoIn(dir string) (*git.Repository, error) {
+	if dir == "" {
+		cwd, err := os.Getwd()
+		if err != nil {
+			return nil, err
+		}
+		dir = cwd
+	}
+	return git.PlainOpenWithOptions(dir, &git.PlainOpenOptions{DetectDotGit: true})
 }
 
 // gitOriginURL returns the first configured URL for the "origin" remote,

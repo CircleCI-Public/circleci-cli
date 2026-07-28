@@ -33,6 +33,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"gopkg.in/yaml.v3"
 )
@@ -75,15 +76,21 @@ type Project struct {
 }
 
 // EffectiveSlug returns the slug to use when calling the CircleCI API.
-// When both Project.ID and Organization.ID are known, the canonical
-// "circleci/<orgID>/<projectID>" form is returned so the lookup is stable
-// across VCS-side renames; otherwise the stored Project.Slug is returned
-// as-is.
+//
+// For a CircleCI-native project — one whose stored slug is already a "circleci/"
+// slug — the canonical "circleci/<orgID>/<projectID>" form is returned when both
+// IDs are known, so the lookup is stable across renames. Anything else returns
+// the stored Project.Slug as-is.
+//
+// The ID form addresses CircleCI-native projects only. A classic VCS project must
+// be addressed by its own "<vcs>/<org>/<repo>" slug: the API answers 404 for the
+// ID form even though both IDs are valid and `circleci project link` records them
+// for every project type.
 func (i *Info) EffectiveSlug() string {
 	if i == nil {
 		return ""
 	}
-	if i.Project.ID != "" && i.Organization.ID != "" {
+	if strings.HasPrefix(i.Project.Slug, "circleci/") && i.Project.ID != "" && i.Organization.ID != "" {
 		return "circleci/" + i.Organization.ID + "/" + i.Project.ID
 	}
 	return i.Project.Slug

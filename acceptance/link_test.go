@@ -145,27 +145,28 @@ func TestProjectLink_NoToken(t *testing.T) {
 	assert.Check(t, os.IsNotExist(statErr), "info.yml should not be written without a token")
 }
 
-// Once a checkout is linked, subsequent commands should resolve the project
-// from info.yml — using the canonical "circleci/<orgID>/<projectID>" slug
-// when info.yml carries the UUIDs, even though the git remote (if any)
-// would have produced a "gh/org/repo"-style slug.
+// Once a checkout is linked, subsequent commands resolve the project from
+// info.yml. For a CircleCI-native project that means the canonical
+// "circleci/<orgID>/<projectID>" slug built from the recorded IDs, so resolution
+// survives a slug change on the CircleCI side.
 func TestProjectGet_UsesLinkedUUIDs(t *testing.T) {
-	const standaloneSlug = "circleci/E6i3yYZeWZhcf8UNqcKfjN/13c8F7nusayivoSxC6GMsw"
+	const canonicalSlug = "circleci/E6i3yYZeWZhcf8UNqcKfjN/13c8F7nusayivoSxC6GMsw"
+	const linkedSlug = "circleci/OldOrgShortId/OldProjShortId"
 
 	fake := fakes.NewCircleCI(t)
-	// Only register the standalone (UUID-form) slug. If `project get` falls
-	// back to a VCS-style slug for any reason, the API will return 404.
-	fake.AddProjectInfo(standaloneSlug, map[string]any{
+	// Only register the ID-form slug for the lookup under test. If `project get`
+	// used the stored slug instead, the fake would 404.
+	fake.AddProjectInfo(canonicalSlug, map[string]any{
 		"id":              "13c8F7nusayivoSxC6GMsw",
-		"slug":            standaloneSlug,
+		"slug":            canonicalSlug,
 		"name":            "linked",
 		"organization_id": "E6i3yYZeWZhcf8UNqcKfjN",
 	})
-	// Also register the VCS slug used during link, so the initial link call succeeds.
-	fake.AddProjectInfo("gh/myorg/alpha", map[string]any{
+	// Register the slug passed to link, so the initial link call succeeds.
+	fake.AddProjectInfo(linkedSlug, map[string]any{
 		"id":              "13c8F7nusayivoSxC6GMsw",
-		"slug":            "gh/myorg/alpha",
-		"name":            "alpha",
+		"slug":            linkedSlug,
+		"name":            "linked",
 		"organization_id": "E6i3yYZeWZhcf8UNqcKfjN",
 	})
 
@@ -177,14 +178,14 @@ func TestProjectGet_UsesLinkedUUIDs(t *testing.T) {
 
 	link := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"project", "link", "--project", "gh/myorg/alpha"},
+		Args:    []string{"project", "link", "--project", linkedSlug},
 		Env:     env.Environ(),
 		WorkDir: workDir,
 	})
 	assert.Equal(t, link.ExitCode, 0, "link stderr: %s", link.Stderr)
 
-	// Now run `project get` with no --project flag. It must resolve via
-	// info.yml and hit the standalone (UUID) endpoint, NOT the VCS slug.
+	// `project get` with no --project must resolve via info.yml, rebuilding the
+	// ID-form slug rather than reusing the one that was linked.
 	get := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
 		Args:    []string{"project", "get", "--json"},
@@ -192,7 +193,52 @@ func TestProjectGet_UsesLinkedUUIDs(t *testing.T) {
 		WorkDir: workDir,
 	})
 	assert.Equal(t, get.ExitCode, 0, "get stderr: %s", get.Stderr)
-	assert.Check(t, strings.Contains(get.Stdout, standaloneSlug), "stdout: %s", get.Stdout)
+	assert.Check(t, strings.Contains(get.Stdout, canonicalSlug), "stdout: %s", get.Stdout)
+}
+
+// TestProjectGet_ClassicLinkUsesOwnSlug is the counterpart: a classic VCS project
+// resolves by its own "<vcs>/<org>/<repo>" slug.
+//
+// `circleci project link` records org and project IDs for every project type, but
+// the "circleci/<orgID>/<projectID>" form addresses CircleCI-native projects only.
+// The real API answers 404 for a classic project addressed that way, whatever its
+// recorded IDs are — so rebuilding the slug there breaks every command that
+// resolves a project from a linked checkout.
+func TestProjectGet_ClassicLinkUsesOwnSlug(t *testing.T) {
+	const classicSlug = "gh/myorg/alpha"
+
+	fake := fakes.NewCircleCI(t)
+	// Only the classic slug is registered, mirroring the real API: an ID-form
+	// lookup for this project 404s.
+	fake.AddProjectInfo(classicSlug, map[string]any{
+		"id":              "52404b72-02fb-482e-9bd8-846bbc048eea",
+		"slug":            classicSlug,
+		"name":            "alpha",
+		"organization_id": "c1e89d5c-d2e5-4db2-b2d7-a35cf73160ad",
+	})
+
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+
+	workDir := t.TempDir()
+
+	link := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"project", "link", "--project", classicSlug},
+		Env:     env.Environ(),
+		WorkDir: workDir,
+	})
+	assert.Equal(t, link.ExitCode, 0, "link stderr: %s", link.Stderr)
+
+	get := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"project", "get", "--json"},
+		Env:     env.Environ(),
+		WorkDir: workDir,
+	})
+	assert.Equal(t, get.ExitCode, 0, "get stderr: %s", get.Stderr)
+	assert.Check(t, strings.Contains(get.Stdout, classicSlug), "stdout: %s", get.Stdout)
 }
 
 // Refuses to overwrite an existing info.yml without --force.
