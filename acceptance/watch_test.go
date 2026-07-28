@@ -274,7 +274,7 @@ func TestRunWatch_SHA_ShortOutsideGitRepo(t *testing.T) {
 	})
 
 	assert.Equal(t, result.ExitCode, 2, "stderr: %s", result.Stderr) // ExitBadArguments
-	assert.Check(t, cmp.Contains(result.Stderr, "Could not resolve short SHA"), "stderr: %s", result.Stderr)
+	assert.Check(t, cmp.Contains(result.Stderr, "local git repository is not accessible"), "stderr: %s", result.Stderr)
 }
 
 // --- --failfast: exit immediately when a job fails, without waiting for the rest of the run ---
