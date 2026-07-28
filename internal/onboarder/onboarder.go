@@ -25,6 +25,7 @@ package onboarder
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -408,6 +409,13 @@ func resolveLinkedProject(ctx context.Context, client *apiclient.Client, workDir
 	}
 	info, err := projectref.Read(workDir)
 	if err != nil {
+		// An absent file just means "not linked". Anything else is a file the user
+		// can fix, and every other command reports it rather than proceeding as if
+		// the checkout were unlinked.
+		if !errors.Is(err, projectref.ErrNotFound) {
+			iostream.ErrPrintf(ctx, "%s Ignoring %s: %s\n",
+				iostream.SymbolWarn(ctx), projectref.FilePath, err)
+		}
 		return nil
 	}
 	// Compare the recorded org before spending a request: a link to another org is
@@ -601,6 +609,12 @@ func resolveRepoID(ctx context.Context, client *apiclient.Client, pipelinesURL, 
 	}
 
 	id, err := githubapp.ResolveRepoID(ctx, client, proj.OrganizationID, fullName)
+	if errors.Is(err, githubapp.ErrTooManyRepositories) {
+		iostream.ErrPrintf(ctx, "%s This organization has too many repositories to find %s automatically.\n",
+			iostream.SymbolWarn(ctx), fullName)
+		iostream.ErrPrintf(ctx, "  Re-run with --repo-id <id> to set up the pipeline.\n")
+		return ""
+	}
 	if err != nil {
 		iostream.ErrPrintf(ctx, "%s Could not list GitHub App repositories: %s\n", iostream.SymbolWarn(ctx), err)
 		return ""

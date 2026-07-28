@@ -240,6 +240,33 @@ func TestDetectRepoName_IgnoresInfoYml(t *testing.T) {
 	assert.Check(t, cmp.Equal(DetectRepoName(), "my-repo"))
 }
 
+// TestDetectRepoName_FallsBackToLinkedName pins the fallback for a checkout whose
+// remote cannot be read — no origin, no origin/HEAD, or a host the slug parser does
+// not recognise. The name recorded by `circleci project link` is the only other
+// readable name for the checkout, and without it callers would have no default at
+// all: `project create` fails with a missing-name error and onboard abandons
+// project setup.
+func TestDetectRepoName_FallsBackToLinkedName(t *testing.T) {
+	dir := t.TempDir() // no git repository at all, so the remote is unreadable
+	writeErr := projectref.Write(dir, &projectref.Info{
+		Organization: projectref.Organization{ID: "org-uuid"},
+		Project: projectref.Project{
+			Slug: "gh/myorg/api",
+			ID:   "proj-uuid",
+			Name: "api",
+		},
+	})
+	assert.NilError(t, writeErr)
+
+	cwd, err := os.Getwd()
+	assert.NilError(t, err)
+	t.Cleanup(func() { _ = os.Chdir(cwd) })
+	chdirErr := os.Chdir(dir)
+	assert.NilError(t, chdirErr)
+
+	assert.Check(t, cmp.Equal(DetectRepoName(), "api"))
+}
+
 // Sanity check that DetectFromRemote does not consult info.yml — used by
 // `project link` to avoid short-circuiting against an existing entry.
 func TestDetectFromRemote_IgnoresInfoYml(t *testing.T) {

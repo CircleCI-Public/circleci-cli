@@ -121,10 +121,22 @@ func pollInstalled(ctx context.Context, client *apiclient.Client, orgID string) 
 	}
 }
 
+// ErrTooManyRepositories reports that the search reached its page cap before
+// examining every repository, so the target may well be accessible.
+//
+// Callers must not report this as "the app cannot access that repository": the
+// advice that follows from it — grant access and re-run — can never help, because
+// re-running searches the same bounded prefix again.
+var ErrTooManyRepositories = errors.New("too many repositories to search for a match")
+
 // ResolveRepoID returns the external (numeric) ID of the repository named
 // repoFullName ("owner/repo") among the repositories the GitHub App can access
-// for the organization. It returns "" (with no error) when the repository is
-// not found — e.g. it exists but was not granted to the app.
+// for the organization.
+//
+// It returns "" with no error only when the whole list was examined and held no
+// match — the repository exists but was not granted to the app. Reaching the page
+// cap first returns ErrTooManyRepositories instead, because that is not the same
+// answer. The endpoint offers no name filter, so the list has to be walked.
 func ResolveRepoID(ctx context.Context, client *apiclient.Client, orgID, repoFullName string) (string, error) {
 	if repoFullName == "" {
 		return "", nil
@@ -143,8 +155,8 @@ func ResolveRepoID(ctx context.Context, client *apiclient.Client, orgID, repoFul
 		}
 		seen += len(repos)
 		if len(repos) == 0 || (total > 0 && seen >= total) {
-			break
+			return "", nil // whole list examined, genuinely no match
 		}
 	}
-	return "", nil
+	return "", ErrTooManyRepositories
 }

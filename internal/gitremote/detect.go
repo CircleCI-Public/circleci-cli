@@ -79,23 +79,34 @@ func DetectNamespace() (string, error) {
 	return parts[1], nil
 }
 
-// DetectRepoName returns the repository name from the git remote, or "" if it
-// cannot be detected.
+// DetectRepoName returns a human-readable name for the checkout in the working
+// directory, or "" when none can be determined. Callers use it as the suggested
+// project name.
 //
-// This reads the remote directly rather than going through Detect, which prefers
-// .circleci/info.yml. A linked standalone project's slug is
-// "circleci/<orgID>/<projectID>", so its last segment is an opaque ID — useless
-// as the repository name callers want to show a user.
+// The git remote is preferred. It is read directly rather than through Detect,
+// which prefers .circleci/info.yml: a linked standalone project's slug is
+// "circleci/<orgID>/<projectID>", so its last segment is an opaque ID — useless as
+// a name to show a user.
+//
+// When the remote cannot be read — no origin, no origin/HEAD, an unsupported host
+// — the name recorded by `circleci project link` is used instead. That is the only
+// other place a readable name for this checkout exists, and without it a linked
+// repository with no usable remote would offer no name at all.
 func DetectRepoName() string {
-	info, err := DetectFromRemote()
+	if info, err := DetectFromRemote(); err == nil {
+		if parts := strings.Split(info.Slug, "/"); len(parts) == 3 {
+			return parts[2]
+		}
+	}
+	cwd, err := os.Getwd()
 	if err != nil {
 		return ""
 	}
-	parts := strings.Split(info.Slug, "/")
-	if len(parts) == 3 {
-		return parts[2]
+	ref, err := projectref.Read(cwd)
+	if err != nil {
+		return ""
 	}
-	return ""
+	return ref.Project.Name
 }
 
 // Detect resolves the CircleCI project for the current working directory.
