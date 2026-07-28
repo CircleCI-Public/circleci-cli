@@ -207,13 +207,13 @@ func newOrgSettingsGetCmd() *cobra.Command {
 		`, orgSettingTable()),
 		Example: heredoc.Doc(`
 			# Get a setting for the current org
-			$ circleci org settings get private-orbs
+			$ circleci org setting get private-orbs
 
 			# Get a setting for a specific org
-			$ circleci org settings get private-orbs --org gh/myorg
+			$ circleci org setting get private-orbs --org gh/myorg
 
 			# Output as JSON
-			$ circleci org settings get private-orbs --json
+			$ circleci org setting get private-orbs --json
 		`),
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -221,7 +221,7 @@ func newOrgSettingsGetCmd() *cobra.Command {
 			if !ok {
 				return clierrors.New("settings.unknown", "Unknown setting",
 					fmt.Sprintf("%q is not a known org setting.", args[0])).
-					WithSuggestions("Run 'circleci org settings list' to see all available settings",
+					WithSuggestions("Run 'circleci org setting list' to see all available settings",
 						"Valid settings: "+orgSettingNames()).
 					WithExitCode(clierrors.ExitBadArguments)
 			}
@@ -231,7 +231,7 @@ func newOrgSettingsGetCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			orgID, err := cmdutil.ResolveOrgSlugOrID(ctx, client, orgSlug, "circleci org settings get")
+			orgID, err := cmdutil.ResolveOrgSlugOrID(ctx, client, orgSlug, "circleci org setting get")
 			if err != nil {
 				return err
 			}
@@ -267,13 +267,13 @@ func newOrgSettingsSetCmd() *cobra.Command {
 		`, orgSettingTable()),
 		Example: heredoc.Doc(`
 			# Enable a setting for the current org
-			$ circleci org settings set private-orbs true
+			$ circleci org setting set private-orbs true
 
 			# Disable a setting for a specific org
-			$ circleci org settings set private-orbs false --org gh/myorg
+			$ circleci org setting set private-orbs false --org gh/myorg
 
 			# Output the updated value as JSON
-			$ circleci org settings set ai-error-summarization true --json
+			$ circleci org setting set ai-error-summarization true --json
 		`),
 		Args: cobra.ExactArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -281,7 +281,7 @@ func newOrgSettingsSetCmd() *cobra.Command {
 			if !ok {
 				return clierrors.New("settings.unknown", "Unknown setting",
 					fmt.Sprintf("%q is not a known org setting.", args[0])).
-					WithSuggestions("Run 'circleci org settings list' to see all available settings",
+					WithSuggestions("Run 'circleci org setting list' to see all available settings",
 						"Valid settings: "+orgSettingNames()).
 					WithExitCode(clierrors.ExitBadArguments)
 			}
@@ -296,7 +296,7 @@ func newOrgSettingsSetCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			orgID, err := cmdutil.ResolveOrgSlugOrID(ctx, client, orgSlug, "circleci org settings set")
+			orgID, err := cmdutil.ResolveOrgSlugOrID(ctx, client, orgSlug, "circleci org setting set")
 			if err != nil {
 				return err
 			}
@@ -421,13 +421,13 @@ func newOrgSettingsListCmd() *cobra.Command {
 		`),
 		Example: heredoc.Doc(`
 			# List settings for the current org
-			$ circleci org settings list
+			$ circleci org setting list
 
 			# List settings for a specific org
-			$ circleci org settings list --org gh/myorg
+			$ circleci org setting list --org gh/myorg
 
 			# Output as JSON
-			$ circleci org settings list --json
+			$ circleci org setting list --json
 		`),
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -436,7 +436,7 @@ func newOrgSettingsListCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			orgID, err := cmdutil.ResolveOrgSlugOrID(ctx, client, orgSlug, "circleci org settings list")
+			orgID, err := cmdutil.ResolveOrgSlugOrID(ctx, client, orgSlug, "circleci org setting list")
 			if err != nil {
 				return err
 			}
