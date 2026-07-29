@@ -32,11 +32,18 @@ import (
 	"testing"
 
 	"gotest.tools/v3/assert"
+	"gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/golden"
 
 	"github.com/CircleCI-Public/circleci-cli/internal/testing/binary"
 	testenv "github.com/CircleCI-Public/circleci-cli/internal/testing/env"
 	"github.com/CircleCI-Public/circleci-cli/internal/testing/fakes"
+)
+
+// Fixture IDs shared by the onboard tests.
+const (
+	onboardOrgID     = "org-uuid-1234"
+	onboardProjectID = "proj-uuid-5678"
 )
 
 func TestOnboard_PathInvalid(t *testing.T) {
@@ -301,7 +308,7 @@ func TestOnboard_PostSignup_ProjectCreated(t *testing.T) {
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
 	assert.Check(t, strings.Contains(result.Stdout, "Project created: my-repo"))
 	assert.Check(t, strings.Contains(result.Stdout, "Organization: myorg"))
-	assert.Check(t, strings.Contains(result.Stdout, "Commit .circleci/config.yml"))
+	assert.Check(t, cmp.Contains(result.Stdout, "Commit .circleci/"))
 }
 
 func TestOnboard_PostSignup_ClassicOrg_FollowsProject(t *testing.T) {
@@ -443,6 +450,163 @@ func TestOnboard_PostSignup_FreshSignup_ContinuesToProjectSetup(t *testing.T) {
 	}))
 }
 
+// onboardDotnetRepo builds the fixture shared by the post-signup tests: a dotnet
+// checkout with a GitHub remote, a fake CircleCI serving a CircleCI-native
+// organization, and an isolated environment pointed at it.
+//
+// Callers still wire their own fake dotnet binary, since whether the tests pass or
+// fail is the variable under test in some of them.
+// TestOnboard_PostSignup_Rerun_ReusesProject runs onboard twice over the same
+// repository. The first run creates the project and records it in
+// .circleci/info.yml; the second resolves it from that file instead of attempting
+// a create that could only conflict.
+//
+// That local record is what makes a re-run recoverable at all: a CircleCI-native
+// project slug is circleci/<orgID>/<projectID> — opaque IDs, not the repository
+// name — and no API maps a project name to its ID within an organization.
+func TestOnboard_PostSignup_Rerun_ReusesProject(t *testing.T) {
+	dir, fake, env := onboardDotnetRepo(t)
+	// The second run looks the project up by the slug projectref derives from the
+	// recorded UUIDs. The real API accepts that form and canonicalises it.
+	fake.AddProjectInfo("circleci/"+onboardOrgID+"/"+onboardProjectID, map[string]any{
+		"id":                onboardProjectID,
+		"slug":              "circleci/Org1234ShortId/Proj5678ShortId",
+		"name":              "my-repo",
+		"organization_name": "myorg",
+		"organization_slug": "circleci/Org1234ShortId",
+		"organization_id":   onboardOrgID,
+	})
+	addFakeDotnet(t, env, false)
+
+	first := binary.RunCLI(t, binary.RunOpts{
+		Binary: binaryPath, Args: []string{"onboard", "--scan"},
+		Env: env.Environ(), WorkDir: dir,
+	})
+	assert.Equal(t, first.ExitCode, 0, "stderr: %s", first.Stderr)
+	assert.Check(t, cmp.Contains(first.Stdout, "Project created: my-repo"))
+	assert.Check(t, cmp.Contains(first.Stdout, "Linked this repository to the project"))
+	_, statErr := os.Stat(filepath.Join(dir, ".circleci", "info.yml"))
+	assert.NilError(t, statErr, "first run should record the project locally")
+
+	second := binary.RunCLI(t, binary.RunOpts{
+		Binary: binaryPath, Args: []string{"onboard", "--scan"},
+		Env: env.Environ(), WorkDir: dir,
+	})
+	assert.Equal(t, second.ExitCode, 0, "stderr: %s", second.Stderr)
+	assert.Check(t, cmp.Contains(second.Stdout, "Using existing project: my-repo"))
+	assert.Check(t, !strings.Contains(second.Stdout, "Project created"),
+		"re-run should not create a second project")
+}
+
+// TestOnboard_PostSignup_KeepsExistingProjectRef pins that onboard never rewrites
+// an existing .circleci/info.yml. The file is meant to be committed, and it may
+// record a project in another organization that this run has no mandate to
+// replace — `circleci project link` requires --force for exactly that reason.
+func TestOnboard_PostSignup_KeepsExistingProjectRef(t *testing.T) {
+	dir, _, env := onboardDotnetRepo(t)
+
+	// A link to a project in a different organization, so it is ignored and onboard
+	// proceeds to create — the path that reaches the write.
+	existing := "organization:\n  id: other-org-uuid\n" +
+		"project:\n  id: other-proj-uuid\n  slug: gh/myorg/my-repo\n  name: my-repo\n"
+	refPath := filepath.Join(dir, ".circleci", "info.yml")
+	mkErr := os.MkdirAll(filepath.Dir(refPath), 0o755)
+	assert.NilError(t, mkErr)
+	writeErr := os.WriteFile(refPath, []byte(existing), 0o644)
+	assert.NilError(t, writeErr)
+	addFakeDotnet(t, env, false)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary: binaryPath, Args: []string{"onboard", "--scan"},
+		Env: env.Environ(), WorkDir: dir,
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	body, readErr := os.ReadFile(refPath)
+	assert.NilError(t, readErr)
+	assert.Check(t, cmp.Equal(string(body), existing), "info.yml must be left byte-for-byte alone")
+	assert.Check(t, cmp.Contains(result.Stderr, "already records a different project"))
+	assert.Check(t, cmp.Contains(result.Stderr, "circleci project link --force --project"))
+	assert.Check(t, !strings.Contains(result.Stdout, "Using existing project"),
+		"a project in another organization must not be reused")
+}
+
+// TestOnboard_PostSignup_ProjectNameConflict covers a name collision onboard cannot
+// resolve: the organization already has a project with this name, but the checkout
+// has no info.yml recording its ID. Since a project cannot be looked up by name,
+// onboard points at `circleci project link` rather than reporting a raw conflict.
+func TestOnboard_PostSignup_ProjectNameConflict(t *testing.T) {
+	dir, fake, env := onboardDotnetRepo(t)
+	fake.SetCreateProjectConflict()
+	addFakeDotnet(t, env, false)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary: binaryPath, Args: []string{"onboard", "--scan"},
+		Env: env.Environ(), WorkDir: dir,
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, cmp.Contains(result.Stderr, `project named "my-repo" already exists`))
+	assert.Check(t, cmp.Contains(result.Stdout, "circleci project link --project circleci/myorg/<projectID>"))
+	assert.Check(t, !strings.Contains(result.Stdout, "--force"), "no info.yml to overwrite")
+	// No raw HTTP internals for a conflict one command can resolve.
+	assert.Check(t, !strings.Contains(result.Stderr, "409"), "stderr should not leak an HTTP status")
+	assert.Check(t, !strings.Contains(result.Stderr, "/api/v2/"), "stderr should not leak an API path")
+}
+
+// TestOnboard_SignupFlag_RecordsProjectRefAtRepoRoot pins where --signup records the
+// link when run from a subdirectory. info.yml belongs beside config.yml at the top
+// of the checkout; writing it into the invocation directory would leave it
+// unreachable to every command that looks for it at the root.
+func TestOnboard_SignupFlag_RecordsProjectRefAtRepoRoot(t *testing.T) {
+	root := t.TempDir()
+	initGitRepoWithRemote(t, root, "https://github.com/myorg/my-repo.git")
+	sub := filepath.Join(root, "services", "api")
+	mkErr := os.MkdirAll(sub, 0o755)
+	assert.NilError(t, mkErr)
+
+	_, env := onboardStandaloneEnv(t, "testuser")
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary: binaryPath, Args: []string{"onboard", "--signup"},
+		Env: env.Environ(), WorkDir: sub,
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	_, rootErr := os.Stat(filepath.Join(root, ".circleci", "info.yml"))
+	assert.NilError(t, rootErr, "the link belongs at the repository root")
+	_, subErr := os.Stat(filepath.Join(sub, ".circleci", "info.yml"))
+	assert.Check(t, os.IsNotExist(subErr), "must not record the link in the invocation directory")
+}
+
+// TestOnboard_SignupFlag_WritesNoProjectRefOutsideRepo is the other half: with no
+// repository there is nothing to link, so nothing is written — a home directory
+// must not acquire a .circleci/info.yml.
+func TestOnboard_SignupFlag_WritesNoProjectRefOutsideRepo(t *testing.T) {
+	dir := t.TempDir() // deliberately not a git checkout
+
+	_, env := onboardStandaloneEnv(t, "testuser")
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary: binaryPath, Args: []string{"onboard", "--signup"},
+		Env: env.Environ(), WorkDir: dir,
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	_, statErr := os.Stat(filepath.Join(dir, ".circleci"))
+	assert.Check(t, os.IsNotExist(statErr), "must not create .circleci outside a repository")
+}
+
+func onboardDotnetRepo(t *testing.T) (string, *fakes.CircleCI, *testenv.TestEnv) {
+	t.Helper()
+	if runtime.GOOS == "windows" {
+		t.Skip("test runner uses sh -c")
+	}
+	dir := t.TempDir()
+	copyFixture(t, "testdata/test-run/dotnet", dir)
+	initGitRepoWithRemote(t, dir, "https://github.com/myorg/my-repo.git")
+	fake, env := onboardStandaloneEnv(t, "testuser")
+	return dir, fake, env
+}
+
 func onboardStandaloneEnv(t *testing.T, login string) (*fakes.CircleCI, *testenv.TestEnv) {
 	t.Helper()
 
@@ -457,13 +621,16 @@ func onboardStandaloneEnv(t *testing.T, login string) (*fakes.CircleCI, *testenv
 	fake.SetCollaborations([]any{
 		map[string]any{"id": "org-uuid-1234", "name": "myorg", "slug": "circleci/myorg", "vcs_type": "circleci"},
 	})
+	// A CircleCI-native project slug embeds opaque org and project short IDs, not
+	// the repository name — mirroring the real API, which rejects a name-based slug
+	// outright. The UUIDs are separate values used for project lookups.
 	fake.SetCreateProjectResponse(map[string]any{
-		"id":                "proj-uuid-5678",
-		"slug":              "circleci/myorg/my-repo",
+		"id":                onboardProjectID,
+		"slug":              "circleci/Org1234ShortId/Proj5678ShortId",
 		"name":              "my-repo",
 		"organization_name": "myorg",
-		"organization_slug": "circleci/myorg",
-		"organization_id":   "org-uuid-1234",
+		"organization_slug": "circleci/Org1234ShortId",
+		"organization_id":   onboardOrgID,
 	})
 
 	env := testenv.New(t)
