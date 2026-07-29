@@ -220,7 +220,7 @@ func TestRunWatch_SHA(t *testing.T) {
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary: binaryPath,
-		Args: []string{"run", "watch", "--sha", "abc1234",
+		Args: []string{"run", "watch", "--sha", "abc1234def5678abcdef1234567890abcdef1234",
 			"--project", watchSlug, "--branch", "main"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -243,7 +243,7 @@ func TestRunWatch_SHA_NotFound(t *testing.T) {
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary: binaryPath,
-		Args: []string{"run", "watch", "--sha", "deadbeef",
+		Args: []string{"run", "watch", "--sha", "deadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
 			"--project", watchSlug, "--branch", "main"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -251,6 +251,53 @@ func TestRunWatch_SHA_NotFound(t *testing.T) {
 
 	assert.Equal(t, result.ExitCode, 5, "stderr: %s", result.Stderr) // ExitNotFound
 	assert.Check(t, cmp.Contains(result.Stderr, "No run found"), "stderr: %s", result.Stderr)
+}
+
+// --- --sha: short SHA outside a git repo → exit 2 (bad arguments) ---
+
+func TestRunWatch_SHA_ShortOutsideGitRepo(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	addProjectBySlug(fake, watchSlug, watchProjectID)
+
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary: binaryPath,
+		Args: []string{"run", "watch", "--sha", "abc1234",
+			"--project", watchSlug, "--branch", "main"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 2, "stderr: %s", result.Stderr) // ExitBadArguments
+	assert.Check(t, cmp.Contains(result.Stderr, "local git repository is not accessible"), "stderr: %s", result.Stderr)
+}
+
+// --- --sha: a revision that is not a hex SHA → exit 2 without any API call ---
+
+// A branch name is the likely mistake here, and it must not reach local
+// expansion: go-git would resolve it to that branch's tip and watch the wrong
+// commit. No project is registered on the fake, so reaching the API at all would
+// surface as a different exit code.
+func TestRunWatch_SHA_NotHex(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary: binaryPath,
+		Args: []string{"run", "watch", "--sha", "main",
+			"--project", watchSlug, "--branch", "main"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 2, "stderr: %s", result.Stderr) // ExitBadArguments
+	assert.Check(t, cmp.Contains(result.Stderr, "does not look like a commit SHA"), "stderr: %s", result.Stderr)
 }
 
 // --- --failfast: exit immediately when a job fails, without waiting for the rest of the run ---
