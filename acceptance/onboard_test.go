@@ -795,14 +795,19 @@ func TestOnboard_PostSignup_FirstPipeline_RepoNotAccessible(t *testing.T) {
 	assert.Check(t, !strings.Contains(result.Stdout, "Pipeline definition created"), "no pipeline def without a repo ID")
 }
 
+// TestOnboard_PostSignup_FirstPipeline_TriggerFails pins that a rejected request
+// exits non-zero.
+//
+// This is the case that must not report success: the definition exists and the
+// trigger does not, so nothing will build on push. A bootstrap script reading exit
+// 0 here would carry on believing CI was set up.
 func TestOnboard_PostSignup_FirstPipeline_TriggerFails(t *testing.T) {
 	dir, fake, env := onboardDotnetRepo(t)
 	fake.SetCreatePipelineDefinitionResponse(onboardProjectID, map[string]any{
 		"id":   onboardPipelineDefID,
 		"name": "my-repo",
 	})
-	// No trigger response registered → the trigger create returns 404 and the
-	// flow degrades to manual guidance.
+	// No trigger response registered → the trigger create fails.
 	addFakeDotnet(t, env, false)
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
@@ -811,10 +816,36 @@ func TestOnboard_PostSignup_FirstPipeline_TriggerFails(t *testing.T) {
 		WorkDir: dir,
 	})
 
-	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Equal(t, result.ExitCode, 4, "expected ExitAPIError, stderr: %s", result.Stderr)
 	assert.Check(t, cmp.Contains(result.Stdout, "Pipeline definition created: my-repo"))
-	assert.Check(t, cmp.Contains(result.Stderr, "Could not create trigger"))
-	assert.Check(t, cmp.Contains(result.Stdout, "Commit .circleci/config.yml"))
+	assert.Check(t, cmp.Contains(result.Stderr, "its trigger could not be"))
+	// The guidance moves into the error's suggestions rather than being dropped.
+	assert.Check(t, cmp.Contains(result.Stderr, "circleci project trigger create"))
+	assert.Check(t, !strings.Contains(result.Stdout, "Your project is ready!"),
+		"a project with no trigger is not ready")
+}
+
+// TestOnboard_PostSignup_FirstPipeline_MissingPrerequisiteSucceeds is the other
+// half of the exit-code rule: when a prerequisite is absent nothing was attempted,
+// so onboard prints the next step and succeeds. Reporting a failure for work it
+// never began would make a first run look broken.
+func TestOnboard_PostSignup_FirstPipeline_MissingPrerequisiteSucceeds(t *testing.T) {
+	dir, fake, env := onboardDotnetRepo(t)
+	// The GitHub App is installed but has not been granted this repository, so the
+	// external ID cannot be resolved and no pipeline request is ever made.
+	fake.SetGitHubAppInstalled(onboardOrgID, true)
+	addFakeDotnet(t, env, false)
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"onboard", "--scan"},
+		Env:     env.Environ(),
+		WorkDir: dir,
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, cmp.Contains(result.Stdout, "Project created: my-repo"))
+	assert.Check(t, cmp.Contains(result.Stderr, "can't access myorg/my-repo"))
+	assert.Check(t, cmp.Contains(result.Stdout, "circleci pipeline create"))
 }
 
 func TestOnboard_PostSignup_ClassicOrg_FollowsProject(t *testing.T) {

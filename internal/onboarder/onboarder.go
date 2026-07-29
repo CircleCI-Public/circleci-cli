@@ -307,8 +307,7 @@ func postSignupGuidance(ctx context.Context, dir string, opts Options) error {
 		iostream.Printf(ctx, "  Pipelines: %s\n", pipelinesURL)
 	}
 
-	setupFirstPipeline(ctx, client, pipelinesURL, appURL, proj, remote, opts)
-	return nil
+	return setupFirstPipeline(ctx, client, pipelinesURL, appURL, proj, remote, opts)
 }
 
 // promptProjectName asks for the project name, offering defaultName. It returns
@@ -472,35 +471,57 @@ func writeProjectRef(ctx context.Context, workDir string, proj *apiclient.Projec
 // the github_app provider, and the repo's external ID for both config and
 // checkout sources).
 //
-// Every step degrades gracefully: the project already exists, so any failure
-// prints manual guidance rather than failing the command.
-func setupFirstPipeline(ctx context.Context, client *apiclient.Client, pipelinesURL, appURL string, proj *apiclient.ProjectInfo, remote gitRemote, opts Options) {
+// A missing prerequisite and a failed request are different outcomes, and the
+// exit code distinguishes them.
+//
+// When a prerequisite is absent — no GitHub App, the repository not granted to it,
+// a repository that is not on GitHub — nothing was attempted. The user has a clear
+// next step, so onboard prints it and succeeds; reporting a failure for work it
+// never began would make a first run look broken.
+//
+// When a request was made and the API rejected it, that is a failure. It also
+// leaves the project half-configured — a definition with no trigger will never
+// build — which is exactly the state a script must not read as success.
+// `circleci pipeline create` and `circleci project trigger create` return a
+// structured error for these same endpoints; onboard was discarding it.
+func setupFirstPipeline(ctx context.Context, client *apiclient.Client, pipelinesURL, appURL string, proj *apiclient.ProjectInfo, remote gitRemote, opts Options) error {
 	repoID := resolveRepoID(ctx, client, pipelinesURL, appURL, proj, remote, opts)
 	if repoID == "" {
 		// Without the repo's external ID we can't create the pipeline
 		// definition. The project still exists; guide the user to finish setup.
 		trackOnboard(ctx, "onboard_project_setup", map[string]any{"outcome": "skipped_no_repo_id"})
 		printManualPipelineGuidance(ctx)
-		return
+		return nil
 	}
 
 	def, err := ensurePipelineDefinition(ctx, client, proj.ID, proj.Name, repoID)
 	if err != nil {
-		iostream.ErrPrintf(ctx, "%s Could not create pipeline definition: %s\n", iostream.SymbolWarn(ctx), err)
 		trackOnboard(ctx, "onboard_project_setup", map[string]any{"outcome": "pipeline_definition_failed"})
-		printManualPipelineGuidance(ctx)
-		return
+		return clierrors.New("onboard.pipeline_definition_failed",
+			"Could not set up the pipeline definition",
+			fmt.Sprintf("The project was created, but its pipeline definition could not be set up: %s.", err)).
+			WithSuggestions(
+				"Run 'circleci pipeline create' to finish setting up the pipeline",
+				"Then commit and push .circleci/ to start your first pipeline",
+			).
+			WithExitCode(clierrors.ExitAPIError)
 	}
 
 	if err := ensureTrigger(ctx, client, proj.ID, def.ID, repoID); err != nil {
-		iostream.ErrPrintf(ctx, "%s Could not create trigger: %s\n", iostream.SymbolWarn(ctx), err)
 		trackOnboard(ctx, "onboard_project_setup", map[string]any{"outcome": "trigger_failed"})
-		printManualPipelineGuidance(ctx)
-		return
+		return clierrors.New("onboard.trigger_failed",
+			"Could not set up the trigger",
+			fmt.Sprintf("The pipeline definition was created, but its trigger could not be: %s.", err)).
+			WithSuggestions(
+				"Run 'circleci project trigger create' to finish setting up the trigger",
+				"Until a trigger exists, pushing will not start a pipeline",
+			).
+			WithExitCode(clierrors.ExitAPIError)
 	}
 
 	trackOnboard(ctx, "onboard_project_setup", map[string]any{"outcome": "created"})
 	printPipelineReadyGuidance(ctx)
+	return nil
 }
 
 // ensurePipelineDefinition returns the pipeline definition already configured
