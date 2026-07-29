@@ -165,6 +165,59 @@ func TestConfigValidate_FileNotFound(t *testing.T) {
 	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 }
 
+// TestConfigValidate_PositionalPath pins that a positional <path> is honoured
+// (issue #1636, regression #1). The config lives at a non-default location and
+// there is no .circleci/config.yml in the working directory, so validation can
+// only succeed if the positional path is actually read.
+func TestConfigValidate_PositionalPath(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+
+	dir := t.TempDir()
+	custom := filepath.Join(dir, "configs", "my-config.yml")
+	assert.NilError(t, os.MkdirAll(filepath.Dir(custom), 0o755))
+	writeFile(t, custom, testConfigYAML)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"config", "validate", "configs/my-config.yml"},
+		Env:     env.Environ(),
+		WorkDir: dir,
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 0), "stderr: %s", result.Stderr)
+	assert.Check(t, cmp.Contains(result.Stdout, "configs/my-config.yml"))
+}
+
+// TestConfigValidate_PositionalPathNotFound is the exact repro from issue #1636:
+// a valid .circleci/config.yml exists in the working directory, but the user
+// passes a positional path to a file that does not exist. The old (buggy)
+// behaviour silently ignored the positional and reported the default config as
+// valid; the correct behaviour reports the passed-in path as not found.
+func TestConfigValidate_PositionalPathNotFound(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+
+	dir := t.TempDir()
+	writeConfig(t, dir, testConfigYAML)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"config", "validate", "does/not/exist.yml"},
+		Env:     env.Environ(),
+		WorkDir: dir,
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 2), "stdout: %s", result.Stdout)
+	assert.Check(t, cmp.Contains(result.Stderr, "does/not/exist.yml"))
+}
+
 const testOrgUUID = "00000000-0000-0000-0000-0000000000aa"
 
 func TestConfigValidate_WithOrgSlug(t *testing.T) {
