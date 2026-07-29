@@ -295,6 +295,47 @@ func TestDetectFromRemote_IgnoresInfoYml(t *testing.T) {
 	})
 }
 
+// TestDetectFromRemote_NoOriginHEAD verifies that a repo with an origin remote
+// but no refs/remotes/origin/HEAD still resolves. Repos created locally (git
+// init + remote add + push, rather than git clone) never get origin/HEAD set,
+// so requiring it would turn a perfectly resolvable project into a "could not
+// detect project" failure. The slug and current branch must still resolve; the
+// default branch is simply left empty.
+func TestDetectFromRemote_NoOriginHEAD(t *testing.T) {
+	dir := t.TempDir()
+
+	repo, err := git.PlainInit(dir, false)
+	assert.NilError(t, err)
+	_, err = repo.CreateRemote(&config.RemoteConfig{
+		Name: "origin",
+		URLs: []string{"git@github.com:myorg/myrepo.git"},
+	})
+	assert.NilError(t, err)
+
+	// A real commit on a named branch so repo.Head() resolves — but crucially no
+	// refs/remotes/origin/HEAD is ever written, mirroring an init'd-not-cloned repo.
+	wt, err := repo.Worktree()
+	assert.NilError(t, err)
+	assert.NilError(t, os.WriteFile(filepath.Join(dir, "README.md"), []byte("x\n"), 0o644))
+	_, err = wt.Add("README.md")
+	assert.NilError(t, err)
+	_, err = wt.Commit("init", &git.CommitOptions{
+		Author: &object.Signature{Name: "test", Email: "test@test.com"},
+	})
+	assert.NilError(t, err)
+
+	cwd, err := os.Getwd()
+	assert.NilError(t, err)
+	t.Cleanup(func() { _ = os.Chdir(cwd) })
+	assert.NilError(t, os.Chdir(dir))
+
+	info, err := DetectFromRemote()
+	assert.NilError(t, err)
+	assert.Check(t, cmp.Equal(info.Slug, "gh/myorg/myrepo"))
+	assert.Check(t, info.Branch != "", "expected a current branch to resolve")
+	assert.Check(t, cmp.Equal(info.DefaultBranch, ""))
+}
+
 // TestDetectFromRemote_Worktree verifies detection works from inside a linked
 // git worktree. In a worktree, .git is a file pointing at
 // <main>/.git/worktrees/<name>/, which holds only per-worktree state (HEAD);
