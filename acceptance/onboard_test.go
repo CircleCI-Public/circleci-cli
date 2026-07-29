@@ -372,6 +372,77 @@ func TestOnboard_PostSignup_CreateFails(t *testing.T) {
 	assert.Check(t, strings.Contains(result.Stdout, "circleci project create"))
 }
 
+// TestOnboard_PostSignup_FreshSignup_ContinuesToProjectSetup is a regression test
+// for a fresh signup dead-ending before project creation.
+//
+// Signup writes the token to disk part-way through the run, but the config cached
+// in the context was loaded during bootstrap — before that write — so without a
+// reload LoadClient sees no token and project creation degrades to manual
+// guidance, on the one run where the user just signed up.
+//
+// This test must NOT set env.Token: CIRCLE_TOKEN is read ahead of the cached
+// config, which masks the bug, and is why the other post-signup tests never
+// caught it.
+func TestOnboard_PostSignup_FreshSignup_ContinuesToProjectSetup(t *testing.T) {
+	dir := t.TempDir()
+	initGitRepoWithRemote(t, dir, "https://github.com/myorg/my-repo.git")
+
+	fake := fakes.NewCircleCI(t)
+	fake.SetMe(map[string]any{
+		"id": "e4a72497-7c55-400d-a72d-dadc4b92255d",
+		"attributes": map[string]any{
+			"name":  "New User",
+			"login": "newuser",
+		},
+	})
+	fake.SetOAuthTokenResponse(map[string]any{
+		"access_token": "test-signup-token",
+		"token_type":   "Bearer",
+		"expires_in":   int64(7776000),
+	})
+	fake.SetCollaborations([]any{
+		map[string]any{"id": "org-uuid-1234", "name": "myorg", "slug": "circleci/myorg", "vcs_type": "circleci"},
+	})
+	fake.SetCreateProjectResponse(map[string]any{
+		"id":                "proj-uuid-5678",
+		"slug":              "circleci/Org1234ShortId/Proj5678ShortId",
+		"name":              "my-repo",
+		"organization_name": "myorg",
+		"organization_slug": "circleci/Org1234ShortId",
+		"organization_id":   "org-uuid-1234",
+	})
+
+	env := testenv.New(t)
+	env.CircleCIURL = fake.URL()
+	// Deliberately no env.Token — see the note above.
+	env.Extra["CIRCLE_LOGIN_TIMEOUT"] = "20s"
+	// Suppress the project-name prompt so the run completes without further input.
+	env.Extra["CIRCLE_NO_INTERACTIVE"] = "true"
+
+	console := binary.RunCLIInteractive(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"onboard", "--signup", "--no-browser"},
+		Env:     env.Environ(),
+		WorkDir: dir,
+	})
+
+	assert.Assert(t, t.Run("waits for browser callback", func(t *testing.T) {
+		_, err := console.ExpectString("Waiting for browser authentication")
+		assert.NilError(t, err)
+	}))
+
+	assert.Assert(t, t.Run("browser callback", func(t *testing.T) {
+		callbackViaPAR(t, fake)
+	}))
+
+	assert.Assert(t, t.Run("continues into project creation", func(t *testing.T) {
+		_, err := console.ExpectString("Logged in as newuser")
+		assert.NilError(t, err)
+		_, err = console.ExpectString("Project created: my-repo")
+		assert.NilError(t, err)
+	}))
+}
+
 func onboardStandaloneEnv(t *testing.T, login string) (*fakes.CircleCI, *testenv.TestEnv) {
 	t.Helper()
 
