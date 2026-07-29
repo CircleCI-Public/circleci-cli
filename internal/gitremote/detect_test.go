@@ -115,16 +115,31 @@ func TestDetect_PrefersInfoYml(t *testing.T) {
 		wantOrgID string
 	}{
 		{
-			name: "uuids present yields canonical slug",
+			name: "circleci slug with uuids yields canonical slug",
 			info: projectref.Info{
 				Organization: projectref.Organization{ID: "E6i3yYZeWZhcf8UNqcKfjN"},
 				Project: projectref.Project{
-					Slug: "gh/myorg/myrepo",
+					Slug: "circleci/OrgShortId/ProjShortId",
 					ID:   "13c8F7nusayivoSxC6GMsw",
 				},
 			},
 			wantSlug:  "circleci/E6i3yYZeWZhcf8UNqcKfjN/13c8F7nusayivoSxC6GMsw",
 			wantOrgID: "E6i3yYZeWZhcf8UNqcKfjN",
+		},
+		{
+			// The ID form addresses CircleCI-native projects only — the API answers
+			// 404 for a classic project addressed that way, even though
+			// `circleci project link` records both IDs for one.
+			name: "classic slug with uuids keeps its own slug",
+			info: projectref.Info{
+				Organization: projectref.Organization{ID: "c1e89d5c-d2e5-4db2-b2d7-a35cf73160ad"},
+				Project: projectref.Project{
+					Slug: "gh/myorg/myrepo",
+					ID:   "52404b72-02fb-482e-9bd8-846bbc048eea",
+				},
+			},
+			wantSlug:  "gh/myorg/myrepo",
+			wantOrgID: "c1e89d5c-d2e5-4db2-b2d7-a35cf73160ad",
 		},
 		{
 			name:     "slug-only falls through verbatim",
@@ -173,6 +188,83 @@ func TestDetect_SurfacesMalformedInfoYml(t *testing.T) {
 
 	_, err = Detect()
 	assert.Check(t, err != nil, "expected Detect to surface a malformed info.yml rather than fall back")
+}
+
+// TestDetectRepoName_IgnoresInfoYml pins DetectRepoName to the git remote. A
+// linked standalone project records "circleci/<orgID>/<projectID>" in info.yml,
+// so resolving through Detect would hand callers an opaque project ID where they
+// show the user a suggested project name (onboard, `project create`).
+func TestDetectRepoName_IgnoresInfoYml(t *testing.T) {
+	dir := t.TempDir()
+	repo, err := git.PlainInit(dir, false)
+	assert.NilError(t, err)
+	_, err = repo.CreateRemote(&config.RemoteConfig{
+		Name: "origin",
+		URLs: []string{"https://github.com/myorg/my-repo.git"},
+	})
+	assert.NilError(t, err)
+
+	// Detection needs a resolvable HEAD and an origin/HEAD symref. Signing is
+	// disabled locally so an ambient commit.gpgSign=true cannot fail the commit.
+	cfg, err := repo.Config()
+	assert.NilError(t, err)
+	cfg.Raw.Section("commit").SetOption("gpgsign", "false")
+	assert.NilError(t, repo.SetConfig(cfg))
+
+	wt, err := repo.Worktree()
+	assert.NilError(t, err)
+	commit, err := wt.Commit("init", &git.CommitOptions{
+		AllowEmptyCommits: true,
+		Author:            &object.Signature{Name: "test", Email: "test@test.com"},
+	})
+	assert.NilError(t, err)
+	assert.NilError(t, repo.Storer.SetReference(
+		plumbing.NewHashReference("refs/remotes/origin/main", commit)))
+	assert.NilError(t, repo.Storer.SetReference(
+		plumbing.NewSymbolicReference("refs/remotes/origin/HEAD", "refs/remotes/origin/main")))
+
+	assert.NilError(t, projectref.Write(dir, &projectref.Info{
+		Organization: projectref.Organization{ID: "3b524838-a95e-44eb-bc56-deb0af23ef19"},
+		Project: projectref.Project{
+			Slug: "circleci/8KsBMffqgArk2xVzYAC5ag/Y5nuJ5ZzavVEhGCEjV2rfA",
+			ID:   "fbb68fb9-71c3-4b79-a9be-68721332e871",
+			Name: "my-repo",
+		},
+	}))
+
+	cwd, err := os.Getwd()
+	assert.NilError(t, err)
+	t.Cleanup(func() { _ = os.Chdir(cwd) })
+	assert.NilError(t, os.Chdir(dir))
+
+	assert.Check(t, cmp.Equal(DetectRepoName(), "my-repo"))
+}
+
+// TestDetectRepoName_FallsBackToLinkedName pins the fallback for a checkout whose
+// remote cannot be read — no origin, no origin/HEAD, or a host the slug parser does
+// not recognise. The name recorded by `circleci project link` is the only other
+// readable name for the checkout, and without it callers would have no default at
+// all: `project create` fails with a missing-name error and onboard abandons
+// project setup.
+func TestDetectRepoName_FallsBackToLinkedName(t *testing.T) {
+	dir := t.TempDir() // no git repository at all, so the remote is unreadable
+	writeErr := projectref.Write(dir, &projectref.Info{
+		Organization: projectref.Organization{ID: "org-uuid"},
+		Project: projectref.Project{
+			Slug: "gh/myorg/api",
+			ID:   "proj-uuid",
+			Name: "api",
+		},
+	})
+	assert.NilError(t, writeErr)
+
+	cwd, err := os.Getwd()
+	assert.NilError(t, err)
+	t.Cleanup(func() { _ = os.Chdir(cwd) })
+	chdirErr := os.Chdir(dir)
+	assert.NilError(t, chdirErr)
+
+	assert.Check(t, cmp.Equal(DetectRepoName(), "api"))
 }
 
 // Sanity check that DetectFromRemote does not consult info.yml — used by
