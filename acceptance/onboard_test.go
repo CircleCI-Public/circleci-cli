@@ -388,11 +388,7 @@ func TestOnboard_PostSignup_FreshSignup_ContinuesToProjectSetup(t *testing.T) {
 }
 
 // TestOnboard_PostSignup_KeepsExistingProjectRef pins that onboard never rewrites
-// an existing .circleci/info.yml.
-//
-// The file is meant to be committed, and it may record a project in another
-// organization that this run has no mandate to replace — `circleci project link`
-// requires --force for exactly that reason.
+// an existing .circleci/info.yml, which may be committed and may point elsewhere.
 func TestOnboard_PostSignup_KeepsExistingProjectRef(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("test runner uses sh -c")
@@ -430,9 +426,7 @@ func TestOnboard_PostSignup_KeepsExistingProjectRef(t *testing.T) {
 }
 
 // TestOnboard_PostSignup_AddsPushTriggerAlongsideOthers pins that only an
-// all-pushes trigger satisfies onboard. A definition carrying just a schedule
-// trigger would otherwise be reported as ready, and the push onboard tells the
-// user to make would build nothing.
+// all-pushes trigger satisfies onboard, not a schedule-only definition.
 func TestOnboard_PostSignup_AddsPushTriggerAlongsideOthers(t *testing.T) {
 	dir, fake, env := onboardDotnetRepo(t)
 	fake.AddPipelineDefinition(onboardProjectID, map[string]any{
@@ -515,13 +509,8 @@ func TestOnboard_SignupFlag_WritesNoProjectRefOutsideRepo(t *testing.T) {
 	assert.Check(t, os.IsNotExist(statErr), "must not create .circleci outside a repository")
 }
 
-// TestOnboard_PathArgument_UsesGivenDirectory pins that a path argument selects
-// the repository onboard describes.
-//
-// The process runs from a *different* checkout with a different remote, so any
-// detection that reads the working directory instead of the argument would name
-// the project after the wrong repository and wire the pipeline to the wrong repo —
-// silently, since every step still reports success.
+// TestOnboard_PathArgument_UsesGivenDirectory pins that a path argument selects the
+// repository onboard describes, not the one the process is running from.
 func TestOnboard_PathArgument_UsesGivenDirectory(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("test runner uses sh -c")
@@ -796,11 +785,7 @@ func TestOnboard_PostSignup_FirstPipeline_RepoNotAccessible(t *testing.T) {
 }
 
 // TestOnboard_PostSignup_FirstPipeline_TriggerFails pins that a rejected request
-// exits non-zero.
-//
-// This is the case that must not report success: the definition exists and the
-// trigger does not, so nothing will build on push. A bootstrap script reading exit
-// 0 here would carry on believing CI was set up.
+// exits non-zero: a definition with no trigger will never build.
 func TestOnboard_PostSignup_FirstPipeline_TriggerFails(t *testing.T) {
 	dir, fake, env := onboardDotnetRepo(t)
 	fake.SetCreatePipelineDefinitionResponse(onboardProjectID, map[string]any{
@@ -825,10 +810,8 @@ func TestOnboard_PostSignup_FirstPipeline_TriggerFails(t *testing.T) {
 		"a project with no trigger is not ready")
 }
 
-// TestOnboard_PostSignup_FirstPipeline_MissingPrerequisiteSucceeds is the other
-// half of the exit-code rule: when a prerequisite is absent nothing was attempted,
-// so onboard prints the next step and succeeds. Reporting a failure for work it
-// never began would make a first run look broken.
+// TestOnboard_PostSignup_FirstPipeline_MissingPrerequisiteSucceeds is the other half
+// of the exit-code rule: nothing was attempted, so onboard succeeds with guidance.
 func TestOnboard_PostSignup_FirstPipeline_MissingPrerequisiteSucceeds(t *testing.T) {
 	dir, fake, env := onboardDotnetRepo(t)
 	// The GitHub App is installed but has not been granted this repository, so the

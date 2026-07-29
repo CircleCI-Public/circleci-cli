@@ -321,12 +321,9 @@ func selectOrg(ctx context.Context, orgs []apiclient.Collaboration) *apiclient.C
 }
 
 // stopWithGuidance prints how to connect the repository by hand and ends the run
-// successfully.
-//
-// Everything up to the point where the project exists is recoverable this way: the
-// user is told exactly what to run, so stopping here is not the command failing.
-// Once a request has been made and rejected, setupFirstPipeline returns a real
-// error instead.
+// successfully. Everything up to the point where the project exists is recoverable
+// this way; once a request has been made and rejected, setupFirstPipeline returns a
+// real error instead.
 func stopWithGuidance(ctx context.Context) error {
 	printManualGuidance(ctx)
 	return nil
@@ -493,24 +490,14 @@ func writeProjectRef(ctx context.Context, workDir string, proj *apiclient.Projec
 // the github_app provider, and the repo's external ID for both config and
 // checkout sources).
 //
-// A missing prerequisite and a failed request are different outcomes, and the
-// exit code distinguishes them.
-//
-// When a prerequisite is absent — no GitHub App, the repository not granted to it,
-// a repository that is not on GitHub — nothing was attempted. The user has a clear
-// next step, so onboard prints it and succeeds; reporting a failure for work it
-// never began would make a first run look broken.
-//
-// When a request was made and the API rejected it, that is a failure. It also
-// leaves the project half-configured — a definition with no trigger will never
-// build — which is exactly the state a script must not read as success.
-// `circleci pipeline create` and `circleci project trigger create` return a
-// structured error for these same endpoints; onboard was discarding it.
+// A missing prerequisite — no GitHub App, the repository not granted to it, a repo
+// that is not on GitHub — means nothing was attempted, so onboard prints the next
+// step and succeeds. A request the API rejected is a real error: it leaves the
+// project half-configured, and a definition with no trigger will never build.
 func setupFirstPipeline(ctx context.Context, client *apiclient.Client, returnURL string, proj *apiclient.ProjectInfo, remote gitRemote, opts Options) error {
 	repoID := resolveRepoID(ctx, client, returnURL, proj, remote, opts)
 	if repoID == "" {
-		// Without the repo's external ID we can't create the pipeline
-		// definition. The project still exists; guide the user to finish setup.
+		// No external ID, so there is nothing to attach a definition to.
 		trackOnboard(ctx, "onboard_project_setup", map[string]any{"outcome": "skipped_no_repo_id"})
 		printManualPipelineGuidance(ctx)
 		return nil
