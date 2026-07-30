@@ -2,6 +2,7 @@ Usage:  circleci run get [<run-id>] [flags]
 
 Flags:
   -b, --branch string    Branch name (defaults to the current branch, or main when --project is set)
+      --failure-report   Print condensed output for every failed step; intended for agent consumption
       --jq string        Process values from the response using jq syntax
       --json             Output as JSON
   -m, --mine             Filter to runs owned by you.
