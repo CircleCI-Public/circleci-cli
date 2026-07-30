@@ -34,14 +34,14 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/internal/iostream"
 )
 
-// runLogFailed prints condensed output for every failed step in the run,
+// runFailureReport prints condensed output for every failed step in the run,
 // organised as workflow → job → execution → step headers. It is the output path
-// for --log-failed and never enters the TUI.
+// for --failure-report and never enters the TUI.
 //
 // Output is written to stdout so it can be piped directly into an agent's
 // context window. Empty output (no failed steps, or run not in a failed state)
 // is valid and exits 0.
-func runLogFailed(ctx context.Context, client *apiclient.Client, r *apiclient.RunV3) error {
+func runFailureReport(ctx context.Context, client *apiclient.Client, r *apiclient.RunV3) error {
 	workflows, err := client.GetRunWorkflowsV3(ctx, r.ID)
 	if err != nil {
 		if httpcl.HasStatusCode(err, http.StatusNotFound) {

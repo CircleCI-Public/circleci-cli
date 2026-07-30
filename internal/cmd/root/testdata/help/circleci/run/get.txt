@@ -32,9 +32,9 @@ For more information about output formatting flags, see `circleci help formattin
 | Flag                  | Description                                                                  |
 | --------------------- | ---------------------------------------------------------------------------- |
 | `-b, --branch string` | Branch name (defaults to the current branch, or main when --project is set)  |
+| `--failure-report`    | Print condensed output for every failed step; intended for agent consumption |
 | `--jq string`         | Process values from the response using jq syntax                             |
 | `--json`              | Output as JSON                                                               |
-| `--log-failed`        | Print condensed output for every failed step; intended for agent consumption |
 | `-m, --mine`          | Filter to runs owned by you.                                                 |
 | `--no-interactive`    | Skip the interactive picker and resolve the latest run directly              |
 | `--project string`    | Project slug (e.g. gh/org/repo); used for latest-run lookup                  |

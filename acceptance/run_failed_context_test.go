@@ -43,12 +43,12 @@ const (
 	fcJob3ID = "d0000000-0000-4000-8000-0000000000f3" // succeeded, no failures — should not appear
 )
 
-// --- run get --log-failed ---
+// --- run get --failure-report ---
 
 // TestRunGet_FailedContext prints condensed output for every failed step across
 // a run's workflows and jobs, organised as workflow -> job -> step headers, and
 // bypasses the interactive TUI even in a TTY-less run (the default acceptance
-// invocation is already non-interactive, but --log-failed is what forces it).
+// invocation is already non-interactive, but --failure-report is what forces it).
 func TestRunGet_FailedContext(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
 	fake.AddRunV3(fcRunID, runTestProjectID, fakeRunV3(fcRunID, runTestProjectID, "ended", "failed", "main", "abc1234def5678"))
@@ -102,7 +102,7 @@ func TestRunGet_FailedContext(t *testing.T) {
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"run", "get", fcRunID, "--log-failed"},
+		Args:    []string{"run", "get", fcRunID, "--failure-report"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
@@ -154,7 +154,7 @@ func TestRunGet_FailedContext_ParallelExecution(t *testing.T) {
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"run", "get", fcRunID, "--log-failed"},
+		Args:    []string{"run", "get", fcRunID, "--failure-report"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
@@ -198,7 +198,7 @@ func TestRunGet_FailedContext_NoFailures(t *testing.T) {
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"run", "get", fcRunID, "--log-failed"},
+		Args:    []string{"run", "get", fcRunID, "--failure-report"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
@@ -208,22 +208,22 @@ func TestRunGet_FailedContext_NoFailures(t *testing.T) {
 	assert.Check(t, cmp.Equal(result.Stderr, ""))
 }
 
-// TestRunGet_LogFailed_RejectsJSON verifies that combining --log-failed with
+// TestRunGet_FailureReport_RejectsJSON verifies that combining --failure-report with
 // --json exits non-zero with a user-facing error.
-func TestRunGet_LogFailed_RejectsJSON(t *testing.T) {
+func TestRunGet_FailureReport_RejectsJSON(t *testing.T) {
 	env := testenv.New(t)
 	env.Token = testToken
 	env.CircleCIURL = "https://circleci.com" // never reached
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"run", "get", fcRunID, "--log-failed", "--json"},
+		Args:    []string{"run", "get", fcRunID, "--failure-report", "--json"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
 
 	assert.Check(t, cmp.Equal(result.ExitCode, 2))
-	assert.Check(t, cmp.Contains(result.Stderr, "run.log_failed_no_json"))
+	assert.Check(t, cmp.Contains(result.Stderr, "run.failure_report_no_json"))
 }
 
 // TestRunGet_FailedContext_WorkflowsNotFound exits 0 with no output when the
@@ -239,7 +239,7 @@ func TestRunGet_FailedContext_WorkflowsNotFound(t *testing.T) {
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"run", "get", fcRunID, "--log-failed"},
+		Args:    []string{"run", "get", fcRunID, "--failure-report"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
