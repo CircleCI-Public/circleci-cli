@@ -283,13 +283,10 @@ func postSignupGuidance(ctx context.Context, dir string, opts Options) error {
 		iostream.Printf(ctx, "  Pipelines: %s\n", pipelinesURL)
 	}
 
-	// Where GitHub returns the browser after a GitHub App install. The project's
-	// own page is the most useful landing spot; the app URL is the fallback when a
-	// slug could not be turned into one.
-	returnURL := pipelinesURL
-	if returnURL == "" {
-		returnURL = appURL
-	}
+	// Where GitHub returns the browser after a GitHub App install. Landing on the
+	// project's own page reads as a finish line, in the browser, while the rest of
+	// setup is still waiting back in the terminal.
+	returnURL := cmdutil.GitHubAppInstalledURL(appURL)
 	return setupFirstPipeline(ctx, client, returnURL, proj, remote, opts)
 }
 

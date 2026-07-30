@@ -23,6 +23,7 @@
 package acceptance_test
 
 import (
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -829,6 +830,43 @@ func TestOnboard_PostSignup_FirstPipeline_MissingPrerequisiteSucceeds(t *testing
 	assert.Check(t, cmp.Contains(result.Stdout, "Project created: my-repo"))
 	assert.Check(t, cmp.Contains(result.Stderr, "can't access myorg/my-repo"))
 	assert.Check(t, cmp.Contains(result.Stdout, "circleci pipeline create"))
+}
+
+// TestOnboard_PostSignup_GitHubAppInstall_ReturnURL pins where the browser is sent
+// once the install finishes. The project's own page would report success in the
+// browser while the rest of setup sits waiting in the terminal.
+func TestOnboard_PostSignup_GitHubAppInstall_ReturnURL(t *testing.T) {
+	dir, fake, env := onboardDotnetRepo(t)
+	// The app is left uninstalled, so onboard initiates an install and has to hand
+	// over a return URL. Every other test here starts from an installed app, which
+	// never reaches this request.
+	addFakeDotnet(t, env, false)
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"onboard", "--scan"},
+		Env:     env.Environ(),
+		WorkDir: dir,
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+
+	var returnURLs []string
+	for _, req := range fake.AllRequests() {
+		if req.Method != http.MethodPost || req.URL.Path != "/api/v2/github-app/install" {
+			continue
+		}
+		var body struct {
+			ReturnURL string `json:"return_url"`
+		}
+		assert.NilError(t, req.Decode(&body))
+		returnURLs = append(returnURLs, body.ReturnURL)
+	}
+
+	assert.Assert(t, cmp.Len(returnURLs, 1))
+	assert.Check(t, strings.HasSuffix(returnURLs[0], "/cli/github-app-installed"),
+		"return_url should land on the page that points back at the terminal, got %q", returnURLs[0])
+	assert.Check(t, !strings.Contains(returnURLs[0], "/pipelines/"),
+		"the project's pipelines page reads as a finish line in the browser, got %q", returnURLs[0])
 }
 
 func TestOnboard_PostSignup_ClassicOrg_FollowsProject(t *testing.T) {
