@@ -27,6 +27,7 @@ import (
 	"time"
 
 	"gotest.tools/v3/assert"
+	"gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/golden"
 
 	"github.com/CircleCI-Public/circleci-cli/internal/testing/binary"
@@ -106,8 +107,9 @@ func TestRunGet_FailedContext(t *testing.T) {
 		WorkDir: t.TempDir(),
 	})
 
-	assert.Equal(t, result.ExitCode, 0)
+	assert.Check(t, cmp.Equal(result.ExitCode, 0))
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, cmp.Equal(result.Stderr, ""))
 }
 
 // TestRunGet_FailedContext_ParallelExecution exercises a parallel job (two
@@ -157,8 +159,9 @@ func TestRunGet_FailedContext_ParallelExecution(t *testing.T) {
 		WorkDir: t.TempDir(),
 	})
 
-	assert.Equal(t, result.ExitCode, 0)
+	assert.Check(t, cmp.Equal(result.ExitCode, 0))
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, cmp.Equal(result.Stderr, ""))
 }
 
 // TestRunGet_FailedContext_NoFailures exits 0 with no output when the run has no
@@ -200,8 +203,9 @@ func TestRunGet_FailedContext_NoFailures(t *testing.T) {
 		WorkDir: t.TempDir(),
 	})
 
-	assert.Equal(t, result.ExitCode, 0)
-	assert.Equal(t, result.Stdout, "")
+	assert.Check(t, cmp.Equal(result.ExitCode, 0))
+	assert.Check(t, cmp.Equal(result.Stdout, ""))
+	assert.Check(t, cmp.Equal(result.Stderr, ""))
 }
 
 // TestRunGet_FailedContext_WorkflowsNotFound exits 0 with no output when the
@@ -222,6 +226,7 @@ func TestRunGet_FailedContext_WorkflowsNotFound(t *testing.T) {
 		WorkDir: t.TempDir(),
 	})
 
-	assert.Equal(t, result.ExitCode, 0)
-	assert.Equal(t, result.Stdout, "")
+	assert.Check(t, cmp.Equal(result.ExitCode, 0))
+	assert.Check(t, cmp.Equal(result.Stdout, ""))
+	assert.Check(t, cmp.Equal(result.Stderr, ""))
 }
