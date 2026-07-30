@@ -208,6 +208,24 @@ func TestRunGet_FailedContext_NoFailures(t *testing.T) {
 	assert.Check(t, cmp.Equal(result.Stderr, ""))
 }
 
+// TestRunGet_LogFailed_RejectsJSON verifies that combining --log-failed with
+// --json exits non-zero with a user-facing error.
+func TestRunGet_LogFailed_RejectsJSON(t *testing.T) {
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = "https://circleci.com" // never reached
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"run", "get", fcRunID, "--log-failed", "--json"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 2))
+	assert.Check(t, cmp.Contains(result.Stderr, "run.log_failed_no_json"))
+}
+
 // TestRunGet_FailedContext_WorkflowsNotFound exits 0 with no output when the
 // run's workflows have not materialised yet (404).
 func TestRunGet_FailedContext_WorkflowsNotFound(t *testing.T) {

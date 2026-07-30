@@ -40,6 +40,7 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/internal/cmd/job"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmd/workflow"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmdutil"
+	clierrors "github.com/CircleCI-Public/circleci-cli/internal/errors"
 	"github.com/CircleCI-Public/circleci-cli/internal/gitremote"
 	"github.com/CircleCI-Public/circleci-cli/internal/httpcl"
 	"github.com/CircleCI-Public/circleci-cli/internal/iostream"
@@ -121,6 +122,12 @@ func newGetCmd() *cobra.Command {
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
+			if logFailed && (jsonOut || cmd.Flags().Changed("jq")) {
+				return clierrors.New("run.log_failed_no_json",
+					"--log-failed cannot be combined with --json or --jq",
+					"--log-failed prints plain-text output for agent consumption and does not support JSON formatting.").
+					WithExitCode(clierrors.ExitBadArguments)
+			}
 			client, err := cmdutil.LoadClient(ctx)
 			if err != nil {
 				return err
