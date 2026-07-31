@@ -64,7 +64,7 @@ func runFailureReport(ctx context.Context, client *apiclient.Client, r *apiclien
 			jobDetail, err := client.GetJobV3(ctx, j.ID)
 			if err != nil {
 				if httpcl.HasStatusCode(err, http.StatusNotFound) {
-					continue // job hasn't run yet (not-run / skipped jobs return 404)
+					continue
 				}
 				return apiErr(err, j.ID.String())
 			}
