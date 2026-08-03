@@ -15,6 +15,13 @@ Use `gotest.tools/v3/assert` for test assertions:
 `assert.Assert` and `assert.Check` both accept three kinds of argument: a `bool`
 expression, a `cmp.Comparison`, or an `error`.
 
+## Document in code rather than comments
+
+Prefer to break up the tests into meaningful groupings using `t.Run`. This offers some advantages:
+- It groups the output of the specific assertions, setup, etc together.
+- The timings for those groups are automatically recorded.
+- The purpose of the groups is logged clearly in the test output, without needing to read the code.
+
 ## Assert vs Check
 
 `assert.Check` calls `t.Fail` and returns `false`, allowing the test to continue
