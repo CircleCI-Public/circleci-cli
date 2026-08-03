@@ -63,6 +63,9 @@ func runFailureReport(ctx context.Context, client *apiclient.Client, r *apiclien
 		for _, j := range jobs {
 			jobDetail, err := client.GetJobV3(ctx, j.ID)
 			if err != nil {
+				if httpcl.HasStatusCode(err, http.StatusNotFound) {
+					continue
+				}
 				return apiErr(err, j.ID.String())
 			}
 

@@ -41,6 +41,7 @@ const (
 	fcJob1ID = "d0000000-0000-4000-8000-0000000000f1" // single execution, one failed step
 	fcJob2ID = "d0000000-0000-4000-8000-0000000000f2" // parallel job, one of two executions failed
 	fcJob3ID = "d0000000-0000-4000-8000-0000000000f3" // succeeded, no failures — should not appear
+	fcJob4ID = "d0000000-0000-4000-8000-0000000000f4" // not-run job — GetJobV3 returns 404
 )
 
 // --- run get --failure-report ---
@@ -224,6 +225,58 @@ func TestRunGet_FailureReport_RejectsJSON(t *testing.T) {
 
 	assert.Check(t, cmp.Equal(result.ExitCode, 2))
 	assert.Check(t, cmp.Contains(result.Stderr, "run.failure_report_no_json"))
+}
+
+// TestRunGet_FailedContext_JobNotFound verifies that jobs whose GetJobV3 call
+// returns 404 (not-run / skipped jobs) are silently skipped rather than
+// aborting the report with an error. This reproduces a real-world failure where
+// workflows contain jobs with no status (e.g. "deploy.release-reporting") that
+// the API cannot serve because they never executed.
+func TestRunGet_FailedContext_JobNotFound(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	fake.AddRunV3(fcRunID, runTestProjectID, fakeRunV3(fcRunID, runTestProjectID, "ended", "failed", "main", "abc1234def5678"))
+	fake.AddRunWorkflowsV3(fcRunID, fakeWorkflowV3(fcWfID, "build", fcRunID, runTestProjectID, "ended", "failed"))
+	// fcJob4ID is intentionally NOT registered with AddJobV3 — the fake returns
+	// 404 for it, simulating a not-run job in the workflow job list.
+	fake.AddWorkflowJobsV3(fcWfID,
+		fakeJobV3(fcJob1ID, "run-tests", fcWfID, runTestProjectID),
+		fakeJobV3(fcJob4ID, "deploy.release-reporting", fcWfID, runTestProjectID),
+	)
+
+	now := time.Date(2020, 1, 1, 12, 0, 0, 0, time.UTC).Format(v3TimeFormat)
+	fake.AddJobV3(fcJob1ID, map[string]any{"data": map[string]any{
+		"id": fcJob1ID,
+		"attributes": map[string]any{
+			"name": "run-tests", "type": "build", "phase": "ended", "outcome": "failed",
+			"started_at": now, "ended_at": now,
+			"parallel_executions": []map[string]any{{
+				"steps": []map[string]any{
+					{"name": "Spin up environment", "type": "spinup_environment", "num": 0, "phase": "ended", "outcome": "succeeded", "started_at": now, "ended_at": now},
+					{"name": "run tests", "type": "run", "num": 101, "phase": "ended", "outcome": "failed", "exit_code": 1, "started_at": now, "ended_at": now},
+				},
+			}},
+		},
+		"references": map[string]any{
+			"workflow": map[string]any{"id": fcWfID},
+			"project":  map[string]any{"id": runTestProjectID},
+		},
+	}})
+	fake.AddJobStdoutCondensed(fcJob1ID, 0, 101, []byte("FAILURE: 2 tests failed\n"))
+
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"run", "get", fcRunID, "--failure-report"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 0))
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, cmp.Equal(result.Stderr, ""))
 }
 
 // TestRunGet_FailedContext_WorkflowsNotFound exits 0 with no output when the
