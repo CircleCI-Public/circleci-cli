@@ -1,15 +1,8 @@
-# CircleCI CLI
-
-Upload, list, and delete Apple .p12 code signing certificates stored in
-your CircleCI organization's secure storage.
-
-Certificates are referenced by ID from a signing config. Deleting a
-certificate that is referenced by a signing config will invalidate that
-signing config.
+Manage iOS code signing certificates
 
 ## Usage
 
-`circleci certificate <command> [flags]`
+`circleci certificate <command>`
 
 ## General Commands
 
@@ -24,18 +17,16 @@ signing config.
 | `delete` | Delete an iOS certificate |
 | `upload` | Upload a .p12 certificate |
 
-## Inherited Flags
+## Flags
 
-| Flag                  | Description                                                  |
-| --------------------- | ------------------------------------------------------------ |
-| `-c, --config string` | Path to config file (default: ~/.config/circleci/config.yml) |
-| `--debug`             | Enable debug logging                                         |
-| `--no-color`          | Disable ANSI color output (same as setting NO_COLOR)         |
-| `-q, --quiet`         | Suppress informational output. Data on stdout is unaffected  |
+Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `circleci --help`.
 
-## Learn More
+## Details
 
-- Use `circleci <command> <subcommand> --help` for more information about a command.
-- Read the manual at <https://cli.circleci.com/reference/>
-- Support at <https://github.com/CircleCI-Public/circleci-cli/issues>
+Upload, list, and delete Apple .p12 code signing certificates stored in
+your CircleCI organization's secure storage.
+
+Certificates are referenced by ID from a signing config. Deleting a
+certificate that is referenced by a signing config will invalidate that
+signing config.
 

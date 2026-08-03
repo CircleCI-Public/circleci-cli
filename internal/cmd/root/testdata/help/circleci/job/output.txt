@@ -1,13 +1,8 @@
-# CircleCI CLI
-
-Fetch the raw stdout and stderr produced by a job's steps.
-
-Steps are identified by their step number within a job; for parallel
-jobs, an execution index selects which executor's output to fetch.
+Work with job step output
 
 ## Usage
 
-`circleci job output <command> [flags]`
+`circleci job output <command>`
 
 ## Available Commands
 
@@ -16,18 +11,14 @@ jobs, an execution index selects which executor's output to fetch.
 | `get`   | Get the output of a job step         |
 | `list`  | List a job's steps with their output |
 
-## Inherited Flags
+## Flags
 
-| Flag                  | Description                                                  |
-| --------------------- | ------------------------------------------------------------ |
-| `-c, --config string` | Path to config file (default: ~/.config/circleci/config.yml) |
-| `--debug`             | Enable debug logging                                         |
-| `--no-color`          | Disable ANSI color output (same as setting NO_COLOR)         |
-| `-q, --quiet`         | Suppress informational output. Data on stdout is unaffected  |
+Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `circleci --help`.
 
-## Learn More
+## Details
 
-- Use `circleci <command> <subcommand> --help` for more information about a command.
-- Read the manual at <https://cli.circleci.com/reference/>
-- Support at <https://github.com/CircleCI-Public/circleci-cli/issues>
+Fetch the raw stdout and stderr produced by a job's steps.
+
+Steps are identified by their step number within a job; for parallel
+jobs, an execution index selects which executor's output to fetch.
 

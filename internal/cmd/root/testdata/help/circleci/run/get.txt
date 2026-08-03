@@ -1,4 +1,45 @@
-# CircleCI CLI
+Get a run's status
+
+## Usage
+
+`circleci run get [<run-id>] [flags]`
+
+## Arguments
+
+`<run-id>` is optional and is the UUID of the run to look up. When
+omitted, the latest run is resolved from the project and branch
+inferred from the current git repository's remote and checked-out
+branch (override with `--project` and `--branch`). With
+`--project` set, the branch defaults to main unless `--branch` is given.
+
+## Flags
+
+| Flag                  | Description                                                                       |
+| --------------------- | --------------------------------------------------------------------------------- |
+| `-b, --branch string` | Branch name (defaults to the current branch, or main when --project is set)       |
+| `--failure-report`    | Print condensed output for every failed step; intended for agent consumption      |
+| `--jq string`         | Process values from the response using jq syntax (see `circleci help formatting`) |
+| `--json`              | Output as JSON                                                                    |
+| `-m, --mine`          | Filter to runs owned by you.                                                      |
+| `--no-interactive`    | Skip the interactive picker and resolve the latest run directly                   |
+| `--project string`    | Project slug (e.g. gh/org/repo); used for latest-run lookup                       |
+
+Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `circleci --help`.
+
+## Examples
+
+- Get the latest run for the current branch: 
+  `circleci run get`
+- Get a run by UUID: 
+  `circleci run get 5034460f-c7c4-4c43-9457-de07e2029e7b`
+- Output as JSON for scripting: 
+  `circleci run get --json`
+- Get only your runs: 
+  `circleci run get --mine`
+- Skip the picker and resolve the latest run directly: 
+  `circleci run get --no-interactive`
+
+## Details
 
 Display the status of a CircleCI run and its workflows.
 
@@ -20,58 +61,4 @@ JSON fields: id, phase, outcome, current_outcome, branch, tag, revision,
              created_at, errors[].type/message,
              workflows[].id/name/phase/outcome/current_outcome/duration/
              jobs[].id/name/phase/outcome/current_outcome/type
-
-For more information about output formatting flags, see `circleci help formatting`.
-
-## Usage
-
-`circleci run get [<run-id>] [flags]`
-
-## Flags
-
-| Flag                  | Description                                                                  |
-| --------------------- | ---------------------------------------------------------------------------- |
-| `-b, --branch string` | Branch name (defaults to the current branch, or main when --project is set)  |
-| `--failure-report`    | Print condensed output for every failed step; intended for agent consumption |
-| `--jq string`         | Process values from the response using jq syntax                             |
-| `--json`              | Output as JSON                                                               |
-| `-m, --mine`          | Filter to runs owned by you.                                                 |
-| `--no-interactive`    | Skip the interactive picker and resolve the latest run directly              |
-| `--project string`    | Project slug (e.g. gh/org/repo); used for latest-run lookup                  |
-
-## Inherited Flags
-
-| Flag                  | Description                                                  |
-| --------------------- | ------------------------------------------------------------ |
-| `-c, --config string` | Path to config file (default: ~/.config/circleci/config.yml) |
-| `--debug`             | Enable debug logging                                         |
-| `--no-color`          | Disable ANSI color output (same as setting NO_COLOR)         |
-| `-q, --quiet`         | Suppress informational output. Data on stdout is unaffected  |
-
-## Arguments
-
-`<run-id>` is optional and is the UUID of the run to look up. When
-omitted, the latest run is resolved from the project and branch
-inferred from the current git repository's remote and checked-out
-branch (override with `--project` and `--branch`). With
-`--project` set, the branch defaults to main unless `--branch` is given.
-
-## Examples
-
-- Get the latest run for the current branch: 
-  `circleci run get`
-- Get a run by UUID: 
-  `circleci run get 5034460f-c7c4-4c43-9457-de07e2029e7b`
-- Output as JSON for scripting: 
-  `circleci run get --json`
-- Get only your runs: 
-  `circleci run get --mine`
-- Skip the picker and resolve the latest run directly: 
-  `circleci run get --no-interactive`
-
-## Learn More
-
-- Use `circleci <command> <subcommand> --help` for more information about a command.
-- Read the manual at <https://cli.circleci.com/reference/>
-- Support at <https://github.com/CircleCI-Public/circleci-cli/issues>
 

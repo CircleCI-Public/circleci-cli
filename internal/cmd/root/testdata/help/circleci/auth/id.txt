@@ -1,15 +1,4 @@
-# CircleCI CLI
-
-Print the device ID for this CLI installation as "`<os>:<uuid>`".
-
-The UUID is generated on first use and stored in the config file.
-The OS prefix (e.g. darwin, linux) is added at print time so you
-can identify the machine and platform at a glance. The same UUID
-is sent with every OAuth authorization request, so you can match
-a token in the CircleCI UI back to this installation.
-
-JSON fields:
-  device_id  string  Stable identifier in the form `<os>:<uuid>`
+Show the device ID for this CLI installation
 
 ## Usage
 
@@ -21,14 +10,7 @@ JSON fields:
 | -------- | -------------- |
 | `--json` | Output as JSON |
 
-## Inherited Flags
-
-| Flag                  | Description                                                  |
-| --------------------- | ------------------------------------------------------------ |
-| `-c, --config string` | Path to config file (default: ~/.config/circleci/config.yml) |
-| `--debug`             | Enable debug logging                                         |
-| `--no-color`          | Disable ANSI color output (same as setting NO_COLOR)         |
-| `-q, --quiet`         | Suppress informational output. Data on stdout is unaffected  |
+Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `circleci --help`.
 
 ## Examples
 
@@ -39,9 +21,16 @@ JSON fields:
 - Use in a script: 
   `DEVICE=$(circleci auth id)`
 
-## Learn More
+## Details
 
-- Use `circleci <command> <subcommand> --help` for more information about a command.
-- Read the manual at <https://cli.circleci.com/reference/>
-- Support at <https://github.com/CircleCI-Public/circleci-cli/issues>
+Print the device ID for this CLI installation as "`<os>:<uuid>`".
+
+The UUID is generated on first use and stored in the config file.
+The OS prefix (e.g. darwin, linux) is added at print time so you
+can identify the machine and platform at a glance. The same UUID
+is sent with every OAuth authorization request, so you can match
+a token in the CircleCI UI back to this installation.
+
+JSON fields:
+  device_id  string  Stable identifier in the form `<os>:<uuid>`
 

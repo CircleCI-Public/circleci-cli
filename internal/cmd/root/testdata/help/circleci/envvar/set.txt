@@ -1,17 +1,14 @@
-# CircleCI CLI
-
-Create or update an environment variable for a CircleCI project.
-
-If the variable already exists it will be overwritten. The value
-is never retrievable after being set — CircleCI masks it in all
-subsequent list responses.
-
-The project is inferred from the current git repository's remote
-unless overridden with --project.
+Set a project environment variable
 
 ## Usage
 
 `circleci envvar set <name> <value> [flags]`
+
+## Arguments
+
+`<name>` is the name of the environment variable to create or
+update. `<value>` is the value to store; it is never retrievable
+after being set and is masked in all subsequent list output.
 
 ## Flags
 
@@ -19,20 +16,7 @@ unless overridden with --project.
 | ------------------ | ------------------------------------------------------- |
 | `--project string` | Project slug (e.g. gh/org/repo); defaults to git remote |
 
-## Inherited Flags
-
-| Flag                  | Description                                                  |
-| --------------------- | ------------------------------------------------------------ |
-| `-c, --config string` | Path to config file (default: ~/.config/circleci/config.yml) |
-| `--debug`             | Enable debug logging                                         |
-| `--no-color`          | Disable ANSI color output (same as setting NO_COLOR)         |
-| `-q, --quiet`         | Suppress informational output. Data on stdout is unaffected  |
-
-## Arguments
-
-`<name>` is the name of the environment variable to create or
-update. `<value>` is the value to store; it is never retrievable
-after being set and is masked in all subsequent list output.
+Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `circleci --help`.
 
 ## Examples
 
@@ -43,9 +27,14 @@ after being set and is masked in all subsequent list output.
 - Read a value from a file: 
   `circleci envvar set MY_SECRET "$(cat secret.txt)"`
 
-## Learn More
+## Details
 
-- Use `circleci <command> <subcommand> --help` for more information about a command.
-- Read the manual at <https://cli.circleci.com/reference/>
-- Support at <https://github.com/CircleCI-Public/circleci-cli/issues>
+Create or update an environment variable for a CircleCI project.
+
+If the variable already exists it will be overwritten. The value
+is never retrievable after being set — CircleCI masks it in all
+subsequent list responses.
+
+The project is inferred from the current git repository's remote
+unless overridden with --project.
 

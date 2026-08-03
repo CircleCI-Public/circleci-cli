@@ -1,6 +1,4 @@
-# CircleCI CLI
-
-Add this application as an MCP server in VSCode
+Add server to VSCode config
 
 ## Usage
 
@@ -16,18 +14,9 @@ Add this application as an MCP server in VSCode
 | `--server-name string`     | Name for the MCP server (default "circleci-cli")                               |
 | `--workspace`              | Add to workspace settings (.vscode/mcp.json) instead of user settings          |
 
-## Inherited Flags
+Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `circleci --help`.
 
-| Flag                  | Description                                                  |
-| --------------------- | ------------------------------------------------------------ |
-| `-c, --config string` | Path to config file (default: ~/.config/circleci/config.yml) |
-| `--debug`             | Enable debug logging                                         |
-| `--no-color`          | Disable ANSI color output (same as setting NO_COLOR)         |
-| `-q, --quiet`         | Suppress informational output. Data on stdout is unaffected  |
+## Details
 
-## Learn More
-
-- Use `circleci <command> <subcommand> --help` for more information about a command.
-- Read the manual at <https://cli.circleci.com/reference/>
-- Support at <https://github.com/CircleCI-Public/circleci-cli/issues>
+Add this application as an MCP server in VSCode
 

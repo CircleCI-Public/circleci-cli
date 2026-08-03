@@ -1,12 +1,4 @@
-# CircleCI CLI
-
-Delete a CircleCI runner resource class.
-
-All tokens associated with the resource class will also be deleted.
-Connected runner instances will no longer be able to claim jobs.
-
-In a terminal, you will be prompted to confirm before deleting.
-Use --force (-f) to skip the prompt for scripting.
+Delete a runner resource class
 
 ## Usage
 
@@ -16,25 +8,18 @@ Use --force (-f) to skip the prompt for scripting.
 
 `circleci runner resource-class rm`
 
+## Arguments
+
+The resource class to delete, given in the form `namespace/name`,
+where namespace is your organization name (for example, `my-org/my-runner`).
+
 ## Flags
 
 | Flag          | Description              |
 | ------------- | ------------------------ |
 | `-f, --force` | skip confirmation prompt |
 
-## Inherited Flags
-
-| Flag                  | Description                                                  |
-| --------------------- | ------------------------------------------------------------ |
-| `-c, --config string` | Path to config file (default: ~/.config/circleci/config.yml) |
-| `--debug`             | Enable debug logging                                         |
-| `--no-color`          | Disable ANSI color output (same as setting NO_COLOR)         |
-| `-q, --quiet`         | Suppress informational output. Data on stdout is unaffected  |
-
-## Arguments
-
-The resource class to delete, given in the form `namespace/name`,
-where namespace is your organization name (for example, `my-org/my-runner`).
+Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `circleci --help`.
 
 ## Examples
 
@@ -45,9 +30,13 @@ where namespace is your organization name (for example, `my-org/my-runner`).
 - Delete in a script: 
   `circleci runner resource-class delete my-org/my-runner --force`
 
-## Learn More
+## Details
 
-- Use `circleci <command> <subcommand> --help` for more information about a command.
-- Read the manual at <https://cli.circleci.com/reference/>
-- Support at <https://github.com/CircleCI-Public/circleci-cli/issues>
+Delete a CircleCI runner resource class.
+
+All tokens associated with the resource class will also be deleted.
+Connected runner instances will no longer be able to claim jobs.
+
+In a terminal, you will be prompted to confirm before deleting.
+Use --force (-f) to skip the prompt for scripting.
 

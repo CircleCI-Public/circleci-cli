@@ -1,4 +1,38 @@
-# CircleCI CLI
+Delete a context
+
+## Usage
+
+`circleci context delete <context-id|context-name> [flags]`
+
+## Aliases
+
+`circleci context rm`
+
+## Arguments
+
+A context can be specified by name or ID:
+- By name, for example, `context-name`
+- By ID, for example, `849e7902-802f-4082-8a70-da77dcd084e3`
+
+## Flags
+
+| Flag           | Description                                                       |
+| -------------- | ----------------------------------------------------------------- |
+| `-f, --force`  | skip confirmation prompt                                          |
+| `--org string` | Organization slug (e.g. gh/myorg); used when resolving name to ID |
+
+Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `circleci --help`.
+
+## Examples
+
+- Delete a context by UUID (with confirmation): 
+  `circleci context delete ctx-uuid-here`
+- Delete a context by name (org inferred from git remote): 
+  `circleci context delete my-context`
+- Delete a context by name in a specific org, without confirmation: 
+  `circleci context delete my-context --org gh/myorg --force`
+
+## Details
 
 Delete a CircleCI context by UUID or name.
 
@@ -11,49 +45,4 @@ organization can be inferred from the remote.
 
 In a terminal, you will be prompted to confirm before deleting.
 Use --force (-f) to skip the prompt for scripting.
-
-## Usage
-
-`circleci context delete <context-id|context-name> [flags]`
-
-## Aliases
-
-`circleci context rm`
-
-## Flags
-
-| Flag           | Description                                                       |
-| -------------- | ----------------------------------------------------------------- |
-| `-f, --force`  | skip confirmation prompt                                          |
-| `--org string` | Organization slug (e.g. gh/myorg); used when resolving name to ID |
-
-## Inherited Flags
-
-| Flag                  | Description                                                  |
-| --------------------- | ------------------------------------------------------------ |
-| `-c, --config string` | Path to config file (default: ~/.config/circleci/config.yml) |
-| `--debug`             | Enable debug logging                                         |
-| `--no-color`          | Disable ANSI color output (same as setting NO_COLOR)         |
-| `-q, --quiet`         | Suppress informational output. Data on stdout is unaffected  |
-
-## Arguments
-
-A context can be specified by name or ID:
-- By name, for example, `context-name`
-- By ID, for example, `849e7902-802f-4082-8a70-da77dcd084e3`
-
-## Examples
-
-- Delete a context by UUID (with confirmation): 
-  `circleci context delete ctx-uuid-here`
-- Delete a context by name (org inferred from git remote): 
-  `circleci context delete my-context`
-- Delete a context by name in a specific org, without confirmation: 
-  `circleci context delete my-context --org gh/myorg --force`
-
-## Learn More
-
-- Use `circleci <command> <subcommand> --help` for more information about a command.
-- Read the manual at <https://cli.circleci.com/reference/>
-- Support at <https://github.com/CircleCI-Public/circleci-cli/issues>
 

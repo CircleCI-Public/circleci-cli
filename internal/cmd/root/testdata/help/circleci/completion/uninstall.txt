@@ -1,20 +1,12 @@
-# CircleCI CLI
-
-Remove the completion block previously added by 'circleci completion install'.
-Other content in your shell profile is left untouched.
+Remove shell completion from your shell profile
 
 ## Usage
 
-`circleci completion uninstall [flags]`
+`circleci completion uninstall`
 
-## Inherited Flags
+## Flags
 
-| Flag                  | Description                                                  |
-| --------------------- | ------------------------------------------------------------ |
-| `-c, --config string` | Path to config file (default: ~/.config/circleci/config.yml) |
-| `--debug`             | Enable debug logging                                         |
-| `--no-color`          | Disable ANSI color output (same as setting NO_COLOR)         |
-| `-q, --quiet`         | Suppress informational output. Data on stdout is unaffected  |
+Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `circleci --help`.
 
 ## Examples
 
@@ -25,9 +17,8 @@ Other content in your shell profile is left untouched.
 - Check whether completion is currently installed: 
   `grep -l "circleci shell completion" ~/.zshrc ~/.bashrc 2>/dev/null`
 
-## Learn More
+## Details
 
-- Use `circleci <command> <subcommand> --help` for more information about a command.
-- Read the manual at <https://cli.circleci.com/reference/>
-- Support at <https://github.com/CircleCI-Public/circleci-cli/issues>
+Remove the completion block previously added by 'circleci completion install'.
+Other content in your shell profile is left untouched.
 

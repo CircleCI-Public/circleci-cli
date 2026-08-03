@@ -1,4 +1,0 @@
-Usage:  circleci step <command>
-
-Available commands:
-  halt

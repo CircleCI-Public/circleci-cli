@@ -1,13 +1,4 @@
-# CircleCI CLI
-
-Delete a CircleCI orb namespace and all orbs published under it.
-
-This operation is irreversible. Any pipelines referencing orbs in
-this namespace will fail after deletion.
-
-In a terminal, you will be prompted to confirm before deleting.
-Use --force (-f) to skip the prompt for scripting.
-Use --dry-run (-n) to preview what would be deleted without deleting.
+Delete a namespace and all its orbs
 
 ## Usage
 
@@ -17,6 +8,10 @@ Use --dry-run (-n) to preview what would be deleted without deleting.
 
 `circleci namespace rm`
 
+## Arguments
+
+`<name>` is the name of the namespace to delete, for example, "myorg".
+
 ## Flags
 
 | Flag            | Description                                  |
@@ -24,18 +19,7 @@ Use --dry-run (-n) to preview what would be deleted without deleting.
 | `-n, --dry-run` | print what would be deleted without deleting |
 | `-f, --force`   | skip confirmation prompt                     |
 
-## Inherited Flags
-
-| Flag                  | Description                                                  |
-| --------------------- | ------------------------------------------------------------ |
-| `-c, --config string` | Path to config file (default: ~/.config/circleci/config.yml) |
-| `--debug`             | Enable debug logging                                         |
-| `--no-color`          | Disable ANSI color output (same as setting NO_COLOR)         |
-| `-q, --quiet`         | Suppress informational output. Data on stdout is unaffected  |
-
-## Arguments
-
-`<name>` is the name of the namespace to delete, for example, "myorg".
+Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `circleci --help`.
 
 ## Examples
 
@@ -48,9 +32,14 @@ Use --dry-run (-n) to preview what would be deleted without deleting.
 - Delete in a CI environment (non-interactive; --force required): 
   `circleci namespace delete myorg -f`
 
-## Learn More
+## Details
 
-- Use `circleci <command> <subcommand> --help` for more information about a command.
-- Read the manual at <https://cli.circleci.com/reference/>
-- Support at <https://github.com/CircleCI-Public/circleci-cli/issues>
+Delete a CircleCI orb namespace and all orbs published under it.
+
+This operation is irreversible. Any pipelines referencing orbs in
+this namespace will fail after deletion.
+
+In a terminal, you will be prompted to confirm before deleting.
+Use --force (-f) to skip the prompt for scripting.
+Use --dry-run (-n) to preview what would be deleted without deleting.
 

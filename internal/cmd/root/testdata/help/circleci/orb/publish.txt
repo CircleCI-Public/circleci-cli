@@ -1,19 +1,8 @@
-# CircleCI CLI
-
-Publish orb versions to the CircleCI orb registry.
-
-To publish a specific version:
-  circleci orb publish `<path> <namespace>/<orb>@<version>`
-
-To promote a dev version to a stable semver:
-  circleci orb publish promote `<namespace>/<orb>@dev:<label>` --bump major|minor|patch
-
-To increment the latest stable version and publish:
-  circleci orb publish increment `<path> <namespace>/<orb>` --bump major|minor|patch
+Publish orb versions
 
 ## Usage
 
-`circleci orb publish <command> [flags]`
+`circleci orb publish <command>`
 
 ## Available Commands
 
@@ -22,14 +11,9 @@ To increment the latest stable version and publish:
 | `increment` | Increment and publish a new orb version      |
 | `promote`   | Promote a dev orb version to a stable semver |
 
-## Inherited Flags
+## Flags
 
-| Flag                  | Description                                                  |
-| --------------------- | ------------------------------------------------------------ |
-| `-c, --config string` | Path to config file (default: ~/.config/circleci/config.yml) |
-| `--debug`             | Enable debug logging                                         |
-| `--no-color`          | Disable ANSI color output (same as setting NO_COLOR)         |
-| `-q, --quiet`         | Suppress informational output. Data on stdout is unaffected  |
+Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `circleci --help`.
 
 ## Examples
 
@@ -42,9 +26,16 @@ To increment the latest stable version and publish:
 - Increment major version and publish: 
   `circleci orb publish increment orb.yml myorg/my-orb --bump major`
 
-## Learn More
+## Details
 
-- Use `circleci <command> <subcommand> --help` for more information about a command.
-- Read the manual at <https://cli.circleci.com/reference/>
-- Support at <https://github.com/CircleCI-Public/circleci-cli/issues>
+Publish orb versions to the CircleCI orb registry.
+
+To publish a specific version:
+  circleci orb publish `<path> <namespace>/<orb>@<version>`
+
+To promote a dev version to a stable semver:
+  circleci orb publish promote `<namespace>/<orb>@dev:<label>` --bump major|minor|patch
+
+To increment the latest stable version and publish:
+  circleci orb publish increment `<path> <namespace>/<orb>` --bump major|minor|patch
 

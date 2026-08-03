@@ -1,4 +1,29 @@
-# CircleCI CLI
+Bundle split config files into a single YAML document
+
+## Usage
+
+`circleci config pack <path>`
+
+## Arguments
+
+`<path>` is the path to a split config directory to pack,
+for example, `.circleci` or `src/ci`. The directory structure is
+mapped to YAML keys in the merged document.
+
+## Flags
+
+Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `circleci --help`.
+
+## Examples
+
+- Pack the default config directory: 
+  `circleci config pack .circleci`
+- Pack and pipe to validate: 
+  `circleci config pack .circleci | circleci config validate --config -`
+- Pack a custom directory: 
+  `circleci config pack src/ci`
+
+## Details
 
 Bundle a split CircleCI config directory into a single YAML document.
 
@@ -16,38 +41,4 @@ Files whose names begin with "@" are merged at the current level
 rather than nested under a key.
 
 The merged YAML is printed to stdout.
-
-## Usage
-
-`circleci config pack <path> [flags]`
-
-## Inherited Flags
-
-| Flag                  | Description                                                  |
-| --------------------- | ------------------------------------------------------------ |
-| `-c, --config string` | Path to config file (default: ~/.config/circleci/config.yml) |
-| `--debug`             | Enable debug logging                                         |
-| `--no-color`          | Disable ANSI color output (same as setting NO_COLOR)         |
-| `-q, --quiet`         | Suppress informational output. Data on stdout is unaffected  |
-
-## Arguments
-
-`<path>` is the path to a split config directory to pack,
-for example, `.circleci` or `src/ci`. The directory structure is
-mapped to YAML keys in the merged document.
-
-## Examples
-
-- Pack the default config directory: 
-  `circleci config pack .circleci`
-- Pack and pipe to validate: 
-  `circleci config pack .circleci | circleci config validate --config -`
-- Pack a custom directory: 
-  `circleci config pack src/ci`
-
-## Learn More
-
-- Use `circleci <command> <subcommand> --help` for more information about a command.
-- Read the manual at <https://cli.circleci.com/reference/>
-- Support at <https://github.com/CircleCI-Public/circleci-cli/issues>
 

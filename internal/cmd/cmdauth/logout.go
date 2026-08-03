@@ -25,6 +25,7 @@ package cmdauth
 import (
 	"context"
 
+	"github.com/MakeNowJust/heredoc"
 	"github.com/spf13/cobra"
 
 	"github.com/CircleCI-Public/circleci-cli/internal/cmdutil"
@@ -39,7 +40,25 @@ func newLogoutCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "logout",
 		Short: "Log out of a CircleCI account",
-		Args:  cobra.NoArgs,
+		Long: heredoc.Doc(`
+			Remove the stored API token, from the system keyring or from the YAML
+			config file depending on where it was saved.
+
+			CIRCLE_TOKEN is not affected: while it is set in the environment it
+			takes precedence over stored credentials, so the CLI stays
+			authenticated after logging out.
+		`),
+		Example: heredoc.Doc(`
+			# Log out of the current account
+			$ circleci auth logout
+
+			# Log out, then sign in as a different account
+			$ circleci auth logout && circleci auth login
+
+			# Log out without printing the confirmation line
+			$ circleci auth logout --quiet
+		`),
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 			secureStorage := cmdutil.IsSecureStorage(cmd)

@@ -1,12 +1,4 @@
-# CircleCI CLI
-
-Open the CircleCI runs page for the current project in your
-default web browser.
-
-The project is inferred from the current git repository's remote.
-Supports GitHub, Bitbucket, and GitLab remotes.
-
-Use --current-branch or --branch/-b to filter runs to a specific branch.
+Open the current project's runs page in the browser
 
 ## Usage
 
@@ -19,14 +11,7 @@ Use --current-branch or --branch/-b to filter runs to a specific branch.
 | `-b, --branch string` | Branch name (defaults to current branch)                    |
 | `--project string`    | Project slug (e.g. gh/org/repo); used for latest-run lookup |
 
-## Inherited Flags
-
-| Flag                  | Description                                                  |
-| --------------------- | ------------------------------------------------------------ |
-| `-c, --config string` | Path to config file (default: ~/.config/circleci/config.yml) |
-| `--debug`             | Enable debug logging                                         |
-| `--no-color`          | Disable ANSI color output (same as setting NO_COLOR)         |
-| `-q, --quiet`         | Suppress informational output. Data on stdout is unaffected  |
+Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `circleci --help`.
 
 ## Examples
 
@@ -41,9 +26,13 @@ Use --current-branch or --branch/-b to filter runs to a specific branch.
 - Open when your remote is on CircleCI server: 
   `circleci run open --host https://circleci.example.com`
 
-## Learn More
+## Details
 
-- Use `circleci <command> <subcommand> --help` for more information about a command.
-- Read the manual at <https://cli.circleci.com/reference/>
-- Support at <https://github.com/CircleCI-Public/circleci-cli/issues>
+Open the CircleCI runs page for the current project in your
+default web browser.
+
+The project is inferred from the current git repository's remote.
+Supports GitHub, Bitbucket, and GitLab remotes.
+
+Use --current-branch or --branch/-b to filter runs to a specific branch.
 

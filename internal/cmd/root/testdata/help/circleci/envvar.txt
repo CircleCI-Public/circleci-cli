@@ -1,18 +1,8 @@
-# CircleCI CLI
-
-List, set, and delete environment variables for a CircleCI project.
-
-The project is inferred from the current git repository's remote
-unless overridden with --project.
-
-Environment variable values are masked in list output (shown as "xxxx").
-The full value is never retrievable after it has been set.
-
-Also available as: circleci project envvar `<command>`
+List, set and delete a project's environment variables
 
 ## Usage
 
-`circleci envvar <command> [flags]`
+`circleci envvar <command>`
 
 ## General Commands
 
@@ -27,14 +17,9 @@ Also available as: circleci project envvar `<command>`
 | `delete` | Delete a project environment variable |
 | `set`    | Set a project environment variable    |
 
-## Inherited Flags
+## Flags
 
-| Flag                  | Description                                                  |
-| --------------------- | ------------------------------------------------------------ |
-| `-c, --config string` | Path to config file (default: ~/.config/circleci/config.yml) |
-| `--debug`             | Enable debug logging                                         |
-| `--no-color`          | Disable ANSI color output (same as setting NO_COLOR)         |
-| `-q, --quiet`         | Suppress informational output. Data on stdout is unaffected  |
+Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `circleci --help`.
 
 ## Examples
 
@@ -45,9 +30,15 @@ Also available as: circleci project envvar `<command>`
 - Delete an environment variable: 
   `circleci envvar delete MY_SECRET`
 
-## Learn More
+## Details
 
-- Use `circleci <command> <subcommand> --help` for more information about a command.
-- Read the manual at <https://cli.circleci.com/reference/>
-- Support at <https://github.com/CircleCI-Public/circleci-cli/issues>
+List, set, and delete environment variables for a CircleCI project.
+
+The project is inferred from the current git repository's remote
+unless overridden with --project.
+
+Environment variable values are masked in list output (shown as "xxxx").
+The full value is never retrievable after it has been set.
+
+Also available as: circleci project envvar `<command>`
 

@@ -1,6 +1,4 @@
-# CircleCI CLI
-
-Show all MCP servers configured in Cursor
+Show Cursor MCP servers
 
 ## Usage
 
@@ -13,18 +11,9 @@ Show all MCP servers configured in Cursor
 | `--config-path string` | Path to Cursor config file                                               |
 | `--workspace`          | List from workspace settings (.cursor/mcp.json) instead of user settings |
 
-## Inherited Flags
+Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `circleci --help`.
 
-| Flag                  | Description                                                  |
-| --------------------- | ------------------------------------------------------------ |
-| `-c, --config string` | Path to config file (default: ~/.config/circleci/config.yml) |
-| `--debug`             | Enable debug logging                                         |
-| `--no-color`          | Disable ANSI color output (same as setting NO_COLOR)         |
-| `-q, --quiet`         | Suppress informational output. Data on stdout is unaffected  |
+## Details
 
-## Learn More
-
-- Use `circleci <command> <subcommand> --help` for more information about a command.
-- Read the manual at <https://cli.circleci.com/reference/>
-- Support at <https://github.com/CircleCI-Public/circleci-cli/issues>
+Show all MCP servers configured in Cursor
 

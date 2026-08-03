@@ -1,16 +1,13 @@
-# CircleCI CLI
-
-Rerun a CircleCI workflow.
-
-By default all jobs in the workflow are rerun from scratch. Use
---from-failed to rerun only the jobs that failed, leaving successful
-jobs untouched.
-
-Workflow IDs are shown in the output of 'circleci run get'.
+Rerun a workflow
 
 ## Usage
 
 `circleci workflow rerun <workflow-id> [flags]`
+
+## Arguments
+
+`<workflow-id>` is the UUID of the workflow to rerun. Workflow IDs are
+shown in the output of `circleci run get`.
 
 ## Flags
 
@@ -18,19 +15,7 @@ Workflow IDs are shown in the output of 'circleci run get'.
 | --------------- | ---------------------- |
 | `--from-failed` | Rerun only failed jobs |
 
-## Inherited Flags
-
-| Flag                  | Description                                                  |
-| --------------------- | ------------------------------------------------------------ |
-| `-c, --config string` | Path to config file (default: ~/.config/circleci/config.yml) |
-| `--debug`             | Enable debug logging                                         |
-| `--no-color`          | Disable ANSI color output (same as setting NO_COLOR)         |
-| `-q, --quiet`         | Suppress informational output. Data on stdout is unaffected  |
-
-## Arguments
-
-`<workflow-id>` is the UUID of the workflow to rerun. Workflow IDs are
-shown in the output of `circleci run get`.
+Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `circleci --help`.
 
 ## Examples
 
@@ -41,9 +26,13 @@ shown in the output of `circleci run get`.
 - Find a workflow ID from the latest run: 
   `circleci run get --json --jq '.workflows[].id'`
 
-## Learn More
+## Details
 
-- Use `circleci <command> <subcommand> --help` for more information about a command.
-- Read the manual at <https://cli.circleci.com/reference/>
-- Support at <https://github.com/CircleCI-Public/circleci-cli/issues>
+Rerun a CircleCI workflow.
+
+By default all jobs in the workflow are rerun from scratch. Use
+--from-failed to rerun only the jobs that failed, leaving successful
+jobs untouched.
+
+Workflow IDs are shown in the output of 'circleci run get'.
 

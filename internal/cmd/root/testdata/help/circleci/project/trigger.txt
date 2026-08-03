@@ -1,14 +1,8 @@
-# CircleCI CLI
-
-List and create triggers for a CircleCI project.
-
-Triggers watch a GitHub repository for events and automatically run
-a pipeline definition when matching events occur. Only projects
-connected via the CircleCI GitHub App are supported.
+Manage project triggers
 
 ## Usage
 
-`circleci project trigger <command> [flags]`
+`circleci project trigger <command>`
 
 ## Available Commands
 
@@ -17,18 +11,15 @@ connected via the CircleCI GitHub App are supported.
 | `create` | Create a new project trigger            |
 | `list`   | List triggers for a pipeline definition |
 
-## Inherited Flags
+## Flags
 
-| Flag                  | Description                                                  |
-| --------------------- | ------------------------------------------------------------ |
-| `-c, --config string` | Path to config file (default: ~/.config/circleci/config.yml) |
-| `--debug`             | Enable debug logging                                         |
-| `--no-color`          | Disable ANSI color output (same as setting NO_COLOR)         |
-| `-q, --quiet`         | Suppress informational output. Data on stdout is unaffected  |
+Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `circleci --help`.
 
-## Learn More
+## Details
 
-- Use `circleci <command> <subcommand> --help` for more information about a command.
-- Read the manual at <https://cli.circleci.com/reference/>
-- Support at <https://github.com/CircleCI-Public/circleci-cli/issues>
+List and create triggers for a CircleCI project.
+
+Triggers watch a GitHub repository for events and automatically run
+a pipeline definition when matching events occur. Only projects
+connected via the CircleCI GitHub App are supported.
 

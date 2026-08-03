@@ -1,13 +1,4 @@
-# CircleCI CLI
-
-Remove an Apple certificate from your organization's secure storage.
-
-This action is irreversible. The server rejects the delete with an
-error if the certificate is referenced by any signing config; delete
-those signing configs first.
-
-In a terminal, you will be prompted to confirm before deleting.
-Use --force (-f) to skip the prompt for scripting.
+Delete an iOS certificate
 
 ## Usage
 
@@ -17,25 +8,18 @@ Use --force (-f) to skip the prompt for scripting.
 
 `circleci certificate rm`
 
+## Arguments
+
+`<cert-id>` is the ID of the certificate to delete.
+Find the certificate ID with `circleci certificate list`.
+
 ## Flags
 
 | Flag          | Description              |
 | ------------- | ------------------------ |
 | `-f, --force` | skip confirmation prompt |
 
-## Inherited Flags
-
-| Flag                  | Description                                                  |
-| --------------------- | ------------------------------------------------------------ |
-| `-c, --config string` | Path to config file (default: ~/.config/circleci/config.yml) |
-| `--debug`             | Enable debug logging                                         |
-| `--no-color`          | Disable ANSI color output (same as setting NO_COLOR)         |
-| `-q, --quiet`         | Suppress informational output. Data on stdout is unaffected  |
-
-## Arguments
-
-`<cert-id>` is the ID of the certificate to delete.
-Find the certificate ID with `circleci certificate list`.
+Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `circleci --help`.
 
 ## Examples
 
@@ -44,9 +28,14 @@ Find the certificate ID with `circleci certificate list`.
 - Delete without confirmation: 
   `circleci certificate delete <cert-id> --force`
 
-## Learn More
+## Details
 
-- Use `circleci <command> <subcommand> --help` for more information about a command.
-- Read the manual at <https://cli.circleci.com/reference/>
-- Support at <https://github.com/CircleCI-Public/circleci-cli/issues>
+Remove an Apple certificate from your organization's secure storage.
+
+This action is irreversible. The server rejects the delete with an
+error if the certificate is referenced by any signing config; delete
+those signing configs first.
+
+In a terminal, you will be prompted to confirm before deleting.
+Use --force (-f) to skip the prompt for scripting.
 

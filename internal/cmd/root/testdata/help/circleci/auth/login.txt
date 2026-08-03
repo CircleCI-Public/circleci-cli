@@ -1,13 +1,4 @@
-# CircleCI CLI
-
-Log in to CircleCI by opening the OAuth authorization page in your
-browser. After you approve the request, an authorization code is
-delivered back to a temporary loopback server on 127.0.0.1, then
-exchanged for an access token via POST /oauth/token.
-
-The token is saved to the system keyring (or to the YAML config
-when --insecure-storage is set) and used automatically by all
-subsequent CLI commands.
+Log in to a CircleCI account
 
 ## Usage
 
@@ -19,14 +10,7 @@ subsequent CLI commands.
 | -------------- | ---------------------------------------------------- |
 | `--no-browser` | Print the authorize URL instead of opening a browser |
 
-## Inherited Flags
-
-| Flag                  | Description                                                  |
-| --------------------- | ------------------------------------------------------------ |
-| `-c, --config string` | Path to config file (default: ~/.config/circleci/config.yml) |
-| `--debug`             | Enable debug logging                                         |
-| `--no-color`          | Disable ANSI color output (same as setting NO_COLOR)         |
-| `-q, --quiet`         | Suppress informational output. Data on stdout is unaffected  |
+Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `circleci --help`.
 
 ## Examples
 
@@ -37,9 +21,14 @@ subsequent CLI commands.
 - Authenticate against a non-default host: 
   `CIRCLE_HOST=https://example.circleci.com circleci auth login`
 
-## Learn More
+## Details
 
-- Use `circleci <command> <subcommand> --help` for more information about a command.
-- Read the manual at <https://cli.circleci.com/reference/>
-- Support at <https://github.com/CircleCI-Public/circleci-cli/issues>
+Log in to CircleCI by opening the OAuth authorization page in your
+browser. After you approve the request, an authorization code is
+delivered back to a temporary loopback server on 127.0.0.1, then
+exchanged for an access token via POST /oauth/token.
+
+The token is saved to the system keyring (or to the YAML config
+when --insecure-storage is set) and used automatically by all
+subsequent CLI commands.
 

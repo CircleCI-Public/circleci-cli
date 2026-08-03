@@ -1,4 +1,48 @@
-# CircleCI CLI
+Watch a run until it completes
+
+## Usage
+
+`circleci run watch [<run-id>] [flags]`
+
+## Arguments
+
+`<run-id>` is optional and selects the run to watch. A run can be specified by its UUID or number:
+- A run UUID, as shown in `circleci run list --json`
+- A run number, as shown in `circleci run list`.
+
+The project is inferred from the git remote unless overridden with `--project`.
+
+When omitted, the latest run for the current branch is watched
+(override the branch with `--branch`, or match a commit with `--sha`).
+
+## Flags
+
+| Flag                  | Description                                                            |
+| --------------------- | ---------------------------------------------------------------------- |
+| `-b, --branch string` | Branch to watch (defaults to current branch)                           |
+| `--failfast`          | Exit as soon as any job fails, without waiting for the rest of the run |
+| `--project string`    | Project slug (e.g. gh/org/repo); defaults to git remote                |
+| `--sha string`        | Watch run for this commit SHA; polls up to 2m if not yet created       |
+| `--timeout duration`  | Maximum time to wait for run completion (default 30m0s)                |
+
+Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `circleci --help`.
+
+## Examples
+
+- Watch the latest run on the current branch: 
+  `circleci run watch`
+- Push and watch in one step: 
+  `git push && circleci run watch --sha $(git rev-parse HEAD)`
+- Watch by UUID (e.g. from 'run list --json'): 
+  `circleci run watch 0b0e6eca-4e9a-43d7-b74e-a7ed4b7d11cd`
+- Watch a run on a different branch: 
+  `circleci run watch --branch main`
+- Watch with a longer timeout: 
+  `circleci run watch --timeout 60m`
+- Exit as soon as any job fails: 
+  `circleci run watch --failfast`
+
+## Details
 
 Monitor a CircleCI run and block until it reaches a terminal state.
 
@@ -17,59 +61,4 @@ immediately after git push.
 
 With --failfast, exits as soon as any job is observed to have failed,
 without waiting for the remaining workflows to finish.
-
-## Usage
-
-`circleci run watch [<run-id>] [flags]`
-
-## Flags
-
-| Flag                  | Description                                                            |
-| --------------------- | ---------------------------------------------------------------------- |
-| `-b, --branch string` | Branch to watch (defaults to current branch)                           |
-| `--failfast`          | Exit as soon as any job fails, without waiting for the rest of the run |
-| `--project string`    | Project slug (e.g. gh/org/repo); defaults to git remote                |
-| `--sha string`        | Watch run for this commit SHA; polls up to 2m if not yet created       |
-| `--timeout duration`  | Maximum time to wait for run completion (default 30m0s)                |
-
-## Inherited Flags
-
-| Flag                  | Description                                                  |
-| --------------------- | ------------------------------------------------------------ |
-| `-c, --config string` | Path to config file (default: ~/.config/circleci/config.yml) |
-| `--debug`             | Enable debug logging                                         |
-| `--no-color`          | Disable ANSI color output (same as setting NO_COLOR)         |
-| `-q, --quiet`         | Suppress informational output. Data on stdout is unaffected  |
-
-## Arguments
-
-`<run-id>` is optional and selects the run to watch. A run can be specified by its UUID or number:
-- A run UUID, as shown in `circleci run list --json`
-- A run number, as shown in `circleci run list`.
-
-The project is inferred from the git remote unless overridden with `--project`.
-
-When omitted, the latest run for the current branch is watched
-(override the branch with `--branch`, or match a commit with `--sha`).
-
-## Examples
-
-- Watch the latest run on the current branch: 
-  `circleci run watch`
-- Push and watch in one step: 
-  `git push && circleci run watch --sha $(git rev-parse HEAD)`
-- Watch by UUID (e.g. from 'run list --json'): 
-  `circleci run watch 0b0e6eca-4e9a-43d7-b74e-a7ed4b7d11cd`
-- Watch a run on a different branch: 
-  `circleci run watch --branch main`
-- Watch with a longer timeout: 
-  `circleci run watch --timeout 60m`
-- Exit as soon as any job fails: 
-  `circleci run watch --failfast`
-
-## Learn More
-
-- Use `circleci <command> <subcommand> --help` for more information about a command.
-- Read the manual at <https://cli.circleci.com/reference/>
-- Support at <https://github.com/CircleCI-Public/circleci-cli/issues>
 
