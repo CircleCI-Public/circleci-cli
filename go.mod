@@ -11,7 +11,7 @@ require (
 	github.com/CircleCI-Public/chunk-cli v0.7.104
 	github.com/CircleCI-Public/circle-policy-agent v0.0.779
 	github.com/MakeNowJust/heredoc v1.0.0
-	github.com/a8m/envsubst v1.4.2
+	github.com/a8m/envsubst v1.4.3
 	github.com/charmbracelet/x/ansi v0.11.7
 	github.com/charmbracelet/x/exp/teatest/v2 v2.0.0-20260629091435-9c70f75e26a4
 	github.com/charmbracelet/x/term v0.2.2
