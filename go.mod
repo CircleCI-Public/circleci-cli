@@ -18,7 +18,7 @@ require (
 	github.com/cli/browser v1.3.0
 	github.com/go-chi/chi/v5 v5.3.1
 	github.com/go-chi/render v1.0.3
-	github.com/go-git/go-git/v6 v6.0.0-alpha.4
+	github.com/go-git/go-git/v6 v6.0.0-alpha.5
 	github.com/godbus/dbus/v5 v5.2.2
 	github.com/gofrs/flock v0.13.0
 	github.com/google/go-cmp v0.7.0
@@ -72,7 +72,7 @@ require (
 	github.com/ebitengine/purego v0.10.1 // indirect
 	github.com/emirpasic/gods v1.18.1 // indirect
 	github.com/go-git/gcfg/v2 v2.0.2 // indirect
-	github.com/go-git/go-billy/v6 v6.0.0-alpha.1 // indirect
+	github.com/go-git/go-billy/v6 v6.0.0-alpha.2 // indirect
 	github.com/go-ini/ini v1.67.0 // indirect
 	github.com/go-logfmt/logfmt v0.6.1 // indirect
 	github.com/go-logr/logr v1.4.3 // indirect
@@ -126,10 +126,10 @@ require (
 	go.opentelemetry.io/otel/metric v1.43.0 // indirect
 	go.opentelemetry.io/otel/sdk v1.43.0 // indirect
 	go.opentelemetry.io/otel/trace v1.43.0 // indirect
-	golang.org/x/crypto v0.53.0 // indirect
+	golang.org/x/crypto v0.54.0 // indirect
 	golang.org/x/exp v0.0.0-20260611194520-c48552f49976 // indirect
-	golang.org/x/net v0.56.0 // indirect
-	golang.org/x/text v0.38.0 // indirect
+	golang.org/x/net v0.57.0 // indirect
+	golang.org/x/text v0.40.0 // indirect
 	golang.org/x/time v0.15.0 // indirect
 	google.golang.org/protobuf v1.36.11 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
