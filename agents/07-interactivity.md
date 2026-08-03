@@ -85,6 +85,15 @@ Run 'myapp init --help' to see all options.
 
 ## Prompt Best Practices
 
+For interactive implementation, bubbletea should be used, with the "program" in the `internal/ui` package.
+
+Re-usable components should be in the `internal/ui/components` package.
+
+Standard components from `charm.land/bubbles/v2` should be preferred over custom ones from scratch.
+
+Detailed component-level tests should be written using the `github.com/charmbracelet/x/exp/teatest/v2` package, while
+higher level end-to-end tests go in the regular `acceptance` package, using the test runner from `internal/testing/binary`.
+
 ### Be clear and direct
 State exactly what you're asking for. Don't use vague prompts like "Value:".
 

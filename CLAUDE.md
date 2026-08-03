@@ -1,8 +1,6 @@
-# CircleCI CLI v2
+# CircleCI CLI v1
 
 A new CircleCI CLI built from scratch in Go + Cobra, targeting exemplary CLI design.
-
-Full architecture, command surface, and phased roadmap: `docs/build-plan.md`
 
 > **Branch context:** `main` is the active v1 rewrite. `v0` is the legacy CLI that ships
 > today. These are independent codebases — `main` does not import from `v0`. All new feature
@@ -46,95 +44,234 @@ for all multi-line strings. No blank `Long` descriptions.
 
 ## Design guidelines
 
-Full guidelines are in `agents/`. Start with the checklist:
+The normative design guidelines live in [`agents/`](agents/README.md). **Read the linked file
+before you write the code it governs** — not after, and not only at review time. Each line below
+is a trigger: if you are about to do the thing on the left, open the file on the right first.
 
-```
-agents/checklist.md          ← run through this before any PR
-agents/01-philosophy.md      ← the 9 core principles
-agents/04-output.md          ← --json, color, TTY detection
-agents/05-errors.md          ← error format, exit codes
-agents/06-arguments-and-flags.md ← flag naming, short forms, env vars
-14-testing.md                ← how to write the tests
-```
+| If you are about to… | Read first |
+|---|---|
+| Open a PR / finish any command | [agents/checklist.md](agents/checklist.md) |
+| Write any command at all | [agents/02-basics.md](agents/02-basics.md) — the non-negotiable basics: arg parsing, exit codes, stdout vs stderr |
+| Name a command, or weigh a UX trade-off | [agents/01-philosophy.md](agents/01-philosophy.md) — the 9 core principles |
+| Write `Short`, `Long`, or `Example` help text | [agents/03-help-and-documentation.md](agents/03-help-and-documentation.md) |
+| Print to stdout/stderr, add `--json`, use color | [agents/04-output.md](agents/04-output.md) |
+| Return an error or pick an exit code | [agents/05-errors.md](agents/05-errors.md) |
+| Add a flag or positional argument | [agents/06-arguments-and-flags.md](agents/06-arguments-and-flags.md) |
+| Add a prompt, spinner, or TUI flow | [agents/07-interactivity.md](agents/07-interactivity.md) |
+| Add or restructure a subcommand | [agents/08-subcommands.md](agents/08-subcommands.md) |
+| Write or change tests | [agents/14-testing.md](agents/14-testing.md) |
+
+Consult when the topic comes up: [agents/09-robustness.md](agents/09-robustness.md) ·
+[agents/10-configuration-and-env.md](agents/10-configuration-and-env.md) ·
+[agents/11-naming-and-distribution.md](agents/11-naming-and-distribution.md) ·
+[agents/12-analytics.md](agents/12-analytics.md) ·
+[agents/13-extensibility.md](agents/13-extensibility.md)
 
 ---
 
 ## Package structure
 
+### Repository layout
+
 ```
 cmd/circleci/main.go      Entry point. Cobra bootstrap + top-level error handling.
                           (Lives under cmd/circleci/ so `go install .../cmd/circleci`
                           produces a binary named `circleci`, not `circleci-cli`.)
+acceptance/               Acceptance tests — exec the compiled binary against fake servers.
+agents/                   Design guidelines (normative — see above).
+share/                    Shipped man pages + bash/zsh completions.
+skills/circleci/          Agent skill shipped with the CLI.
+packaging/                Distribution packaging assets (deb).
+tools/                    Standalone build tooling — its own Go module.
+docs/                     Hugo website, blog posts, terminal demo recordings.
+internal/                 Everything else (below).
+```
 
+### `internal/cmd/` — one package per top-level command
+
+Thin Cobra wrappers only. Parse flags, get `iostream.Streams` from the command, call into a
+business logic package, return errors. **No business logic here.** No global state, no
+`os.Stdout` writes in production code.
+
+Some package names are prefixed to avoid colliding with a stdlib or domain package of the same
+name (`internal/cmd/config` is `package cmdconfig`; likewise `cmdauth`, `cmdenv`, `cmdonboard`).
+
+```
+internal/cmd/
+├── root/                 Root command, global flags, help topics, `help reference`, man pages.
+├── api/                  circleci api <endpoint> — raw API escape hatch.
+├── artifacts/            circleci artifacts — top-level alias, primary user-facing command.
+├── certificate/          circleci certificate upload/list/delete — iOS code signing certs.
+├── cmdauth/              circleci auth login/logout/me/id/signup.
+├── completion/           circleci completion <shell>.
+├── config/               circleci config validate/process/pack/generate.
+├── context/              circleci context create/delete/get/list/open + secret + restriction.
+├── deploy/               circleci deploy init/list/open.
+├── dlc/                  circleci dlc purge — top-level alias for project dlc purge.
+├── env/                  circleci env subst.
+├── envvar/               circleci envvar list/set/delete — alias for project env.
+├── extension/            circleci extension install/remove + dispatch to circleci-* binaries.
+├── job/                  circleci job get/open/output/artifacts (deep path for artifacts).
+├── my/                   circleci my runs.
+├── namespace/            circleci namespace create/delete/get/rename.
+├── onboard/              circleci onboard — guided first-run project setup.
+├── orb/                  circleci orb init/create/list/get/source/pack/process/validate/
+│                         publish/diff/unlist/*-category.
+├── org/                  circleci org list/setting.
+├── pipeline/             circleci pipeline create/list/run.
+├── policy/               circleci policy push/diff/fetch/decide/eval/logs/settings/test.
+├── project/              circleci project create/get/list/follow/link/open + env/dlc/
+│                         setting/trigger.
+├── run/                  circleci run trigger/get/list/watch/cancel/open.
+├── runner/               circleci runner resource-class/token/instance/task/config/open.
+├── setting/              circleci setting list/set/unset — CLI tool config (see rule 4).
+├── setup/                circleci setup — hidden, legacy v0 compatibility only.
+├── signingconfig/        circleci signing-config create/list/delete.
+├── step/                 circleci step halt.
+├── testresult/           circleci testresult get/list.
+├── version/              circleci version.
+└── receivetelemetry/     Hidden. Background subprocess that forwards events to Segment.
+```
+
+`circleci mcp` is **not** in this tree — it is generated from the Cobra command tree by
+`ophis` and wired up in `root.go`. Adding a command automatically exposes it as an MCP tool.
+
+### `internal/<domain>/` — business logic
+
+Non-trivial logic lives here, not in `internal/cmd/`. Commands import these packages; never
+the reverse.
+
+```
 internal/
-├── cmd/                  One package per top-level command (group or alias). Thin Cobra
-│   │                     wrappers only — no business logic here.
-│   ├── root/             Root command, help topics, global flags.
-│   ├── artifacts/        circleci artifacts (top-level alias; primary user-facing command)
-│   ├── auth/             circleci auth login/logout/status/token
-│   ├── config/           circleci config validate/process/pack/generate
-│   ├── context/          circleci context + circleci context secret
-│   ├── job/              circleci job artifacts (deep path; wraps internal/artifacts)
-│   ├── open/             circleci open (opens current project in the CircleCI web UI)
-│   ├── pipeline/         circleci pipeline list/get/trigger
-│   ├── workflow/         circleci workflow list/get/cancel/rerun
-│   ├── orb/              circleci orb list/info/validate/publish/...
-│   ├── project/          circleci project list/follow + project env
-│   ├── runner/           circleci runner resource-class/token/instance
-│   ├── policy/           circleci policy push/diff/fetch/...
-│   ├── setting/          circleci setting list/get/set
-│   ├── mcp/              circleci mcp start/stream/tools + editor integrations (claude/cursor/vscode)
-│   └── api/              circleci api <endpoint> (raw API escape hatch)
-│
-├── artifacts/            Business logic for artifact listing and downloading.
-│                         Pattern: non-trivial logic lives in internal/<domain>/, not in
-│                         internal/cmd/. Commands import from here; never the reverse.
-│
-├── iostream/             TTY detection, color, stdout/stderr wiring.
+├── artifacts/            Listing and downloading job artifacts.
+├── configcmd/            Backs circleci config validate/process/pack.
+├── configgen/            Renders pipeline YAML from a reposcan.Result and writes it to disk.
+├── deployinit/           Scans and patches .circleci/config.yml to add deploy marker steps.
+├── extension/            Plugin mechanism — discovers circleci-* binaries on PATH.
+├── githubapp/            CircleCI GitHub App install detection + browser install flow.
+├── gitremote/            Resolves project slug + branch. Prefers .circleci/info.yml, then
+│                         falls back to parsing the git remote URL.
+├── iossigning/           Reads and base64-encodes certs / provisioning profiles.
+├── onboarder/            Orchestrates the local onboarding flow.
+├── orbinit/              Scaffolds a new orb project from the Orb-Template repo.
+├── org/                  Shared organization operations (slug/ID resolution).
+├── pack/                 Merges a directory tree of YAML files into one document.
+├── projectref/           Reads/writes .circleci/info.yml — the per-checkout project record
+│                         that survives repository renames and standalone projects.
+├── reposcan/             Detects language stack, container image, and setup commands.
+├── run/                  Run-level operations (watch, failure context).
+└── testrunner/           Runs the test command detected by reposcan.
+```
+
+### `internal/` — platform and shared infrastructure
+
+```
+internal/
+├── cmdutil/              Shared command helpers: AddJSONFlag/WriteJSON, API client
+│                         construction, project resolution, app URLs, GroupRunE, telemetry.
+├── iostream/             TTY detection, color, themes, spinner, stdout/stderr wiring.
 │                         NEVER call os.Getenv("NO_COLOR") in a command — ask IOStreams.
-│
 ├── errors/               Structured error type + exit code constants.
 │                         exitcodes.go: ExitSuccess=0, ExitAuthError=3, ExitAPIError=4,
 │                         ExitNotFound=5, ExitValidationFail=7, ExitTimeout=8
-│
 ├── config/               Read/write ~/.config/circleci/config.yml (XDG standard).
-│
+├── keyring/              OS keychain storage for the API token.
 ├── apiclient/            CircleCI REST API client. Injected via constructor; tests pass
 │                         a custom http.RoundTripper to intercept requests.
 │                         v3 endpoints type id fields (format: uuid in the spec) as
 │                         uuid.UUID, not string — e.g. RunV3.ID, ProjectRef.ID/OrgID.
 │                         Stringify with .String() at call sites that need a string.
-│
-├── gitremote/            Detect project slug + branch from git remote URL.
-│
-└── testing/              Test helpers (not compiled into production binary).
-    ├── binary/           BuildBinary() + RunCLI() for acceptance tests.
-    ├── env/              TestEnv: isolated home dir + environment for each test.
-    └── fakes/            Fake HTTP servers (Gin-based) for API endpoints.
+├── httpcl/               Minimal HTTP client with JSON defaults and retries.
+├── oauth/                Client side of the CircleCI OAuth 2.0 Authorization Code + PKCE
+│                         flow, with Pushed Authorization Requests.
+├── browser/              Opens a URL in the user's browser, or prints it as a fallback.
+├── ui/                   Bubble Tea prompts, selects, and flows (login, orb init, run get,
+│                         run filter, theme picker). components/ = reusable widgets;
+│                         theme/ = colour tokens.
+├── jsoncolor/            ANSI-colorized, indented JSON writer.
+├── mdtable/              GitHub-Flavored Markdown table builder.
+├── termrender/           Replays captured terminal output for docs/demos.
+├── jq/                   jq expression evaluation over JSON strings.
+├── telemetry/            Segment event sender + background delegate + receiver/.
+├── agent/                Detect() — identifies the calling AI agent / MCP host so telemetry
+│                         attributes tool-call subprocesses correctly.
+├── bulkhead/             Runs a slice of work with bounded parallelism.
+└── closer/               io.Closer error-handling helper for deferred Close().
 ```
 
-Commands are thin wrappers: parse flags, get `iostream.Streams` from the command,
-call into a business logic package, return errors. No global state, no `os.Stdout` writes
-in production code.
+### `internal/testing/` — test helpers
+
+Not compiled into the production binary.
+
+```
+internal/testing/
+├── binary/               BuildBinary() + RunCLI() for acceptance tests.
+├── env/                  TestEnv: isolated home dir + environment for each test.
+├── fakes/                Fake HTTP servers (Chi-based) for API endpoints.
+├── fakesegment/          Fake Segment service for telemetry assertions.
+├── httprecorder/         Records HTTP requests for later assertion.
+│   ├── chirecorder/      Middleware wiring a recorder into Chi routers used in fakes.
+│   └── httpnetrecorder/  Same, for plain net/http handlers.
+└── logger/               Request-logging middleware for fake servers.
+```
 
 ---
 
 ## Environment variables
 
-All documented at `circleci help environment`. Variables use `CIRCLE_` prefix:
+**Run `circleci help environment` for the authoritative user-facing list.** That topic — defined
+in `internal/cmd/root/help_topic.go` — is the source of truth, so adding a user-facing variable
+means updating it, not just this table. Own variables use the `CIRCLE_` prefix; where a
+cross-tool standard already exists (`NO_COLOR`, `DO_NOT_TRACK`, `PAGER`, XDG) we honour it.
+
+Never read these with `os.Getenv` from a command. Auth/host/telemetry go through
+`internal/config`; anything about the terminal (color, interactivity, spinner, pager) goes
+through `iostream.Streams`.
+
+**User-facing** — this table mirrors `circleci help environment`, in the same order:
+
+| Variable | Purpose | Read in |
+|---|---|---|
+| `CIRCLE_TOKEN` | API token. Takes precedence over the stored token. (`CIRCLE_CLI_TOKEN` = legacy alias, checked second) | `config.EffectiveToken()` |
+| `CIRCLE_HOST` | CircleCI host (default `https://circleci.com`). Takes precedence over the stored host | `config.EffectiveHost()` |
+| `NO_COLOR` | no-color.org standard — always respected. Same effect as `--no-color` | `iostream` |
+| `CIRCLE_NO_COLOR` | Disable ANSI color, same as `NO_COLOR` | `iostream` |
+| `CIRCLE_NO_INTERACTIVE` | Suppress all interactive prompts | `iostream` |
+| `CI` | Set by CI systems. Implies non-interactive (so: no prompts, no spinner) **and** disables telemetry | `iostream`, `config` |
+| `CIRCLE_SPINNER_DISABLED` | Replace the animated spinner with plain text | `iostream` |
+| `CIRCLE_NO_PAGER` | Print long output inline instead of through a pager | `iostream` |
+| `PAGER` | Pager program for long output. Unset → built-in scrollable viewer; `cat` or empty → paging off | `iostream` |
+| `CIRCLE_NO_TELEMETRY` | Disable telemetry | `config` |
+| `NO_ANALYTICS` | Disable telemetry (cross-tool standard) | `config` |
+| `DO_NOT_TRACK` | Disable telemetry (cross-tool standard) | `config` |
+
+**Read from the environment but not documented in the help topic:**
+
+| Variable | Purpose | Read in |
+|---|---|---|
+| `CIRCLECI` | Set inside a CircleCI job. Suppresses the `TERM=dumb` color opt-out, because CircleCI sets `TERM=dumb` on every job but its log viewer renders ANSI fine | `iostream` |
+| `TERM` | `TERM=dumb` disables color — except inside CircleCI (see `CIRCLECI` above) | `iostream` |
+| `XDG_CONFIG_HOME` | Config dir base (default `~/.config`) → `<base>/circleci/config.yml` | `config` |
+| `XDG_DATA_HOME` | Data dir base (default `~/.local/share`) → `<base>/circleci/extensions` | `config` |
+
+**Set by the CLI for child processes — read these, don't set them:**
 
 | Variable | Purpose |
 |---|---|
-| `CIRCLE_TOKEN` | API token (also: `CIRCLE_CLI_TOKEN` legacy alias) |
-| `CIRCLE_HOST` | CircleCI server host (default: `https://circleci.com`) |
-| `CIRCLE_NO_INTERACTIVE` | Suppress all prompts |
-| `CIRCLE_NO_COLOR` | Disable ANSI color |
-| `CIRCLE_SPINNER_DISABLED` | Replace animated spinner with plain text |
-| `CIRCLE_NO_UPDATE_NOTIFIER` | Suppress version update messages |
-| `CIRCLE_DEBUG` | Log HTTP requests to stderr |
-| `CIRCLE_NO_TELEMETRY` | Disable telemetry |
-| `CI` | When set, implies NO_INTERACTIVE + disables spinner + update notifications |
-| `NO_COLOR` | no-color.org standard — always respected |
+| `CIRCLE_MCP` | Set to `1` on the `mcp start`/`mcp stream` server so `agent.Detect()` reports `mcp/<agent>` in every tool-call subprocess. Scoped to the server commands so `mcp <editor> enable` isn't misattributed |
+| `CIRCLE_TOKEN`, `CIRCLE_HOST`, `CIRCLE_TELEMETRY_ENABLED`, `CIRCLE_VCS_TYPE`, `CIRCLE_PROJECT_USERNAME`, `CIRCLE_PROJECT_REPONAME`, `CIRCLE_PROJECT_ID`, `CIRCLE_BRANCH`, `CIRCLE_DEFAULT_BRANCH` | Passed to extension subprocesses (`internal/extension/manifest.go`). Project/branch values are best-effort — absent outside a linked checkout |
+| `__CIRCLE_TELEMETRY_WRITE_KEY`, `__CIRCLE_TELEMETRY_ENDPOINT` | Passed to the hidden `receive-telemetry` subprocess. Double-underscore = internal, never user-set |
+
+**Development and test overrides — not documented to users:**
+
+| Variable | Purpose |
+|---|---|
+| `CIRCLE_DEBUG` | `CIRCLE_DEBUG=1` logs HTTP requests to stderr (`internal/apiclient`) |
+| `CIRCLE_TELEMETRY_ENDPOINT` | Redirect telemetry to a fake Segment server |
+| `CIRCLE_EXTENSION_HOST` | Override the extension registry host |
+| `CIRCLE_ORB_TEMPLATE_URL` | Override the Orb-Template source for `orb init` |
+| `CIRCLE_LOGIN_TIMEOUT` | Duration string overriding the `auth login` browser-flow timeout |
+| `CIRCLE_SHA_WAIT_MS` | Shortens how long `run watch` waits for a SHA to appear |
 
 ---
 
@@ -168,8 +305,6 @@ Bad: `feat(config): implement config validate/process/pack`
 ## Common commands
 
 ```sh
-task build                             # build binary → dist/circleci
-task dev-install                       # build and copy to ~/.local/bin
 task test                              # all tests including acceptance, with -race
 task check                             # run all static checks
 task fix                               # auto-fix static check issues
@@ -177,16 +312,6 @@ task fix                               # auto-fix static check issues
 go run ./cmd/circleci --help            # smoke test
 NO_COLOR=1 go run ./cmd/circleci --help # verify color is disabled
 CI=true go run ./cmd/circleci --help    # verify CI mode
-```
-
-To wire up the CLI as an MCP server:
-
-```sh
-# Once — build and install the binary
-task dev-install
-
-circleci mcp claude enable
-claude mcp add-from-claude-desktop -s user
 ```
 
 `task test` runs unit tests (cached) then acceptance tests with `-count=1` (never cached).
@@ -268,12 +393,3 @@ func TestXxx(t *testing.T) {
   writes in Add* methods use Lock.
 - `BuildBinary()` returns `(string, error)`; on error `TestMain` exits 0 (skip) not 1
   (fail), so a broken build doesn't mask unrelated test failures.
-
----
-
-## References
-
-```
-docs/build-plan.md                   Full architecture + phased roadmap
-docs/assessments/circleci-cli.md     Assessment of the existing CLI — gaps this rewrite addresses
-```
