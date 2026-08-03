@@ -52,10 +52,6 @@ func newCreateCmd() *cobra.Command {
 		Long: heredoc.Doc(`
 			Create a new CircleCI context for an organization.
 
-			The organization is inferred from the current git repository's remote
-			unless overridden with --org. Provide the org slug in the form
-			gh/myorg or bitbucket/myorg.
-
 			JSON fields: id, name, created_at
 		`),
 		Example: heredoc.Doc(`

@@ -65,26 +65,14 @@ func newTestCmd() *cobra.Command {
 			`, "`"),
 		},
 		Long: heredoc.Doc(`
-			Discover and run policy tests locally.
+			Discover and run policy tests locally, exiting non-zero if any fails.
 
-			Tests live in *_test.yaml / *_test.yml files alongside your .rego
-			policies; each test key must start with "test_". Every test compares its
-			expected "decision" against the decision the policy engine produces for
-			the given "input", and native OPA unit tests are run too.
+			Tests live in *_test.yaml files alongside your .rego policies; each test key
+			must start with "test_" and compares its expected "decision" against the
+			engine's decision for its "input". Native OPA unit tests run too.
 
-			A test's input is compiled first only when it sets "compile: true" or
-			provides "pipeline_parameters"; otherwise the raw input is evaluated.
-			Compilation uses the CircleCI compile endpoint, so --org (or a git remote)
-			and a token are required only when a test compiles.
-
-			The command exits non-zero if any test fails.
-
-			By default results print as a human-readable table showing only
-			failures; pass --all to include passing tests. Use --json for a JSON
-			array of results (scriptable, --jq-aware) or --junit for JUnit XML.
-
-			Use --explain to print each test's full evaluation context (input,
-			decision, and evaluation), which implies --all.
+			An input is compiled first only when it sets "compile: true" or provides
+			"pipeline_parameters", so --org and a token are needed only in that case.
 
 			JSON fields: Passed, Group, Name, Elapsed, ElapsedMS, Err, Ctx
 		`),

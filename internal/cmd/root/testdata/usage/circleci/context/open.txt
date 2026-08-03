@@ -1,5 +1,6 @@
 Usage:  circleci context open [flags]
 
 Flags:
-  --org string   Organization slug (e.g. gh/myorg); defaults to git remote
+  -h, --help         help for open
+      --org string   Organization slug (e.g. gh/myorg); defaults to git remote
   

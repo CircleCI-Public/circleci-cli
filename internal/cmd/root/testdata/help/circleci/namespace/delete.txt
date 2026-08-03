@@ -4,9 +4,7 @@ Delete a namespace and all its orbs
 
 `circleci namespace delete <name> [flags]`
 
-## Aliases
-
-`circleci namespace rm`
+Aliases: `circleci namespace rm`
 
 ## Arguments
 
@@ -38,8 +36,4 @@ Delete a CircleCI orb namespace and all orbs published under it.
 
 This operation is irreversible. Any pipelines referencing orbs in
 this namespace will fail after deletion.
-
-In a terminal, you will be prompted to confirm before deleting.
-Use --force (-f) to skip the prompt for scripting.
-Use --dry-run (-n) to preview what would be deleted without deleting.
 

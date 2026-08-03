@@ -4,9 +4,7 @@ Delete a restriction from a context
 
 `circleci context restriction delete <context-id|context-name> [flags]`
 
-## Aliases
-
-`circleci context restriction rm`
+Aliases: `circleci context restriction rm`
 
 ## Arguments
 
@@ -37,11 +35,4 @@ Remove a restriction from a CircleCI context.
 
 This action is irreversible. Once removed, the context will be
 accessible to any project or group that was previously blocked.
-
-Pass a UUID to identify the context by ID, or a name to look up by name.
-When looking up by name, pass --org or run from a git repository so the
-organization can be inferred from the remote.
-
-In a terminal, you will be prompted to confirm before deleting.
-Use --force (-f) to skip the prompt for scripting.
 

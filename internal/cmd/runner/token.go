@@ -297,9 +297,6 @@ func newTokenDeleteCmd() *cobra.Command {
 			to claim new jobs. Running jobs are not affected.
 
 			Find token IDs with: circleci runner token list %[1]s<resource-class>%[1]s
-
-			In a terminal, you will be prompted to confirm before deleting.
-			Use --force (-f) to skip the prompt for scripting.
 		`, "`"),
 		Example: heredoc.Doc(`
 			# Delete a token by ID (with confirmation prompt)

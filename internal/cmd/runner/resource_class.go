@@ -77,10 +77,6 @@ func newResourceClassListCmd() *cobra.Command {
 		Long: heredoc.Doc(`
 			List CircleCI runner resource classes.
 
-			The organization is inferred from the current git repository's remote
-			unless overridden with --org, which accepts an org slug (e.g. gh/myorg)
-			or an org UUID. Optionally filter further by namespace.
-
 			JSON fields: id, resource_class, description
 		`),
 		Example: heredoc.Doc(`
@@ -272,9 +268,6 @@ func newResourceClassDeleteCmd() *cobra.Command {
 
 			All tokens associated with the resource class will also be deleted.
 			Connected runner instances will no longer be able to claim jobs.
-
-			In a terminal, you will be prompted to confirm before deleting.
-			Use --force (-f) to skip the prompt for scripting.
 		`),
 		Example: heredoc.Doc(`
 			# Delete a resource class (with confirmation prompt)

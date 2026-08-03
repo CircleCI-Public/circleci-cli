@@ -2,7 +2,7 @@ Remove a stored CLI setting
 
 ## Usage
 
-`circleci setting unset <key>`
+`circleci setting unset <key> [flags]`
 
 ## Arguments
 

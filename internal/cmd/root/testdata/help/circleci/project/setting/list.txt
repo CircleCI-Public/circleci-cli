@@ -4,9 +4,7 @@ List all advanced settings for a project
 
 `circleci project setting list [flags]`
 
-## Aliases
-
-`circleci project setting ls`
+Aliases: `circleci project setting ls`
 
 ## Flags
 
@@ -31,12 +29,5 @@ Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `ci
 
 List all advanced settings for a CircleCI project.
 
-The project is inferred from the current git repository's remote
-unless overridden with --project.
-
-JSON fields: enable_ai_error_summarization, enable_auto_cancel_redundant_workflows,
-             enable_building_fork_prs, is_build_prs_only, can_pass_secrets_to_fork_pr_jobs,
-             can_set_github_status, is_running_disabled, is_ssh_disabled,
-             enable_dynamic_config, is_admin_required_for_writing_settings,
-             is_oss, pr_only_branch_overrides, enable_unversioned_config
+JSON fields: enable_ai_error_summarization, enable_auto_cancel_redundant_workflows, enable_building_fork_prs, is_build_prs_only, can_pass_secrets_to_fork_pr_jobs, can_set_github_status, is_running_disabled, is_ssh_disabled, enable_dynamic_config, is_admin_required_for_writing_settings, is_oss, pr_only_branch_overrides, enable_unversioned_config
 

@@ -4,9 +4,7 @@ Delete a runner resource class
 
 `circleci runner resource-class delete <namespace>/<name> [flags]`
 
-## Aliases
-
-`circleci runner resource-class rm`
+Aliases: `circleci runner resource-class rm`
 
 ## Arguments
 
@@ -36,7 +34,4 @@ Delete a CircleCI runner resource class.
 
 All tokens associated with the resource class will also be deleted.
 Connected runner instances will no longer be able to claim jobs.
-
-In a terminal, you will be prompted to confirm before deleting.
-Use --force (-f) to skip the prompt for scripting.
 

@@ -86,13 +86,6 @@ func newRestrictionCreateCmd() *cobra.Command {
 		Long: heredoc.Doc(`
 			Add a restriction to a CircleCI context.
 
-			Use --type to specify the restriction type: project, expression, or group.
-			Use --value to provide the restriction value.
-
-			Pass a UUID to identify the context by ID, or a name to look up by name.
-			When looking up by name, pass --org or run from a git repository so the
-			organization can be inferred from the remote.
-
 			JSON fields: id, name, restriction_type, restriction_value
 		`),
 		Example: heredoc.Doc(`
@@ -204,13 +197,6 @@ func newRestrictionDeleteCmd() *cobra.Command {
 
 			This action is irreversible. Once removed, the context will be
 			accessible to any project or group that was previously blocked.
-
-			Pass a UUID to identify the context by ID, or a name to look up by name.
-			When looking up by name, pass --org or run from a git repository so the
-			organization can be inferred from the remote.
-
-			In a terminal, you will be prompted to confirm before deleting.
-			Use --force (-f) to skip the prompt for scripting.
 		`),
 		Example: heredoc.Doc(`
 			# Delete a restriction (with confirmation)

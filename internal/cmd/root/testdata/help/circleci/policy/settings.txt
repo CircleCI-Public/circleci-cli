@@ -2,7 +2,7 @@ Manage policy enforcement settings
 
 ## Usage
 
-`circleci policy settings <command>`
+`circleci policy settings <command> [flags]`
 
 ## Targeted Commands
 

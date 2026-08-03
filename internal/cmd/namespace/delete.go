@@ -54,10 +54,6 @@ func newDeleteCmd() *cobra.Command {
 
 			This operation is irreversible. Any pipelines referencing orbs in
 			this namespace will fail after deletion.
-
-			In a terminal, you will be prompted to confirm before deleting.
-			Use --force (-f) to skip the prompt for scripting.
-			Use --dry-run (-n) to preview what would be deleted without deleting.
 		`),
 		Example: heredoc.Doc(`
 			# Delete a namespace (with confirmation prompt)

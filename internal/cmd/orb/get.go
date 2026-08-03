@@ -56,8 +56,7 @@ func newGetCmd() *cobra.Command {
 			usage statistics for the past 30 days, associated categories, and
 			all published versions.
 
-			JSON fields: id, name, namespace, is_private, is_listed, created_at,
-			             latest_version, categories, versions, stats
+			JSON fields: id, name, namespace, is_private, is_listed, created_at, latest_version, categories, versions, stats
 		`),
 		Example: heredoc.Doc(`
 			# Get info for an orb

@@ -2,7 +2,7 @@ Show resources for the authenticated user
 
 ## Usage
 
-`circleci my <command>`
+`circleci my <command> [flags]`
 
 ## General Commands
 

@@ -2,7 +2,7 @@ Manage VSCode MCP servers
 
 ## Usage
 
-`circleci mcp vscode`
+`circleci mcp vscode [flags]`
 
 ## Available Commands
 

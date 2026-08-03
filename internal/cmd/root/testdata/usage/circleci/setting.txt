@@ -1,4 +1,4 @@
-Usage:  circleci setting <command>
+Usage:  circleci setting <command> [flags]
 
 Available commands:
   list

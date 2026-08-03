@@ -1,4 +1,4 @@
-Usage:  circleci orb publish <command>
+Usage:  circleci orb publish <command> [flags]
 
 Available commands:
   increment

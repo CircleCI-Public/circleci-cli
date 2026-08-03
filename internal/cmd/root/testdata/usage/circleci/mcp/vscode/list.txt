@@ -1,6 +1,7 @@
 Usage:  circleci mcp vscode list [flags]
 
 Flags:
-  --config-path string   Path to VSCode config file
-  --workspace            List from workspace settings (.vscode/mcp.json) instead of user settings
+      --config-path string   Path to VSCode config file
+  -h, --help                 help for list
+      --workspace            List from workspace settings (.vscode/mcp.json) instead of user settings
   

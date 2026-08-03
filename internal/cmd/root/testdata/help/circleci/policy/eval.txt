@@ -39,19 +39,13 @@ Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `ci
 
 ## Details
 
-Run a raw OPA query against a policy bundle entirely locally and print
-the result as JSON.
+Run a raw OPA query against a policy bundle entirely locally and print the
+result as JSON. Unlike 'policy decide', which returns a CircleCI policy
+decision from the remote service, this evaluates on your machine — the
+escape hatch for inspecting arbitrary Rego values while authoring policies.
 
-Unlike 'policy decide', which returns a CircleCI policy decision from the
-remote service, 'eval' runs the OPA query directly on your machine and
-prints whatever the query evaluates to. It is the escape hatch for
-inspecting arbitrary Rego values while authoring policies.
+The config is compiled before evaluation, with the source config exposed to
+policies and its compiled form nested under "_compiled_".
 
-By default the --input config is compiled (orbs inlined, parameters
-resolved) before evaluation, and the source config is made available to
-policies with its compiled form nested under a "_compiled_" key. Pass
---no-compile to evaluate the raw config instead.
-
-The output is the raw value produced by the OPA --query; it has no fixed
-schema. The default query "data" returns the entire document tree.
+Output is whatever the query evaluates to, so it has no fixed schema.
 

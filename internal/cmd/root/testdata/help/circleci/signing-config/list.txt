@@ -4,9 +4,7 @@ List iOS signing configs
 
 `circleci signing-config list [flags]`
 
-## Aliases
-
-`circleci signing-config ls`
+Aliases: `circleci signing-config ls`
 
 ## Flags
 
@@ -32,9 +30,6 @@ Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `ci
 ## Details
 
 List the iOS signing configs defined for your organization.
-
-The organization is inferred from the current git repository's remote
-unless overridden with --org (a slug or UUID).
 
 JSON fields: id, name, certificate, provisioning_profiles
 

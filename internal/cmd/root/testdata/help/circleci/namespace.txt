@@ -2,7 +2,7 @@ Manage the org namespace orbs publish under
 
 ## Usage
 
-`circleci namespace <command>`
+`circleci namespace <command> [flags]`
 
 ## General Commands
 

@@ -1,8 +1,9 @@
 Usage:  circleci orb list [<namespace>] [flags]
 
 Flags:
-  --jq string     Process values from the response using jq syntax
-  --json          Output as JSON
-  --private       only list private orbs (requires namespace)
-  --uncertified   include uncertified orbs
+  -h, --help          help for list
+      --jq string     Process values from the response using jq syntax
+      --json          Output as JSON
+      --private       only list private orbs (requires namespace)
+      --uncertified   include uncertified orbs
   

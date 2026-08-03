@@ -98,6 +98,48 @@ Users scan for examples first. Put your most common use cases at the top, then b
 ### Show the default values for flags
 If a flag has a default, show it: `[default: false]`. Users shouldn't have to guess what happens when they omit a flag.
 
+### Length budget: 40 lines, design for 35
+
+A help page is not a document — it is a screen. Agents that read CLI help capture only the
+**first ~40 lines**, and humans scan about as far before scrolling. Anything past that is
+invisible in practice, so length is a correctness property, not a matter of taste.
+
+**Hard budget: 40 lines. Design target: 35**, leaving headroom for a flag or example added
+later. Enforced per command by `TestHelp` in `internal/cmd/root/usage_test.go`.
+
+Four things must fit inside the budget:
+
+1. `## Usage`, including positionals
+2. `## Arguments`
+3. The complete command-specific flag table — **never drop a flag row to make budget**
+4. At least 3 examples
+
+**Prose is what yields.** Order the page so truncation cuts prose rather than signal: `Short`
+→ Usage → Arguments → Flags → Examples → `## Details`. That ordering is applied for you by the
+help template (`internal/cmd/root/help.go`); what you control is how much `Long` you write.
+
+When a page overflows, trim in this order:
+
+1. **Delete anything `Long` says that the flag table already says.** Enum lists of accepted
+   values, "use the `--x` flag to…", flag defaults. The flag table is canonical; `Long` must
+   not mirror it.
+2. **Delete anything `Long` says that `## Arguments` already says.**
+3. **Cap `Long` at ~6 lines**: one sentence on what the command does, plus at most one short
+   paragraph of behaviour that cannot be inferred from the flags (e.g. "project and branch are
+   inferred from the git remote").
+4. **Cap examples at 5**, keeping simple → complex and dropping near-duplicates. Three is the
+   floor, not the target.
+
+Prose worth keeping does not just get deleted — move it to a help topic
+(`internal/cmd/root/help_topic.go`). Topics are exempt from the budget, feed the published
+reference and `llms.txt`, and are reachable as `circleci help <topic>`. Note that `Long` is
+*also* the source for the docs site, `llms.txt`, the man page and the generated MCP tool
+description, so there is no separate web copy to move prose into — deleting a paragraph deletes
+it everywhere.
+
+If a command's flag table alone cannot fit, add an `overBudget` entry in `usage_test.go` with a
+reason in review. Those caps only ever ratchet down.
+
 ### Support all these help invocations (for git-style tools)
 ```sh
 myapp help
@@ -191,6 +233,7 @@ Many users reflexively run `man myapp`. Consider generating man pages using tool
 - [ ] Concise help shown when command run with no args (if args are required)
 - [ ] Full help available via `-h` and `--help`
 - [ ] Help text leads with examples
+- [ ] `--help` fits in 40 lines, with Usage, Arguments, the full flag table and 3+ examples inside it
 - [ ] All flags documented with their defaults
 - [ ] Support path (URL for issues/feedback) included in top-level help
 - [ ] Link to web docs in help text

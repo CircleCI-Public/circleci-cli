@@ -1,6 +1,7 @@
 Usage:  circleci orb list-categories [flags]
 
 Flags:
-  --jq string   Process values from the response using jq syntax
-  --json        Output as JSON
+  -h, --help        help for list-categories
+      --jq string   Process values from the response using jq syntax
+      --json        Output as JSON
   

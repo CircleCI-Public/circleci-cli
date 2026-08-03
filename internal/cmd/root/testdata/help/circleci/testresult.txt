@@ -2,7 +2,7 @@ Inspect test results for a job
 
 ## Usage
 
-`circleci testresult <command>`
+`circleci testresult <command> [flags]`
 
 ## General Commands
 

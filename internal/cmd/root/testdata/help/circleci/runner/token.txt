@@ -2,7 +2,7 @@ Manage runner tokens
 
 ## Usage
 
-`circleci runner token <command>`
+`circleci runner token <command> [flags]`
 
 ## General Commands
 

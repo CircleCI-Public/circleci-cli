@@ -2,7 +2,7 @@ Remove shell completion from your shell profile
 
 ## Usage
 
-`circleci completion uninstall`
+`circleci completion uninstall [flags]`
 
 ## Flags
 

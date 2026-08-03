@@ -1,6 +1,7 @@
 Usage:  circleci orb diff <namespace>/<orb> --from <v1> --to <v2> [flags]
 
 Flags:
-  --from string   the first version (semver e.g. 1.0.0, or a dev label e.g. dev:my-branch)
-  --to string     the second version, in the same form as --from
+      --from string   the first version (semver e.g. 1.0.0, or a dev label e.g. dev:my-branch)
+  -h, --help          help for diff
+      --to string     the second version, in the same form as --from
   

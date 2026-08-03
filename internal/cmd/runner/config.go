@@ -52,18 +52,11 @@ func newConfigCmd() *cobra.Command {
 			`, "`"),
 		},
 		Long: heredoc.Doc(`
-			Generate a runner agent configuration YAML for a resource class.
+			Generate a runner agent configuration YAML for a resource class, suitable for
+			use as the agent's launch-agent-config.yaml.
 
-			By default, a new authentication token is created and the resulting
-			config is written to stdout. Redirect stdout or use --output to
-			write directly to a file.
-
-			If you already have a token value (e.g. from a prior
-			'circleci runner token create'), pass it with --token to generate
-			the YAML without making an API call.
-
-			The generated YAML is suitable for use as the runner agent's
-			launch-agent-config.yaml.
+			A new authentication token is created unless you pass an existing one with
+			--token, which generates the YAML without an API call.
 		`),
 		Example: heredoc.Doc(`
 			# Create a new token and print config to stdout

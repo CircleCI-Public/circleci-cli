@@ -2,7 +2,7 @@ Define what will happen in a run
 
 ## Usage
 
-`circleci pipeline <command>`
+`circleci pipeline <command> [flags]`
 
 ## General Commands
 

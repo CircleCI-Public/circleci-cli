@@ -4,9 +4,7 @@ List orbs in the registry
 
 `circleci orb list [<namespace>] [flags]`
 
-## Aliases
-
-`circleci orb ls`
+Aliases: `circleci orb ls`
 
 ## Arguments
 

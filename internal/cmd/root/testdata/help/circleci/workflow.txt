@@ -2,7 +2,7 @@ Inspect, rerun and cancel workflows (job graphs)
 
 ## Usage
 
-`circleci workflow <command>`
+`circleci workflow <command> [flags]`
 
 ## General Commands
 

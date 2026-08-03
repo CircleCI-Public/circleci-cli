@@ -2,4 +2,5 @@ Usage:  circleci signing-config delete <signing-config-id> [flags]
 
 Flags:
   -f, --force   skip confirmation prompt
+  -h, --help    help for delete
   

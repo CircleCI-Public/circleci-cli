@@ -324,14 +324,10 @@ Watch a run until it completes
 
 **Arguments:**
 
-`<run-id>` is optional and selects the run to watch. A run can be specified by its UUID or number:
-- A run UUID, as shown in `circleci run list --json`
-- A run number, as shown in `circleci run list`.
+`<run-id>` is optional: a run UUID (as shown by `circleci run list --json`)
+or a run number (as shown by `circleci run list`).
 
-The project is inferred from the git remote unless overridden with `--project`.
-
-When omitted, the latest run for the current branch is watched
-(override the branch with `--branch`, or match a commit with `--sha`).
+When omitted, the latest run for the current branch is watched.
 
 ### `circleci testresult <command>`
 
@@ -361,14 +357,14 @@ shares that name, use `--filter classname=<value>` to disambiguate.
 
 List test results for a job
 
-| Flag                   | Description                                                                       |
-| ---------------------- | --------------------------------------------------------------------------------- |
-| `--all`                | Show all results (passing, failed and skipped), not just failures                 |
-| `--filter stringArray` | Filter tests by key=value (result, name, classname); repeatable                   |
-| `--jq string`          | Process values from the response using jq syntax (see `circleci help formatting`) |
-| `--json`               | Output as JSON                                                                    |
-| `--limit int`          | Maximum number of results to show (0 = no limit)                                  |
-| `--sort string`        | Sort by name, classname, result or run_time                                       |
+| Flag                   | Description                                                                                                                                                                                                       |
+| ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--all`                | Show all results (passing, failed and skipped), not just failures                                                                                                                                                 |
+| `--filter stringArray` | Filter by key=value; repeatable. Keys: result (success\|failure\|skipped, exact), name and classname (case-insensitive substring). Same key repeated is OR, different keys AND. Cannot combine result= with --all |
+| `--jq string`          | Process values from the response using jq syntax (see `circleci help formatting`)                                                                                                                                 |
+| `--json`               | Output as JSON                                                                                                                                                                                                    |
+| `--limit int`          | Maximum number of results to show (0 = no limit)                                                                                                                                                                  |
+| `--sort string`        | Sort by name, classname, result or run_time                                                                                                                                                                       |
 
 
 **Arguments:**
@@ -429,14 +425,11 @@ List workflows for a run or recent runs
 
 **Arguments:**
 
-`<run-id>` is optional and selects a single run. A run can be specified by its UUID or number:
-- A run UUID, as shown in `circleci run list --json`
-- A run number, as shown in `circleci run list`.
+`<run-id>` is optional: a run UUID (as shown by `circleci run list --json`)
+or a run number (as shown by `circleci run list`).
 
-The project is inferred from the git remote unless overridden with `--project`.
-
-When omitted, workflows for recent runs in the current project are
-listed, grouped by run.
+When omitted, workflows for recent runs in the current project are listed,
+grouped by run.
 
 **Aliases:**
 
@@ -1132,6 +1125,12 @@ Get the current value of an org setting
 | `--org string` | Organization slug (e.g. gh/myorg) or UUID; defaults to git remote                 |
 
 
+**Arguments:**
+
+`<setting>` is one of: ai-error-summarization, ai-agents, unversioned-config, certified-public-orbs, chunk-ip-ranges, minor-ai-features, private-orbs, uncertified-public-orbs, bitbucket-workspace-member-is-org-member, disable-user-checkout-keys, disable-running, image-brownouts, context-group-restriction, resource-class-brownouts, runner-tos-accepted.
+
+Run `circleci org setting list` for each setting's description and current value.
+
 ##### `circleci org setting list [flags]`
 
 List all advanced settings for an org
@@ -1158,6 +1157,13 @@ Set an org setting
 | `--json`       | Output as JSON                                                                    |
 | `--org string` | Organization slug (e.g. gh/myorg) or UUID; defaults to git remote                 |
 
+
+**Arguments:**
+
+`<setting>` is one of: ai-error-summarization, ai-agents, unversioned-config, certified-public-orbs, chunk-ip-ranges, minor-ai-features, private-orbs, uncertified-public-orbs, bitbucket-workspace-member-is-org-member, disable-user-checkout-keys, disable-running, image-brownouts, context-group-restriction, resource-class-brownouts, runner-tos-accepted.
+
+`<true|false>` is the new value. Run `circleci org setting list` for each
+setting's description and current value.
 
 ### `circleci policy <command>`
 
@@ -1488,6 +1494,12 @@ Get the current value of a project setting
 | `--project string` | Project slug (e.g. gh/org/repo); defaults to git remote                           |
 
 
+**Arguments:**
+
+`<setting>` is one of: build-forked-pull-requests, forks-receive-secret-env-vars, oss, auto-cancel-builds, set-github-status, build-prs-only, disable-ssh, write-settings-requires-admin, ai-error-summarization, dynamic-config, unversioned-config, disable-running.
+
+Run `circleci project setting list` for each setting's description and current value.
+
 ##### `circleci project setting list [flags]`
 
 List all advanced settings for a project
@@ -1514,6 +1526,13 @@ Set a project setting
 | `--json`           | Output as JSON                                                                    |
 | `--project string` | Project slug (e.g. gh/org/repo); defaults to git remote                           |
 
+
+**Arguments:**
+
+`<setting>` is one of: build-forked-pull-requests, forks-receive-secret-env-vars, oss, auto-cancel-builds, set-github-status, build-prs-only, disable-ssh, write-settings-requires-admin, ai-error-summarization, dynamic-config, unversioned-config, disable-running.
+
+`<true|false>` is the new value. Run `circleci project setting list` for each
+setting's description and current value.
 
 #### `circleci project trigger <command>`
 

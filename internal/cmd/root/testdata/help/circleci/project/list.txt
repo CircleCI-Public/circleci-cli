@@ -4,9 +4,7 @@ List followed projects
 
 `circleci project list [flags]`
 
-## Aliases
-
-`circleci project ls`
+Aliases: `circleci project ls`
 
 ## Flags
 

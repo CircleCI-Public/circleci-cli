@@ -21,6 +21,8 @@ Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `ci
   `circleci auth logout && circleci auth login`
 - Log out without printing the confirmation line: 
   `circleci auth logout --quiet`
+- Report where the token was removed from, for scripting: 
+  `circleci auth logout --json --jq '.storage'`
 
 ## Details
 
@@ -30,4 +32,6 @@ config file depending on where it was saved.
 CIRCLE_TOKEN is not affected: while it is set in the environment it
 takes precedence over stored credentials, so the CLI stays
 authenticated after logging out.
+
+JSON fields: storage ("keyring" or "file"), path (the config file, present only when storage is "file")
 

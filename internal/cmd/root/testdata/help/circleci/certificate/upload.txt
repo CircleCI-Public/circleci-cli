@@ -30,9 +30,6 @@ Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `ci
 Upload an Apple .p12 code signing certificate to your CircleCI
 organization's secure storage.
 
-The organization is inferred from the current git repository's remote
-unless overridden with --org (a slug or UUID).
-
 The certificate file is read from disk and base64-encoded locally
 before being sent. In a terminal, --password may be omitted and you
 will be prompted with input masking.

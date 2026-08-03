@@ -1,4 +1,4 @@
-Usage:  circleci context restriction <command>
+Usage:  circleci context restriction <command> [flags]
 
 Available commands:
   create

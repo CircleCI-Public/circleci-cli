@@ -93,9 +93,6 @@ func newUploadCmd() *cobra.Command {
 			Upload an Apple .p12 code signing certificate to your CircleCI
 			organization's secure storage.
 
-			The organization is inferred from the current git repository's remote
-			unless overridden with --org (a slug or UUID).
-
 			The certificate file is read from disk and base64-encoded locally
 			before being sent. In a terminal, --password may be omitted and you
 			will be prompted with input masking.
@@ -212,9 +209,6 @@ func newListCmd() *cobra.Command {
 			List Apple .p12 certificates currently stored in your organization's
 			secure storage.
 
-			The organization is inferred from the current git repository's remote
-			unless overridden with --org (a slug or UUID).
-
 			JSON fields: id, file_name, org_id, created_at
 		`),
 		Example: heredoc.Doc(`
@@ -308,9 +302,6 @@ func newDeleteCmd() *cobra.Command {
 			This action is irreversible. The server rejects the delete with an
 			error if the certificate is referenced by any signing config; delete
 			those signing configs first.
-
-			In a terminal, you will be prompted to confirm before deleting.
-			Use --force (-f) to skip the prompt for scripting.
 		`),
 		Example: heredoc.Doc(`
 			# Delete a certificate (with confirmation)

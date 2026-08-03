@@ -55,27 +55,13 @@ func newRunCmd() *cobra.Command {
 		Long: heredoc.Doc(`
 			Trigger a new pipeline run using the recommended CircleCI v2 API.
 
-			The project is resolved from --project if provided; otherwise the
-			project slug is detected from the git remote.
+			In a terminal, a missing --definition-id or --branch/--tag is prompted for; in
+			non-interactive mode both are optional. --branch and --tag are mutually
+			exclusive and each sets both the config-fetch and checkout revision.
 
-			In a terminal, missing --definition-id prompts you to pick from the
-			project's pipeline definitions, and missing --branch/--tag prompts you
-			to choose the project's default branch or enter a custom one.
-			In non-interactive mode (CI, agents, scripts) both are optional and
-			the trigger proceeds without them.
+			A skipped pipeline (e.g. a [ci skip] commit message) exits 0 and prints why.
 
-			Use --branch or --tag to specify which revision to run on. They are
-			mutually exclusive. --branch sets both the config fetch branch and the
-			checkout branch; --tag sets both the config fetch tag and the checkout tag.
-
-			Pass pipeline parameters with --param key=value (repeatable). Values
-			are sent as strings.
-
-			When the pipeline is skipped (e.g. due to a [ci skip] commit message)
-			the command exits 0 and prints the reason to stdout.
-
-			JSON fields (triggered): id, state, number, created_at, triggered
-			JSON fields (skipped):   triggered, message
+			JSON fields: id, state, number, created_at, triggered — or triggered, message when skipped.
 		`),
 		Example: heredoc.Doc(`
 			# Trigger a pipeline interactively — pick definition and branch from menus

@@ -41,11 +41,7 @@ func NewRunnerCmd() *cobra.Command {
 			Manage self-hosted runner resources.
 
 			Self-hosted runners let you run CircleCI jobs on your own infrastructure.
-			Use these commands to manage resource classes, authentication tokens, and
-			view connected runner instances.
-
-			Resource class names use the format: namespace/name
-			(e.g. my-org/my-runner)
+			Resource class names use the format namespace/name (e.g. my-org/my-runner).
 		`),
 	}
 

@@ -4,6 +4,13 @@ Set a project setting
 
 `circleci project setting set <setting> <true|false> [flags]`
 
+## Arguments
+
+`<setting>` is one of: build-forked-pull-requests, forks-receive-secret-env-vars, oss, auto-cancel-builds, set-github-status, build-prs-only, disable-ssh, write-settings-requires-admin, ai-error-summarization, dynamic-config, unversioned-config, disable-running.
+
+`<true|false>` is the new value. Run `circleci project setting list` for each
+setting's description and current value.
+
 ## Flags
 
 | Flag               | Description                                                                       |
@@ -28,20 +35,4 @@ Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `ci
 Set an advanced project setting to true or false.
 
 JSON fields: name, value
-
-Available settings:
-| Name                          | Description                                           |
-| ----------------------------- | ----------------------------------------------------- |
-| build-forked-pull-requests    | Build pull requests from forked repositories          |
-| forks-receive-secret-env-vars | Pass secret environment variables to forked-PR builds |
-| oss                           | Mark project as free and open source                  |
-| auto-cancel-builds            | Automatically cancel redundant workflows              |
-| set-github-status             | Report build status back to GitHub                    |
-| build-prs-only                | Only build branches that have open pull requests      |
-| disable-ssh                   | Disable SSH access to build containers                |
-| write-settings-requires-admin | Require admin role to change project settings         |
-| ai-error-summarization        | Enable AI-powered error summarization                 |
-| dynamic-config                | Enable dynamic configuration (setup workflows)        |
-| unversioned-config            | Allow triggering pipelines without a config file      |
-| disable-running               | Disable all builds for this project                   |
 

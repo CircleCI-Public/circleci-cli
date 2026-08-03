@@ -1,4 +1,4 @@
-Usage:  circleci job output <command>
+Usage:  circleci job output <command> [flags]
 
 Available commands:
   get

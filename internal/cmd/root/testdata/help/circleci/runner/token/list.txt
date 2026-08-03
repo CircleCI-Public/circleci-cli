@@ -4,9 +4,7 @@ List tokens for a resource class
 
 `circleci runner token list [flags]`
 
-## Aliases
-
-`circleci runner token ls`
+Aliases: `circleci runner token ls`
 
 ## Flags
 

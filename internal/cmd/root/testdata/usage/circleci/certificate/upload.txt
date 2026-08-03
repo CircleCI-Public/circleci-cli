@@ -1,9 +1,10 @@
 Usage:  circleci certificate upload [flags]
 
 Flags:
-  --cert-file string   Path to the .p12 certificate file
-  --jq string          Process values from the response using jq syntax
-  --json               Output as JSON
-  --org string         Organization slug (e.g. gh/myorg) or UUID; defaults to git remote
-  --password string    Password for the .p12 file. Pass - to read from stdin. Prompted if omitted in a terminal.
+      --cert-file string   Path to the .p12 certificate file
+  -h, --help               help for upload
+      --jq string          Process values from the response using jq syntax
+      --json               Output as JSON
+      --org string         Organization slug (e.g. gh/myorg) or UUID; defaults to git remote
+      --password string    Password for the .p12 file. Pass - to read from stdin. Prompted if omitted in a terminal.
   

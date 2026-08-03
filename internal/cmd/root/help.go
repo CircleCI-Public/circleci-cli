@@ -130,8 +130,14 @@ func rootHelp(command *cobra.Command, _ []string) {
 	}
 
 	commandSections := func(cmd *cobra.Command) {
-		section("Usage", "`"+cmd.UseLine()+"`")
-		section("Aliases", aliasesMarkdown(cmd))
+		// Aliases ride along in the Usage section rather than earning a heading
+		// of their own: a heading plus its blank line costs as much as the
+		// content, and the alias is a way to invoke this command anyway.
+		usage := "`" + cmd.UseLine() + "`"
+		if a := aliasesMarkdown(cmd); a != "" {
+			usage += "\n\nAliases: " + a
+		}
+		section("Usage", usage)
 		for _, g := range commandGroupSections(cmd) {
 			section(g[0], g[1])
 		}
@@ -215,8 +221,19 @@ func commandGroupSections(cmd *cobra.Command) [][2]string {
 // page, so re-printing them as a four-row "Inherited Flags" table costs ~8
 // lines per command for no marginal signal; root carries the real table.
 func flagsMarkdown(cmd *cobra.Command) string {
+	// --help is on every command in the tree and every reader already knows it,
+	// so listing it is boilerplate — and on a command with no other flags it
+	// costs a whole table. Root still documents it.
+	local := pflag.NewFlagSet(cmd.Name(), pflag.ContinueOnError)
+	cmd.LocalFlags().VisitAll(func(f *pflag.Flag) {
+		if f.Name == "help" {
+			return
+		}
+		local.AddFlag(f)
+	})
+
 	var parts []string
-	if t := mdTable("Flag", "Description", flagRows(cmd.LocalFlags())); t != "" {
+	if t := mdTable("Flag", "Description", flagRows(local)); t != "" {
 		parts = append(parts, strings.Trim(t, "\n"))
 	}
 
@@ -354,8 +371,7 @@ func topicsMarkdown(topics []helpTopic) string {
 func exampleMarkdown(example string) string {
 	var b strings.Builder
 	comment := ""
-	for _, line := range strings.Split(example, "\n") {
-		t := strings.TrimSpace(line)
+	for _, t := range joinContinuations(strings.Split(example, "\n")) {
 		switch {
 		case t == "":
 			// Blank line separates example blocks; nothing to emit.
@@ -375,6 +391,43 @@ func exampleMarkdown(example string) string {
 		}
 	}
 	return b.String()
+}
+
+// joinContinuations folds shell line continuations — a line ending in `\`
+// followed by the rest of the command — back into one logical line, and trims
+// each line's indentation. Without this, an example wrapped across five lines
+// renders as five bullets, four of which are bare flag fragments.
+func joinContinuations(lines []string) []string {
+	joined := make([]string, 0, len(lines))
+	var pending []string
+
+	flush := func(last string) {
+		if len(pending) == 0 {
+			joined = append(joined, last)
+			return
+		}
+		parts := pending
+		if last != "" {
+			parts = append(parts, last)
+		}
+		joined = append(joined, strings.Join(parts, " "))
+		pending = nil
+	}
+
+	for _, line := range lines {
+		t := strings.TrimSpace(line)
+		if after, ok := strings.CutSuffix(t, `\`); ok {
+			pending = append(pending, strings.TrimSpace(after))
+			continue
+		}
+		flush(t)
+	}
+	// A trailing continuation with nothing after it still has to be emitted.
+	if len(pending) > 0 {
+		flush("")
+	}
+
+	return joined
 }
 
 type commandGroup struct {

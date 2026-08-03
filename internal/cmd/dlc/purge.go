@@ -58,10 +58,6 @@ func NewPurgeCmd() *cobra.Command {
 			to rebuild all layers from scratch on the next run, which is useful
 			when a cached layer contains stale or corrupt data.
 
-			The project is inferred from the current git repository's remote
-			unless overridden with --project. The slug must be in the form
-			vcs/org/repo (e.g. gh/myorg/myrepo).
-
 			JSON fields (--json): project_id, project_slug
 		`),
 		Example: heredoc.Doc(`

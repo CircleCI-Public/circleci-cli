@@ -1,6 +1,7 @@
 Usage:  circleci runner config <resource-class> [flags]
 
 Flags:
+  -h, --help              help for config
       --nickname string   Nickname for the new token
   -o, --output string     Write config to this file instead of stdout
       --token string      Use an existing token value instead of creating a new one

@@ -2,7 +2,7 @@ Manage CircleCI organizations
 
 ## Usage
 
-`circleci org <command>`
+`circleci org <command> [flags]`
 
 ## General Commands
 

@@ -2,7 +2,7 @@ Track released components and versions
 
 ## Usage
 
-`circleci deploy <command>`
+`circleci deploy <command> [flags]`
 
 ## General Commands
 

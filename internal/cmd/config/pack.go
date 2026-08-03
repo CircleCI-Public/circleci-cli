@@ -45,22 +45,12 @@ func newPackCmd() *cobra.Command {
 			`, "`"),
 		},
 		Long: heredoc.Doc(`
-			Bundle a split CircleCI config directory into a single YAML document.
+			Merge a split CircleCI config directory into the single YAML document CircleCI
+			accepts, printed to stdout.
 
-			When a config is split across multiple files, pack merges them back
-			into the single-file format that CircleCI accepts. The directory
-			structure maps to YAML keys:
-
-			  .circleci/
-			    config.yml          → merged at the top level
-			    jobs/
-			      build.yml         → jobs.build
-			      test.yml          → jobs.test
-
-			Files whose names begin with "@" are merged at the current level
-			rather than nested under a key.
-
-			The merged YAML is printed to stdout.
+			The directory structure maps to YAML keys: .circleci/config.yml merges at the
+			top level, and .circleci/jobs/build.yml becomes jobs.build. Files whose names
+			begin with "@" merge at the current level instead of nesting under a key.
 		`),
 		Example: heredoc.Doc(`
 			# Pack the default config directory

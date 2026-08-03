@@ -32,11 +32,8 @@ Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `ci
 
 Reserve an orb name in the given namespace.
 
-This registers the orb name without publishing any versions.
-After creating the orb, publish versions with 'circleci orb publish'.
-
-The namespace must already exist. Use 'circleci namespace create'
-to create a namespace if needed.
+This registers the name without publishing any versions; publish them with
+'circleci orb publish'. The namespace must already exist.
 
 JSON fields: id, name, namespace, is_private
 

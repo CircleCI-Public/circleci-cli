@@ -4,9 +4,7 @@ List current CLI settings
 
 `circleci setting list [flags]`
 
-## Aliases
-
-`circleci setting ls`
+Aliases: `circleci setting ls`
 
 ## Flags
 

@@ -1,4 +1,4 @@
-Usage:  circleci mcp claude
+Usage:  circleci mcp claude [flags]
 
 Available commands:
   disable

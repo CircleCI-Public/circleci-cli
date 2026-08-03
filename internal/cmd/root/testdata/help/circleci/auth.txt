@@ -2,7 +2,7 @@ Log in, sign up and check your CircleCI identity
 
 ## Usage
 
-`circleci auth <command>`
+`circleci auth <command> [flags]`
 
 ## Available Commands
 

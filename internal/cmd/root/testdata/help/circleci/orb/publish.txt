@@ -2,7 +2,7 @@ Publish orb versions
 
 ## Usage
 
-`circleci orb publish <command>`
+`circleci orb publish <command> [flags]`
 
 ## Available Commands
 

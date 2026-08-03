@@ -2,7 +2,7 @@ Open job in browser
 
 ## Usage
 
-`circleci job open <job-id>`
+`circleci job open <job-id> [flags]`
 
 ## Arguments
 

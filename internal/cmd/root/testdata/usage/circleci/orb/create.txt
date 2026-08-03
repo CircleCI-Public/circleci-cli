@@ -1,7 +1,8 @@
 Usage:  circleci orb create <namespace>/<orb> [flags]
 
 Flags:
-  --jq string   Process values from the response using jq syntax
-  --json        Output as JSON
-  --private     create as a private orb
+  -h, --help        help for create
+      --jq string   Process values from the response using jq syntax
+      --json        Output as JSON
+      --private     create as a private orb
   

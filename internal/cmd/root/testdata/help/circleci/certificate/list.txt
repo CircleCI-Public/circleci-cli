@@ -4,9 +4,7 @@ List uploaded iOS certificates
 
 `circleci certificate list [flags]`
 
-## Aliases
-
-`circleci certificate ls`
+Aliases: `circleci certificate ls`
 
 ## Flags
 
@@ -33,9 +31,6 @@ Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `ci
 
 List Apple .p12 certificates currently stored in your organization's
 secure storage.
-
-The organization is inferred from the current git repository's remote
-unless overridden with --org (a slug or UUID).
 
 JSON fields: id, file_name, org_id, created_at
 

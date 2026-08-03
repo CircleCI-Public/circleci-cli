@@ -2,7 +2,7 @@ Install shell completion into your shell profile
 
 ## Usage
 
-`circleci completion install`
+`circleci completion install [flags]`
 
 ## Flags
 

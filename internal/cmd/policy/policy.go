@@ -40,13 +40,11 @@ func NewPolicyCmd() *cobra.Command {
 		Long: heredoc.Doc(`
 			Manage security policies.
 
-			Policies are written in Rego and evaluated against pipeline configs
-			to enforce organizational security rules. Use these commands to push,
-			inspect, and test policy bundles, and to query decision logs.
+			Policies are written in Rego and evaluated against pipeline configs to
+			enforce organizational security rules.
 
-			Most commands require --org, which is your organization's slug
-			(e.g. gh/acme) or UUID.
-			Find it at: https://app.circleci.com/settings/organization
+			Most commands require --org, your organization's slug (e.g. gh/acme) or UUID,
+			found at <https://app.circleci.com/settings/organization>.
 		`),
 		RunE:               cmdutil.GroupRunE,
 		FParseErrWhitelist: cobra.FParseErrWhitelist{UnknownFlags: true},

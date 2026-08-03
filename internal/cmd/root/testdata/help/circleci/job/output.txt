@@ -2,7 +2,7 @@ Work with job step output
 
 ## Usage
 
-`circleci job output <command>`
+`circleci job output <command> [flags]`
 
 ## Available Commands
 

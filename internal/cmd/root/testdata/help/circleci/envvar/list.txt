@@ -4,9 +4,7 @@ List project environment variables
 
 `circleci envvar list [flags]`
 
-## Aliases
-
-`circleci envvar ls`
+Aliases: `circleci envvar ls`
 
 ## Flags
 
@@ -33,9 +31,6 @@ List the environment variables defined for a CircleCI project.
 
 Values are always masked in the response (shown as "xxxx") — CircleCI
 does not expose secret values after they are set.
-
-The project is inferred from the current git repository's remote
-unless overridden with --project.
 
 JSON fields: name, value
 

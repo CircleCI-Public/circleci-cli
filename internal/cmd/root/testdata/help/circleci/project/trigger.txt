@@ -2,7 +2,7 @@ Manage project triggers
 
 ## Usage
 
-`circleci project trigger <command>`
+`circleci project trigger <command> [flags]`
 
 ## Available Commands
 

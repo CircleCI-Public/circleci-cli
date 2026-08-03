@@ -1,1 +1,5 @@
-Usage:  circleci testsuite
+Usage:  circleci testsuite [flags]
+
+Flags:
+  -h, --help   help for testsuite
+  

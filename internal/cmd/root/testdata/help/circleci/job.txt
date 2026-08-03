@@ -2,7 +2,7 @@ Inspect a job's details, output and artifacts
 
 ## Usage
 
-`circleci job <command>`
+`circleci job <command> [flags]`
 
 ## Targeted Commands
 

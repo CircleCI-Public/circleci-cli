@@ -2,7 +2,7 @@ Manage Claude Desktop MCP servers
 
 ## Usage
 
-`circleci mcp claude`
+`circleci mcp claude [flags]`
 
 ## Available Commands
 

@@ -1,5 +1,6 @@
 Usage:  circleci mcp start [flags]
 
 Flags:
-  --log-level string   Log level (debug, info, warn, error)
+  -h, --help               help for start
+      --log-level string   Log level (debug, info, warn, error)
   

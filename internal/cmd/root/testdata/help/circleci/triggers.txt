@@ -1,0 +1,49 @@
+# Triggers
+A trigger connects an event source to a pipeline definition, so that matching events
+automatically start a pipeline run. Create one with `circleci project trigger create`.
+
+## Providers
+
+The `--provider` flag names the event source. `github_app` is the default.
+
+| Provider | Event source |
+|---|---|
+| `github_app` | A repository in a GitHub org with the CircleCI GitHub App installed |
+| `github_server` | A repository on a self-hosted GitHub Enterprise Server |
+| `github_oauth` | A repository connected through the legacy GitHub OAuth integration |
+| `webhook` | An inbound HTTP webhook, for sources CircleCI does not integrate with directly |
+| `schedule` | A time-based schedule rather than a repository event |
+
+The three repository-backed providers need `--repo-id`, the repository's external ID
+as the provider knows it. `webhook` and `schedule` do not.
+
+## Event presets
+
+The `--event-preset` flag filters which events actually start a run. Omit it to run on
+every event the provider sends.
+
+| Preset | Runs on |
+|---|---|
+| `all-pushes` | Every push to any branch |
+| `default-branch-pushes` | Pushes to the default branch only |
+| `only-tags` | Tag pushes only |
+| `only-branch-delete` | Branch deletions |
+| `only-build-prs` | Pushes to branches that have an open pull request |
+| `only-open-prs` | Pull requests being opened |
+| `non-draft-pr-opened` | Pull requests opened in a non-draft state |
+| `only-build-pushes-to-non-draft-prs` | Pushes to non-draft pull requests |
+| `only-ready-for-review-prs` | Pull requests marked ready for review |
+| `only-labeled-prs` | Pull requests being labeled |
+| `only-merged-prs` | Pull requests being merged |
+| `only-merged-or-closed-prs` | Pull requests being merged or closed |
+| `pr-comment-equals-run-ci` | A pull request comment of exactly "run ci" |
+| `pushes-to-merge-queues` | Pushes to a GitHub merge queue |
+
+
+## Examples
+### Build every push to a GitHub App repository
+`$ circleci project trigger create --pipeline-definition-id <id> --repo-id 123456789 --event-preset all-pushes`
+### Build only tagged releases
+`$ circleci project trigger create --pipeline-definition-id <id> --repo-id 123456789 --event-preset only-tags`
+### List the triggers already attached to a pipeline definition
+`$ circleci project trigger list --pipeline-definition-id <id>`

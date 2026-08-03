@@ -4,9 +4,7 @@ List your recent runs grouped by project
 
 `circleci my runs [flags]`
 
-## Aliases
-
-`circleci my run`
+Aliases: `circleci my run`
 
 ## Flags
 

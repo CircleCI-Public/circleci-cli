@@ -2,7 +2,7 @@ Remove an orb from a registry category
 
 ## Usage
 
-`circleci orb remove-from-category <namespace>/<orb> <category>`
+`circleci orb remove-from-category <namespace>/<orb> <category> [flags]`
 
 ## Arguments
 

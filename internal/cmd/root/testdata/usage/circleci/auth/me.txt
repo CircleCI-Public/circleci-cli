@@ -1,6 +1,7 @@
 Usage:  circleci auth me [flags]
 
 Flags:
-  --jq string   Process values from the response using jq syntax
-  --json        Output as JSON
+  -h, --help        help for me
+      --jq string   Process values from the response using jq syntax
+      --json        Output as JSON
   

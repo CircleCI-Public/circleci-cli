@@ -2,7 +2,7 @@ Pack a multi-file orb directory into a single YAML
 
 ## Usage
 
-`circleci orb pack <path>`
+`circleci orb pack <path> [flags]`
 
 ## Arguments
 

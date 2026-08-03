@@ -1,4 +1,4 @@
-Usage:  circleci mcp
+Usage:  circleci mcp [flags]
 
 Available commands:
   claude

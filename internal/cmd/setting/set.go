@@ -50,17 +50,8 @@ func newSetCmd() *cobra.Command {
 		Long: heredoc.Doc(`
 			Set a CLI setting by key.
 
-			Supported keys:
-			  token      Your CircleCI personal API token
-			  host       CircleCI server host (default: https://circleci.com)
-			  telemetry  Enable or disable anonymous usage telemetry (on/off)
-			  theme      Color theme for rendered output (default: auto)
-
-			Pass "-" as the value to read it from stdin, keeping secrets out of
-			shell history and process listings.
-
-			Run 'circleci setting set theme' with no value in an interactive
-			terminal to pick a theme from a list.
+			Run 'circleci setting set theme' with no value in an interactive terminal to
+			pick a theme from a list.
 		`),
 		Example: heredoc.Doc(`
 			# Store your personal API token

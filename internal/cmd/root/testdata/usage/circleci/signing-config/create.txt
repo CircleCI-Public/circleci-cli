@@ -1,10 +1,11 @@
 Usage:  circleci signing-config create [flags]
 
 Flags:
-  --cert-id string        ID of an uploaded certificate (see: circleci certificate list)
-  --jq string             Process values from the response using jq syntax
-  --json                  Output as JSON
-  --name string           Name for the signing config (referenced in pipeline config)
-  --org string            Organization slug (e.g. gh/myorg) or UUID; defaults to git remote
-  --profile stringArray   Path to a provisioning profile file (repeatable)
+      --cert-id string        ID of an uploaded certificate (see: circleci certificate list)
+  -h, --help                  help for create
+      --jq string             Process values from the response using jq syntax
+      --json                  Output as JSON
+      --name string           Name for the signing config (referenced in pipeline config)
+      --org string            Organization slug (e.g. gh/myorg) or UUID; defaults to git remote
+      --profile stringArray   Path to a provisioning profile file (repeatable)
   

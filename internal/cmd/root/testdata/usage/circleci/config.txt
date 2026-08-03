@@ -1,4 +1,4 @@
-Usage:  circleci config <command>
+Usage:  circleci config <command> [flags]
 
 Available commands:
   generate

@@ -1,1 +1,5 @@
-Usage:  circleci completion uninstall
+Usage:  circleci completion uninstall [flags]
+
+Flags:
+  -h, --help   help for uninstall
+  

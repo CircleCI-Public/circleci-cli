@@ -1,0 +1,34 @@
+# Environment
+`circleci` reads the following environment variables to configure authentication, output, and
+behavior. Each takes precedence over the corresponding stored setting, so they are useful for
+scripting and CI where you want explicit, per-invocation control.
+
+`CIRCLE_TOKEN`: an authentication token that will be used for API requests. Setting this avoids
+being prompted to authenticate and takes precedence over previously stored credentials.
+
+`CIRCLE_HOST`: specify the CircleCI hostname.
+
+`NO_COLOR`: set to any value to avoid printing ANSI escape sequences for color output.
+The `--no-color` flag has the same effect.
+
+`CIRCLE_NO_COLOR`: set to any value to disable ANSI color output, same as `NO_COLOR`.
+
+`CIRCLE_NO_INTERACTIVE`: set to any value to suppress all interactive prompts.
+
+`CI`: when set (as CI systems do), interactive prompts, the animated spinner, and update
+notifications are all disabled automatically.
+
+`CIRCLE_SPINNER_DISABLED`: set to any value to replace the animated spinner with plain text.
+
+`CIRCLE_NO_PAGER`: set to any value to print long output directly instead of through a pager.
+
+`PAGER`: names the pager program to send long output through (for example `less` or `more`).
+When unset, a built-in scrollable viewer is used. Set it to `cat` or an empty value to disable
+paging entirely.
+
+`CIRCLE_NO_TELEMETRY`: set to any value to disable telemetry.
+
+`NO_ANALYTICS`: set to any value to disable telemetry.
+
+`DO_NOT_TRACK`: set to any value to disable telemetry.
+

@@ -2,7 +2,7 @@ Generate, validate, process and pack config YAML
 
 ## Usage
 
-`circleci config <command>`
+`circleci config <command> [flags]`
 
 ## Available Commands
 

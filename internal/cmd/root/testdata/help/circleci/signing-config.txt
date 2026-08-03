@@ -2,7 +2,7 @@ Manage iOS signing configs
 
 ## Usage
 
-`circleci signing-config <command>`
+`circleci signing-config <command> [flags]`
 
 ## General Commands
 

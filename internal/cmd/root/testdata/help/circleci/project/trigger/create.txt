@@ -24,56 +24,19 @@ Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `ci
 ## Examples
 
 - Create a GitHub App trigger (provider defaults to github_app): 
-  `circleci project trigger create \`
-- --pipeline-definition-id a1b2c3d4-... \
-- --repo-id 123456789
+  `circleci project trigger create --pipeline-definition-id a1b2c3d4-... --repo-id 123456789`
 - Create a trigger for a GitHub Server installation: 
-  `circleci project trigger create \`
-- --provider github_server \
-- --pipeline-definition-id a1b2c3d4-... \
-- --repo-id 123456789
+  `circleci project trigger create --provider github_server --pipeline-definition-id a1b2c3d4-... --repo-id 123456789`
 - Create a trigger with event filtering and output as JSON: 
-  `circleci project trigger create \`
-- --pipeline-definition-id a1b2c3d4-... \
-- --repo-id 123456789 \
-- --event-preset all-pushes \
-- --json
+  `circleci project trigger create --pipeline-definition-id a1b2c3d4-... --repo-id 123456789 --event-preset all-pushes --json`
 
 ## Details
 
-Create a new trigger for a CircleCI project.
+Create a new trigger for a CircleCI project, connecting an event source to a
+pipeline definition so that matching events start a pipeline run.
 
-A trigger connects an event source to a pipeline definition so that
-matching events automatically start a pipeline run.
+Required values are prompted for in a terminal, and must be flags otherwise.
+Run `circleci help triggers` for what each provider and event preset means.
 
-The project is resolved from --project-id if provided; otherwise the
-project slug (--project or git remote) is used to look up the project UUID.
-
---pipeline-definition-id is required. In a terminal it will be prompted
-interactively if omitted (showing available pipeline definitions to choose
-from); in non-interactive mode (CI, agents) it must be passed as a flag.
-
---repo-id is required for repo-based providers (github_app, github_server,
-github_oauth). In a terminal it will be prompted if omitted.
-
-Valid --provider values: github_app, github_server, github_oauth, webhook, schedule
-
-Valid --event-preset values:
-  all-pushes
-  only-tags
-  default-branch-pushes
-  only-build-prs
-  only-open-prs
-  only-labeled-prs
-  only-merged-prs
-  only-ready-for-review-prs
-  only-branch-delete
-  only-build-pushes-to-non-draft-prs
-  only-merged-or-closed-prs
-  pr-comment-equals-run-ci
-  non-draft-pr-opened
-  pushes-to-merge-queues
-
-JSON fields: id, created_at, event_name, event_preset, config_ref,
-             checkout_ref, disabled
+JSON fields: id, created_at, event_name, event_preset, config_ref, checkout_ref, disabled
 

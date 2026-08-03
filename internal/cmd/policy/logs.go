@@ -70,8 +70,7 @@ func newLogsCmd() *cobra.Command {
 			Logs can be filtered by status, branch, project, and time range.
 			Use --out to write results to a file.
 
-			JSON fields: id, status, created_at, org_id, project_id, branch,
-			             build_number, policies, decision, metadata
+			JSON fields: id, status, created_at, org_id, project_id, branch, build_number, policies, decision, metadata
 		`),
 		Example: heredoc.Doc(`
 			# Get all decision logs

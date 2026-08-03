@@ -1,4 +1,4 @@
-Usage:  circleci certificate <command>
+Usage:  circleci certificate <command> [flags]
 
 Available commands:
   delete

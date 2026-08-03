@@ -1,4 +1,4 @@
-Usage:  circleci runner instance <command>
+Usage:  circleci runner instance <command> [flags]
 
 Available commands:
   list

@@ -2,7 +2,7 @@ Manage CLI extensions
 
 ## Usage
 
-`circleci extension <command>`
+`circleci extension <command> [flags]`
 
 ## Targeted Commands
 

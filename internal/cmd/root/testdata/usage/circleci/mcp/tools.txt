@@ -1,5 +1,6 @@
 Usage:  circleci mcp tools [flags]
 
 Flags:
-  --log-level string   Log level (debug, info, warn, error)
+  -h, --help               help for tools
+      --log-level string   Log level (debug, info, warn, error)
   

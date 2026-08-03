@@ -2,7 +2,7 @@ Install, remove or print shell completions
 
 ## Usage
 
-`circleci completion <command>`
+`circleci completion <command> [flags]`
 
 ## Available Commands
 

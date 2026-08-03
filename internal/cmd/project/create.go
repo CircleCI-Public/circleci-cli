@@ -58,21 +58,10 @@ func newCreateCmd() *cobra.Command {
 		Long: heredoc.Doc(`
 			Create a new CircleCI project in the given organization.
 
-			The --org flag takes a slug in the form vcs/org (e.g. gh/myorg or
-			circleci/9YytKzouJxzu4TjCRFqAoD). The org slug is found in the
-			CircleCI web app under Organization Settings > Organization slug.
+			The name and --org are prompted for in a terminal; otherwise the name defaults
+			to the current repository and --org is required.
 
-			The project name argument is optional in a terminal: if omitted, you
-			will be prompted for it and the current repository name is offered
-			as the default. In non-interactive mode the current repository name
-			is used automatically when no argument is given.
-
-			The --org flag is also optional in a terminal: if omitted, you will
-			be prompted to pick from the organizations your account belongs to.
-			In non-interactive mode it is required.
-
-			JSON fields: id, slug, name, organization_name, organization_slug,
-			             organization_id, vcs_provider, vcs_default_branch, vcs_url
+			JSON fields: id, slug, name, organization_name, organization_slug, organization_id, vcs_provider, vcs_default_branch, vcs_url
 		`),
 		Example: heredoc.Doc(`
 			# Create a project (prompted for name if run interactively)

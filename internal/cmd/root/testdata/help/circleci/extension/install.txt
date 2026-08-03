@@ -2,7 +2,7 @@ Install an extension
 
 ## Usage
 
-`circleci extension install <extension>`
+`circleci extension install <extension> [flags]`
 
 ## Flags
 

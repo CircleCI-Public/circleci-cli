@@ -49,6 +49,5 @@ to retrieve only the policy bundle snapshot for a given decision.
 Logs can be filtered by status, branch, project, and time range.
 Use --out to write results to a file.
 
-JSON fields: id, status, created_at, org_id, project_id, branch,
-             build_number, policies, decision, metadata
+JSON fields: id, status, created_at, org_id, project_id, branch, build_number, policies, decision, metadata
 

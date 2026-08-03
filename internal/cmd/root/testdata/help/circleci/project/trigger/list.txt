@@ -4,9 +4,7 @@ List triggers for a pipeline definition
 
 `circleci project trigger list [flags]`
 
-## Aliases
-
-`circleci project trigger ls`
+Aliases: `circleci project trigger ls`
 
 ## Flags
 
@@ -23,29 +21,19 @@ Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `ci
 ## Examples
 
 - List triggers for the current repository's project: 
-  `circleci project trigger list \`
-- --pipeline-definition-id a1b2c3d4-...
+  `circleci project trigger list --pipeline-definition-id a1b2c3d4-...`
 - List triggers for a specific project: 
-  `circleci project trigger list \`
-- --project gh/myorg/myrepo \
-- --pipeline-definition-id a1b2c3d4-...
+  `circleci project trigger list --project gh/myorg/myrepo --pipeline-definition-id a1b2c3d4-...`
 - Output as JSON for scripting: 
-  `circleci project trigger list \`
-- --pipeline-definition-id a1b2c3d4-... \
-- --json
+  `circleci project trigger list --pipeline-definition-id a1b2c3d4-... --json`
 
 ## Details
 
 List all triggers attached to a pipeline definition.
 
-The project is resolved from --project-id if provided; otherwise the
-project slug (--project or git remote) is used to look up the project UUID.
-
 --pipeline-definition-id is required. In a terminal it will be prompted
 interactively if omitted; in non-interactive mode (CI, agents) it must
 be passed as a flag.
 
-JSON fields: id, created_at, event_name, event_preset, config_ref,
-             checkout_ref, disabled, event_source.provider,
-             event_source.repo.external_id, event_source.repo.full_name
+JSON fields: id, created_at, event_name, event_preset, config_ref, checkout_ref, disabled, event_source.provider, event_source.repo.external_id, event_source.repo.full_name
 

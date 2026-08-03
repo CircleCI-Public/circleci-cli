@@ -25,41 +25,20 @@ Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `ci
 ## Examples
 
 - Get your user profile: 
-  `circleci api api/v2/me`
-- Get a project: 
-  `circleci api projects/{project-id}`
+  `circleci api me`
 - List runs for a project: 
-  `circleci api 'runs?filter[project_id]={project-id}'`
-- List my runs: 
-  `circleci api 'runs?filter[user_id]=me'`
+  `circleci api projects/{project-id}/runs`
 - Trigger a pipeline on a branch: 
-  `circleci api -X POST project/gh/myorg/myrepo/pipeline -f branch=main`
-- Send a raw JSON body: 
-  `circleci api -X POST project/gh/myorg/myrepo/pipeline -d '{"branch":"main"}'`
+  `circleci api projects/{project-id}/run -f definition_id=<id> -f "config[branch]=main"`
 - Send a body read from a file (@- reads from stdin): 
-  `circleci api -X POST project/gh/myorg/myrepo/pipeline -d @body.json`
-- Add a custom header: 
-  `circleci api -H "Accept: application/json" api/v2/me`
-- Access the v1.1 API: 
-  `circleci api api/v1.1/me`
+  `circleci api projects/{project-id}/run -d @payload.json`
+- Access the v1.1 API with a custom header: 
+  `circleci api api/v1.1/me -H "X-Custom: value"`
 
 ## Details
 
-Make an authenticated HTTP request to the REST APIs and print
-the raw response body.
-
-`<path>` is relative to /api/v3 (e.g. `projects/{project-id}`). To target
-a different version prefix, include it explicitly:
-  circleci api api/v2/me
-
-The Authorization: Bearer header is added automatically from your stored token.
-Use -H to add extra headers and -f to set fields (query parameters for
-GET/DELETE, JSON body fields for POST/PUT/PATCH).
-
-To send a raw request body instead of building one from -f fields, use
--d/--data. The value is sent verbatim; @file reads the body from a file and
-@- reads it from stdin. -d and -f cannot be combined. When -d is given the
-default method is POST.
+Make an authenticated HTTP request to the REST API and print the raw
+response body. The Authorization header is added from your stored token.
 
 Exit code reflects the HTTP response: 0 for 2xx, 4 for 4xx/5xx.
 

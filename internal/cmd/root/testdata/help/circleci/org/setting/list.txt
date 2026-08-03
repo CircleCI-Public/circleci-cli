@@ -4,9 +4,7 @@ List all advanced settings for an org
 
 `circleci org setting list [flags]`
 
-## Aliases
-
-`circleci org setting ls`
+Aliases: `circleci org setting ls`
 
 ## Flags
 
@@ -31,15 +29,5 @@ Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `ci
 
 List all advanced settings for a CircleCI organization.
 
-The organization is inferred from the current git repository's remote
-unless overridden with --org.
-
-JSON fields: enable_ai_error_summarization, enable_ai_agents,
-             enable_unversioned_config, enable_certified_public_orbs,
-             enable_chunk_ip_ranges, enable_minor_ai_features,
-             enable_private_orbs, enable_uncertified_public_orbs,
-             is_bitbucket_workspace_member_org_member,
-             is_user_checkout_keys_disabled, is_running_disabled,
-             enable_image_brownouts, is_context_group_restriction_required,
-             enable_resource_class_brownouts, is_runner_terms_of_service_accepted
+JSON fields: enable_ai_error_summarization, enable_ai_agents, enable_unversioned_config, enable_certified_public_orbs, enable_chunk_ip_ranges, enable_minor_ai_features, enable_private_orbs, enable_uncertified_public_orbs, is_bitbucket_workspace_member_org_member, is_user_checkout_keys_disabled, is_running_disabled, enable_image_brownouts, is_context_group_restriction_required, enable_resource_class_brownouts, is_runner_terms_of_service_accepted
 

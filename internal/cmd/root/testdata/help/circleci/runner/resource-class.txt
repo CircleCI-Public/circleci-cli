@@ -2,7 +2,7 @@ Manage runner resource classes
 
 ## Usage
 
-`circleci runner resource-class <command>`
+`circleci runner resource-class <command> [flags]`
 
 ## General Commands
 

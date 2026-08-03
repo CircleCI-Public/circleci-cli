@@ -35,13 +35,10 @@ Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `ci
 
 ## Details
 
-Upload a directory of .rego files as a policy bundle.
+Upload a directory of .rego files as a policy bundle, replacing the existing
+bundle for the given owner and policy context.
 
-Before applying changes, a diff is shown and confirmation is
-requested. Pass --no-prompt to skip confirmation (useful in CI).
-
-The policy bundle replaces the existing bundle for the given
-owner and policy context.
+A diff is shown and confirmed before anything is applied.
 
 JSON fields: created, deleted, updated (policy names)
 

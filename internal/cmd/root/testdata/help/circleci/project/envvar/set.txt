@@ -35,6 +35,3 @@ If the variable already exists it will be overwritten. The value
 is never retrievable after being set — CircleCI masks it in all
 subsequent list responses.
 
-The project is inferred from the current git repository's remote
-unless overridden with --project.
-

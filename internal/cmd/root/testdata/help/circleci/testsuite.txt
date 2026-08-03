@@ -2,7 +2,7 @@ Extension (circleci-testsuite)
 
 ## Usage
 
-`circleci testsuite`
+`circleci testsuite [flags]`
 
 ## Flags
 

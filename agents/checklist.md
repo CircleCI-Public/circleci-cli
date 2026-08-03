@@ -20,6 +20,8 @@ A quick-reference checklist for agents writing a new CLI. Work through each sect
 - [ ] Full help available via `-h` and `--help`
 - [ ] `-h` is *only* used for help — never repurposed for another flag
 - [ ] Help text leads with practical examples
+- [ ] `--help` fits the **40-line budget** (design for 35), with Usage, Arguments, the complete
+      flag table and 3+ examples all inside it — trim `Long`, never flags or examples
 - [ ] All flags documented with their default values
 - [ ] Support path (issue tracker URL) included in top-level help
 - [ ] Typos in subcommands/flags suggest corrections

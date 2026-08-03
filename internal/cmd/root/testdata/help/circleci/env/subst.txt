@@ -2,7 +2,7 @@ Substitute environment variables in a string
 
 ## Usage
 
-`circleci env subst [string]`
+`circleci env subst [string] [flags]`
 
 ## Flags
 

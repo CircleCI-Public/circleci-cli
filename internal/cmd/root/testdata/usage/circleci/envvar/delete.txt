@@ -2,5 +2,6 @@ Usage:  circleci envvar delete <name> [flags]
 
 Flags:
   -f, --force            skip confirmation prompt
+  -h, --help             help for delete
       --project string   Project slug (e.g. gh/org/repo); defaults to git remote
   

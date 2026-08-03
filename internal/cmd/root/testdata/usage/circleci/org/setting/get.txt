@@ -1,7 +1,8 @@
 Usage:  circleci org setting get <setting> [flags]
 
 Flags:
-  --jq string    Process values from the response using jq syntax
-  --json         Output as JSON
-  --org string   Organization slug (e.g. gh/myorg) or UUID; defaults to git remote
+  -h, --help         help for get
+      --jq string    Process values from the response using jq syntax
+      --json         Output as JSON
+      --org string   Organization slug (e.g. gh/myorg) or UUID; defaults to git remote
   

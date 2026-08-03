@@ -1,5 +1,6 @@
 Usage:  circleci deploy open [flags]
 
 Flags:
-  --project string   Project slug (e.g. gh/org/repo); defaults to git remote
+  -h, --help             help for open
+      --project string   Project slug (e.g. gh/org/repo); defaults to git remote
   

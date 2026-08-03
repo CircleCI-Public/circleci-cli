@@ -2,7 +2,7 @@ Run the CLI as an MCP server for AI tools
 
 ## Usage
 
-`circleci mcp`
+`circleci mcp [flags]`
 
 ## Available Commands
 

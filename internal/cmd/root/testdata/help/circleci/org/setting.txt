@@ -2,7 +2,7 @@ View and update org advanced settings
 
 ## Usage
 
-`circleci org setting <command>`
+`circleci org setting <command> [flags]`
 
 ## Available Commands
 

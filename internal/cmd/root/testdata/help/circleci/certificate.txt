@@ -2,7 +2,7 @@ Manage iOS code signing certificates
 
 ## Usage
 
-`circleci certificate <command>`
+`circleci certificate <command> [flags]`
 
 ## General Commands
 

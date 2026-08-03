@@ -1,4 +1,4 @@
-Usage:  circleci namespace <command>
+Usage:  circleci namespace <command> [flags]
 
 Available commands:
   create

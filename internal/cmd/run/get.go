@@ -84,24 +84,14 @@ func newGetCmd() *cobra.Command {
 		Long: heredoc.Doc(`
 			Display the status of a CircleCI run and its workflows.
 
-			When called without arguments, the project and branch are inferred from
-			the current git repository's remote and checked-out branch. When
-			--project is given, the branch defaults to main (not the local checkout,
-			which is meaningless for a different project) unless --branch is set.
-
-			Pass a run UUID to look up a specific run.
-
-			With no run UUID in an interactive terminal, a picker walks you through
-			the recent runs; --no-interactive (or --json, or a non-interactive
-			session) skips it and resolves the latest run directly.
-
-			Use the --mine flag to show only your runs.
+			With no run UUID in an interactive terminal, a picker walks you through the
+			recent runs; --no-interactive, --json, or a non-interactive session skips it
+			and resolves the latest run directly.
 
 			JSON fields: id, phase, outcome, current_outcome, branch, tag, revision,
-			             repository_url, commit.subject/url/author_name/author_login,
-			             created_at, errors[].type/message,
-			             workflows[].id/name/phase/outcome/current_outcome/duration/
-			             jobs[].id/name/phase/outcome/current_outcome/type
+			repository_url, commit.subject/url/author_name/author_login, created_at,
+			errors[].type/message, workflows[].id/name/phase/outcome/current_outcome/duration/
+			jobs[].id/name/phase/outcome/current_outcome/type
 		`),
 		Example: heredoc.Doc(`
 			# Get the latest run for the current branch

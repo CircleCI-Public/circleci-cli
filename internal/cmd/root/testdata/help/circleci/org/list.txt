@@ -4,9 +4,7 @@ List organizations you belong to
 
 `circleci org list [flags]`
 
-## Aliases
-
-`circleci org ls`
+Aliases: `circleci org ls`
 
 ## Flags
 

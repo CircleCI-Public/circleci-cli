@@ -63,13 +63,14 @@ Work with CircleCI from the command line.
 
 ## Help Topics
 
-| Topic             | Description                                             |
-| ----------------- | ------------------------------------------------------- |
-| `environment`     | Environment variables that can be used with circleci    |
-| `formatting`      | Formatting options for JSON data exported from circleci |
-| `getting-started` | Install, authenticate, and start using circleci         |
-| `reference`       | A comprehensive reference of all circleci commands      |
-| `telemetry`       | Information about telemetry in circleci                 |
+| Topic             | Description                                                   |
+| ----------------- | ------------------------------------------------------------- |
+| `environment`     | Environment variables that can be used with circleci          |
+| `formatting`      | Formatting options for JSON data exported from circleci       |
+| `getting-started` | Install, authenticate, and start using circleci               |
+| `reference`       | A comprehensive reference of all circleci commands            |
+| `telemetry`       | Information about telemetry in circleci                       |
+| `triggers`        | Event source providers and event presets for project triggers |
 
 ## Flags
 

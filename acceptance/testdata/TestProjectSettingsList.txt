@@ -1,15 +1,15 @@
 # Advanced Settings
-| Setting                       | Value |
-| ----------------------------- | ----- |
-| ai-error-summarization        | false |
-| auto-cancel-builds            | false |
-| build-forked-pull-requests    | true  |
-| build-prs-only                | false |
-| disable-running               | false |
-| disable-ssh                   | false |
-| dynamic-config                | false |
-| forks-receive-secret-env-vars | false |
-| oss                           | false |
-| set-github-status             | true  |
-| unversioned-config            | false |
-| write-settings-requires-admin | false |
+| Setting                       | Value | Description                                           |
+| ----------------------------- | ----- | ----------------------------------------------------- |
+| ai-error-summarization        | false | Enable AI-powered error summarization                 |
+| auto-cancel-builds            | false | Automatically cancel redundant workflows              |
+| build-forked-pull-requests    | true  | Build pull requests from forked repositories          |
+| build-prs-only                | false | Only build branches that have open pull requests      |
+| disable-running               | false | Disable all builds for this project                   |
+| disable-ssh                   | false | Disable SSH access to build containers                |
+| dynamic-config                | false | Enable dynamic configuration (setup workflows)        |
+| forks-receive-secret-env-vars | false | Pass secret environment variables to forked-PR builds |
+| oss                           | false | Mark project as free and open source                  |
+| set-github-status             | true  | Report build status back to GitHub                    |
+| unversioned-config            | false | Allow triggering pipelines without a config file      |
+| write-settings-requires-admin | false | Require admin role to change project settings         |

@@ -37,12 +37,5 @@ Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `ci
 
 Add a restriction to a CircleCI context.
 
-Use --type to specify the restriction type: project, expression, or group.
-Use --value to provide the restriction value.
-
-Pass a UUID to identify the context by ID, or a name to look up by name.
-When looking up by name, pass --org or run from a git repository so the
-organization can be inferred from the remote.
-
 JSON fields: id, name, restriction_type, restriction_value
 

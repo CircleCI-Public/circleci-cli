@@ -2,7 +2,7 @@ Manage secret env vars shared across pipelines
 
 ## Usage
 
-`circleci context <command>`
+`circleci context <command> [flags]`
 
 ## General Commands
 

@@ -1,12 +1,13 @@
 Usage:  circleci policy decide [flags]
 
 Flags:
-  --input string            Path to input file (e.g. .circleci/config.yml) (required)
-  --jq string               Process values from the response using jq syntax
-  --json                    Output as JSON
-  --meta string             Decision metadata as a JSON string
-  --metafile string         Path to decision metadata file (YAML or JSON)
-  --org string              Organization slug (e.g. gh/myorg) or UUID (required)
-  --policy-context string   Policy context (default "config")
-  --strict                  Exit non-zero for HARD_FAIL or ERROR decisions
+  -h, --help                    help for decide
+      --input string            Path to input file (e.g. .circleci/config.yml) (required)
+      --jq string               Process values from the response using jq syntax
+      --json                    Output as JSON
+      --meta string             Decision metadata as a JSON string
+      --metafile string         Path to decision metadata file (YAML or JSON)
+      --org string              Organization slug (e.g. gh/myorg) or UUID (required)
+      --policy-context string   Policy context (default "config")
+      --strict                  Exit non-zero for HARD_FAIL or ERROR decisions
   

@@ -2,7 +2,7 @@ List, set and delete a project's environment variables
 
 ## Usage
 
-`circleci project envvar <command>`
+`circleci project envvar <command> [flags]`
 
 ## Available Commands
 

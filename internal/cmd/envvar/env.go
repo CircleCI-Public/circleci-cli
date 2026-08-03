@@ -44,9 +44,6 @@ func NewEnvVarCmd() *cobra.Command {
 		Long: heredoc.Docf(`
 			List, set, and delete environment variables for a CircleCI project.
 
-			The project is inferred from the current git repository's remote
-			unless overridden with --project.
-
 			Environment variable values are masked in list output (shown as "xxxx").
 			The full value is never retrievable after it has been set.
 

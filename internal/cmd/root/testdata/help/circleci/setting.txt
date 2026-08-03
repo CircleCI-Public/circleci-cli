@@ -2,7 +2,7 @@ Configure the CLI itself (token, host, defaults)
 
 ## Usage
 
-`circleci setting <command>`
+`circleci setting <command> [flags]`
 
 ## General Commands
 

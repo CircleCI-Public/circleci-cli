@@ -4,9 +4,7 @@ Delete a project environment variable
 
 `circleci project envvar delete <name> [flags]`
 
-## Aliases
-
-`circleci project envvar rm`
+Aliases: `circleci project envvar rm`
 
 ## Arguments
 
@@ -37,10 +35,4 @@ Delete an environment variable from a CircleCI project.
 
 This action is irreversible. The variable will be removed and any
 jobs that reference it will fail until a new value is set.
-
-The project is inferred from the current git repository's remote
-unless overridden with --project.
-
-In a terminal, you will be prompted to confirm before deleting.
-Use --force (-f) to skip the prompt for scripting.
 

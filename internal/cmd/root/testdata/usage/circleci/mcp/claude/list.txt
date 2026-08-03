@@ -1,5 +1,6 @@
 Usage:  circleci mcp claude list [flags]
 
 Flags:
-  --config-path string   Path to Claude config file
+      --config-path string   Path to Claude config file
+  -h, --help                 help for list
   

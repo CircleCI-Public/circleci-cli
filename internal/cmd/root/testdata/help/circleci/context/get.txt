@@ -38,12 +38,7 @@ Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `ci
 Display details of a CircleCI context, including its environment
 variable names and metadata.
 
-Pass a UUID to look up by ID, or a name to look up by name. When
-looking up by name, pass --org or run from a git repository so the
-organization can be inferred from the remote.
-
-Variable values are never returned by the API — CircleCI does not
-expose secret values after they are set.
+Variable values are never returned by the API once set.
 
 JSON fields: id, name, org_id, created_at, environment_variables, restrictions
 

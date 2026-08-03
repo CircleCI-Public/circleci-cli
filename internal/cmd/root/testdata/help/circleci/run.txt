@@ -2,7 +2,7 @@ Trigger, watch and cancel CI runs
 
 ## Usage
 
-`circleci run <command>`
+`circleci run <command> [flags]`
 
 ## General Commands
 

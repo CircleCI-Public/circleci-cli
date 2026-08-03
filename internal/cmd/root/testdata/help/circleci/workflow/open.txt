@@ -2,7 +2,7 @@ Open workflow in browser
 
 ## Usage
 
-`circleci workflow open <workflow-id>`
+`circleci workflow open <workflow-id> [flags]`
 
 ## Arguments
 

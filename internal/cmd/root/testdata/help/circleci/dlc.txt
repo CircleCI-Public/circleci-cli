@@ -2,7 +2,7 @@ Purge a project's Docker layer cache (DLC)
 
 ## Usage
 
-`circleci dlc <command>`
+`circleci dlc <command> [flags]`
 
 ## Available Commands
 

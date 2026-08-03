@@ -1,1 +1,5 @@
-Usage:  circleci config generate [path]
+Usage:  circleci config generate [path] [flags]
+
+Flags:
+  -h, --help   help for generate
+  

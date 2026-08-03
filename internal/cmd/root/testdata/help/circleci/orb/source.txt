@@ -2,7 +2,7 @@ Print the YAML source of an orb version
 
 ## Usage
 
-`circleci orb source <namespace>/<orb>[@<version>]`
+`circleci orb source <namespace>/<orb>[@<version>] [flags]`
 
 ## Arguments
 

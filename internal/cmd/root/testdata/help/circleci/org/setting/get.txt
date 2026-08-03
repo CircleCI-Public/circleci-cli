@@ -4,6 +4,12 @@ Get the current value of an org setting
 
 `circleci org setting get <setting> [flags]`
 
+## Arguments
+
+`<setting>` is one of: ai-error-summarization, ai-agents, unversioned-config, certified-public-orbs, chunk-ip-ranges, minor-ai-features, private-orbs, uncertified-public-orbs, bitbucket-workspace-member-is-org-member, disable-user-checkout-keys, disable-running, image-brownouts, context-group-restriction, resource-class-brownouts, runner-tos-accepted.
+
+Run `circleci org setting list` for each setting's description and current value.
+
 ## Flags
 
 | Flag           | Description                                                                       |
@@ -28,23 +34,4 @@ Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `ci
 Get the current value of an advanced org setting.
 
 JSON fields: name, value
-
-Available settings:
-| Name                                     | Description                                                   |
-| ---------------------------------------- | ------------------------------------------------------------- |
-| ai-error-summarization                   | Enable AI-powered error summarization                         |
-| ai-agents                                | Enable AI agents for this organization                        |
-| unversioned-config                       | Allow triggering pipelines without a config file              |
-| certified-public-orbs                    | Allow use of certified public orbs                            |
-| chunk-ip-ranges                          | Enable chunk IP ranges for this organization                  |
-| minor-ai-features                        | Enable minor AI features for this organization                |
-| private-orbs                             | Allow use of private orbs                                     |
-| uncertified-public-orbs                  | Allow use of uncertified public orbs                          |
-| bitbucket-workspace-member-is-org-member | Treat Bitbucket workspace members as org members              |
-| disable-user-checkout-keys               | Disable user checkout keys for this organization              |
-| disable-running                          | Disable all builds for this organization                      |
-| image-brownouts                          | Enable image brownout warnings for this organization          |
-| context-group-restriction                | Require context group restriction for this organization       |
-| resource-class-brownouts                 | Enable resource class brownout warnings for this organization |
-| runner-tos-accepted                      | Mark runner terms of service as accepted                      |
 

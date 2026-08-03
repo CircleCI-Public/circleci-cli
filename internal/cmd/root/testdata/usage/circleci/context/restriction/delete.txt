@@ -2,6 +2,7 @@ Usage:  circleci context restriction delete <context-id|context-name> [flags]
 
 Flags:
   -f, --force                   Skip confirmation prompt
+  -h, --help                    help for delete
       --org string              Organization slug (e.g. gh/myorg); used when resolving name to ID
       --restriction-id string   UUID of the restriction to delete
   

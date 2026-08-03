@@ -1,18 +1,18 @@
 # Advanced Settings
-| Setting                                  | Value |
-| ---------------------------------------- | ----- |
-| ai-agents                                | false |
-| ai-error-summarization                   | true  |
-| bitbucket-workspace-member-is-org-member | false |
-| certified-public-orbs                    | true  |
-| chunk-ip-ranges                          | false |
-| context-group-restriction                | false |
-| disable-running                          | false |
-| disable-user-checkout-keys               | false |
-| image-brownouts                          | false |
-| minor-ai-features                        | false |
-| private-orbs                             | false |
-| resource-class-brownouts                 | false |
-| runner-tos-accepted                      | false |
-| uncertified-public-orbs                  | false |
-| unversioned-config                       | false |
+| Setting                                  | Value | Description                                                   |
+| ---------------------------------------- | ----- | ------------------------------------------------------------- |
+| ai-agents                                | false | Enable AI agents for this organization                        |
+| ai-error-summarization                   | true  | Enable AI-powered error summarization                         |
+| bitbucket-workspace-member-is-org-member | false | Treat Bitbucket workspace members as org members              |
+| certified-public-orbs                    | true  | Allow use of certified public orbs                            |
+| chunk-ip-ranges                          | false | Enable chunk IP ranges for this organization                  |
+| context-group-restriction                | false | Require context group restriction for this organization       |
+| disable-running                          | false | Disable all builds for this organization                      |
+| disable-user-checkout-keys               | false | Disable user checkout keys for this organization              |
+| image-brownouts                          | false | Enable image brownout warnings for this organization          |
+| minor-ai-features                        | false | Enable minor AI features for this organization                |
+| private-orbs                             | false | Allow use of private orbs                                     |
+| resource-class-brownouts                 | false | Enable resource class brownout warnings for this organization |
+| runner-tos-accepted                      | false | Mark runner terms of service as accepted                      |
+| uncertified-public-orbs                  | false | Allow use of uncertified public orbs                          |
+| unversioned-config                       | false | Allow triggering pipelines without a config file              |

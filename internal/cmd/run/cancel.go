@@ -60,14 +60,8 @@ func newCancelCmd() *cobra.Command {
 		Long: heredoc.Doc(`
 			Cancel a running CircleCI run by number or UUID.
 
-			Cancelling a run stops all in-progress workflows and jobs
-			within it. Workflows that have already completed are unaffected.
-
-			When using a run number, the project is inferred from the
-			git remote unless overridden with --project.
-
-			In a terminal, you will be prompted to confirm before cancelling.
-			Use --force (-f) to skip the prompt for scripting.
+			Cancelling a run stops all in-progress workflows and jobs within it.
+			Workflows that have already completed are unaffected.
 		`),
 		Example: heredoc.Doc(`
 			# Cancel a run by number (with confirmation)

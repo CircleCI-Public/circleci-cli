@@ -1,4 +1,4 @@
-Usage:  circleci dlc <command>
+Usage:  circleci dlc <command> [flags]
 
 Available commands:
   purge

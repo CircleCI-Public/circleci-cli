@@ -1,5 +1,6 @@
 Usage:  circleci workflow rerun <workflow-id> [flags]
 
 Flags:
-  --from-failed   Rerun only failed jobs
+      --from-failed   Rerun only failed jobs
+  -h, --help          help for rerun
   

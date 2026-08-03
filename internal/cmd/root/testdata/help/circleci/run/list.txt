@@ -4,9 +4,7 @@ List recent runs for a project
 
 `circleci run list [flags]`
 
-## Aliases
-
-`circleci run ls`
+Aliases: `circleci run ls`
 
 ## Flags
 
@@ -48,7 +46,5 @@ the branch you have checked out.
 The markdown table includes the commit subject; the JSON adds the full
 commit and repository detail.
 
-JSON fields: id, phase, outcome, current_outcome, branch, tag, revision,
-             repository_url, commit.subject/url/author_name/author_login,
-             created_at
+JSON fields: id, phase, outcome, current_outcome, branch, tag, revision, repository_url, commit.subject/url/author_name/author_login, created_at
 

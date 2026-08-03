@@ -2,7 +2,7 @@ Generate .circleci/config.yml from a repository scan
 
 ## Usage
 
-`circleci config generate [path]`
+`circleci config generate [path] [flags]`
 
 ## Arguments
 

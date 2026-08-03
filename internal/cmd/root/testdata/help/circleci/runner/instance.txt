@@ -2,7 +2,7 @@ Manage runner instances
 
 ## Usage
 
-`circleci runner instance <command>`
+`circleci runner instance <command> [flags]`
 
 ## General Commands
 

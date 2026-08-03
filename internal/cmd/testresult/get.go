@@ -60,19 +60,8 @@ func newGetCmd() *cobra.Command {
 		Long: heredoc.Docf(`
 			Get a single test result from a job by its exact name.
 
-			The name must match exactly. When several tests share a name — for
-			example the same test running under different suites — the lookup is
-			ambiguous and fails; pass %[1]s--filter classname=<value>%[1]s to narrow to one.
-			classname is matched as a case-insensitive substring and may be
-			repeated to accept any of several suites.
-
-			To browse or filter across all of a job's tests, use
-			%[1]scircleci testresult list%[1]s.
-
-			By default the message is replayed through a virtual terminal and
-			embedded in the output. Pass %[1]s--plain%[1]s to print only the message exactly
-			as the test runner recorded it (ANSI and all), which is handy for
-			piping a failure's output to another tool.
+			When several tests share a name the lookup is ambiguous and fails; narrow it
+			with %[1]s--filter classname=<value>%[1]s, or browse with %[1]scircleci testresult list%[1]s.
 
 			JSON fields: classname, name, result, run_time, message
 		`, "`"),

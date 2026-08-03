@@ -4,9 +4,7 @@ List runner resource classes
 
 `circleci runner resource-class list [flags]`
 
-## Aliases
-
-`circleci runner resource-class ls`
+Aliases: `circleci runner resource-class ls`
 
 ## Flags
 
@@ -33,10 +31,6 @@ Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `ci
 ## Details
 
 List CircleCI runner resource classes.
-
-The organization is inferred from the current git repository's remote
-unless overridden with --org, which accepts an org slug (e.g. gh/myorg)
-or an org UUID. Optionally filter further by namespace.
 
 JSON fields: id, resource_class, description
 

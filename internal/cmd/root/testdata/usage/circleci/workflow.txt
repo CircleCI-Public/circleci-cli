@@ -1,4 +1,4 @@
-Usage:  circleci workflow <command>
+Usage:  circleci workflow <command> [flags]
 
 Available commands:
   cancel

@@ -1,4 +1,4 @@
-Usage:  circleci job <command>
+Usage:  circleci job <command> [flags]
 
 Available commands:
   artifact

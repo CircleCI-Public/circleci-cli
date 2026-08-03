@@ -1,1 +1,5 @@
-Usage:  circleci workflow open <workflow-id>
+Usage:  circleci workflow open <workflow-id> [flags]
+
+Flags:
+  -h, --help   help for open
+  

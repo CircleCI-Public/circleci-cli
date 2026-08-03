@@ -4,9 +4,7 @@ Delete an iOS certificate
 
 `circleci certificate delete <cert-id> [flags]`
 
-## Aliases
-
-`circleci certificate rm`
+Aliases: `circleci certificate rm`
 
 ## Arguments
 
@@ -35,7 +33,4 @@ Remove an Apple certificate from your organization's secure storage.
 This action is irreversible. The server rejects the delete with an
 error if the certificate is referenced by any signing config; delete
 those signing configs first.
-
-In a terminal, you will be prompted to confirm before deleting.
-Use --force (-f) to skip the prompt for scripting.
 

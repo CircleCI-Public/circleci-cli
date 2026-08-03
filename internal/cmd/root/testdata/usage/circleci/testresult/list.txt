@@ -1,10 +1,11 @@
 Usage:  circleci testresult list <job-id> [flags]
 
 Flags:
-  --all                  Show all results (passing, failed and skipped), not just failures
-  --filter stringArray   Filter tests by key=value (result, name, classname); repeatable
-  --jq string            Process values from the response using jq syntax
-  --json                 Output as JSON
-  --limit int            Maximum number of results to show (0 = no limit)
-  --sort string          Sort by name, classname, result or run_time
+      --all                  Show all results (passing, failed and skipped), not just failures
+      --filter stringArray   Filter by key=value; repeatable. Keys: result (success|failure|skipped, exact), name and classname (case-insensitive substring). Same key repeated is OR, different keys AND. Cannot combine result= with --all
+  -h, --help                 help for list
+      --jq string            Process values from the response using jq syntax
+      --json                 Output as JSON
+      --limit int            Maximum number of results to show (0 = no limit)
+      --sort string          Sort by name, classname, result or run_time
   

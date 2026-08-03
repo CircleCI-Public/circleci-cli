@@ -69,18 +69,10 @@ func newInstanceListCmd() *cobra.Command {
 		Long: heredoc.Doc(`
 			List CircleCI runner instances currently connected to your organization.
 
-			The organization is inferred from the current git repository's remote
-			unless overridden with --org, which accepts an org slug (e.g. gh/myorg)
-			or an org UUID. Optionally filter by resource class to see only
-			instances of a specific type.
+			STATUS is derived from last_connected_at: online within the last 2 minutes,
+			idle 2–30 minutes ago, offline beyond that.
 
-			The STATUS column is derived from last_connected_at:
-			  online   — connected within the last 2 minutes
-			  idle     — last seen 2–30 minutes ago
-			  offline  — last seen more than 30 minutes ago
-
-			JSON fields: resource_class, hostname, name, version, ip, status,
-			             first_connected, last_connected, last_used
+			JSON fields: resource_class, hostname, name, version, ip, status, first_connected, last_connected, last_used
 		`),
 		Example: heredoc.Doc(`
 			# List connected instances for the org inferred from the git remote

@@ -48,19 +48,11 @@ func newValidateCmd() *cobra.Command {
 		Long: heredoc.Doc(`
 			Validate a CircleCI pipeline config file against the CircleCI API.
 
-			Reads .circleci/config.yml by default. Pass --config to specify a
-			different file, or "-" to read from stdin.
+			Private and namespaced orbs resolve against your organization. With --org
+			omitted the org comes from a 'circleci project link' binding if present,
+			otherwise the git remote.
 
-			Private and namespaced orbs are resolved against your organization.
-			When --org is omitted the org is inferred from the current project —
-			a 'circleci project link' binding if present, otherwise the git
-			remote. Pass --org to override this, or to resolve private orbs
-			outside a project.
-
-			JSON fields (--json):
-			  valid          bool    whether the config compiled without errors
-			  compiled_yaml  string  the fully expanded config (when valid)
-			  errors         array   compilation error messages (when invalid)
+			JSON fields (--json): valid (bool), compiled_yaml (string, when valid), errors (array of compilation messages, when invalid)
 		`),
 		Example: heredoc.Doc(`
 			# Validate the default config file

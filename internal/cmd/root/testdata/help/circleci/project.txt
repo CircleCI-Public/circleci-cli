@@ -2,7 +2,7 @@ List, follow and configure CircleCI projects
 
 ## Usage
 
-`circleci project <command>`
+`circleci project <command> [flags]`
 
 ## General Commands
 
@@ -37,11 +37,7 @@ Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `ci
 
 List, follow, and manage settings for CircleCI projects.
 
-A project corresponds to a version-control repository connected
-to CircleCI. Use 'circleci project list' to see all followed projects,
-'circleci project follow' to start following a new project, and
-'circleci project envvar' to manage environment variables.
-
-To manage environment variables directly, use the top-level alias:
-  circleci envvar list --project gh/org/repo
+A project corresponds to a version-control repository connected to CircleCI.
+Environment variables are also reachable as the top-level alias
+'circleci envvar'.
 

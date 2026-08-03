@@ -54,8 +54,7 @@ func NewOnboardCmd() *cobra.Command {
 			Guided onboarding: scan a local repository, run its detected tests,
 			generate a starter .circleci/config.yml, and sign up for CircleCI.
 
-			When run interactively without --scan or --signup, a prompt lets you
-			choose between scanning the current repo or signing up directly.
+			Interactively without --scan or --signup, a prompt offers both.
 		`),
 		Example: heredoc.Doc(`
 			# Interactive mode: choose scan or signup
