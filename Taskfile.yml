@@ -57,7 +57,7 @@ tasks:
     vars:
       ARGS: '{{default "./..." .CLI_ARGS}}'
     cmds:
-      - go tool -modfile tools/go.mod gotestsum -- -race {{.ARGS}}
+      - go tool -modfile tools/go.mod gotestsum -- -race -count=1 {{.ARGS}}
 
   check:
     desc: Run all static checks
@@ -132,13 +132,6 @@ tasks:
     cmds:
       - go mod download
       - go mod download -modfile tools/go.mod
-
-  acceptance-test:
-    desc: Build binary and run acceptance tests
-    vars:
-      ARGS: '{{default "./acceptance/..." .CLI_ARGS}}'
-    cmds:
-      - go tool -modfile tools/go.mod gotestsum -- -race {{.ARGS}}
 
   dev-install:
     desc: Build from source and install to ~/.local/bin

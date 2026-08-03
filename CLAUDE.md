@@ -304,22 +304,46 @@ Bad: `feat(config): implement config validate/process/pack`
 
 ## Common commands
 
-```sh
-task test                              # all tests including acceptance, with -race
-task check                             # run all static checks
-task fix                               # auto-fix static check issues
+`task <name>` runs a Taskfile target. Run `task --list-all` to see every target; the ones you
+will use day to day:
 
-go run ./cmd/circleci --help            # smoke test
-NO_COLOR=1 go run ./cmd/circleci --help # verify color is disabled
-CI=true go run ./cmd/circleci --help    # verify CI mode
+```sh
+task test        # all tests (unit + acceptance) across ./..., with -race -count=1, via gotestsum
+task check       # all static checks: lint, license headers, mod-tidy, release-check
+task fix         # auto-fix what `task check` flags: fmt, license, mod-tidy, lint --fix
+task build       # build the circleci binary to dist/circleci
 ```
 
-`task test` runs unit tests (cached) then acceptance tests with `-count=1` (never cached).
-Acceptance tests exec the compiled binary as a subprocess, so `go test` cannot invalidate their
-cache when source files change — a stale green result is possible if caching is allowed. The
-`-count=1` flag on the acceptance run prevents this.
+`task test` passes `-count=1`, so results are never cached. This matters for acceptance tests:
+they exec a freshly-built binary as a subprocess (`internal/testing/binary` runs `go build` at
+test time), and `go test` only cache-keys on the acceptance package's direct Go imports — not on
+everything that went into that binary — so without `-count=1` a change to a package the binary
+uses but the test does not import could leave a stale green result. `task test` avoids that
+for you; no need to add the flag yourself.
 
-Tools (golangci-lint, gotestsum, gosimports) are pinned via the `tool` directive in
+**Running a subset.** Everything after `--` is passed through to `go test` (the `CLI_ARGS`
+var). Use this to target one package or one test instead of the whole tree:
+
+```sh
+task test -- ./internal/config/...             # one package
+task test -- -run TestValidate ./...           # one test by name
+task test -- -update ./acceptance/...          # regenerate golden files (never hand-write them)
+task test -- -update ./internal/cmd/root/...   # refresh the help/usage goldens after changing any help text
+```
+
+That last one matters here: `internal/cmd/root/testdata/help/` holds a golden `--help` capture
+for every command in the tree, so touching a `Short`/`Long`/`Example` or adding a flag updates
+dozens of files. Run it with `-update` and commit the regenerated goldens alongside the change.
+
+**Smoke tests** (compile-and-run without building a binary):
+
+```sh
+go run ./cmd/circleci --help             # basic smoke test
+NO_COLOR=1 go run ./cmd/circleci --help  # verify color is disabled
+CI=true go run ./cmd/circleci --help     # verify CI mode (non-interactive, no telemetry)
+```
+
+Dev tools (golangci-lint, gotestsum, gosimports) are pinned via the `tool` directive in
 `go.mod` and invoked as `go tool <name>` — no separate install step needed.
 
 ---
