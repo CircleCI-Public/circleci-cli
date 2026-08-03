@@ -118,9 +118,8 @@ messages that include the values involved, so they rarely need extra annotation.
 
 Acceptance tests exec the compiled binary as a subprocess. `go test` cannot invalidate their
 cache when source files change — it only tracks direct Go imports, not what went into the
-binary. Always run acceptance tests with `-count=1` (cache-busting). `task test` does this
-automatically; `task acceptance-test` does too. Do not add `-count=1` to unit test runs, which
-can cache safely.
+binary. `task test` runs with `-count=1` (cache-busting) so this is handled for you; a stale
+green result is only a risk if you invoke `go test` directly without `-count=1`.
 
 ---
 
