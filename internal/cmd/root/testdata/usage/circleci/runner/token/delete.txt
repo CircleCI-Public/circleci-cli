@@ -2,4 +2,5 @@ Usage:  circleci runner token delete <token-id> [flags]
 
 Flags:
   -f, --force   skip confirmation prompt
+  -h, --help    help for delete
   

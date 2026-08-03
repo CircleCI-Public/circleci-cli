@@ -1,18 +1,13 @@
-# CircleCI CLI
-
-Cancel a running CircleCI workflow.
-
-Any in-progress jobs will be stopped. Jobs that have already
-completed are not affected.
-
-Workflow IDs are shown in the output of 'circleci run get'.
-
-In a terminal, you will be prompted to confirm before cancelling.
-Use --force (-f) to skip the prompt for scripting.
+Cancel a running workflow
 
 ## Usage
 
 `circleci workflow cancel <workflow-id> [flags]`
+
+## Arguments
+
+`<workflow-id>` is the UUID of the workflow to cancel. Workflow IDs are
+shown in the output of `circleci run get`.
 
 ## Flags
 
@@ -20,19 +15,7 @@ Use --force (-f) to skip the prompt for scripting.
 | ------------- | ------------------------ |
 | `-f, --force` | skip confirmation prompt |
 
-## Inherited Flags
-
-| Flag                  | Description                                                  |
-| --------------------- | ------------------------------------------------------------ |
-| `-c, --config string` | Path to config file (default: ~/.config/circleci/config.yml) |
-| `--debug`             | Enable debug logging                                         |
-| `--no-color`          | Disable ANSI color output (same as setting NO_COLOR)         |
-| `-q, --quiet`         | Suppress informational output. Data on stdout is unaffected  |
-
-## Arguments
-
-`<workflow-id>` is the UUID of the workflow to cancel. Workflow IDs are
-shown in the output of `circleci run get`.
+Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `circleci --help`.
 
 ## Examples
 
@@ -43,9 +26,12 @@ shown in the output of `circleci run get`.
 - Find a running workflow ID from the latest run and cancel it: 
   `circleci run get --json --jq '.workflows[] | select(.status=="running") | .id' | xargs circleci workflow cancel --force`
 
-## Learn More
+## Details
 
-- Use `circleci <command> <subcommand> --help` for more information about a command.
-- Read the manual at <https://cli.circleci.com/reference/>
-- Support at <https://github.com/CircleCI-Public/circleci-cli/issues>
+Cancel a running CircleCI workflow.
+
+Any in-progress jobs will be stopped. Jobs that have already
+completed are not affected.
+
+Workflow IDs are shown in the output of 'circleci run get'.
 

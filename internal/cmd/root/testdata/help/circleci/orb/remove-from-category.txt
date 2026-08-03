@@ -1,28 +1,17 @@
-# CircleCI CLI
-
-Remove an orb from an orb registry category.
-
-Use 'circleci orb get `<namespace>/<orb>`' to see the current categories
-for an orb, and 'circleci orb list-categories' for all available
-categories.
+Remove an orb from a registry category
 
 ## Usage
 
 `circleci orb remove-from-category <namespace>/<orb> <category> [flags]`
 
-## Inherited Flags
-
-| Flag                  | Description                                                  |
-| --------------------- | ------------------------------------------------------------ |
-| `-c, --config string` | Path to config file (default: ~/.config/circleci/config.yml) |
-| `--debug`             | Enable debug logging                                         |
-| `--no-color`          | Disable ANSI color output (same as setting NO_COLOR)         |
-| `-q, --quiet`         | Suppress informational output. Data on stdout is unaffected  |
-
 ## Arguments
 
 - `<namespace>/<orb>` is the orb to remove, for example, `namespace/orb-name`
 - `<category>` is the registry category name, for example, `Testing`
+
+## Flags
+
+Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `circleci --help`.
 
 ## Examples
 
@@ -33,9 +22,11 @@ categories.
 - See current categories: 
   `circleci orb get myorg/my-orb`
 
-## Learn More
+## Details
 
-- Use `circleci <command> <subcommand> --help` for more information about a command.
-- Read the manual at <https://cli.circleci.com/reference/>
-- Support at <https://github.com/CircleCI-Public/circleci-cli/issues>
+Remove an orb from an orb registry category.
+
+Use 'circleci orb get `<namespace>/<orb>`' to see the current categories
+for an orb, and 'circleci orb list-categories' for all available
+categories.
 

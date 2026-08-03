@@ -67,52 +67,26 @@ func newListCmd() *cobra.Command {
 				UUIDs are shown in %[1]scircleci job get%[1]s and %[1]scircleci run get --json%[1]s.
 			`, "`"),
 		},
-		Long: heredoc.Docf(`
-			Show the test results recorded for a CircleCI job.
+		Long: heredoc.Doc(`
+			Show the test results recorded for a CircleCI job. Only failed tests are
+			shown unless --all or a result= filter selects otherwise.
 
-			By default only failed tests are shown. Pass --all to show every
-			result, or --filter result=%[1]s<value>%[1]s to select specific outcomes.
-
-			--filter takes key=value and may be repeated. Repeating the same key
-			matches any of its values (OR); different keys must all match (AND).
-			Supported keys:
-			  result      exact match: success, failure or skipped
-			  name        case-insensitive substring match on the test name
-			  classname   case-insensitive substring match on the suite/classname
-
-			The result selection (failed-only default, --all, or result= filters)
-			decides which outcomes are shown; name and classname filters narrow
-			within that selection. --all cannot be combined with a result= filter.
-
-			Use --sort to order results by name, classname, result or run_time
-			(ascending), and --limit to cap the number of rows.
-
-			JSON fields: classname, name, result, run_time, message
-
-			--json emits one JSON object per line (JSONL). Combine it with --jq to
-			aggregate across records: the expression runs once per record (so
-			'.name' prints one name per line), and jq's inputs builtin pulls the
-			rest of the stream, e.g. '[.,inputs] | length' or
-			'[.,inputs] | group_by(.result) | map({(.[0].result): length})'.
-		`, "`"),
+			JSON fields: classname, name, result, run_time, message — emitted as one
+			object per line (JSONL), so --jq runs once per record. See
+			` + "`circleci help formatting`" + ` for aggregating across the stream.
+		`),
 		Example: heredoc.Doc(`
 			# List failed tests for a job (the default)
 			$ circleci testresult list 8e50c384-0083-43d0-bc8f-93f0db589d6b
 
 			# Show every result: passing, failed and skipped
-			$ circleci testresult list 8e50c384-0083-43d0-bc8f-93f0db589d6b --all
+			$ circleci testresult list <job-id> --all
 
 			# Show skipped tests instead
-			$ circleci testresult list 8e50c384-0083-43d0-bc8f-93f0db589d6b --filter result=skipped
+			$ circleci testresult list <job-id> --filter result=skipped
 
-			# Failed tests in a specific suite, slowest last (sorted by run_time)
-			$ circleci testresult list <job-id> --filter result=failure --filter classname=api --sort run_time
-
-			# Every result for tests whose name matches "login"
-			$ circleci testresult list <job-id> --all --filter name=login
-
-			# Limit output and emit JSON for scripting
-			$ circleci testresult list <job-id> --limit 20 --json
+			# Failed tests in one suite, slowest last
+			$ circleci testresult list <job-id> --filter classname=api --sort run_time
 
 			# Count failed tests by aggregating the JSONL stream with jq
 			$ circleci testresult list <job-id> --json --jq '[.,inputs] | length'
@@ -131,7 +105,7 @@ func newListCmd() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringArrayVar(&filters, "filter", nil, "Filter tests by key=value (result, name, classname); repeatable")
+	cmd.Flags().StringArrayVar(&filters, "filter", nil, "Filter by key=value; repeatable. Keys: result (success|failure|skipped, exact), name and classname (case-insensitive substring). Same key repeated is OR, different keys AND. Cannot combine result= with --all")
 	cmd.Flags().BoolVar(&all, "all", false, "Show all results (passing, failed and skipped), not just failures")
 	cmd.Flags().StringVar(&sortKey, "sort", "", "Sort by name, classname, result or run_time")
 	cmd.Flags().IntVar(&limit, "limit", 0, "Maximum number of results to show (0 = no limit)")

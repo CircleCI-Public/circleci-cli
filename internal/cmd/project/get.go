@@ -49,12 +49,7 @@ func NewGetCmd() *cobra.Command {
 			Display detailed information about a CircleCI project, including
 			its UUID, organization ID, and VCS configuration.
 
-			The project is inferred from the current git repository's remote
-			unless overridden with --project. The slug must be in the form
-			vcs/org/repo (e.g. gh/myorg/myrepo).
-
-			JSON fields: id, slug, name, organization_name, organization_slug,
-			             organization_id, vcs_provider, vcs_default_branch, vcs_url
+			JSON fields: id, slug, name, organization_name, organization_slug, organization_id, vcs_provider, vcs_default_branch, vcs_url
 		`),
 		Example: heredoc.Doc(`
 			# Show details for the current git repository's project

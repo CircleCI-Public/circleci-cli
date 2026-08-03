@@ -1,13 +1,4 @@
-# CircleCI CLI
-
-Manage self-hosted runner resources.
-
-Self-hosted runners let you run CircleCI jobs on your own infrastructure.
-Use these commands to manage resource classes, authentication tokens, and
-view connected runner instances.
-
-Resource class names use the format: namespace/name
-(e.g. my-org/my-runner)
+Manage self-hosted runners
 
 ## Usage
 
@@ -34,18 +25,14 @@ Resource class names use the format: namespace/name
 | `resource-class` | Manage runner resource classes |
 | `token`          | Manage runner tokens           |
 
-## Inherited Flags
+## Flags
 
-| Flag                  | Description                                                  |
-| --------------------- | ------------------------------------------------------------ |
-| `-c, --config string` | Path to config file (default: ~/.config/circleci/config.yml) |
-| `--debug`             | Enable debug logging                                         |
-| `--no-color`          | Disable ANSI color output (same as setting NO_COLOR)         |
-| `-q, --quiet`         | Suppress informational output. Data on stdout is unaffected  |
+Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `circleci --help`.
 
-## Learn More
+## Details
 
-- Use `circleci <command> <subcommand> --help` for more information about a command.
-- Read the manual at <https://cli.circleci.com/reference/>
-- Support at <https://github.com/CircleCI-Public/circleci-cli/issues>
+Manage self-hosted runner resources.
+
+Self-hosted runners let you run CircleCI jobs on your own infrastructure.
+Resource class names use the format namespace/name (e.g. my-org/my-runner).
 

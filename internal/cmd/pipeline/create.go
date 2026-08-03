@@ -64,27 +64,14 @@ func newCreateCmd() *cobra.Command {
 		Use:   "create",
 		Short: "Create a pipeline definition",
 		Long: heredoc.Docf(`
-			Create a new pipeline definition for a CircleCI project.
+			Create a new pipeline definition for a CircleCI project: where CircleCI finds
+			the config YAML, and which repository to check out. Attach triggers to it
+			afterwards with %[1]scircleci project trigger create%[1]s.
 
-			A pipeline definition specifies where CircleCI finds the config YAML
-			(%[1]s--config-file%[1]s) and which repository to use for code checkout.
-			Once created, you can attach triggers to it with %[1]scircleci project trigger create%[1]s.
+			Required flags must be given in non-interactive mode; a terminal prompts.
 
-			The project is resolved from --project-id if provided; otherwise the
-			project slug (--project or git remote) is used to look up the project UUID.
-
-			All required flags must be provided in non-interactive mode (CI, agents).
-			In a terminal, missing values are prompted interactively.
-
-			Valid --config-provider values: %[2]s
-			Valid --checkout-provider values: %[3]s
-
-			JSON fields: id, name, description, created_at,
-			             config_source.provider, config_source.file_path,
-			             config_source.repo.external_id, config_source.repo.full_name,
-			             checkout_source.provider,
-			             checkout_source.repo.external_id, checkout_source.repo.full_name
-		`, "`", strings.Join(validConfigProviders, ", "), strings.Join(validCheckoutProviders, ", ")),
+			JSON fields: id, name, description, created_at, config_source.provider, config_source.file_path, config_source.repo.external_id, config_source.repo.full_name, checkout_source.provider, checkout_source.repo.external_id, checkout_source.repo.full_name
+		`, "`"),
 		Example: heredoc.Doc(`
 			# Create a pipeline definition using GitHub App
 			$ circleci pipeline create \

@@ -117,7 +117,6 @@ func rootHelp(command *cobra.Command, _ []string) {
 	}
 
 	var md strings.Builder
-	md.WriteString("# CircleCI CLI\n\n")
 
 	section := func(title, body string) {
 		body = strings.Trim(body, "\r\n")
@@ -130,54 +129,126 @@ func rootHelp(command *cobra.Command, _ []string) {
 		_, _ = fmt.Fprintf(&md, "%s\n\n", body)
 	}
 
-	longText := command.Long
-	if longText == "" {
-		longText = command.Short
-	}
-	if longText != "" && command.LocalFlags().Lookup("jq") != nil {
-		longText = strings.TrimRight(longText, "\n") +
-			"\n\nFor more information about output formatting flags, see `circleci help formatting`."
-	}
-	section("", longText)
-
-	section("Usage", "`"+command.UseLine()+"`")
-
-	if len(command.Aliases) > 0 {
-		aliases := buildAliasList(command, command.Aliases)
-		for i, a := range aliases {
-			aliases[i] = "`" + a + "`"
+	commandSections := func(cmd *cobra.Command) {
+		// Aliases ride along in the Usage section rather than earning a heading
+		// of their own: a heading plus its blank line costs as much as the
+		// content, and the alias is a way to invoke this command anyway.
+		usage := "`" + cmd.UseLine() + "`"
+		if a := aliasesMarkdown(cmd); a != "" {
+			usage += "\n\nAliases: " + a
 		}
-		section("Aliases", strings.Join(aliases, ", "))
-	}
-
-	for _, g := range groupedCommands(command) {
-		var rows [][2]string
-		for _, c := range g.Commands {
-			rows = append(rows, [2]string{"`" + c.Name() + "`", c.Short})
+		section("Usage", usage)
+		for _, g := range commandGroupSections(cmd) {
+			section(g[0], g[1])
 		}
-		section(titleCase(g.Title), mdTable("Command", "Description", rows))
 	}
 
 	if isRootCmd(command) {
+		// Root is the command inventory and the one page that documents the
+		// global flags and the support path, so it keeps the banner, the full
+		// inherited-flag table and "Learn More", and leads with its prose.
+		md.WriteString("# CircleCI CLI\n\n")
+
+		longText := command.Long
+		if longText == "" {
+			longText = command.Short
+		}
+		section("", longText)
+
+		commandSections(command)
 		section("Help Topics", topicsMarkdown(helpTopics))
-	}
-
-	section("Flags", mdTable("Flag", "Description", flagRows(command.LocalFlags())))
-	section("Inherited Flags", mdTable("Flag", "Description", flagRows(command.InheritedFlags())))
-
-	section("Arguments", command.Annotations["help:arguments"])
-	if command.Example != "" {
+		section("Flags", mdTable("Flag", "Description", flagRows(command.LocalFlags())))
+		section("Inherited Flags", mdTable("Flag", "Description", flagRows(command.InheritedFlags())))
+		section("Arguments", command.Annotations["help:arguments"])
 		section("Examples", exampleMarkdown(command.Example))
+		section("Environment Variables", command.Annotations["help:environment"])
+		section("Learn More", heredoc.Docf(`
+			- Use %[1]scircleci <command> <subcommand> --help%[1]s for more information about a command.
+			- Read the manual at <https://cli.circleci.com/reference/>
+			- Support at <https://github.com/CircleCI-Public/circleci-cli/issues>
+		`, "`"))
+	} else {
+		// Subcommands lead with structured signal — usage, arguments, flags,
+		// examples — and demote the prose to `## Details` last. Agents that read
+		// help capture only the first ~40 lines, so anything below that is
+		// invisible: truncation must cut prose, never flags or examples. The
+		// per-page boilerplate root carries is dropped here, where it repeats
+		// verbatim on every page and earns nothing.
+		section("", command.Short)
+		commandSections(command)
+		section("Arguments", command.Annotations["help:arguments"])
+		section("Flags", flagsMarkdown(command))
+		section("Examples", exampleMarkdown(command.Example))
+		if strings.TrimSpace(command.Long) != strings.TrimSpace(command.Short) {
+			section("Details", command.Long)
+		}
+		section("Environment Variables", command.Annotations["help:environment"])
 	}
-	section("Environment Variables", command.Annotations["help:environment"])
-
-	section("Learn More", heredoc.Docf(`
-		- Use %[1]scircleci <command> <subcommand> --help%[1]s for more information about a command.
-		- Read the manual at <https://cli.circleci.com/reference/>
-		- Support at <https://github.com/CircleCI-Public/circleci-cli/issues>
-	`, "`"))
 
 	iostream.PrintMarkdown(ctx, md.String())
+}
+
+// aliasesMarkdown renders a command's aliases as a comma-separated list of
+// inline-code invocations, or "" when it has none.
+func aliasesMarkdown(cmd *cobra.Command) string {
+	if len(cmd.Aliases) == 0 {
+		return ""
+	}
+	aliases := buildAliasList(cmd, cmd.Aliases)
+	for i, a := range aliases {
+		aliases[i] = "`" + a + "`"
+	}
+	return strings.Join(aliases, ", ")
+}
+
+// commandGroupSections renders each of a command's subcommand groups as a
+// (section title, markdown table) pair.
+func commandGroupSections(cmd *cobra.Command) [][2]string {
+	groups := groupedCommands(cmd)
+	sections := make([][2]string, 0, len(groups))
+	for _, g := range groups {
+		rows := make([][2]string, 0, len(g.Commands))
+		for _, c := range g.Commands {
+			rows = append(rows, [2]string{"`" + c.Name() + "`", c.Short})
+		}
+		sections = append(sections, [2]string{titleCase(g.Title), mdTable("Command", "Description", rows)})
+	}
+	return sections
+}
+
+// flagsMarkdown renders a subcommand's own flags as a table, followed by a
+// one-line pointer to the global flags. The global flags are identical on every
+// page, so re-printing them as a four-row "Inherited Flags" table costs ~8
+// lines per command for no marginal signal; root carries the real table.
+func flagsMarkdown(cmd *cobra.Command) string {
+	// --help is on every command in the tree and every reader already knows it,
+	// so listing it is boilerplate — and on a command with no other flags it
+	// costs a whole table. Root still documents it.
+	local := pflag.NewFlagSet(cmd.Name(), pflag.ContinueOnError)
+	cmd.LocalFlags().VisitAll(func(f *pflag.Flag) {
+		if f.Name == "help" {
+			return
+		}
+		local.AddFlag(f)
+	})
+
+	var parts []string
+	if t := mdTable("Flag", "Description", flagRows(local)); t != "" {
+		parts = append(parts, strings.Trim(t, "\n"))
+	}
+
+	var names []string
+	cmd.InheritedFlags().VisitAll(func(f *pflag.Flag) {
+		if f.Hidden {
+			return
+		}
+		names = append(names, "`"+flagName(f)+"`")
+	})
+	if len(names) > 0 {
+		parts = append(parts, "Global flags: "+strings.Join(names, ", ")+" — see `circleci --help`.")
+	}
+
+	return strings.Join(parts, "\n\n")
 }
 
 // mdTable renders rows as a GitHub-flavored markdown table. Returns "" when
@@ -223,13 +294,15 @@ func flagRows(fs *pflag.FlagSet) [][2]string {
 		if f.Hidden {
 			return
 		}
-		name := "--" + f.Name
-		if f.Shorthand != "" && f.ShorthandDeprecated == "" {
-			name = "-" + f.Shorthand + ", " + name
-		}
+		name := flagName(f)
 		varname, usage := pflag.UnquoteUsage(f)
 		if varname != "" {
 			name += " " + varname
+		}
+		// Point at the formatting topic from the flag it describes, rather than
+		// appending a line to the prose of every command that has one.
+		if f.Name == "jq" {
+			usage += " (see `circleci help formatting`)"
 		}
 		if !flagDefaultIsZero(f) {
 			if f.Value.Type() == "string" {
@@ -241,6 +314,15 @@ func flagRows(fs *pflag.FlagSet) [][2]string {
 		rows = append(rows, [2]string{"`" + name + "`", usage})
 	})
 	return rows
+}
+
+// flagName renders a flag as "-s, --name", or just "--name" when it has no
+// usable shorthand.
+func flagName(f *pflag.Flag) string {
+	if f.Shorthand != "" && f.ShorthandDeprecated == "" {
+		return "-" + f.Shorthand + ", --" + f.Name
+	}
+	return "--" + f.Name
 }
 
 // flagDefaultIsZero reports whether a flag's default is its type's zero value,
@@ -289,8 +371,7 @@ func topicsMarkdown(topics []helpTopic) string {
 func exampleMarkdown(example string) string {
 	var b strings.Builder
 	comment := ""
-	for _, line := range strings.Split(example, "\n") {
-		t := strings.TrimSpace(line)
+	for _, t := range joinContinuations(strings.Split(example, "\n")) {
 		switch {
 		case t == "":
 			// Blank line separates example blocks; nothing to emit.
@@ -310,6 +391,43 @@ func exampleMarkdown(example string) string {
 		}
 	}
 	return b.String()
+}
+
+// joinContinuations folds shell line continuations — a line ending in `\`
+// followed by the rest of the command — back into one logical line, and trims
+// each line's indentation. Without this, an example wrapped across five lines
+// renders as five bullets, four of which are bare flag fragments.
+func joinContinuations(lines []string) []string {
+	joined := make([]string, 0, len(lines))
+	var pending []string
+
+	flush := func(last string) {
+		if len(pending) == 0 {
+			joined = append(joined, last)
+			return
+		}
+		parts := pending
+		if last != "" {
+			parts = append(parts, last)
+		}
+		joined = append(joined, strings.Join(parts, " "))
+		pending = nil
+	}
+
+	for _, line := range lines {
+		t := strings.TrimSpace(line)
+		if after, ok := strings.CutSuffix(t, `\`); ok {
+			pending = append(pending, strings.TrimSpace(after))
+			continue
+		}
+		flush(t)
+	}
+	// A trailing continuation with nothing after it still has to be emitted.
+	if len(pending) > 0 {
+		flush("")
+	}
+
+	return joined
 }
 
 type commandGroup struct {

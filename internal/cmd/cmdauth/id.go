@@ -47,8 +47,7 @@ func newDeviceIDCmd() *cobra.Command {
 			is sent with every OAuth authorization request, so you can match
 			a token in the CircleCI UI back to this installation.
 
-			JSON fields:
-			  device_id  string  Stable identifier in the form %[1]s<os>:<uuid>%[1]s
+			JSON fields: device_id (string) — stable identifier in the form %[1]s<os>:<uuid>%[1]s
 		`, "`"),
 		Example: heredoc.Doc(`
 			# Print the device ID

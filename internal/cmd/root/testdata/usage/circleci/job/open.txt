@@ -1,1 +1,5 @@
-Usage:  circleci job open <job-id>
+Usage:  circleci job open <job-id> [flags]
+
+Flags:
+  -h, --help   help for open
+  

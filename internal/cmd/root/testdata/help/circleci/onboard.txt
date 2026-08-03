@@ -1,14 +1,13 @@
-# CircleCI CLI
-
-Guided onboarding: scan a local repository, run its detected tests,
-generate a starter .circleci/config.yml, and sign up for CircleCI.
-
-When run interactively without --scan or --signup, a prompt lets you
-choose between scanning the current repo or signing up directly.
+Guided onboarding: scan, test, generate config, sign up
 
 ## Usage
 
 `circleci onboard [path] [flags]`
+
+## Arguments
+
+`<path>` is optional and is the directory to scan. Defaults to
+the current directory.
 
 ## Flags
 
@@ -18,19 +17,7 @@ choose between scanning the current repo or signing up directly.
 | `--scan`       | Skip prompt: scan the repo and generate config    |
 | `--signup`     | Skip prompt: sign up for CircleCI                 |
 
-## Inherited Flags
-
-| Flag                  | Description                                                  |
-| --------------------- | ------------------------------------------------------------ |
-| `-c, --config string` | Path to config file (default: ~/.config/circleci/config.yml) |
-| `--debug`             | Enable debug logging                                         |
-| `--no-color`          | Disable ANSI color output (same as setting NO_COLOR)         |
-| `-q, --quiet`         | Suppress informational output. Data on stdout is unaffected  |
-
-## Arguments
-
-`<path>` is optional and is the directory to scan. Defaults to
-the current directory.
+Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `circleci --help`.
 
 ## Examples
 
@@ -45,9 +32,10 @@ the current directory.
 - Print the signup URL instead of opening a browser: 
   `circleci onboard --signup --no-browser`
 
-## Learn More
+## Details
 
-- Use `circleci <command> <subcommand> --help` for more information about a command.
-- Read the manual at <https://cli.circleci.com/reference/>
-- Support at <https://github.com/CircleCI-Public/circleci-cli/issues>
+Guided onboarding: scan a local repository, run its detected tests,
+generate a starter .circleci/config.yml, and sign up for CircleCI.
+
+Interactively without --scan or --signup, a prompt offers both.
 

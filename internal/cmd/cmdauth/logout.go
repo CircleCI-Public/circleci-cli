@@ -25,6 +25,7 @@ package cmdauth
 import (
 	"context"
 
+	"github.com/MakeNowJust/heredoc"
 	"github.com/spf13/cobra"
 
 	"github.com/CircleCI-Public/circleci-cli/internal/cmdutil"
@@ -39,12 +40,35 @@ func newLogoutCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "logout",
 		Short: "Log out of a CircleCI account",
-		Args:  cobra.NoArgs,
+		Long: heredoc.Doc(`
+			Remove the stored API token, from the system keyring or from the YAML
+			config file depending on where it was saved.
+
+			CIRCLE_TOKEN is not affected: while it is set in the environment it
+			takes precedence over stored credentials, so the CLI stays
+			authenticated after logging out.
+
+			JSON fields: storage ("keyring" or "file"), path (the config file, present only when storage is "file")
+		`),
+		Example: heredoc.Doc(`
+			# Log out of the current account
+			$ circleci auth logout
+
+			# Log out, then sign in as a different account
+			$ circleci auth logout && circleci auth login
+
+			# Log out without printing the confirmation line
+			$ circleci auth logout --quiet
+
+			# Report where the token was removed from, for scripting
+			$ circleci auth logout --json --jq '.storage'
+		`),
+		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
 			secureStorage := cmdutil.IsSecureStorage(cmd)
 			configPath := cmdutil.ConfigPath(cmd)
-			return runLogout(ctx, secureStorage, configPath)
+			return runLogout(ctx, secureStorage, configPath, jsonOut)
 		},
 	}
 
@@ -53,17 +77,33 @@ func newLogoutCmd() *cobra.Command {
 	return cmd
 }
 
-func runLogout(ctx context.Context, secureStorage bool, path string) error {
+// logoutOutput reports where the stored token was removed from. Path is empty
+// for keyring storage, which has no filesystem location to report.
+type logoutOutput struct {
+	Storage string `json:"storage"`
+	Path    string `json:"path,omitempty"`
+}
+
+func runLogout(ctx context.Context, secureStorage bool, path string, jsonOut bool) error {
 	res, err := config.SetLogout(ctx, secureStorage)
 	if err != nil {
 		return clierrors.New("setting.save_failed", "Failed to save settings", err.Error()).
 			WithExitCode(clierrors.ExitGeneralError)
 	}
 
+	out := logoutOutput{Storage: "file", Path: path}
 	if res.Storage == config.StoredInKeyring {
+		out = logoutOutput{Storage: "keyring"}
+	}
+
+	if jsonOut {
+		return iostream.PrintJSON(ctx, out)
+	}
+
+	if out.Storage == "keyring" {
 		iostream.ErrPrintf(ctx, "%s Removed token from keyring\n", iostream.SymbolOK(ctx))
 	} else {
-		iostream.ErrPrintf(ctx, "%s Removed token from %s\n", iostream.SymbolOK(ctx), path)
+		iostream.ErrPrintf(ctx, "%s Removed token from %s\n", iostream.SymbolOK(ctx), out.Path)
 	}
 	return nil
 }

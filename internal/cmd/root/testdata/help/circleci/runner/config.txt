@@ -1,21 +1,13 @@
-# CircleCI CLI
-
-Generate a runner agent configuration YAML for a resource class.
-
-By default, a new authentication token is created and the resulting
-config is written to stdout. Redirect stdout or use --output to
-write directly to a file.
-
-If you already have a token value (e.g. from a prior
-'circleci runner token create'), pass it with --token to generate
-the YAML without making an API call.
-
-The generated YAML is suitable for use as the runner agent's
-launch-agent-config.yaml.
+Generate a runner agent configuration file
 
 ## Usage
 
 `circleci runner config <resource-class> [flags]`
+
+## Arguments
+
+`<resource-class>` is the runner resource class to generate config for,
+in the form `namespace/name` (for example, `my-org/my-runner`).
 
 ## Flags
 
@@ -25,19 +17,7 @@ launch-agent-config.yaml.
 | `-o, --output string` | Write config to this file instead of stdout               |
 | `--token string`      | Use an existing token value instead of creating a new one |
 
-## Inherited Flags
-
-| Flag                  | Description                                                  |
-| --------------------- | ------------------------------------------------------------ |
-| `-c, --config string` | Path to config file (default: ~/.config/circleci/config.yml) |
-| `--debug`             | Enable debug logging                                         |
-| `--no-color`          | Disable ANSI color output (same as setting NO_COLOR)         |
-| `-q, --quiet`         | Suppress informational output. Data on stdout is unaffected  |
-
-## Arguments
-
-`<resource-class>` is the runner resource class to generate config for,
-in the form `namespace/name` (for example, `my-org/my-runner`).
+Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `circleci --help`.
 
 ## Examples
 
@@ -50,9 +30,11 @@ in the form `namespace/name` (for example, `my-org/my-runner`).
 - Generate config from an existing token value (no API token creation): 
   `circleci runner config my-org/my-runner --token "$EXISTING_TOKEN_VALUE"`
 
-## Learn More
+## Details
 
-- Use `circleci <command> <subcommand> --help` for more information about a command.
-- Read the manual at <https://cli.circleci.com/reference/>
-- Support at <https://github.com/CircleCI-Public/circleci-cli/issues>
+Generate a runner agent configuration YAML for a resource class, suitable for
+use as the agent's launch-agent-config.yaml.
+
+A new authentication token is created unless you pass an existing one with
+--token, which generates the YAML without an API call.
 

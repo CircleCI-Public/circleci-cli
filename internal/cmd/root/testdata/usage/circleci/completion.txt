@@ -1,4 +1,4 @@
-Usage:  circleci completion <command>
+Usage:  circleci completion <command> [flags]
 
 Available commands:
   install

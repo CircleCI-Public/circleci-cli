@@ -66,16 +66,11 @@ func newInitCmd() *cobra.Command {
 			`, "`"),
 		},
 		Long: heredoc.Doc(`
-			Scaffold a new orb project from the CircleCI orb template.
+			Scaffold a new orb project from CircleCI-Public/Orb-Template into <path>.
 
-			The template is downloaded from CircleCI-Public/Orb-Template and
-			extracted into <path>. By default the command then walks you through
-			an automated setup: it reserves the namespace and orb, assigns
-			categories, sets up an 'orb-publishing' context, initializes a local
-			git repository, and publishes a dev:alpha version.
-
-			Use --template-only to download the template without any setup, or
-			--skip-git to run the registry setup without initializing a git repo.
+			It then walks you through setup: reserving the namespace and orb, assigning
+			categories, creating an 'orb-publishing' context, initializing git, and
+			publishing a dev:alpha version.
 
 			Note: once published, orbs cannot be deleted.
 		`),

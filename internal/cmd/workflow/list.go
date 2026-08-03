@@ -53,32 +53,19 @@ func newListCmd() *cobra.Command {
 		Short:   "List workflows for a run or recent runs",
 		Annotations: map[string]string{
 			"help:arguments": heredoc.Docf(`
-				%[1]s<run-id>%[1]s is optional and selects a single run. A run can be specified by its UUID or number:
-				- A run UUID, as shown in %[1]scircleci run list --json%[1]s
-				- A run number, as shown in %[1]scircleci run list%[1]s.
+				%[1]s<run-id>%[1]s is optional: a run UUID (as shown by %[1]scircleci run list --json%[1]s)
+				or a run number (as shown by %[1]scircleci run list%[1]s).
 
-				The project is inferred from the git remote unless overridden with %[1]s--project%[1]s.
-
-				When omitted, workflows for recent runs in the current project are
-				listed, grouped by run.
+				When omitted, workflows for recent runs in the current project are listed,
+				grouped by run.
 			`, "`"),
 		},
 		Long: heredoc.Doc(`
-			List workflows for a CircleCI run.
+			List workflows for a CircleCI run, or for recent runs in the project when
+			no run is given.
 
-			With no argument, lists workflows for recent runs in the current
-			project, grouped by run. Use --branch to filter to a specific branch
-			and --limit to control how many runs are shown.
-
-			Pass a run UUID or run number to list workflows for a single
-			run. Run numbers are shown in 'circleci run list'; UUIDs
-			are shown in 'circleci run list --json'.
-
-			When passing a run number, the project is inferred from the
-			current git repository unless overridden with --project.
-
-			JSON fields (single run):  id, name, phase, outcome, current_outcome
-			JSON fields (recent runs): run_id, id, name, phase, outcome, current_outcome
+			JSON fields (single run): id, name, phase, outcome, current_outcome.
+			Recent-runs mode adds run_id.
 		`),
 		Example: heredoc.Doc(`
 			# List workflows for recent runs in the current project
@@ -87,14 +74,11 @@ func newListCmd() *cobra.Command {
 			# Filter to a specific branch
 			$ circleci workflow list --branch main
 
-			# List workflows by run UUID
-			$ circleci workflow list 9e0c9d52-3b7e-4cd6-b5f7-bfc5e4a07e81
-
 			# List workflows by run number
 			$ circleci workflow list 75
 
-			# List workflows for a run in a specific project
-			$ circleci workflow list 75 --project gh/myorg/myrepo
+			# List workflows by run UUID
+			$ circleci workflow list 9e0c9d52-3b7e-4cd6-b5f7-bfc5e4a07e81
 
 			# Output as JSON
 			$ circleci workflow list --json

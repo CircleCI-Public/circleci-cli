@@ -1,4 +1,4 @@
-Usage:  circleci my <command>
+Usage:  circleci my <command> [flags]
 
 Available commands:
   runs

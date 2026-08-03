@@ -1,4 +1,4 @@
-Usage:  circleci runner token <command>
+Usage:  circleci runner token <command> [flags]
 
 Available commands:
   create

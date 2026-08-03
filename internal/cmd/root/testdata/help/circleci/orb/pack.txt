@@ -1,32 +1,16 @@
-# CircleCI CLI
-
-Pack an orb source directory into a single YAML file.
-
-If the path is a directory, the '@orb.yml' (or 'orb.yml') file at the
-root is merged with any 'commands/', 'jobs/', 'executors/', and 'examples/'
-subdirectories. Each .yml file in those directories is added as a named
-entry under the corresponding top-level key.
-
-If the path is a single file it is parsed and written to stdout.
-
-The merged YAML is written to stdout.
+Pack a multi-file orb directory into a single YAML
 
 ## Usage
 
 `circleci orb pack <path> [flags]`
 
-## Inherited Flags
-
-| Flag                  | Description                                                  |
-| --------------------- | ------------------------------------------------------------ |
-| `-c, --config string` | Path to config file (default: ~/.config/circleci/config.yml) |
-| `--debug`             | Enable debug logging                                         |
-| `--no-color`          | Disable ANSI color output (same as setting NO_COLOR)         |
-| `-q, --quiet`         | Suppress informational output. Data on stdout is unaffected  |
-
 ## Arguments
 
 - `<path>` is the path to an orb source directory or a single orb YAML file.
+
+## Flags
+
+Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `circleci --help`.
 
 ## Examples
 
@@ -39,9 +23,16 @@ The merged YAML is written to stdout.
 - Pack and immediately validate: 
   `circleci orb pack ./src | circleci orb validate -`
 
-## Learn More
+## Details
 
-- Use `circleci <command> <subcommand> --help` for more information about a command.
-- Read the manual at <https://cli.circleci.com/reference/>
-- Support at <https://github.com/CircleCI-Public/circleci-cli/issues>
+Pack an orb source directory into a single YAML file.
+
+If the path is a directory, the '@orb.yml' (or 'orb.yml') file at the
+root is merged with any 'commands/', 'jobs/', 'executors/', and 'examples/'
+subdirectories. Each .yml file in those directories is added as a named
+entry under the corresponding top-level key.
+
+If the path is a single file it is parsed and written to stdout.
+
+The merged YAML is written to stdout.
 

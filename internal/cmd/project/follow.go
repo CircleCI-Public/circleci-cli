@@ -45,10 +45,6 @@ func newFollowCmd() *cobra.Command {
 		Long: heredoc.Doc(`
 			Follow a CircleCI project to enable builds and receive status updates.
 
-			The project is inferred from the current git repository's remote
-			unless overridden with --project. The slug must be in the form
-			vcs/org/repo (e.g. gh/myorg/myrepo).
-
 			Following a project that is already followed is a no-op.
 		`),
 		Example: heredoc.Doc(`

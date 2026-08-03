@@ -1,14 +1,12 @@
-# CircleCI CLI
-
-Promote a dev orb version to a stable semver version.
-
-The dev version ref must be in the form `<namespace>/<orb>@dev:<label>`.
-The --bump flag determines how the version is incremented
-from the latest stable release.
+Promote a dev orb version to a stable semver
 
 ## Usage
 
 `circleci orb publish promote <namespace>/<orb>@dev:<label> --bump major|minor|patch [flags]`
+
+## Arguments
+
+- `<namespace>/<orb>@dev:<label>` is the dev version to promote, for example, `namespace/orb-name@dev:my-branch`
 
 ## Flags
 
@@ -16,18 +14,7 @@ from the latest stable release.
 | --------------- | ---------------------------------------------------------- |
 | `--bump string` | which version segment to increment: major, minor, or patch |
 
-## Inherited Flags
-
-| Flag                  | Description                                                  |
-| --------------------- | ------------------------------------------------------------ |
-| `-c, --config string` | Path to config file (default: ~/.config/circleci/config.yml) |
-| `--debug`             | Enable debug logging                                         |
-| `--no-color`          | Disable ANSI color output (same as setting NO_COLOR)         |
-| `-q, --quiet`         | Suppress informational output. Data on stdout is unaffected  |
-
-## Arguments
-
-- `<namespace>/<orb>@dev:<label>` is the dev version to promote, for example, `namespace/orb-name@dev:my-branch`
+Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `circleci --help`.
 
 ## Examples
 
@@ -38,9 +25,11 @@ from the latest stable release.
 - Promote to a major release: 
   `circleci orb publish promote myorg/my-orb@dev:my-branch --bump major`
 
-## Learn More
+## Details
 
-- Use `circleci <command> <subcommand> --help` for more information about a command.
-- Read the manual at <https://cli.circleci.com/reference/>
-- Support at <https://github.com/CircleCI-Public/circleci-cli/issues>
+Promote a dev orb version to a stable semver version.
+
+The dev version ref must be in the form `<namespace>/<orb>@dev:<label>`.
+The --bump flag determines how the version is incremented
+from the latest stable release.
 

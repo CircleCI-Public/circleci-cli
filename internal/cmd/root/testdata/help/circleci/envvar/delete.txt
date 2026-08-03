@@ -1,23 +1,15 @@
-# CircleCI CLI
-
-Delete an environment variable from a CircleCI project.
-
-This action is irreversible. The variable will be removed and any
-jobs that reference it will fail until a new value is set.
-
-The project is inferred from the current git repository's remote
-unless overridden with --project.
-
-In a terminal, you will be prompted to confirm before deleting.
-Use --force (-f) to skip the prompt for scripting.
+Delete a project environment variable
 
 ## Usage
 
 `circleci envvar delete <name> [flags]`
 
-## Aliases
+Aliases: `circleci envvar rm`
 
-`circleci envvar rm`
+## Arguments
+
+`<name>` is the name of the environment variable to delete from
+the project. This action is irreversible.
 
 ## Flags
 
@@ -26,19 +18,7 @@ Use --force (-f) to skip the prompt for scripting.
 | `-f, --force`      | skip confirmation prompt                                |
 | `--project string` | Project slug (e.g. gh/org/repo); defaults to git remote |
 
-## Inherited Flags
-
-| Flag                  | Description                                                  |
-| --------------------- | ------------------------------------------------------------ |
-| `-c, --config string` | Path to config file (default: ~/.config/circleci/config.yml) |
-| `--debug`             | Enable debug logging                                         |
-| `--no-color`          | Disable ANSI color output (same as setting NO_COLOR)         |
-| `-q, --quiet`         | Suppress informational output. Data on stdout is unaffected  |
-
-## Arguments
-
-`<name>` is the name of the environment variable to delete from
-the project. This action is irreversible.
+Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `circleci --help`.
 
 ## Examples
 
@@ -49,9 +29,10 @@ the project. This action is irreversible.
 - Delete an env var from a specific project: 
   `circleci envvar delete MY_SECRET --project gh/myorg/myrepo --force`
 
-## Learn More
+## Details
 
-- Use `circleci <command> <subcommand> --help` for more information about a command.
-- Read the manual at <https://cli.circleci.com/reference/>
-- Support at <https://github.com/CircleCI-Public/circleci-cli/issues>
+Delete an environment variable from a CircleCI project.
+
+This action is irreversible. The variable will be removed and any
+jobs that reference it will fail until a new value is set.
 

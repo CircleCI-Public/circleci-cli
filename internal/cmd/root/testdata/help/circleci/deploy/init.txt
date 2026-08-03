@@ -1,15 +1,4 @@
-# CircleCI CLI
-
-Set up deploy markers in .circleci/config.yml.
-
-Scans the config for deploy-like jobs (names containing deploy,
-release, publish, or ship), prompts for your service name and
-target environment, then adds a log step to each deploy job.
-
-The command is idempotent: running it twice on the same config
-makes no duplicate changes.
-
-Works offline — no API calls required.
+Instrument your config for deploy tracking
 
 ## Usage
 
@@ -23,14 +12,7 @@ Works offline — no API calls required.
 | `--environment string`     | Default environment for jobs whose target can't be inferred (skips prompt) |
 | `--pipeline-config string` | Path to CircleCI pipeline config file (default ".circleci/config.yml")     |
 
-## Inherited Flags
-
-| Flag                  | Description                                                  |
-| --------------------- | ------------------------------------------------------------ |
-| `-c, --config string` | Path to config file (default: ~/.config/circleci/config.yml) |
-| `--debug`             | Enable debug logging                                         |
-| `--no-color`          | Disable ANSI color output (same as setting NO_COLOR)         |
-| `-q, --quiet`         | Suppress informational output. Data on stdout is unaffected  |
+Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `circleci --help`.
 
 ## Examples
 
@@ -43,9 +25,16 @@ Works offline — no API calls required.
 - Use a non-default config location: 
   `circleci deploy init --pipeline-config path/to/config.yml`
 
-## Learn More
+## Details
 
-- Use `circleci <command> <subcommand> --help` for more information about a command.
-- Read the manual at <https://cli.circleci.com/reference/>
-- Support at <https://github.com/CircleCI-Public/circleci-cli/issues>
+Set up deploy markers in .circleci/config.yml.
+
+Scans the config for deploy-like jobs (names containing deploy,
+release, publish, or ship), prompts for your service name and
+target environment, then adds a log step to each deploy job.
+
+The command is idempotent: running it twice on the same config
+makes no duplicate changes.
+
+Works offline — no API calls required.
 

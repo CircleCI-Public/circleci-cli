@@ -1,11 +1,4 @@
-# CircleCI CLI
-
-Add and remove restrictions that control which projects and groups
-can use a CircleCI context.
-
-Restrictions scope context access to specific projects, pipeline
-expressions, or VCS groups. A context with no restrictions is
-accessible to all members of the organization.
+Manage context restrictions
 
 ## Usage
 
@@ -18,18 +11,16 @@ accessible to all members of the organization.
 | `create` | Add a restriction to a context      |
 | `delete` | Delete a restriction from a context |
 
-## Inherited Flags
+## Flags
 
-| Flag                  | Description                                                  |
-| --------------------- | ------------------------------------------------------------ |
-| `-c, --config string` | Path to config file (default: ~/.config/circleci/config.yml) |
-| `--debug`             | Enable debug logging                                         |
-| `--no-color`          | Disable ANSI color output (same as setting NO_COLOR)         |
-| `-q, --quiet`         | Suppress informational output. Data on stdout is unaffected  |
+Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `circleci --help`.
 
-## Learn More
+## Details
 
-- Use `circleci <command> <subcommand> --help` for more information about a command.
-- Read the manual at <https://cli.circleci.com/reference/>
-- Support at <https://github.com/CircleCI-Public/circleci-cli/issues>
+Add and remove restrictions that control which projects and groups
+can use a CircleCI context.
+
+Restrictions scope context access to specific projects, pipeline
+expressions, or VCS groups. A context with no restrictions is
+accessible to all members of the organization.
 

@@ -1,11 +1,4 @@
-# CircleCI CLI
-
-Work with CircleCI workflows.
-
-Workflows orchestrate jobs within a run. Use these commands to
-inspect workflow status, rerun failed jobs, or cancel a running workflow.
-
-Workflow IDs are shown in the output of 'circleci run get'.
+Inspect, rerun and cancel workflows (job graphs)
 
 ## Usage
 
@@ -26,18 +19,16 @@ Workflow IDs are shown in the output of 'circleci run get'.
 | `open`   | Open workflow in browser  |
 | `rerun`  | Rerun a workflow          |
 
-## Inherited Flags
+## Flags
 
-| Flag                  | Description                                                  |
-| --------------------- | ------------------------------------------------------------ |
-| `-c, --config string` | Path to config file (default: ~/.config/circleci/config.yml) |
-| `--debug`             | Enable debug logging                                         |
-| `--no-color`          | Disable ANSI color output (same as setting NO_COLOR)         |
-| `-q, --quiet`         | Suppress informational output. Data on stdout is unaffected  |
+Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `circleci --help`.
 
-## Learn More
+## Details
 
-- Use `circleci <command> <subcommand> --help` for more information about a command.
-- Read the manual at <https://cli.circleci.com/reference/>
-- Support at <https://github.com/CircleCI-Public/circleci-cli/issues>
+Work with CircleCI workflows.
+
+Workflows orchestrate jobs within a run. Use these commands to
+inspect workflow status, rerun failed jobs, or cancel a running workflow.
+
+Workflow IDs are shown in the output of 'circleci run get'.
 

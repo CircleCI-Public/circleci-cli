@@ -1,28 +1,18 @@
-# CircleCI CLI
-
-Print the raw YAML source of an orb version.
-
-If no version is specified, the latest published version is shown.
-Specify a version with `@<version>` (e.g. @1.2.3 or @volatile for latest).
+Print the YAML source of an orb version
 
 ## Usage
 
 `circleci orb source <namespace>/<orb>[@<version>] [flags]`
-
-## Inherited Flags
-
-| Flag                  | Description                                                  |
-| --------------------- | ------------------------------------------------------------ |
-| `-c, --config string` | Path to config file (default: ~/.config/circleci/config.yml) |
-| `--debug`             | Enable debug logging                                         |
-| `--no-color`          | Disable ANSI color output (same as setting NO_COLOR)         |
-| `-q, --quiet`         | Suppress informational output. Data on stdout is unaffected  |
 
 ## Arguments
 
 - `<namespace>/<orb>[@<version>]` is the orb to print, for example, `namespace/orb-name`.
   Optionally append `@<version>` (for example, `@1.2.3`, `@volatile`, or `@dev:my-branch`).
   When omitted, the latest published version is shown.
+
+## Flags
+
+Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `circleci --help`.
 
 ## Examples
 
@@ -35,9 +25,10 @@ Specify a version with `@<version>` (e.g. @1.2.3 or @volatile for latest).
 - Save the source to a file: 
   `circleci orb source myorg/my-orb@1.0.0 > orb.yml`
 
-## Learn More
+## Details
 
-- Use `circleci <command> <subcommand> --help` for more information about a command.
-- Read the manual at <https://cli.circleci.com/reference/>
-- Support at <https://github.com/CircleCI-Public/circleci-cli/issues>
+Print the raw YAML source of an orb version.
+
+If no version is specified, the latest published version is shown.
+Specify a version with `@<version>` (e.g. @1.2.3 or @volatile for latest).
 

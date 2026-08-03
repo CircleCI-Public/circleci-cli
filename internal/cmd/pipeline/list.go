@@ -50,14 +50,7 @@ func newListCmd() *cobra.Command {
 		Long: heredoc.Doc(`
 			List all pipeline definitions for a CircleCI project.
 
-			The project is resolved from --project-id if provided; otherwise the
-			project slug (--project or git remote) is used to look up the project UUID.
-
-			JSON fields: id, name, description, created_at,
-			             config_source.provider, config_source.file_path,
-			             config_source.repo.external_id, config_source.repo.full_name,
-			             checkout_source.provider,
-			             checkout_source.repo.external_id, checkout_source.repo.full_name
+			JSON fields: id, name, description, created_at, config_source.provider, config_source.file_path, config_source.repo.external_id, config_source.repo.full_name, checkout_source.provider, checkout_source.repo.external_id, checkout_source.repo.full_name
 		`),
 		Example: heredoc.Doc(`
 			# List pipeline definitions for the current repository's project

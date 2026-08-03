@@ -174,16 +174,11 @@ func newTriggerListCmd() *cobra.Command {
 		Long: heredoc.Doc(`
 			List all triggers attached to a pipeline definition.
 
-			The project is resolved from --project-id if provided; otherwise the
-			project slug (--project or git remote) is used to look up the project UUID.
-
 			--pipeline-definition-id is required. In a terminal it will be prompted
 			interactively if omitted; in non-interactive mode (CI, agents) it must
 			be passed as a flag.
 
-			JSON fields: id, created_at, event_name, event_preset, config_ref,
-			             checkout_ref, disabled, event_source.provider,
-			             event_source.repo.external_id, event_source.repo.full_name
+			JSON fields: id, created_at, event_name, event_preset, config_ref, checkout_ref, disabled, event_source.provider, event_source.repo.external_id, event_source.repo.full_name
 		`),
 		Example: heredoc.Doc(`
 			# List triggers for the current repository's project
@@ -325,29 +320,14 @@ func newTriggerCreateCmd() *cobra.Command {
 		Use:   "create",
 		Short: "Create a new project trigger",
 		Long: heredoc.Docf(`
-			Create a new trigger for a CircleCI project.
+			Create a new trigger for a CircleCI project, connecting an event source to a
+			pipeline definition so that matching events start a pipeline run.
 
-			A trigger connects an event source to a pipeline definition so that
-			matching events automatically start a pipeline run.
+			Required values are prompted for in a terminal, and must be flags otherwise.
+			Run %[1]scircleci help triggers%[1]s for what each provider and event preset means.
 
-			The project is resolved from --project-id if provided; otherwise the
-			project slug (--project or git remote) is used to look up the project UUID.
-
-			--pipeline-definition-id is required. In a terminal it will be prompted
-			interactively if omitted (showing available pipeline definitions to choose
-			from); in non-interactive mode (CI, agents) it must be passed as a flag.
-
-			--repo-id is required for repo-based providers (github_app, github_server,
-			github_oauth). In a terminal it will be prompted if omitted.
-
-			Valid --provider values: %s
-
-			Valid --event-preset values:
-			  %s
-
-			JSON fields: id, created_at, event_name, event_preset, config_ref,
-			             checkout_ref, disabled
-		`, strings.Join(validProviders, ", "), strings.Join(validEventPresets, "\n  ")),
+			JSON fields: id, created_at, event_name, event_preset, config_ref, checkout_ref, disabled
+		`, "`"),
 		Example: heredoc.Doc(`
 			# Create a GitHub App trigger (provider defaults to github_app)
 			$ circleci project trigger create \

@@ -1,10 +1,4 @@
-# CircleCI CLI
-
-Show CircleCI resources scoped to you, the authenticated user.
-
-These commands answer "what's mine?" across every project you have
-access to, rather than a single project inferred from the current
-git repository.
+Show resources for the authenticated user
 
 ## Usage
 
@@ -16,18 +10,15 @@ git repository.
 | ------- | ---------------------------------------- |
 | `runs`  | List your recent runs grouped by project |
 
-## Inherited Flags
+## Flags
 
-| Flag                  | Description                                                  |
-| --------------------- | ------------------------------------------------------------ |
-| `-c, --config string` | Path to config file (default: ~/.config/circleci/config.yml) |
-| `--debug`             | Enable debug logging                                         |
-| `--no-color`          | Disable ANSI color output (same as setting NO_COLOR)         |
-| `-q, --quiet`         | Suppress informational output. Data on stdout is unaffected  |
+Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `circleci --help`.
 
-## Learn More
+## Details
 
-- Use `circleci <command> <subcommand> --help` for more information about a command.
-- Read the manual at <https://cli.circleci.com/reference/>
-- Support at <https://github.com/CircleCI-Public/circleci-cli/issues>
+Show CircleCI resources scoped to you, the authenticated user.
+
+These commands answer "what's mine?" across every project you have
+access to, rather than a single project inferred from the current
+git repository.
 

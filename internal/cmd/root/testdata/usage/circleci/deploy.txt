@@ -1,4 +1,4 @@
-Usage:  circleci deploy <command>
+Usage:  circleci deploy <command> [flags]
 
 Available commands:
   init

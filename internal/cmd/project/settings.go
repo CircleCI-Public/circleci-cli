@@ -26,6 +26,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"slices"
 	"strings"
 
 	"github.com/MakeNowJust/heredoc"
@@ -161,14 +162,6 @@ func projectSettingNames() string {
 	return strings.Join(names, ", ")
 }
 
-func projectSettingTable() string {
-	tbl := mdtable.New("Name", "Description")
-	for _, s := range boolSettingSpecs {
-		tbl.Row(s.use, s.short)
-	}
-	return tbl.Render()
-}
-
 // resolveProjectIDFromSlug resolves a project UUID from a slug flag or git remote.
 func resolveProjectIDFromSlug(ctx context.Context, client *apiclient.Client, projectSlug string) (uuid.UUID, error) {
 	idStr, err := resolveProjectID(ctx, client, projectSlug, "")
@@ -195,14 +188,18 @@ func newSettingsGetCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "get <setting>",
 		Short: "Get the current value of a project setting",
-		Long: heredoc.Docf(`
+		Annotations: map[string]string{
+			"help:arguments": heredoc.Docf(`
+				%[1]s<setting>%[1]s is one of: %[2]s.
+
+				Run %[1]scircleci project setting list%[1]s for each setting's description and current value.
+			`, "`", projectSettingNames()),
+		},
+		Long: heredoc.Doc(`
 			Get the current value of an advanced project setting.
 
 			JSON fields: name, value
-
-			Available settings:
-			%s
-		`, projectSettingTable()),
+		`),
 		Example: heredoc.Doc(`
 			# Get a setting for the current project
 			$ circleci project setting get build-forked-pull-requests
@@ -255,14 +252,19 @@ func newSettingsSetCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "set <setting> <true|false>",
 		Short: "Set a project setting",
-		Long: heredoc.Docf(`
+		Annotations: map[string]string{
+			"help:arguments": heredoc.Docf(`
+				%[1]s<setting>%[1]s is one of: %[2]s.
+
+				%[1]s<true|false>%[1]s is the new value. Run %[1]scircleci project setting list%[1]s for each
+				setting's description and current value.
+			`, "`", projectSettingNames()),
+		},
+		Long: heredoc.Doc(`
 			Set an advanced project setting to true or false.
 
 			JSON fields: name, value
-
-			Available settings:
-			%s
-		`, projectSettingTable()),
+		`),
 		Example: heredoc.Doc(`
 			# Enable a setting for the current project
 			$ circleci project setting set build-forked-pull-requests true
@@ -404,14 +406,7 @@ func newSettingsListCmd() *cobra.Command {
 		Long: heredoc.Doc(`
 			List all advanced settings for a CircleCI project.
 
-			The project is inferred from the current git repository's remote
-			unless overridden with --project.
-
-			JSON fields: enable_ai_error_summarization, enable_auto_cancel_redundant_workflows,
-			             enable_building_fork_prs, is_build_prs_only, can_pass_secrets_to_fork_pr_jobs,
-			             can_set_github_status, is_running_disabled, is_ssh_disabled,
-			             enable_dynamic_config, is_admin_required_for_writing_settings,
-			             is_oss, pr_only_branch_overrides, enable_unversioned_config
+			JSON fields: enable_ai_error_summarization, enable_auto_cancel_redundant_workflows, enable_building_fork_prs, is_build_prs_only, can_pass_secrets_to_fork_pr_jobs, can_set_github_status, is_running_disabled, is_ssh_disabled, enable_dynamic_config, is_admin_required_for_writing_settings, is_oss, pr_only_branch_overrides, enable_unversioned_config
 		`),
 		Example: heredoc.Doc(`
 			# List settings for the current project
@@ -481,19 +476,16 @@ func runSettingsList(ctx context.Context, client *apiclient.Client, projectID uu
 		return iostream.PrintJSON(ctx, out)
 	}
 
-	tbl := mdtable.New("Setting", "Value")
-	tbl.Row("ai-error-summarization", fmt.Sprintf("%v", out.AIErrorSummarization))
-	tbl.Row("auto-cancel-builds", fmt.Sprintf("%v", out.AutoCancelBuilds))
-	tbl.Row("build-forked-pull-requests", fmt.Sprintf("%v", out.BuildForkPRs))
-	tbl.Row("build-prs-only", fmt.Sprintf("%v", out.BuildPRsOnly))
-	tbl.Row("disable-running", fmt.Sprintf("%v", out.DisableRunning))
-	tbl.Row("disable-ssh", fmt.Sprintf("%v", out.DisableSSH))
-	tbl.Row("dynamic-config", fmt.Sprintf("%v", out.DynamicConfig))
-	tbl.Row("forks-receive-secret-env-vars", fmt.Sprintf("%v", out.CanPassSecretsToForkPR))
-	tbl.Row("oss", fmt.Sprintf("%v", out.IsOSS))
-	tbl.Row("set-github-status", fmt.Sprintf("%v", out.CanSetGitHubStatus))
-	tbl.Row("unversioned-config", fmt.Sprintf("%v", out.UnversionedConfig))
-	tbl.Row("write-settings-requires-admin", fmt.Sprintf("%v", out.IsAdminRequiredForWriting))
+	// Driven off the specs so the descriptions live in one place: `setting get`
+	// and `setting set` point here for them rather than reprinting the whole
+	// table in their own help.
+	specs := slices.SortedFunc(slices.Values(boolSettingSpecs),
+		func(a, b boolSettingSpec) int { return strings.Compare(a.use, b.use) })
+
+	tbl := mdtable.New("Setting", "Value", "Description")
+	for _, s := range specs {
+		tbl.Row(s.use, fmt.Sprintf("%v", s.get(attrs)), s.short)
+	}
 	iostream.PrintMarkdown(ctx, "# Advanced Settings\n"+tbl.Render())
 	return nil
 }

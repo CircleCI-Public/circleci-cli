@@ -1,11 +1,4 @@
-# CircleCI CLI
-
-Create, list, and delete iOS signing configs.
-
-A signing config pairs an uploaded .p12 certificate with one or more
-provisioning profiles under a stable name. Reference the signing config
-by name from your pipeline config under the 'code_signing' block to
-install it onto the macOS runner during a job.
+Manage iOS signing configs
 
 ## Usage
 
@@ -24,18 +17,16 @@ install it onto the macOS runner during a job.
 | -------- | ---------------------------- |
 | `delete` | Delete an iOS signing config |
 
-## Inherited Flags
+## Flags
 
-| Flag                  | Description                                                  |
-| --------------------- | ------------------------------------------------------------ |
-| `-c, --config string` | Path to config file (default: ~/.config/circleci/config.yml) |
-| `--debug`             | Enable debug logging                                         |
-| `--no-color`          | Disable ANSI color output (same as setting NO_COLOR)         |
-| `-q, --quiet`         | Suppress informational output. Data on stdout is unaffected  |
+Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `circleci --help`.
 
-## Learn More
+## Details
 
-- Use `circleci <command> <subcommand> --help` for more information about a command.
-- Read the manual at <https://cli.circleci.com/reference/>
-- Support at <https://github.com/CircleCI-Public/circleci-cli/issues>
+Create, list, and delete iOS signing configs.
+
+A signing config pairs an uploaded .p12 certificate with one or more
+provisioning profiles under a stable name. Reference the signing config
+by name from your pipeline config under the 'code_signing' block to
+install it onto the macOS runner during a job.
 

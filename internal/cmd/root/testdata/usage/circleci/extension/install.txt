@@ -1,1 +1,5 @@
-Usage:  circleci extension install <extension>
+Usage:  circleci extension install <extension> [flags]
+
+Flags:
+  -h, --help   help for install
+  

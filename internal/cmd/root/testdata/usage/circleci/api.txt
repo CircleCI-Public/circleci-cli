@@ -4,6 +4,7 @@ Flags:
   -d, --data string          Raw request body sent verbatim; @file reads from a file, @- from stdin
   -f, --field stringArray    Add a field: key=value (query param for GET/DELETE, JSON body for POST/PUT/PATCH)
   -H, --header stringArray   Add a request header: "Key: Value"
+  -h, --help                 help for api
       --jq string            Process values from the response using jq syntax
   -X, --method string        HTTP method (default: GET, or POST when -f or -d is used)
   

@@ -35,6 +35,14 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/internal/iostream"
 )
 
+// HelpTopicAnnotation marks a command as a `circleci help <topic>` page rather
+// than a real command. Topics are hidden from the command listing but are
+// user-facing long-form documentation, so they are goldened like any other help
+// output and exempted from the per-command help line budget. Exported because
+// the golden walk in usage_test.go keys off it — a rename should break the build
+// rather than silently stop covering the topics.
+const HelpTopicAnnotation = "help:topic"
+
 type helpTopic struct {
 	name    string
 	short   string
@@ -138,6 +146,59 @@ var helpTopics = []helpTopic{
 		`),
 	},
 	{
+		name:  "triggers",
+		short: "Event source providers and event presets for project triggers",
+		long: heredoc.Docf(`
+			A trigger connects an event source to a pipeline definition, so that matching events
+			automatically start a pipeline run. Create one with %[1]scircleci project trigger create%[1]s.
+
+			## Providers
+
+			The %[1]s--provider%[1]s flag names the event source. %[1]sgithub_app%[1]s is the default.
+
+			| Provider | Event source |
+			|---|---|
+			| %[1]sgithub_app%[1]s | A repository in a GitHub org with the CircleCI GitHub App installed |
+			| %[1]sgithub_server%[1]s | A repository on a self-hosted GitHub Enterprise Server |
+			| %[1]sgithub_oauth%[1]s | A repository connected through the legacy GitHub OAuth integration |
+			| %[1]swebhook%[1]s | An inbound HTTP webhook, for sources CircleCI does not integrate with directly |
+			| %[1]sschedule%[1]s | A time-based schedule rather than a repository event |
+
+			The three repository-backed providers need %[1]s--repo-id%[1]s, the repository's external ID
+			as the provider knows it. %[1]swebhook%[1]s and %[1]sschedule%[1]s do not.
+
+			## Event presets
+
+			The %[1]s--event-preset%[1]s flag filters which events actually start a run. Omit it to run on
+			every event the provider sends.
+
+			| Preset | Runs on |
+			|---|---|
+			| %[1]sall-pushes%[1]s | Every push to any branch |
+			| %[1]sdefault-branch-pushes%[1]s | Pushes to the default branch only |
+			| %[1]sonly-tags%[1]s | Tag pushes only |
+			| %[1]sonly-branch-delete%[1]s | Branch deletions |
+			| %[1]sonly-build-prs%[1]s | Pushes to branches that have an open pull request |
+			| %[1]sonly-open-prs%[1]s | Pull requests being opened |
+			| %[1]snon-draft-pr-opened%[1]s | Pull requests opened in a non-draft state |
+			| %[1]sonly-build-pushes-to-non-draft-prs%[1]s | Pushes to non-draft pull requests |
+			| %[1]sonly-ready-for-review-prs%[1]s | Pull requests marked ready for review |
+			| %[1]sonly-labeled-prs%[1]s | Pull requests being labeled |
+			| %[1]sonly-merged-prs%[1]s | Pull requests being merged |
+			| %[1]sonly-merged-or-closed-prs%[1]s | Pull requests being merged or closed |
+			| %[1]spr-comment-equals-run-ci%[1]s | A pull request comment of exactly "run ci" |
+			| %[1]spushes-to-merge-queues%[1]s | Pushes to a GitHub merge queue |
+		`, "`"),
+		example: heredoc.Docf(`
+			### Build every push to a GitHub App repository
+			%[1]s$ circleci project trigger create --pipeline-definition-id <id> --repo-id 123456789 --event-preset all-pushes%[1]s
+			### Build only tagged releases
+			%[1]s$ circleci project trigger create --pipeline-definition-id <id> --repo-id 123456789 --event-preset only-tags%[1]s
+			### List the triggers already attached to a pipeline definition
+			%[1]s$ circleci project trigger list --pipeline-definition-id <id>%[1]s
+		`, "`"),
+	},
+	{
 		name:  "reference",
 		short: "A comprehensive reference of all circleci commands",
 	},
@@ -165,7 +226,7 @@ var helpTopics = []helpTopic{
 
 		`, "`"),
 		example: heredoc.Docf(`
-			## Default output format
+			### Default output format
 			%[1]scircleci auth me%[1]s
 			%[1]s%[1]s%[1]stext
 			# User
@@ -175,7 +236,7 @@ var helpTopics = []helpTopic{
 			- Avatar URL: https://avatars.githubusercontent.com/u/9812739817239?v=4
 			%[1]s%[1]s%[1]s
 
-			## Adding the --json flag with a list of field names
+			### Adding the --json flag with a list of field names
 			%[1]scircleci auth me --json%[1]s
 			%[1]s%[1]s%[1]sjson
 			{
@@ -186,7 +247,7 @@ var helpTopics = []helpTopic{
 			}
 			%[1]s%[1]s%[1]s
 
-			## Adding the --jq flag and selecting a field
+			### Adding the --jq flag and selecting a field
 			%[1]scircleci auth me --json --jq '.login'%[1]s
 			%[1]s%[1]s%[1]stext
 			username
@@ -197,11 +258,12 @@ var helpTopics = []helpTopic{
 
 func newCmdHelpTopic(ht helpTopic, initConfig func(cmd *cobra.Command) (func(), error)) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:     ht.name,
-		Short:   ht.short,
-		Long:    ht.long,
-		Example: ht.example,
-		Hidden:  true,
+		Use:         ht.name,
+		Short:       ht.short,
+		Long:        ht.long,
+		Example:     ht.example,
+		Hidden:      true,
+		Annotations: map[string]string{HelpTopicAnnotation: "true"},
 	}
 
 	cmd.SetUsageFunc(func(c *cobra.Command) error {
@@ -232,8 +294,8 @@ func helpTopicHelpFunc(ctx context.Context, command *cobra.Command) {
 	_, _ = fmt.Fprintf(&md, "# %s\n", topicTitle(command.Name()))
 	md.WriteString(command.Long)
 	if command.Example != "" {
-		_, _ = fmt.Fprintf(&md, "\n\nExamples\n")
-		_, _ = fmt.Fprint(&md, iostream.Indent(command.Example, "  "))
+		_, _ = fmt.Fprintf(&md, "\n\n## Examples\n")
+		_, _ = fmt.Fprint(&md, command.Example)
 	}
 
 	iostream.PrintMarkdown(ctx, md.String())

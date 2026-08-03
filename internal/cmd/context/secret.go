@@ -79,12 +79,7 @@ func newSecretListCmd() *cobra.Command {
 		Long: heredoc.Doc(`
 			List the environment variable names stored in a CircleCI context.
 
-			Variable values are never returned by the API — CircleCI does not
-			expose secret values after they are set.
-
-			Pass a UUID to identify the context by ID, or a name to look up by name.
-			When looking up by name, pass --org or run from a git repository so the
-			organization can be inferred from the remote.
+			Variable values are never returned by the API once set.
 
 			JSON fields: variable, truncated_value, context_id, created_at, updated_at
 		`),
@@ -191,16 +186,8 @@ func newSecretSetCmd() *cobra.Command {
 		Long: heredoc.Doc(`
 			Add or update an environment variable in a CircleCI context.
 
-			If the variable already exists its value will be overwritten. The value
-			is never retrievable after being set — CircleCI masks it in all
-			subsequent list responses.
-
-			Pass a UUID to identify the context by ID, or a name to look up by name.
-			When looking up by name, pass --org or run from a git repository so the
-			organization can be inferred from the remote.
-
-			In a terminal, --value may be omitted and the value will be prompted
-			interactively with input masking.
+			An existing variable is overwritten. The value is never retrievable once
+			set, and in a terminal --value may be omitted to be prompted with masking.
 		`),
 		Example: heredoc.Doc(`
 			# Set an environment variable by context UUID (value prompted)
@@ -297,13 +284,6 @@ func newSecretDeleteCmd() *cobra.Command {
 
 			This action is irreversible. Jobs that depend on this variable will
 			fail until a new value is set.
-
-			Pass a UUID to identify the context by ID, or a name to look up by name.
-			When looking up by name, pass --org or run from a git repository so the
-			organization can be inferred from the remote.
-
-			In a terminal, you will be prompted to confirm before deleting.
-			Use --force (-f) to skip the prompt for scripting.
 		`),
 		Example: heredoc.Doc(`
 			# Delete a variable (with confirmation)

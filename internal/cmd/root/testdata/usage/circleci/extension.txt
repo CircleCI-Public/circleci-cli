@@ -1,4 +1,4 @@
-Usage:  circleci extension <command>
+Usage:  circleci extension <command> [flags]
 
 Available commands:
   install

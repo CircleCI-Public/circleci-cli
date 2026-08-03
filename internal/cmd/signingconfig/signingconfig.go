@@ -124,9 +124,6 @@ func newCreateCmd() *cobra.Command {
 			with one or more provisioning profiles. The signing config name is what
 			you reference in your pipeline config under 'code_signing'.
 
-			The organization is inferred from the current git repository's remote
-			unless overridden with --org (a slug or UUID).
-
 			Each --profile flag points to a single provisioning profile file on
 			disk. The file is read and base64-encoded locally. Repeat the flag to
 			add additional profiles.
@@ -238,9 +235,6 @@ func newListCmd() *cobra.Command {
 		Long: heredoc.Doc(`
 			List the iOS signing configs defined for your organization.
 
-			The organization is inferred from the current git repository's remote
-			unless overridden with --org (a slug or UUID).
-
 			JSON fields: id, name, certificate, provisioning_profiles
 		`),
 		Example: heredoc.Doc(`
@@ -338,9 +332,6 @@ func newDeleteCmd() *cobra.Command {
 
 			This action is irreversible. Pipelines that reference the signing config
 			by name will fail until they are updated.
-
-			In a terminal, you will be prompted to confirm before deleting.
-			Use --force (-f) to skip the prompt for scripting.
 		`),
 		Example: heredoc.Doc(`
 			# Delete a signing config (with confirmation)

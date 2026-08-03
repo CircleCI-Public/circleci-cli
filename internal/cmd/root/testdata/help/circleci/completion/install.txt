@@ -1,22 +1,12 @@
-# CircleCI CLI
-
-Append a completion source line to your shell profile (~/.zshrc or ~/.bashrc).
-
-The line is tagged so it can be cleanly removed with:
-  circleci completion uninstall
+Install shell completion into your shell profile
 
 ## Usage
 
 `circleci completion install [flags]`
 
-## Inherited Flags
+## Flags
 
-| Flag                  | Description                                                  |
-| --------------------- | ------------------------------------------------------------ |
-| `-c, --config string` | Path to config file (default: ~/.config/circleci/config.yml) |
-| `--debug`             | Enable debug logging                                         |
-| `--no-color`          | Disable ANSI color output (same as setting NO_COLOR)         |
-| `-q, --quiet`         | Suppress informational output. Data on stdout is unaffected  |
+Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `circleci --help`.
 
 ## Examples
 
@@ -27,9 +17,10 @@ The line is tagged so it can be cleanly removed with:
 - To install manually instead, source the output directly: 
   `source <(circleci completion bash)`
 
-## Learn More
+## Details
 
-- Use `circleci <command> <subcommand> --help` for more information about a command.
-- Read the manual at <https://cli.circleci.com/reference/>
-- Support at <https://github.com/CircleCI-Public/circleci-cli/issues>
+Append a completion source line to your shell profile (~/.zshrc or ~/.bashrc).
+
+The line is tagged so it can be cleanly removed with:
+  circleci completion uninstall
 

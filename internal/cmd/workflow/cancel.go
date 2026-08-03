@@ -56,9 +56,6 @@ func newCancelCmd() *cobra.Command {
 			completed are not affected.
 
 			Workflow IDs are shown in the output of 'circleci run get'.
-
-			In a terminal, you will be prompted to confirm before cancelling.
-			Use --force (-f) to skip the prompt for scripting.
 		`),
 		Example: heredoc.Doc(`
 			# Cancel a running workflow (with confirmation)

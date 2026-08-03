@@ -1,6 +1,7 @@
 Usage:  circleci namespace get <name> [flags]
 
 Flags:
-  --jq string   Process values from the response using jq syntax
-  --json        Output as JSON
+  -h, --help        help for get
+      --jq string   Process values from the response using jq syntax
+      --json        Output as JSON
   

@@ -2,4 +2,5 @@ Usage:  circleci certificate delete <cert-id> [flags]
 
 Flags:
   -f, --force   skip confirmation prompt
+  -h, --help    help for delete
   

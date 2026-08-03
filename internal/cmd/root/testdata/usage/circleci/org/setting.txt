@@ -1,4 +1,4 @@
-Usage:  circleci org setting <command>
+Usage:  circleci org setting <command> [flags]
 
 Available commands:
   get

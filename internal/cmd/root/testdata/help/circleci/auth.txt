@@ -1,11 +1,4 @@
-# CircleCI CLI
-
-Manage authentication for the CLI.
-
-Use 'circleci auth signup' to create a new CircleCI account via the browser.
-Use 'circleci auth login' to authenticate via the browser-based OAuth flow.
-Use 'circleci auth me' to get current user info.
-Use 'circleci auth logout' to clear your stored credentials.
+Log in, sign up and check your CircleCI identity
 
 ## Usage
 
@@ -21,18 +14,16 @@ Use 'circleci auth logout' to clear your stored credentials.
 | `me`     | Display active account information           |
 | `signup` | Sign-up for a new CircleCI account           |
 
-## Inherited Flags
+## Flags
 
-| Flag                  | Description                                                  |
-| --------------------- | ------------------------------------------------------------ |
-| `-c, --config string` | Path to config file (default: ~/.config/circleci/config.yml) |
-| `--debug`             | Enable debug logging                                         |
-| `--no-color`          | Disable ANSI color output (same as setting NO_COLOR)         |
-| `-q, --quiet`         | Suppress informational output. Data on stdout is unaffected  |
+Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `circleci --help`.
 
-## Learn More
+## Details
 
-- Use `circleci <command> <subcommand> --help` for more information about a command.
-- Read the manual at <https://cli.circleci.com/reference/>
-- Support at <https://github.com/CircleCI-Public/circleci-cli/issues>
+Manage authentication for the CLI.
+
+Use 'circleci auth signup' to create a new CircleCI account via the browser.
+Use 'circleci auth login' to authenticate via the browser-based OAuth flow.
+Use 'circleci auth me' to get current user info.
+Use 'circleci auth logout' to clear your stored credentials.
 

@@ -1,15 +1,12 @@
-# CircleCI CLI
-
-Show a unified diff between two versions of an orb.
-
-The --from and --to versions can be semver (e.g. 1.0.0) or dev labels
-(e.g. dev:my-branch).
-
-Exit code is 0 regardless of whether the versions differ.
+Show a unified diff between two orb versions
 
 ## Usage
 
 `circleci orb diff <namespace>/<orb> --from <v1> --to <v2> [flags]`
+
+## Arguments
+
+- `<namespace>/<orb>` is the orb to diff, for example, `namespace/orb-name`.
 
 ## Flags
 
@@ -18,18 +15,7 @@ Exit code is 0 regardless of whether the versions differ.
 | `--from string` | the first version (semver e.g. 1.0.0, or a dev label e.g. dev:my-branch) |
 | `--to string`   | the second version, in the same form as --from                           |
 
-## Inherited Flags
-
-| Flag                  | Description                                                  |
-| --------------------- | ------------------------------------------------------------ |
-| `-c, --config string` | Path to config file (default: ~/.config/circleci/config.yml) |
-| `--debug`             | Enable debug logging                                         |
-| `--no-color`          | Disable ANSI color output (same as setting NO_COLOR)         |
-| `-q, --quiet`         | Suppress informational output. Data on stdout is unaffected  |
-
-## Arguments
-
-- `<namespace>/<orb>` is the orb to diff, for example, `namespace/orb-name`.
+Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `circleci --help`.
 
 ## Examples
 
@@ -40,9 +26,12 @@ Exit code is 0 regardless of whether the versions differ.
 - Diff two dev versions: 
   `circleci orb diff myorg/my-orb --from dev:branch-a --to dev:branch-b`
 
-## Learn More
+## Details
 
-- Use `circleci <command> <subcommand> --help` for more information about a command.
-- Read the manual at <https://cli.circleci.com/reference/>
-- Support at <https://github.com/CircleCI-Public/circleci-cli/issues>
+Show a unified diff between two versions of an orb.
+
+The --from and --to versions can be semver (e.g. 1.0.0) or dev labels
+(e.g. dev:my-branch).
+
+Exit code is 0 regardless of whether the versions differ.
 

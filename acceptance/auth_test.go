@@ -178,3 +178,31 @@ telemetry: false
 		assert.Check(t, golden.String(string(body), t.Name()+".config.yml"))
 	})
 }
+
+func TestAuthLogoutJSON(t *testing.T) {
+	_, env := setupAuthFake(t)
+
+	cfgPath := filepath.Join(env.HomeDir, ".config", "circleci", "config.yml")
+	err := os.MkdirAll(filepath.Dir(cfgPath), 0700)
+	assert.NilError(t, err)
+	err = os.WriteFile(cfgPath, []byte("token: sometoken\n"), 0600)
+	assert.NilError(t, err)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"auth", "logout", "--json"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+	assert.Check(t, cmp.Equal(result.ExitCode, 0))
+
+	var out map[string]any
+	err = json.Unmarshal([]byte(result.Stdout), &out)
+	assert.NilError(t, err)
+	// Acceptance tests run with --insecure-storage, so the token lives in the
+	// config file and its path is reported.
+	assert.Check(t, cmp.DeepEqual(out, map[string]any{
+		"storage": "file",
+		"path":    cfgPath,
+	}))
+}

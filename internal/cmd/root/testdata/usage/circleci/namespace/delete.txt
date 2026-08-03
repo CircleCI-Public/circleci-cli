@@ -3,4 +3,5 @@ Usage:  circleci namespace delete <name> [flags]
 Flags:
   -n, --dry-run   print what would be deleted without deleting
   -f, --force     skip confirmation prompt
+  -h, --help      help for delete
   

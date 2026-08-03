@@ -1,1 +1,5 @@
-Usage:  circleci orb source <namespace>/<orb>[@<version>]
+Usage:  circleci orb source <namespace>/<orb>[@<version>] [flags]
+
+Flags:
+  -h, --help   help for source
+  

@@ -1,1 +1,5 @@
-Usage:  circleci setting set <key> <value>
+Usage:  circleci setting set <key> <value> [flags]
+
+Flags:
+  -h, --help   help for set
+  

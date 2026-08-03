@@ -1,39 +1,22 @@
-# CircleCI CLI
-
-Rename a CircleCI orb namespace.
-
-Any orbs already published under the old name will continue to be
-accessible — renaming creates an alias. Ensure that any configs
-and orbs still referencing the old name are updated.
-
-JSON fields: id, name
-
-For more information about output formatting flags, see `circleci help formatting`.
+Rename a namespace
 
 ## Usage
 
 `circleci namespace rename <name> <new-name> [flags]`
 
-## Flags
-
-| Flag          | Description                                      |
-| ------------- | ------------------------------------------------ |
-| `--jq string` | Process values from the response using jq syntax |
-| `--json`      | Output as JSON                                   |
-
-## Inherited Flags
-
-| Flag                  | Description                                                  |
-| --------------------- | ------------------------------------------------------------ |
-| `-c, --config string` | Path to config file (default: ~/.config/circleci/config.yml) |
-| `--debug`             | Enable debug logging                                         |
-| `--no-color`          | Disable ANSI color output (same as setting NO_COLOR)         |
-| `-q, --quiet`         | Suppress informational output. Data on stdout is unaffected  |
-
 ## Arguments
 
 - `<name>` is the current name of the namespace, for example, `oldname`.
 - `<new-name>` is the new name to assign, for example, `newname`.
+
+## Flags
+
+| Flag          | Description                                                                       |
+| ------------- | --------------------------------------------------------------------------------- |
+| `--jq string` | Process values from the response using jq syntax (see `circleci help formatting`) |
+| `--json`      | Output as JSON                                                                    |
+
+Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `circleci --help`.
 
 ## Examples
 
@@ -44,9 +27,13 @@ For more information about output formatting flags, see `circleci help formattin
 - Confirm the new ID after rename: 
   `circleci namespace rename oldname newname --json --jq '.id'`
 
-## Learn More
+## Details
 
-- Use `circleci <command> <subcommand> --help` for more information about a command.
-- Read the manual at <https://cli.circleci.com/reference/>
-- Support at <https://github.com/CircleCI-Public/circleci-cli/issues>
+Rename a CircleCI orb namespace.
+
+Any orbs already published under the old name will continue to be
+accessible — renaming creates an alias. Ensure that any configs
+and orbs still referencing the old name are updated.
+
+JSON fields: id, name
 

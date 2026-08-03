@@ -1,4 +1,4 @@
-Usage:  circleci mcp cursor
+Usage:  circleci mcp cursor [flags]
 
 Available commands:
   disable

@@ -67,10 +67,8 @@ func NewVersionCmd(version string) *cobra.Command {
 		Long: heredoc.Doc(`
 			Print the version and commit hash this binary was built from.
 
-			JSON fields:
-			  version   release tag (e.g. "v1.2.3") or "dev" for unreleased builds
-			  commit    full git commit hash
-			  modified  true if the binary was built from a dirty working tree
+			JSON fields: version (release tag, or "dev" for unreleased builds), commit
+			(full git hash), modified (true when built from a dirty working tree)
 		`),
 		Example: heredoc.Doc(`
 			# Print version and commit hash

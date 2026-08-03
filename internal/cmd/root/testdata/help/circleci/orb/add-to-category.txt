@@ -1,27 +1,17 @@
-# CircleCI CLI
-
-Add an orb to an orb registry category.
-
-Categories help users discover orbs. Use 'circleci orb list-categories'
-to see available categories.
+Add an orb to a registry category
 
 ## Usage
 
 `circleci orb add-to-category <namespace>/<orb> <category> [flags]`
 
-## Inherited Flags
-
-| Flag                  | Description                                                  |
-| --------------------- | ------------------------------------------------------------ |
-| `-c, --config string` | Path to config file (default: ~/.config/circleci/config.yml) |
-| `--debug`             | Enable debug logging                                         |
-| `--no-color`          | Disable ANSI color output (same as setting NO_COLOR)         |
-| `-q, --quiet`         | Suppress informational output. Data on stdout is unaffected  |
-
 ## Arguments
 
 - `<namespace>/<orb>` is the orb to add, for example, `namespace/orb-name`.
 - `<category>` is the registry category name, for example, `Testing`.
+
+## Flags
+
+Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `circleci --help`.
 
 ## Examples
 
@@ -32,9 +22,10 @@ to see available categories.
 - List available categories first: 
   `circleci orb list-categories`
 
-## Learn More
+## Details
 
-- Use `circleci <command> <subcommand> --help` for more information about a command.
-- Read the manual at <https://cli.circleci.com/reference/>
-- Support at <https://github.com/CircleCI-Public/circleci-cli/issues>
+Add an orb to an orb registry category.
+
+Categories help users discover orbs. Use 'circleci orb list-categories'
+to see available categories.
 

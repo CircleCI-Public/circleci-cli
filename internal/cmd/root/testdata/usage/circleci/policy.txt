@@ -1,4 +1,4 @@
-Usage:  circleci policy <command>
+Usage:  circleci policy <command> [flags]
 
 Available commands:
   decide

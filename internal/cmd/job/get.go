@@ -56,9 +56,7 @@ func newGetCmd() *cobra.Command {
 			Job IDs are shown in the output of 'circleci workflow get' and
 			'circleci run get --json'.
 
-			JSON fields: id, name, type, status, started_at, stopped_at,
-			             project_id, pipeline_id, workflow_id,
-			             executions[].index/steps[].name/type/status/duration/exit_code
+			JSON fields: id, name, type, status, started_at, stopped_at, project_id, pipeline_id, workflow_id, executions[].index/steps[].name/type/status/duration/exit_code
 		`),
 		Example: heredoc.Doc(`
 			# Get job details by UUID

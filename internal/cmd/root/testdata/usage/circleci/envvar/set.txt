@@ -1,5 +1,6 @@
 Usage:  circleci envvar set <name> <value> [flags]
 
 Flags:
-  --project string   Project slug (e.g. gh/org/repo); defaults to git remote
+  -h, --help             help for set
+      --project string   Project slug (e.g. gh/org/repo); defaults to git remote
   

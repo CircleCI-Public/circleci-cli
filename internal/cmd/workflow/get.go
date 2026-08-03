@@ -54,9 +54,7 @@ func newGetCmd() *cobra.Command {
 
 			Workflow IDs are shown in the output of 'circleci run get'.
 
-			JSON fields: id, name, phase, outcome, current_outcome, run_id,
-			             created_at, ended_at,
-			             jobs[].id/name/phase/outcome/current_outcome/type
+			JSON fields: id, name, phase, outcome, current_outcome, run_id, created_at, ended_at, jobs[].id/name/phase/outcome/current_outcome/type
 		`),
 		Example: heredoc.Doc(`
 			# Get workflow details

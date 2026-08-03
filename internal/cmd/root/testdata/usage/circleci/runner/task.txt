@@ -1,7 +1,8 @@
 Usage:  circleci runner task [flags]
 
 Flags:
-  --jq string               Process values from the response using jq syntax
-  --json                    Output as JSON
-  --resource-class string   Resource class to query (namespace/name)
+  -h, --help                    help for task
+      --jq string               Process values from the response using jq syntax
+      --json                    Output as JSON
+      --resource-class string   Resource class to query (namespace/name)
   

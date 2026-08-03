@@ -1,9 +1,10 @@
 Usage:  circleci project trigger list [flags]
 
 Flags:
-  --jq string                       Process values from the response using jq syntax
-  --json                            Output as JSON
-  --pipeline-definition-id string   Pipeline definition ID (required)
-  --project string                  Project slug (e.g. gh/org/repo); defaults to git remote
-  --project-id string               Project UUID (overrides --project)
+  -h, --help                            help for list
+      --jq string                       Process values from the response using jq syntax
+      --json                            Output as JSON
+      --pipeline-definition-id string   Pipeline definition ID (required)
+      --project string                  Project slug (e.g. gh/org/repo); defaults to git remote
+      --project-id string               Project UUID (overrides --project)
   

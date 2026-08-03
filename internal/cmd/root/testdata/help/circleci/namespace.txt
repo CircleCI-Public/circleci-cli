@@ -1,10 +1,4 @@
-# CircleCI CLI
-
-Work with CircleCI orb namespaces.
-
-Namespaces are unique identifiers used to publish orbs.
-Each organization may claim one namespace. Orbs are published
-and referenced as `<namespace>/<orb>`. All published orbs are world-readable.
+Manage the org namespace orbs publish under
 
 ## Usage
 
@@ -24,18 +18,15 @@ and referenced as `<namespace>/<orb>`. All published orbs are world-readable.
 | `get`    | Get details of a namespace          |
 | `rename` | Rename a namespace                  |
 
-## Inherited Flags
+## Flags
 
-| Flag                  | Description                                                  |
-| --------------------- | ------------------------------------------------------------ |
-| `-c, --config string` | Path to config file (default: ~/.config/circleci/config.yml) |
-| `--debug`             | Enable debug logging                                         |
-| `--no-color`          | Disable ANSI color output (same as setting NO_COLOR)         |
-| `-q, --quiet`         | Suppress informational output. Data on stdout is unaffected  |
+Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `circleci --help`.
 
-## Learn More
+## Details
 
-- Use `circleci <command> <subcommand> --help` for more information about a command.
-- Read the manual at <https://cli.circleci.com/reference/>
-- Support at <https://github.com/CircleCI-Public/circleci-cli/issues>
+Work with CircleCI orb namespaces.
+
+Namespaces are unique identifiers used to publish orbs.
+Each organization may claim one namespace. Orbs are published
+and referenced as `<namespace>/<orb>`. All published orbs are world-readable.
 

@@ -1,40 +1,23 @@
-# CircleCI CLI
-
-Create a new authentication token for a runner resource class.
-
-The token value is shown only once at creation time. Store it securely —
-it cannot be retrieved afterwards. If lost, delete this token and create
-a new one.
-
-JSON fields: id, resource_class, nickname, created_at, token
-
-For more information about output formatting flags, see `circleci help formatting`.
+Create a token for a resource class
 
 ## Usage
 
 `circleci runner token create <resource-class> [flags]`
 
-## Flags
-
-| Flag                | Description                                      |
-| ------------------- | ------------------------------------------------ |
-| `--jq string`       | Process values from the response using jq syntax |
-| `--json`            | Output as JSON                                   |
-| `--nickname string` | Human-readable nickname for the token            |
-
-## Inherited Flags
-
-| Flag                  | Description                                                  |
-| --------------------- | ------------------------------------------------------------ |
-| `-c, --config string` | Path to config file (default: ~/.config/circleci/config.yml) |
-| `--debug`             | Enable debug logging                                         |
-| `--no-color`          | Disable ANSI color output (same as setting NO_COLOR)         |
-| `-q, --quiet`         | Suppress informational output. Data on stdout is unaffected  |
-
 ## Arguments
 
 `<resource-class>` is the runner resource class to create a token for,
 in the form `namespace/name` (for example, `my-org/my-runner`).
+
+## Flags
+
+| Flag                | Description                                                                       |
+| ------------------- | --------------------------------------------------------------------------------- |
+| `--jq string`       | Process values from the response using jq syntax (see `circleci help formatting`) |
+| `--json`            | Output as JSON                                                                    |
+| `--nickname string` | Human-readable nickname for the token                                             |
+
+Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `circleci --help`.
 
 ## Examples
 
@@ -45,9 +28,13 @@ in the form `namespace/name` (for example, `my-org/my-runner`).
 - Output as JSON (includes the token value): 
   `circleci runner token create my-org/my-runner --json`
 
-## Learn More
+## Details
 
-- Use `circleci <command> <subcommand> --help` for more information about a command.
-- Read the manual at <https://cli.circleci.com/reference/>
-- Support at <https://github.com/CircleCI-Public/circleci-cli/issues>
+Create a new authentication token for a runner resource class.
+
+The token value is shown only once at creation time. Store it securely —
+it cannot be retrieved afterwards. If lost, delete this token and create
+a new one.
+
+JSON fields: id, resource_class, nickname, created_at, token
 

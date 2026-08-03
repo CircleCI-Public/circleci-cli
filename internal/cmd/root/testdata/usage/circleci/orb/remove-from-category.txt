@@ -1,1 +1,5 @@
-Usage:  circleci orb remove-from-category <namespace>/<orb> <category>
+Usage:  circleci orb remove-from-category <namespace>/<orb> <category> [flags]
+
+Flags:
+  -h, --help   help for remove-from-category
+  

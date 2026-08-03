@@ -1,5 +1,6 @@
 Usage:  circleci auth id [flags]
 
 Flags:
-  --json   Output as JSON
+  -h, --help   help for id
+      --json   Output as JSON
   

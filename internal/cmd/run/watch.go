@@ -69,34 +69,21 @@ func newWatchCmd() *cobra.Command {
 		Short: "Watch a run until it completes",
 		Annotations: map[string]string{
 			"help:arguments": heredoc.Docf(`
-				%[1]s<run-id>%[1]s is optional and selects the run to watch. A run can be specified by its UUID or number:
-				- A run UUID, as shown in %[1]scircleci run list --json%[1]s
-				- A run number, as shown in %[1]scircleci run list%[1]s.
+				%[1]s<run-id>%[1]s is optional: a run UUID (as shown by %[1]scircleci run list --json%[1]s)
+				or a run number (as shown by %[1]scircleci run list%[1]s).
 
-				The project is inferred from the git remote unless overridden with %[1]s--project%[1]s.
-
-				When omitted, the latest run for the current branch is watched
-				(override the branch with %[1]s--branch%[1]s, or match a commit with %[1]s--sha%[1]s).
+				When omitted, the latest run for the current branch is watched.
 			`, "`"),
 		},
 		Long: heredoc.Doc(`
-			Monitor a CircleCI run and block until it reaches a terminal state.
+			Monitor a CircleCI run and block until it reaches a terminal state. Without
+			arguments, watches the latest run for the current branch.
 
-			Exit code reflects the result:
-			  0 = all workflows succeeded
-			  1 = one or more workflows failed
-			  6 = run was cancelled
-			  8 = timed out before run completed
+			Exit code reflects the result: 0 all workflows succeeded, 1 one or more
+			failed, 6 cancelled, 8 timed out.
 
-			Without arguments, watches the latest run for the current branch.
-			Pass a run UUID to watch a specific run.
-
-			With --sha, searches the run list for a run matching that
-			commit. If not yet found, polls for up to 2 minutes — useful when run
-			immediately after git push.
-
-			With --failfast, exits as soon as any job is observed to have failed,
-			without waiting for the remaining workflows to finish.
+			With --sha, polls for up to 2 minutes for a run matching that commit to
+			appear — useful immediately after git push.
 		`),
 		Example: heredoc.Doc(`
 			# Watch the latest run on the current branch
@@ -106,13 +93,10 @@ func newWatchCmd() *cobra.Command {
 			$ git push && circleci run watch --sha $(git rev-parse HEAD)
 
 			# Watch by UUID (e.g. from 'run list --json')
-			$ circleci run watch 0b0e6eca-4e9a-43d7-b74e-a7ed4b7d11cd
-
-			# Watch a run on a different branch
-			$ circleci run watch --branch main
+			$ circleci run watch 5034460f-c7c4-4c43-9457-de07e2029e7b
 
 			# Watch with a longer timeout
-			$ circleci run watch --timeout 60m
+			$ circleci run watch --timeout 30m
 
 			# Exit as soon as any job fails
 			$ circleci run watch --failfast

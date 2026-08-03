@@ -1,12 +1,4 @@
-# CircleCI CLI
-
-Manage docker layer caching (DLC) for projects.
-
-Docker layer caching allows CircleCI to cache individual Docker image
-layers between pipeline runs. Use 'circleci dlc purge' to invalidate
-the cache for a project and force a fresh image build on the next run.
-
-These commands are also available under 'circleci project dlc'.
+Purge a project's Docker layer cache (DLC)
 
 ## Usage
 
@@ -18,14 +10,9 @@ These commands are also available under 'circleci project dlc'.
 | ------- | ------------------------------------------ |
 | `purge` | Purge the Docker Layer Cache for a project |
 
-## Inherited Flags
+## Flags
 
-| Flag                  | Description                                                  |
-| --------------------- | ------------------------------------------------------------ |
-| `-c, --config string` | Path to config file (default: ~/.config/circleci/config.yml) |
-| `--debug`             | Enable debug logging                                         |
-| `--no-color`          | Disable ANSI color output (same as setting NO_COLOR)         |
-| `-q, --quiet`         | Suppress informational output. Data on stdout is unaffected  |
+Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `circleci --help`.
 
 ## Examples
 
@@ -36,9 +23,13 @@ These commands are also available under 'circleci project dlc'.
 - Purge DLC and output result as JSON: 
   `circleci dlc purge --project gh/myorg/myrepo --json`
 
-## Learn More
+## Details
 
-- Use `circleci <command> <subcommand> --help` for more information about a command.
-- Read the manual at <https://cli.circleci.com/reference/>
-- Support at <https://github.com/CircleCI-Public/circleci-cli/issues>
+Manage docker layer caching (DLC) for projects.
+
+Docker layer caching allows CircleCI to cache individual Docker image
+layers between pipeline runs. Use 'circleci dlc purge' to invalidate
+the cache for a project and force a fresh image build on the next run.
+
+These commands are also available under 'circleci project dlc'.
 

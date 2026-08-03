@@ -1,4 +1,4 @@
-Usage:  circleci pipeline <command>
+Usage:  circleci pipeline <command> [flags]
 
 Available commands:
   create

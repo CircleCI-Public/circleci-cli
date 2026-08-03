@@ -1,35 +1,8 @@
-# CircleCI CLI
-
-Cancel a running CircleCI run by number or UUID.
-
-Cancelling a run stops all in-progress workflows and jobs
-within it. Workflows that have already completed are unaffected.
-
-When using a run number, the project is inferred from the
-git remote unless overridden with --project.
-
-In a terminal, you will be prompted to confirm before cancelling.
-Use --force (-f) to skip the prompt for scripting.
+Cancel a run
 
 ## Usage
 
 `circleci run cancel <run-number-or-id> [flags]`
-
-## Flags
-
-| Flag               | Description                                                     |
-| ------------------ | --------------------------------------------------------------- |
-| `-f, --force`      | skip confirmation prompt                                        |
-| `--project string` | Project slug (e.g. gh/org/repo); used when cancelling by number |
-
-## Inherited Flags
-
-| Flag                  | Description                                                  |
-| --------------------- | ------------------------------------------------------------ |
-| `-c, --config string` | Path to config file (default: ~/.config/circleci/config.yml) |
-| `--debug`             | Enable debug logging                                         |
-| `--no-color`          | Disable ANSI color output (same as setting NO_COLOR)         |
-| `-q, --quiet`         | Suppress informational output. Data on stdout is unaffected  |
 
 ## Arguments
 
@@ -38,6 +11,15 @@ Use --force (-f) to skip the prompt for scripting.
 - A run number, as shown in `circleci run list`.
 
 The project is inferred from the git remote unless overridden with `--project`.
+
+## Flags
+
+| Flag               | Description                                                     |
+| ------------------ | --------------------------------------------------------------- |
+| `-f, --force`      | skip confirmation prompt                                        |
+| `--project string` | Project slug (e.g. gh/org/repo); used when cancelling by number |
+
+Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `circleci --help`.
 
 ## Examples
 
@@ -48,9 +30,10 @@ The project is inferred from the git remote unless overridden with `--project`.
 - Cancel the latest run on a branch: 
   `circleci run list --branch main --json --jq '.[0].id' | xargs circleci run cancel --force`
 
-## Learn More
+## Details
 
-- Use `circleci <command> <subcommand> --help` for more information about a command.
-- Read the manual at <https://cli.circleci.com/reference/>
-- Support at <https://github.com/CircleCI-Public/circleci-cli/issues>
+Cancel a running CircleCI run by number or UUID.
+
+Cancelling a run stops all in-progress workflows and jobs within it.
+Workflows that have already completed are unaffected.
 

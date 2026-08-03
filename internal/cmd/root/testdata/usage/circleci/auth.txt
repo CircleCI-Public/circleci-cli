@@ -1,4 +1,4 @@
-Usage:  circleci auth <command>
+Usage:  circleci auth <command> [flags]
 
 Available commands:
   id

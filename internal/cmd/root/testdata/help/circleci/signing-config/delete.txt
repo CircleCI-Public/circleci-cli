@@ -1,20 +1,15 @@
-# CircleCI CLI
-
-Permanently remove an iOS signing config from your organization.
-
-This action is irreversible. Pipelines that reference the signing config
-by name will fail until they are updated.
-
-In a terminal, you will be prompted to confirm before deleting.
-Use --force (-f) to skip the prompt for scripting.
+Delete an iOS signing config
 
 ## Usage
 
 `circleci signing-config delete <signing-config-id> [flags]`
 
-## Aliases
+Aliases: `circleci signing-config rm`
 
-`circleci signing-config rm`
+## Arguments
+
+`<signing-config-id>` is the ID of the signing config to delete
+Use `circleci signing-config list` to find the ID.
 
 ## Flags
 
@@ -22,19 +17,7 @@ Use --force (-f) to skip the prompt for scripting.
 | ------------- | ------------------------ |
 | `-f, --force` | skip confirmation prompt |
 
-## Inherited Flags
-
-| Flag                  | Description                                                  |
-| --------------------- | ------------------------------------------------------------ |
-| `-c, --config string` | Path to config file (default: ~/.config/circleci/config.yml) |
-| `--debug`             | Enable debug logging                                         |
-| `--no-color`          | Disable ANSI color output (same as setting NO_COLOR)         |
-| `-q, --quiet`         | Suppress informational output. Data on stdout is unaffected  |
-
-## Arguments
-
-`<signing-config-id>` is the ID of the signing config to delete
-Use `circleci signing-config list` to find the ID.
+Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `circleci --help`.
 
 ## Examples
 
@@ -43,9 +26,10 @@ Use `circleci signing-config list` to find the ID.
 - Delete without confirmation: 
   `circleci signing-config delete <signing-config-id> --force`
 
-## Learn More
+## Details
 
-- Use `circleci <command> <subcommand> --help` for more information about a command.
-- Read the manual at <https://cli.circleci.com/reference/>
-- Support at <https://github.com/CircleCI-Public/circleci-cli/issues>
+Permanently remove an iOS signing config from your organization.
+
+This action is irreversible. Pipelines that reference the signing config
+by name will fail until they are updated.
 

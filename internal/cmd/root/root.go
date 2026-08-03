@@ -268,6 +268,15 @@ func NewRootCmd(version string) *cobra.Command {
 			orig := sub.RunE
 			sub.RunE = func(cmd *cobra.Command, args []string) error {
 				_ = os.Setenv("CIRCLE_MCP", "1")
+				inlineArgumentDocs(cmd.Root())
+				return orig(cmd, args)
+			}
+		case "tools":
+			// The JSON export has to see the same descriptions the servers
+			// serve, or it stops being a faithful way to inspect them.
+			orig := sub.RunE
+			sub.RunE = func(cmd *cobra.Command, args []string) error {
+				inlineArgumentDocs(cmd.Root())
 				return orig(cmd, args)
 			}
 		default:

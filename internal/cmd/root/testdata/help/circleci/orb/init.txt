@@ -1,21 +1,13 @@
-# CircleCI CLI
-
-Scaffold a new orb project from the CircleCI orb template.
-
-The template is downloaded from CircleCI-Public/Orb-Template and
-extracted into <path>. By default the command then walks you through
-an automated setup: it reserves the namespace and orb, assigns
-categories, sets up an 'orb-publishing' context, initializes a local
-git repository, and publishes a dev:alpha version.
-
-Use --template-only to download the template without any setup, or
---skip-git to run the registry setup without initializing a git repo.
-
-Note: once published, orbs cannot be deleted.
+Initialize a new orb project
 
 ## Usage
 
 `circleci orb init <path> [flags]`
+
+## Arguments
+
+- `<path>` is the directory to scaffold the orb project into. It is
+  created if it does not exist.
 
 ## Flags
 
@@ -28,19 +20,7 @@ Note: once published, orbs cannot be deleted.
 | `--skip-git`      | skip local git repository setup                                                           |
 | `--template-only` | download the template only; skip all setup                                                |
 
-## Inherited Flags
-
-| Flag                  | Description                                                  |
-| --------------------- | ------------------------------------------------------------ |
-| `-c, --config string` | Path to config file (default: ~/.config/circleci/config.yml) |
-| `--debug`             | Enable debug logging                                         |
-| `--no-color`          | Disable ANSI color output (same as setting NO_COLOR)         |
-| `-q, --quiet`         | Suppress informational output. Data on stdout is unaffected  |
-
-## Arguments
-
-- `<path>` is the directory to scaffold the orb project into. It is
-  created if it does not exist.
+Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `circleci --help`.
 
 ## Examples
 
@@ -51,9 +31,13 @@ Note: once published, orbs cannot be deleted.
 - Non-interactive: create a private orb under an org, skip git: 
   `circleci orb init ./my-orb --private --org gh/acme --skip-git`
 
-## Learn More
+## Details
 
-- Use `circleci <command> <subcommand> --help` for more information about a command.
-- Read the manual at <https://cli.circleci.com/reference/>
-- Support at <https://github.com/CircleCI-Public/circleci-cli/issues>
+Scaffold a new orb project from CircleCI-Public/Orb-Template into <path>.
+
+It then walks you through setup: reserving the namespace and orb, assigning
+categories, creating an 'orb-publishing' context, initializing git, and
+publishing a dev:alpha version.
+
+Note: once published, orbs cannot be deleted.
 

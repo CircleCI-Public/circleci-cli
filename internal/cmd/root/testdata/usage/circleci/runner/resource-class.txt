@@ -1,4 +1,4 @@
-Usage:  circleci runner resource-class <command>
+Usage:  circleci runner resource-class <command> [flags]
 
 Available commands:
   create

@@ -78,9 +78,6 @@ func NewEnvListCmd() *cobra.Command {
 			Values are always masked in the response (shown as "xxxx") — CircleCI
 			does not expose secret values after they are set.
 
-			The project is inferred from the current git repository's remote
-			unless overridden with --project.
-
 			JSON fields: name, value
 		`),
 		Example: heredoc.Doc(`
@@ -175,9 +172,6 @@ func NewEnvSetCmd() *cobra.Command {
 			If the variable already exists it will be overwritten. The value
 			is never retrievable after being set — CircleCI masks it in all
 			subsequent list responses.
-
-			The project is inferred from the current git repository's remote
-			unless overridden with --project.
 		`),
 		Example: heredoc.Doc(`
 			# Set an env var for the current project
@@ -251,12 +245,6 @@ func NewEnvDeleteCmd() *cobra.Command {
 
 			This action is irreversible. The variable will be removed and any
 			jobs that reference it will fail until a new value is set.
-
-			The project is inferred from the current git repository's remote
-			unless overridden with --project.
-
-			In a terminal, you will be prompted to confirm before deleting.
-			Use --force (-f) to skip the prompt for scripting.
 		`),
 		Example: heredoc.Doc(`
 			# Delete an env var from the current project (with confirmation)

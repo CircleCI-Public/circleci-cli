@@ -26,6 +26,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"slices"
 	"strings"
 
 	"github.com/MakeNowJust/heredoc"
@@ -178,14 +179,6 @@ func orgSettingNames() string {
 	return strings.Join(names, ", ")
 }
 
-func orgSettingTable() string {
-	tbl := mdtable.New("Name", "Description")
-	for _, s := range orgBoolSettingSpecs {
-		tbl.Row(s.use, s.short)
-	}
-	return tbl.Render()
-}
-
 // --- settings get ---
 
 func newOrgSettingsGetCmd() *cobra.Command {
@@ -197,14 +190,18 @@ func newOrgSettingsGetCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "get <setting>",
 		Short: "Get the current value of an org setting",
-		Long: heredoc.Docf(`
+		Annotations: map[string]string{
+			"help:arguments": heredoc.Docf(`
+				%[1]s<setting>%[1]s is one of: %[2]s.
+
+				Run %[1]scircleci org setting list%[1]s for each setting's description and current value.
+			`, "`", orgSettingNames()),
+		},
+		Long: heredoc.Doc(`
 			Get the current value of an advanced org setting.
 
 			JSON fields: name, value
-
-			Available settings:
-			%s
-		`, orgSettingTable()),
+		`),
 		Example: heredoc.Doc(`
 			# Get a setting for the current org
 			$ circleci org setting get private-orbs
@@ -257,14 +254,19 @@ func newOrgSettingsSetCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "set <setting> <true|false>",
 		Short: "Set an org setting",
-		Long: heredoc.Docf(`
+		Annotations: map[string]string{
+			"help:arguments": heredoc.Docf(`
+				%[1]s<setting>%[1]s is one of: %[2]s.
+
+				%[1]s<true|false>%[1]s is the new value. Run %[1]scircleci org setting list%[1]s for each
+				setting's description and current value.
+			`, "`", orgSettingNames()),
+		},
+		Long: heredoc.Doc(`
 			Set an advanced org setting to true or false.
 
 			JSON fields: name, value
-
-			Available settings:
-			%s
-		`, orgSettingTable()),
+		`),
 		Example: heredoc.Doc(`
 			# Enable a setting for the current org
 			$ circleci org setting set private-orbs true
@@ -407,17 +409,7 @@ func newOrgSettingsListCmd() *cobra.Command {
 		Long: heredoc.Doc(`
 			List all advanced settings for a CircleCI organization.
 
-			The organization is inferred from the current git repository's remote
-			unless overridden with --org.
-
-			JSON fields: enable_ai_error_summarization, enable_ai_agents,
-			             enable_unversioned_config, enable_certified_public_orbs,
-			             enable_chunk_ip_ranges, enable_minor_ai_features,
-			             enable_private_orbs, enable_uncertified_public_orbs,
-			             is_bitbucket_workspace_member_org_member,
-			             is_user_checkout_keys_disabled, is_running_disabled,
-			             enable_image_brownouts, is_context_group_restriction_required,
-			             enable_resource_class_brownouts, is_runner_terms_of_service_accepted
+			JSON fields: enable_ai_error_summarization, enable_ai_agents, enable_unversioned_config, enable_certified_public_orbs, enable_chunk_ip_ranges, enable_minor_ai_features, enable_private_orbs, enable_uncertified_public_orbs, is_bitbucket_workspace_member_org_member, is_user_checkout_keys_disabled, is_running_disabled, enable_image_brownouts, is_context_group_restriction_required, enable_resource_class_brownouts, is_runner_terms_of_service_accepted
 		`),
 		Example: heredoc.Doc(`
 			# List settings for the current org
@@ -484,22 +476,16 @@ func runOrgSettingsList(ctx context.Context, client *apiclient.Client, orgID uui
 		return iostream.PrintJSON(ctx, out)
 	}
 
-	tbl := mdtable.New("Setting", "Value")
-	tbl.Row("ai-agents", fmt.Sprintf("%v", out.AIAgents))
-	tbl.Row("ai-error-summarization", fmt.Sprintf("%v", out.AIErrorSummarization))
-	tbl.Row("bitbucket-workspace-member-is-org-member", fmt.Sprintf("%v", out.BitbucketWorkspaceMemberIsOrgMember))
-	tbl.Row("certified-public-orbs", fmt.Sprintf("%v", out.CertifiedPublicOrbs))
-	tbl.Row("chunk-ip-ranges", fmt.Sprintf("%v", out.ChunkIPRanges))
-	tbl.Row("context-group-restriction", fmt.Sprintf("%v", out.ContextGroupRestrictionRequired))
-	tbl.Row("disable-running", fmt.Sprintf("%v", out.DisableRunning))
-	tbl.Row("disable-user-checkout-keys", fmt.Sprintf("%v", out.UserCheckoutKeysDisabled))
-	tbl.Row("image-brownouts", fmt.Sprintf("%v", out.ImageBrownouts))
-	tbl.Row("minor-ai-features", fmt.Sprintf("%v", out.MinorAIFeatures))
-	tbl.Row("private-orbs", fmt.Sprintf("%v", out.PrivateOrbs))
-	tbl.Row("resource-class-brownouts", fmt.Sprintf("%v", out.ResourceClassBrownouts))
-	tbl.Row("runner-tos-accepted", fmt.Sprintf("%v", out.RunnerTOSAccepted))
-	tbl.Row("uncertified-public-orbs", fmt.Sprintf("%v", out.UncertifiedPublicOrbs))
-	tbl.Row("unversioned-config", fmt.Sprintf("%v", out.UnversionedConfig))
+	// Driven off the specs so the descriptions live in one place: `setting get`
+	// and `setting set` point here for them rather than reprinting the whole
+	// table in their own help.
+	specs := slices.SortedFunc(slices.Values(orgBoolSettingSpecs),
+		func(a, b orgBoolSettingSpec) int { return strings.Compare(a.use, b.use) })
+
+	tbl := mdtable.New("Setting", "Value", "Description")
+	for _, s := range specs {
+		tbl.Row(s.use, fmt.Sprintf("%v", s.get(attrs)), s.short)
+	}
 	iostream.PrintMarkdown(ctx, "# Advanced Settings\n"+tbl.Render())
 	return nil
 }

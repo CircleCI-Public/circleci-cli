@@ -1,37 +1,18 @@
-# CircleCI CLI
-
-Set a CLI setting by key.
-
-Supported keys:
-  token      Your CircleCI personal API token
-  host       CircleCI server host (default: https://circleci.com)
-  telemetry  Enable or disable anonymous usage telemetry (on/off)
-  theme      Color theme for rendered output (default: auto)
-
-Pass "-" as the value to read it from stdin, keeping secrets out of
-shell history and process listings.
-
-Run 'circleci setting set theme' with no value in an interactive
-terminal to pick a theme from a list.
+Set a CLI setting
 
 ## Usage
 
 `circleci setting set <key> <value> [flags]`
-
-## Inherited Flags
-
-| Flag                  | Description                                                  |
-| --------------------- | ------------------------------------------------------------ |
-| `-c, --config string` | Path to config file (default: ~/.config/circleci/config.yml) |
-| `--debug`             | Enable debug logging                                         |
-| `--no-color`          | Disable ANSI color output (same as setting NO_COLOR)         |
-| `-q, --quiet`         | Suppress informational output. Data on stdout is unaffected  |
 
 ## Arguments
 
 - `<key>` is the setting to change. Options are: `token`, `host`, `telemetry`, or `theme`.
 - `<value>` is the value to store. Pass `-` to read it from stdin.
   May be omitted for `theme` to pick interactively.
+
+## Flags
+
+Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `circleci --help`.
 
 ## Examples
 
@@ -50,9 +31,10 @@ terminal to pick a theme from a list.
 - Pick the color theme interactively: 
   `circleci setting set theme`
 
-## Learn More
+## Details
 
-- Use `circleci <command> <subcommand> --help` for more information about a command.
-- Read the manual at <https://cli.circleci.com/reference/>
-- Support at <https://github.com/CircleCI-Public/circleci-cli/issues>
+Set a CLI setting by key.
+
+Run 'circleci setting set theme' with no value in an interactive terminal to
+pick a theme from a list.
 

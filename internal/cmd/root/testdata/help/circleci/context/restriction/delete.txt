@@ -1,24 +1,16 @@
-# CircleCI CLI
-
-Remove a restriction from a CircleCI context.
-
-This action is irreversible. Once removed, the context will be
-accessible to any project or group that was previously blocked.
-
-Pass a UUID to identify the context by ID, or a name to look up by name.
-When looking up by name, pass --org or run from a git repository so the
-organization can be inferred from the remote.
-
-In a terminal, you will be prompted to confirm before deleting.
-Use --force (-f) to skip the prompt for scripting.
+Delete a restriction from a context
 
 ## Usage
 
 `circleci context restriction delete <context-id|context-name> [flags]`
 
-## Aliases
+Aliases: `circleci context restriction rm`
 
-`circleci context restriction rm`
+## Arguments
+
+A context can be specified by name or ID:
+- By name, for example, `context-name`
+- By ID, for example, `849e7902-802f-4082-8a70-da77dcd084e3`
 
 ## Flags
 
@@ -28,20 +20,7 @@ Use --force (-f) to skip the prompt for scripting.
 | `--org string`            | Organization slug (e.g. gh/myorg); used when resolving name to ID |
 | `--restriction-id string` | UUID of the restriction to delete                                 |
 
-## Inherited Flags
-
-| Flag                  | Description                                                  |
-| --------------------- | ------------------------------------------------------------ |
-| `-c, --config string` | Path to config file (default: ~/.config/circleci/config.yml) |
-| `--debug`             | Enable debug logging                                         |
-| `--no-color`          | Disable ANSI color output (same as setting NO_COLOR)         |
-| `-q, --quiet`         | Suppress informational output. Data on stdout is unaffected  |
-
-## Arguments
-
-A context can be specified by name or ID:
-- By name, for example, `context-name`
-- By ID, for example, `849e7902-802f-4082-8a70-da77dcd084e3`
+Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `circleci --help`.
 
 ## Examples
 
@@ -50,9 +29,10 @@ A context can be specified by name or ID:
 - Delete without confirmation: 
   `circleci context restriction delete ctx-uuid --restriction-id r-uuid --force`
 
-## Learn More
+## Details
 
-- Use `circleci <command> <subcommand> --help` for more information about a command.
-- Read the manual at <https://cli.circleci.com/reference/>
-- Support at <https://github.com/CircleCI-Public/circleci-cli/issues>
+Remove a restriction from a CircleCI context.
+
+This action is irreversible. Once removed, the context will be
+accessible to any project or group that was previously blocked.
 

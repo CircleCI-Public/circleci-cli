@@ -56,11 +56,9 @@ func newDecideCmd() *cobra.Command {
 			Evaluate a CircleCI pipeline config against the remote policy bundle
 			and return a policy decision.
 
-			The decision status will be one of: PASS, SOFT_FAIL, HARD_FAIL, ERROR.
-			With --strict, exits non-zero for HARD_FAIL or ERROR decisions.
+			The decision status is one of PASS, SOFT_FAIL, HARD_FAIL or ERROR.
 
-			JSON fields: status, enabled_rules, hard_failures, soft_failures,
-			             violations, metadata
+			JSON fields: status, enabled_rules, hard_failures, soft_failures, violations, metadata
 		`),
 		Example: heredoc.Doc(`
 			# Evaluate a config against remote policies

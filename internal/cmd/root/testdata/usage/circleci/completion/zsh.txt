@@ -1,5 +1,0 @@
-Usage:  circleci completion zsh [flags]
-
-Flags:
-  -o, --output string   Write the completion script to this file instead of stdout
-  

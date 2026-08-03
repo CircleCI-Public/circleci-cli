@@ -10,8 +10,8 @@ A new CircleCI CLI built from scratch in Go + Cobra, targeting exemplary CLI des
 
 ## Critical rules — read before writing any command
 
-These are the six design decisions that must not be violated. They exist because the
-current circleci CLI got all six wrong, and this project exists to fix them.
+These are the seven design decisions that must not be violated. They exist because the
+current circleci CLI got them wrong, and this project exists to fix them.
 
 **1. Every data-returning command gets `--json` with field enumeration in `--help`.**
 No exceptions. Consistent JSON coverage is the #1 differentiator between a scripting
@@ -39,6 +39,12 @@ Cobra alias string. Four levels must never occur — restructure or alias down t
 **6. Every command needs `Use`, `Short`, `Long` (heredoc), and `Example` (heredoc, 3+ examples).**
 Examples are "by far the most-read section of help text." Use `github.com/MakeNowJust/heredoc`
 for all multi-line strings. No blank `Long` descriptions.
+
+**7. `--help` must fit 40 lines.** Agents capture only the first ~40 lines, so anything below
+that is invisible. Usage, Arguments, the complete flag table and 3+ examples all go inside the
+budget; `Long` is what yields. Enforced per command by `TestHelp` in
+`internal/cmd/root/usage_test.go` — see [agents/03-help-and-documentation.md](agents/03-help-and-documentation.md)
+for how to trim.
 
 ---
 

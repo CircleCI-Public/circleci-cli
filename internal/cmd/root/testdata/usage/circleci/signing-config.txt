@@ -1,4 +1,4 @@
-Usage:  circleci signing-config <command>
+Usage:  circleci signing-config <command> [flags]
 
 Available commands:
   create

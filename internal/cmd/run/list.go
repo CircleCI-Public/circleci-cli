@@ -61,9 +61,7 @@ func newListCmd() *cobra.Command {
 			The markdown table includes the commit subject; the JSON adds the full
 			commit and repository detail.
 
-			JSON fields: id, phase, outcome, current_outcome, branch, tag, revision,
-			             repository_url, commit.subject/url/author_name/author_login,
-			             created_at
+			JSON fields: id, phase, outcome, current_outcome, branch, tag, revision, repository_url, commit.subject/url/author_name/author_login, created_at
 		`),
 		Example: heredoc.Doc(`
 			# List recent runs for the current project

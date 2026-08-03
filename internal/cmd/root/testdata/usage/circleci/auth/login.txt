@@ -1,5 +1,6 @@
 Usage:  circleci auth login [flags]
 
 Flags:
-  --no-browser   Print the authorize URL instead of opening a browser
+  -h, --help         help for login
+      --no-browser   Print the authorize URL instead of opening a browser
   

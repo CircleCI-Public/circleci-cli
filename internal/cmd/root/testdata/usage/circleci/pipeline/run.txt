@@ -3,6 +3,7 @@ Usage:  circleci pipeline run [flags]
 Flags:
   -b, --branch string          Branch for config fetch and checkout (mutually exclusive with --tag)
       --definition-id string   Pipeline definition UUID to run (prompted interactively if omitted)
+  -h, --help                   help for run
       --jq string              Process values from the response using jq syntax
       --json                   Output as JSON
       --param stringArray      Pipeline parameter as key=value (repeatable)

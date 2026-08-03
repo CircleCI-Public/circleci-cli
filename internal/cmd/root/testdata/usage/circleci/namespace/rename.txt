@@ -1,6 +1,7 @@
 Usage:  circleci namespace rename <name> <new-name> [flags]
 
 Flags:
-  --jq string   Process values from the response using jq syntax
-  --json        Output as JSON
+  -h, --help        help for rename
+      --jq string   Process values from the response using jq syntax
+      --json        Output as JSON
   

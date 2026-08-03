@@ -1,6 +1,7 @@
 Usage:  circleci project get [flags]
 
 Flags:
-  --json             Output as JSON
-  --project string   Project slug (e.g. gh/org/repo); defaults to git remote
+  -h, --help             help for get
+      --json             Output as JSON
+      --project string   Project slug (e.g. gh/org/repo); defaults to git remote
   

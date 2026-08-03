@@ -1,4 +1,4 @@
-Usage:  circleci mcp vscode
+Usage:  circleci mcp vscode [flags]
 
 Available commands:
   disable

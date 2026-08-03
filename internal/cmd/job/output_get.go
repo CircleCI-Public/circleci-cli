@@ -59,35 +59,12 @@ func newOutputGetCmd() *cobra.Command {
 			`, "`"),
 		},
 		Long: heredoc.Doc(`
-			Fetch the raw stdout and stderr of a single step within a job and
-			print it to the terminal.
+			Fetch the raw stdout and stderr of a single step within a job. Both streams
+			are fetched in parallel and printed together, stdout first.
 
-			The job is identified by its UUID, shown in the output of
-			'circleci workflow get' and 'circleci job get'. The step number
-			(--step-num) selects which step's output to fetch.
-
-			For parallel jobs, use --execution to choose which executor's output
-			to read; it defaults to the first execution (index 0).
-
-			Stdout and stderr are fetched in parallel and printed together,
-			stdout first.
-
-			By default, when writing to a terminal the raw output is passed
-			through unchanged, and when redirected to a file or pipe it is
-			rendered down to plain text: ANSI escapes are removed and progress
-			redraws (carriage returns and cursor movement, e.g. Docker pulls)
-			are collapsed to their final state.
-
-			Use --strip-ansi to force this rendering even on a terminal, or
-			--strip-ansi=false to pass the raw output through even when piped.
-
-			Use --condensed to fetch a filtered version of stdout only, with
-			noisy or repetitive lines removed server-side. This produces a much
-			smaller payload suitable for feeding to an AI tool. When --condensed
-			is set, output is always rendered through the plain-text renderer
-			regardless of the terminal or --strip-ansi.
-
-			Note: --condensed is experimental and subject to change.
+			Output passes through unchanged on a terminal and is rendered to plain text
+			when redirected (ANSI stripped, progress redraws collapsed). --strip-ansi
+			forces either behaviour.
 		`),
 		Example: heredoc.Doc(`
 			# Get the output of step 3 in a job

@@ -1,17 +1,4 @@
-# CircleCI CLI
-
-Purge the docker layer cache (DLC) for a project.
-
-Docker layer caching stores individual Docker image layers between
-pipeline runs to speed up builds. Purging the cache forces CircleCI
-to rebuild all layers from scratch on the next run, which is useful
-when a cached layer contains stale or corrupt data.
-
-The project is inferred from the current git repository's remote
-unless overridden with --project. The slug must be in the form
-vcs/org/repo (e.g. gh/myorg/myrepo).
-
-JSON fields (--json): project_id, project_slug
+Purge the Docker Layer Cache for a project
 
 ## Usage
 
@@ -25,14 +12,7 @@ JSON fields (--json): project_id, project_slug
 | `--json`           | Output as JSON                                          |
 | `--project string` | Project slug (e.g. gh/org/repo); defaults to git remote |
 
-## Inherited Flags
-
-| Flag                  | Description                                                  |
-| --------------------- | ------------------------------------------------------------ |
-| `-c, --config string` | Path to config file (default: ~/.config/circleci/config.yml) |
-| `--debug`             | Enable debug logging                                         |
-| `--no-color`          | Disable ANSI color output (same as setting NO_COLOR)         |
-| `-q, --quiet`         | Suppress informational output. Data on stdout is unaffected  |
+Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `circleci --help`.
 
 ## Examples
 
@@ -47,9 +27,14 @@ JSON fields (--json): project_id, project_slug
 - Purge DLC for a Bitbucket project: 
   `circleci dlc purge --project bb/myorg/myrepo`
 
-## Learn More
+## Details
 
-- Use `circleci <command> <subcommand> --help` for more information about a command.
-- Read the manual at <https://cli.circleci.com/reference/>
-- Support at <https://github.com/CircleCI-Public/circleci-cli/issues>
+Purge the docker layer cache (DLC) for a project.
+
+Docker layer caching stores individual Docker image layers between
+pipeline runs to speed up builds. Purging the cache forces CircleCI
+to rebuild all layers from scratch on the next run, which is useful
+when a cached layer contains stale or corrupt data.
+
+JSON fields (--json): project_id, project_slug
 

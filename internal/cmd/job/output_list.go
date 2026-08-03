@@ -98,23 +98,11 @@ func newOutputListCmd() *cobra.Command {
 		Long: heredoc.Doc(`
 			List every step in a job alongside its terminal-processed output.
 
-			The job is identified by its UUID, shown in the output of
-			'circleci workflow get' and 'circleci job get'. For parallel jobs,
-			use --execution to choose which executor's steps to list; it defaults
-			to the first execution (index 0).
+			Each step's output is replayed through a virtual terminal, so progress
+			redraws collapse to the final state a human would have seen. --tail limits
+			the rendered view only; --json always carries each step's full output.
 
-			Each step's stdout and stderr are fetched and replayed through a
-			virtual terminal so progress redraws (carriage returns, cursor
-			movement) collapse to the final state a human would have seen.
-
-			Only the last --tail lines of each step are shown (the end of a log
-			is where failures and final state are); pass --tail 0 to show every
-			line. This limit applies to the rendered view only — --json always
-			carries each step's full output.
-
-			JSON fields: id, name, execution,
-			             steps[].num/name/type/phase/outcome/started_at/stopped_at/
-			             exit_code/command/output
+			JSON fields: id, name, execution, steps[].num/name/type/phase/outcome/started_at/stopped_at/exit_code/command/output
 		`),
 		Example: heredoc.Doc(`
 			# List the steps and output of a job

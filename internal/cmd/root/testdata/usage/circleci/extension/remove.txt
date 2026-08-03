@@ -2,4 +2,5 @@ Usage:  circleci extension remove <extension> [flags]
 
 Flags:
   -f, --force   Skip confirmation prompt
+  -h, --help    help for remove
   

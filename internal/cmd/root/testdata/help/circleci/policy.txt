@@ -1,14 +1,4 @@
-# CircleCI CLI
-
-Manage security policies.
-
-Policies are written in Rego and evaluated against pipeline configs
-to enforce organizational security rules. Use these commands to push,
-inspect, and test policy bundles, and to query decision logs.
-
-Most commands require --org, which is your organization's slug
-(e.g. gh/acme) or UUID.
-Find it at: https://app.circleci.com/settings/organization
+Govern config with Rego security policies
 
 ## Usage
 
@@ -37,18 +27,17 @@ Find it at: https://app.circleci.com/settings/organization
 | ---------- | ---------------------------------- |
 | `settings` | Manage policy enforcement settings |
 
-## Inherited Flags
+## Flags
 
-| Flag                  | Description                                                  |
-| --------------------- | ------------------------------------------------------------ |
-| `-c, --config string` | Path to config file (default: ~/.config/circleci/config.yml) |
-| `--debug`             | Enable debug logging                                         |
-| `--no-color`          | Disable ANSI color output (same as setting NO_COLOR)         |
-| `-q, --quiet`         | Suppress informational output. Data on stdout is unaffected  |
+Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `circleci --help`.
 
-## Learn More
+## Details
 
-- Use `circleci <command> <subcommand> --help` for more information about a command.
-- Read the manual at <https://cli.circleci.com/reference/>
-- Support at <https://github.com/CircleCI-Public/circleci-cli/issues>
+Manage security policies.
+
+Policies are written in Rego and evaluated against pipeline configs to
+enforce organizational security rules.
+
+Most commands require --org, your organization's slug (e.g. gh/acme) or UUID,
+found at <https://app.circleci.com/settings/organization>.
 

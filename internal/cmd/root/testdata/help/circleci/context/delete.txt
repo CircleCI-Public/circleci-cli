@@ -1,24 +1,16 @@
-# CircleCI CLI
-
-Delete a CircleCI context by UUID or name.
-
-Deleting a context removes all environment variables stored in it.
-Jobs that reference this context will fail until they are updated.
-
-Pass a UUID to delete by ID, or a name to delete by name. When
-looking up by name, pass --org or run from a git repository so the
-organization can be inferred from the remote.
-
-In a terminal, you will be prompted to confirm before deleting.
-Use --force (-f) to skip the prompt for scripting.
+Delete a context
 
 ## Usage
 
 `circleci context delete <context-id|context-name> [flags]`
 
-## Aliases
+Aliases: `circleci context rm`
 
-`circleci context rm`
+## Arguments
+
+A context can be specified by name or ID:
+- By name, for example, `context-name`
+- By ID, for example, `849e7902-802f-4082-8a70-da77dcd084e3`
 
 ## Flags
 
@@ -27,20 +19,7 @@ Use --force (-f) to skip the prompt for scripting.
 | `-f, --force`  | skip confirmation prompt                                          |
 | `--org string` | Organization slug (e.g. gh/myorg); used when resolving name to ID |
 
-## Inherited Flags
-
-| Flag                  | Description                                                  |
-| --------------------- | ------------------------------------------------------------ |
-| `-c, --config string` | Path to config file (default: ~/.config/circleci/config.yml) |
-| `--debug`             | Enable debug logging                                         |
-| `--no-color`          | Disable ANSI color output (same as setting NO_COLOR)         |
-| `-q, --quiet`         | Suppress informational output. Data on stdout is unaffected  |
-
-## Arguments
-
-A context can be specified by name or ID:
-- By name, for example, `context-name`
-- By ID, for example, `849e7902-802f-4082-8a70-da77dcd084e3`
+Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `circleci --help`.
 
 ## Examples
 
@@ -51,9 +30,10 @@ A context can be specified by name or ID:
 - Delete a context by name in a specific org, without confirmation: 
   `circleci context delete my-context --org gh/myorg --force`
 
-## Learn More
+## Details
 
-- Use `circleci <command> <subcommand> --help` for more information about a command.
-- Read the manual at <https://cli.circleci.com/reference/>
-- Support at <https://github.com/CircleCI-Public/circleci-cli/issues>
+Delete a CircleCI context by UUID or name.
+
+Deleting a context removes all environment variables stored in it.
+Jobs that reference this context will fail until they are updated.
 

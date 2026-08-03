@@ -53,8 +53,7 @@ func newListCmd() *cobra.Command {
 			unless overridden with --project. Each deploy shows the component,
 			version, status, type, and when it was created.
 
-			JSON fields: id, component_name, version, type, status, is_rollback,
-			             pipeline_id, workflow_id, created_at, ended_at
+			JSON fields: id, component_name, version, type, status, is_rollback, pipeline_id, workflow_id, created_at, ended_at
 		`),
 		Example: heredoc.Doc(`
 			# List the 10 most recent deploys (auto-detect project from git remote)

@@ -59,13 +59,6 @@ func newDeleteCmd() *cobra.Command {
 
 			Deleting a context removes all environment variables stored in it.
 			Jobs that reference this context will fail until they are updated.
-
-			Pass a UUID to delete by ID, or a name to delete by name. When
-			looking up by name, pass --org or run from a git repository so the
-			organization can be inferred from the remote.
-
-			In a terminal, you will be prompted to confirm before deleting.
-			Use --force (-f) to skip the prompt for scripting.
 		`),
 		Example: heredoc.Doc(`
 			# Delete a context by UUID (with confirmation)

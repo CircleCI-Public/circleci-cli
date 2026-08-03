@@ -1,6 +1,7 @@
 Usage:  circleci project create [project-name] --org <vcs/org-slug> [flags]
 
 Flags:
-  --json         Output as JSON
-  --org string   organization slug (e.g. gh/myorg)
+  -h, --help         help for create
+      --json         Output as JSON
+      --org string   organization slug (e.g. gh/myorg)
   

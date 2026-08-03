@@ -1,9 +1,10 @@
 Usage:  circleci runner instance list [flags]
 
 Flags:
-  --jq string               Process values from the response using jq syntax
-  --json                    Output as JSON
-  --namespace string        Filter by namespace (organization)
-  --org string              Organization slug (e.g. gh/myorg) or UUID; defaults to git remote
-  --resource-class string   Filter by resource class (namespace/name)
+  -h, --help                    help for list
+      --jq string               Process values from the response using jq syntax
+      --json                    Output as JSON
+      --namespace string        Filter by namespace (organization)
+      --org string              Organization slug (e.g. gh/myorg) or UUID; defaults to git remote
+      --resource-class string   Filter by resource class (namespace/name)
   

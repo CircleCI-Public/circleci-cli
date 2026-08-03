@@ -1,4 +1,4 @@
-Usage:  circleci run <command>
+Usage:  circleci run <command> [flags]
 
 Available commands:
   cancel

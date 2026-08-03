@@ -1,4 +1,4 @@
-Usage:  circleci project envvar <command>
+Usage:  circleci project envvar <command> [flags]
 
 Available commands:
   delete

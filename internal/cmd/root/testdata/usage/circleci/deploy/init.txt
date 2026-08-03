@@ -1,7 +1,8 @@
 Usage:  circleci deploy init [flags]
 
 Flags:
-  --component string         Service/component name (skips prompt)
-  --environment string       Default environment for jobs whose target can't be inferred (skips prompt)
-  --pipeline-config string   Path to CircleCI pipeline config file (default ".circleci/config.yml")
+      --component string         Service/component name (skips prompt)
+      --environment string       Default environment for jobs whose target can't be inferred (skips prompt)
+  -h, --help                     help for init
+      --pipeline-config string   Path to CircleCI pipeline config file (default ".circleci/config.yml")
   

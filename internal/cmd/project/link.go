@@ -51,22 +51,13 @@ func newLinkCmd() *cobra.Command {
 		Use:   "link",
 		Short: "Bind this checkout to a CircleCI project",
 		Long: heredoc.Docf(`
-			Record the CircleCI project for the current checkout in
-			.circleci/info.yml so other commands can resolve it without
-			re-detecting from the git remote each time.
+			Record the CircleCI project for the current checkout in .circleci/info.yml, so
+			other commands resolve it without re-detecting from the git remote each time.
 
-			Resolution order:
-			  1. --project %[1]s<slug>%[1]s, if given.
-			  2. The git remote (origin) of the current directory.
-			  3. An interactive prompt — used when neither of the above
-			     yields a project the API recognises.
-
-			If you are not authenticated, this command exits with an
-			authentication error rather than prompting blindly: the
-			lookup against the CircleCI API is what verifies the slug.
-
-			An existing .circleci/info.yml is preserved unless --force
-			is passed.
+			The project comes from %[1]s--project%[1]s, else the git remote (origin), else an
+			interactive prompt. Because the slug is verified against the CircleCI API,
+			this exits with an authentication error when you are not logged in rather
+			than prompting blindly.
 		`, "`"),
 		Example: heredoc.Doc(`
 			# Auto-detect from the current git repository

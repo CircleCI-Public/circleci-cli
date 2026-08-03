@@ -1,14 +1,4 @@
-# CircleCI CLI
-
-List, follow, and manage settings for CircleCI projects.
-
-A project corresponds to a version-control repository connected
-to CircleCI. Use 'circleci project list' to see all followed projects,
-'circleci project follow' to start following a new project, and
-'circleci project envvar' to manage environment variables.
-
-To manage environment variables directly, use the top-level alias:
-  circleci envvar list --project gh/org/repo
+List, follow and configure CircleCI projects
 
 ## Usage
 
@@ -39,18 +29,15 @@ To manage environment variables directly, use the top-level alias:
 | `setting` | View and update project advanced settings              |
 | `trigger` | Manage project triggers                                |
 
-## Inherited Flags
+## Flags
 
-| Flag                  | Description                                                  |
-| --------------------- | ------------------------------------------------------------ |
-| `-c, --config string` | Path to config file (default: ~/.config/circleci/config.yml) |
-| `--debug`             | Enable debug logging                                         |
-| `--no-color`          | Disable ANSI color output (same as setting NO_COLOR)         |
-| `-q, --quiet`         | Suppress informational output. Data on stdout is unaffected  |
+Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `circleci --help`.
 
-## Learn More
+## Details
 
-- Use `circleci <command> <subcommand> --help` for more information about a command.
-- Read the manual at <https://cli.circleci.com/reference/>
-- Support at <https://github.com/CircleCI-Public/circleci-cli/issues>
+List, follow, and manage settings for CircleCI projects.
+
+A project corresponds to a version-control repository connected to CircleCI.
+Environment variables are also reachable as the top-level alias
+'circleci envvar'.
 

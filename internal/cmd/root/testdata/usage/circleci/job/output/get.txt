@@ -1,8 +1,9 @@
 Usage:  circleci job output get <job-id> [flags]
 
 Flags:
-  --condensed       Fetch error-relevant lines only, filtered server-side (experimental)
-  --execution int   Parallel execution index to read output from
-  --step-num int    Step number whose output to fetch (required)
-  --strip-ansi      Force (or with =false, disable) ANSI stripping; defaults to stripping only when not a terminal
+      --condensed       Fetch error-relevant lines only, filtered server-side (experimental)
+      --execution int   Parallel execution index to read output from
+  -h, --help            help for get
+      --step-num int    Step number whose output to fetch (required)
+      --strip-ansi      Force (or with =false, disable) ANSI stripping; defaults to stripping only when not a terminal
   

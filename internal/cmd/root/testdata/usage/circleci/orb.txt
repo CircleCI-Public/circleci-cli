@@ -1,4 +1,4 @@
-Usage:  circleci orb <command>
+Usage:  circleci orb <command> [flags]
 
 Available commands:
   add-to-category

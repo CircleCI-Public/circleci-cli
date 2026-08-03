@@ -2,6 +2,7 @@ Usage:  circleci run trigger [flags]
 
 Flags:
   -b, --branch string           Branch to trigger (defaults to current branch)
+  -h, --help                    help for trigger
       --jq string               Process values from the response using jq syntax
       --json                    Output as JSON
       --parameter stringArray   Run parameter as key=value (repeatable)

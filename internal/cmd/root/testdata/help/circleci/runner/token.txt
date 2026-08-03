@@ -1,11 +1,4 @@
-# CircleCI CLI
-
-Manage runner authentication tokens.
-
-Tokens are used by runner agents to authenticate with CircleCI.
-Each token is associated with a specific resource class.
-
-Token values are only shown once at creation time and cannot be retrieved afterwards.
+Manage runner tokens
 
 ## Usage
 
@@ -24,18 +17,16 @@ Token values are only shown once at creation time and cannot be retrieved afterw
 | -------- | --------------------- |
 | `delete` | Delete a runner token |
 
-## Inherited Flags
+## Flags
 
-| Flag                  | Description                                                  |
-| --------------------- | ------------------------------------------------------------ |
-| `-c, --config string` | Path to config file (default: ~/.config/circleci/config.yml) |
-| `--debug`             | Enable debug logging                                         |
-| `--no-color`          | Disable ANSI color output (same as setting NO_COLOR)         |
-| `-q, --quiet`         | Suppress informational output. Data on stdout is unaffected  |
+Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `circleci --help`.
 
-## Learn More
+## Details
 
-- Use `circleci <command> <subcommand> --help` for more information about a command.
-- Read the manual at <https://cli.circleci.com/reference/>
-- Support at <https://github.com/CircleCI-Public/circleci-cli/issues>
+Manage runner authentication tokens.
+
+Tokens are used by runner agents to authenticate with CircleCI.
+Each token is associated with a specific resource class.
+
+Token values are only shown once at creation time and cannot be retrieved afterwards.
 

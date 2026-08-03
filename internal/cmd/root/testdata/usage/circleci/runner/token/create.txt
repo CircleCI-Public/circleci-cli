@@ -1,7 +1,8 @@
 Usage:  circleci runner token create <resource-class> [flags]
 
 Flags:
-  --jq string         Process values from the response using jq syntax
-  --json              Output as JSON
-  --nickname string   Human-readable nickname for the token
+  -h, --help              help for create
+      --jq string         Process values from the response using jq syntax
+      --json              Output as JSON
+      --nickname string   Human-readable nickname for the token
   
