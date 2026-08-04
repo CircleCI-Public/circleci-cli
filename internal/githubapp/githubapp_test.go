@@ -25,12 +25,14 @@ package githubapp_test
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
 	"testing"
 
 	"gotest.tools/v3/assert"
+	"gotest.tools/v3/assert/cmp"
 
 	"github.com/CircleCI-Public/circleci-cli/internal/apiclient"
 	"github.com/CircleCI-Public/circleci-cli/internal/githubapp"
@@ -81,6 +83,36 @@ func pagedReposServer(t *testing.T, fullNames []string) *apiclient.Client {
 	t.Cleanup(srv.Close)
 
 	return apiclient.New(apiclient.Config{BaseURL: srv.URL, Token: "test-token"})
+}
+
+// TestResolveRepoID_PageCap pins that exhausting the page cap is reported as its
+// own condition rather than as "no match".
+//
+// Conflating them makes onboard tell the user the GitHub App cannot access a
+// repository it may well have access to, and the advice that follows — grant
+// access, then re-run — can never help, because the next run searches the same
+// bounded prefix.
+func TestResolveRepoID_PageCap(t *testing.T) {
+	// A server that always has more pages: total_count never gets satisfied, so
+	// the loop can only end by hitting its cap.
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"items": []map[string]any{
+				{"id": 1, "repo_full_name": "myorg/filler-a"},
+				{"id": 2, "repo_full_name": "myorg/filler-b"},
+			},
+			"total_count": 1_000_000,
+		})
+	}))
+	t.Cleanup(srv.Close)
+	client := apiclient.New(apiclient.Config{BaseURL: srv.URL, Token: "test-token"})
+
+	id, err := githubapp.ResolveRepoID(testCtx(), client, "org-1", "myorg/needle")
+
+	assert.Check(t, cmp.Equal(id, ""))
+	assert.Check(t, errors.Is(err, githubapp.ErrTooManyRepositories),
+		"hitting the page cap must be distinguishable from an absent repository, got: %v", err)
 }
 
 func TestResolveRepoID(t *testing.T) {

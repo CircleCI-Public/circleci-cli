@@ -22,8 +22,7 @@
 
 // Package githubapp drives the CircleCI GitHub App onboarding steps: checking
 // whether the app is installed for an organization, walking the user through a
-// browser-based install, and resolving a repository's external ID. It talks to
-// the public v2 GitHub App endpoints exposed by public-api-service.
+// browser-based install, and resolving a repository's external ID.
 package githubapp
 
 import (
@@ -39,25 +38,19 @@ import (
 )
 
 const (
-	// pollInterval is how often the install poll checks the installation status.
-	pollInterval = 3 * time.Second
-	// pollTimeout bounds how long we wait for a browser-based install.
-	pollTimeout = 3 * time.Minute
-	// repoPageLimit is the page size used when listing repositories.
+	pollInterval  = 3 * time.Second
+	pollTimeout   = 3 * time.Minute
 	repoPageLimit = 100
-	// maxRepoPages bounds the repository pagination to avoid an unbounded loop.
+	// maxRepoPages keeps the walk in ResolveRepoID bounded.
 	maxRepoPages = 50
 )
 
 // EnsureInstalled reports whether the CircleCI GitHub App is installed for the
-// organization, walking the user through a browser-based install when it is
-// not. orgID is the organization UUID; returnURL is where GitHub redirects
-// after install (an app.circleci.com URL).
+// organization, walking the user through a browser-based install when it is not.
+// returnURL is where GitHub redirects after install.
 //
-// It returns true once the app is installed. In non-interactive sessions (or
-// with noBrowser), it prints the install URL and returns false without waiting.
-// A returned error is a genuine API failure; callers typically degrade to
-// manual guidance on either a false result or an error.
+// Non-interactive sessions (or noBrowser) print the install URL and return false
+// without waiting. Callers degrade to manual guidance on false or on an error.
 func EnsureInstalled(ctx context.Context, client *apiclient.Client, orgID, returnURL string, noBrowser bool) (bool, error) {
 	if _, err := client.GetGitHubAppInstallation(ctx, orgID); err == nil {
 		return true, nil
@@ -121,10 +114,18 @@ func pollInstalled(ctx context.Context, client *apiclient.Client, orgID string) 
 	}
 }
 
-// ResolveRepoID returns the external (numeric) ID of the repository named
-// repoFullName ("owner/repo") among the repositories the GitHub App can access
-// for the organization. It returns "" (with no error) when the repository is
-// not found — e.g. it exists but was not granted to the app.
+// ErrTooManyRepositories reports that the search hit its page cap before examining
+// every repository, so the target may well be accessible. Callers must not report it
+// as "the app cannot access that repository" — the advice that follows from that,
+// grant access and re-run, searches the same bounded prefix again.
+var ErrTooManyRepositories = errors.New("too many repositories to search for a match")
+
+// ResolveRepoID returns the external (numeric) ID of repoFullName ("owner/repo")
+// among the repositories the GitHub App can access for the organization. The
+// endpoint offers no name filter, so the list has to be walked.
+//
+// It returns "" with no error only when the whole list was examined and held no
+// match; hitting the page cap first returns ErrTooManyRepositories.
 func ResolveRepoID(ctx context.Context, client *apiclient.Client, orgID, repoFullName string) (string, error) {
 	if repoFullName == "" {
 		return "", nil
@@ -143,8 +144,8 @@ func ResolveRepoID(ctx context.Context, client *apiclient.Client, orgID, repoFul
 		}
 		seen += len(repos)
 		if len(repos) == 0 || (total > 0 && seen >= total) {
-			break
+			return "", nil // whole list examined, genuinely no match
 		}
 	}
-	return "", nil
+	return "", ErrTooManyRepositories
 }

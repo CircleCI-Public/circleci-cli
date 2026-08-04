@@ -54,6 +54,13 @@ func RunSlugURL(appURL string, slug string) (string, error) {
 	), nil
 }
 
+// GitHubAppInstalledURL returns the page to send the browser to once a CircleCI
+// GitHub App install completes. It confirms the install and points the user back
+// at their terminal, where the rest of onboarding happens.
+func GitHubAppInstalledURL(appURL string) string {
+	return fmt.Sprintf("%s/cli/github-app-installed", appURL)
+}
+
 // RunURL returns the CircleCI pipelines page URL for the given project slug.
 func RunURL(appURL string, id uuid.UUID) string {
 	return fmt.Sprintf("%s/pipeline/%s", appURL, id)

@@ -4206,22 +4206,20 @@ the run's "org/repo" repository (when known) and project_id its UUID.
 
 Guided onboarding: scan, test, generate config, sign up
 
-Guided onboarding: scan a local repository, run its detected tests,
-generate a starter .circleci/config.yml, and sign up for CircleCI.
+Interactively without --scan or --signup, a prompt offers both. For
+CircleCI-native orgs it also creates the project and an all-pushes trigger.
 
-Interactively without --scan or --signup, a prompt offers both.
-
-| Flag           | Description                                       |
-| -------------- | ------------------------------------------------- |
-| `--no-browser` | Print the signup URL instead of opening a browser |
-| `--scan`       | Skip prompt: scan the repo and generate config    |
-| `--signup`     | Skip prompt: sign up for CircleCI                 |
+| Flag               | Description                                                |
+| ------------------ | ---------------------------------------------------------- |
+| `--no-browser`     | Print the signup URL instead of opening a browser          |
+| `--repo-id string` | Numeric repository ID, if the GitHub App cannot resolve it |
+| `--scan`           | Skip prompt: scan the repo and generate config             |
+| `--signup`         | Skip prompt: sign up for CircleCI                          |
 
 
 **Arguments:**
 
-`<path>` is optional and is the directory to scan. Defaults to
-the current directory.
+`<path>` is the directory to scan. Defaults to the current directory.
 
 **Examples:**
 
@@ -4229,6 +4227,8 @@ the current directory.
   `circleci onboard`
 - Scan the current directory (skip the choice prompt): 
   `circleci onboard --scan`
+- Scan and wire up the first pipeline without prompts: 
+  `circleci onboard --scan --repo-id 123456789`
 - Sign up for CircleCI (no repo needed): 
   `circleci onboard --signup`
 - Onboard a specific project path: 

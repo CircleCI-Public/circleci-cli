@@ -1,8 +1,9 @@
 Usage:  circleci onboard [path] [flags]
 
 Flags:
-  -h, --help         help for onboard
-      --no-browser   Print the signup URL instead of opening a browser
-      --scan         Skip prompt: scan the repo and generate config
-      --signup       Skip prompt: sign up for CircleCI
+  -h, --help             help for onboard
+      --no-browser       Print the signup URL instead of opening a browser
+      --repo-id string   Numeric repository ID, if the GitHub App cannot resolve it
+      --scan             Skip prompt: scan the repo and generate config
+      --signup           Skip prompt: sign up for CircleCI
   
