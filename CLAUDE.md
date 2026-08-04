@@ -333,8 +333,8 @@ var). Use this to target one package or one test instead of the whole tree:
 ```sh
 task test -- ./internal/config/...             # one package
 task test -- -run TestValidate ./...           # one test by name
-task test -- -update ./acceptance/...          # regenerate golden files (never hand-write them)
-task test -- -update ./internal/cmd/root/...   # refresh the help/usage goldens after changing any help text
+task test -- ./acceptance/... -update          # regenerate golden files (never hand-write them)
+task test -- ./internal/cmd/root/... -update   # refresh the help/usage goldens after changing any help text
 ```
 
 That last one matters here: `internal/cmd/root/testdata/help/` holds a golden `--help` capture

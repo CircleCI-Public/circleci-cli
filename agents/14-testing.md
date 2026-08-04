@@ -294,7 +294,11 @@ assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 ```
 
 You should not construct the golden test file yourself. Instead, run the tests
-with `-update` to generate/update the golden files.
+with `-update` to generate/update the golden files:
+
+```sh
+task test -- ./acceptance/... -update
+```
 
 There should be a separate test for JSON output, if the command produces it.
 This must use `assert.Check` with `cmp.DeepEqual`:

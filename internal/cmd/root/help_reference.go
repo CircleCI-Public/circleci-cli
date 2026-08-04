@@ -83,6 +83,13 @@ func cmdRef(w io.Writer, cmd *cobra.Command, depth int) {
 	_, _ = fmt.Fprintf(w, "%s `%s`\n\n", strings.Repeat("#", depth), cmd.UseLine())
 	_, _ = fmt.Fprintf(w, "%s\n\n", cmd.Short)
 
+	// The reference carries no line budget, so it is the one place that shows a
+	// command's full prose. `--help` trims Long to fit 40 lines; this page must
+	// not, or the detail that was trimmed there is lost everywhere.
+	if long := strings.TrimSpace(cmd.Long); long != "" && long != strings.TrimSpace(cmd.Short) {
+		_, _ = fmt.Fprintf(w, "%s\n\n", long)
+	}
+
 	flags := cmd.Flags()
 	if flags.HasAvailableFlags() {
 		_, _ = fmt.Fprintf(w, "%s\n\n", mdTable("Flag", "Description", flagRows(flags)))
@@ -101,6 +108,12 @@ func cmdRef(w io.Writer, cmd *cobra.Command, depth int) {
 			aliasList[i] = "`" + a + "`"
 		}
 		_, _ = fmt.Fprintf(w, "\n%s\n\n", dedent(strings.Join(aliasList, ", ")))
+	}
+
+	// Examples are the most-read part of any help page, so they belong in the
+	// reference too — rendered the same way `--help` renders them.
+	if ex := strings.TrimSpace(exampleMarkdown(cmd.Example)); ex != "" {
+		_, _ = fmt.Fprintf(w, "**Examples:**\n\n%s\n\n", ex)
 	}
 
 	for _, c := range cmd.Commands() {
