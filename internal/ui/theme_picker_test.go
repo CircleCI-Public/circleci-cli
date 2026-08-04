@@ -26,7 +26,6 @@ import (
 	"fmt"
 	"strings"
 	"testing"
-	"time"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
@@ -118,7 +117,7 @@ func startPicker(t *testing.T, m ui.ThemePickerModel) *teatest.TestModel {
 // read from it, sidestepping the alt-screen output stream.
 func themeFinal(t *testing.T, tm *teatest.TestModel) ui.ThemePickerModel {
 	t.Helper()
-	return tm.FinalModel(t, teatest.WithFinalTimeout(2*time.Second)).(themeHarness).m
+	return tm.FinalModel(t, teatest.WithFinalTimeout(teaTimeout)).(themeHarness).m
 }
 
 // TestThemePickerNotReady confirms the view is empty before a window size

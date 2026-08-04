@@ -26,7 +26,6 @@ import (
 	"bytes"
 	"strings"
 	"testing"
-	"time"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
@@ -46,7 +45,7 @@ func startPager(t *testing.T, content string, w, h int) *teatest.TestModel {
 	tm := teatest.NewTestModel(t, m, teatest.WithInitialTermSize(w, h))
 	teatest.WaitFor(t, tm.Output(), func(b []byte) bool {
 		return bytes.Contains(b, []byte("q quit"))
-	}, teatest.WithDuration(time.Second))
+	}, teatest.WithDuration(teaTimeout))
 	return tm
 }
 
@@ -65,7 +64,7 @@ func pagerType(tm *teatest.TestModel, s string) {
 func pagerSnapshot(t *testing.T, tm *teatest.TestModel) string {
 	t.Helper()
 	tm.Send(tea.KeyPressMsg{Code: 'q', Text: "q"})
-	fm := tm.FinalModel(t, teatest.WithFinalTimeout(time.Second)).(ui.MarkdownViewportModel)
+	fm := tm.FinalModel(t, teatest.WithFinalTimeout(teaTimeout)).(ui.MarkdownViewportModel)
 	return ansi.Strip(fm.View().Content)
 }
 
@@ -241,7 +240,7 @@ func TestPagerEscClearsSearch(t *testing.T) {
 func TestPagerEscQuitsWhenNoSearch(t *testing.T) {
 	tm := startPager(t, strings.Repeat("target\nfiller\n", 30), 80, 24)
 	tm.Send(tea.KeyPressMsg{Code: tea.KeyEscape})
-	tm.WaitFinished(t, teatest.WithFinalTimeout(time.Second))
+	tm.WaitFinished(t, teatest.WithFinalTimeout(teaTimeout))
 }
 
 // TestSearchMatchStylesDistinct guards that the focused match looks different
