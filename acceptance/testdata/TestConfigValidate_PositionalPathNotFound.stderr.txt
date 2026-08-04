@@ -1,4 +1,4 @@
-error: No config file found at "nonexistent.yml".
+error: No config file found at "does-not-exist.yml".
 
 Suggestions:
   • Check the path and try again

@@ -2,7 +2,12 @@ Validate a pipeline config file
 
 ## Usage
 
-`circleci config validate [flags]`
+`circleci config validate [<path>] [flags]`
+
+## Arguments
+
+`<path>` is the pipeline config file to validate, by default
+`.circleci/config.yml`. Pass `-` to read the config from stdin.
 
 ## Flags
 
@@ -20,15 +25,13 @@ Global flags: `--debug`, `--no-color`, `-q, --quiet` — see `circleci --help`.
 - Validate the default config file: 
   `circleci config validate`
 - Validate a specific file: 
-  `circleci config validate --config path/to/config.yml`
+  `circleci config validate path/to/config.yml`
 - Validate against a specific org (otherwise inferred from the git remote): 
   `circleci config validate --org gh/myorg`
 - Validate and output as JSON: 
   `circleci config validate --json`
 
 ## Details
-
-Validate a CircleCI pipeline config file against the CircleCI API.
 
 Private and namespaced orbs resolve against your organization. With --org
 omitted the org comes from a 'circleci project link' binding if present,
