@@ -1,8 +1,8 @@
 jobs:
-  build:
     build:
-      docker:
-        - image: cimg/base:stable
-      steps:
-        - checkout
+        build:
+            docker:
+                - image: cimg/base:stable
+            steps:
+                - checkout
 version: "2.1"
