@@ -17,6 +17,13 @@ Work with CircleCI from the command line.
 
 List and download a job's artifact files
 
+List or download artifacts produced by a CircleCI job.
+
+Pass the job UUID to list its artifacts. Use --output to save
+them to a local directory.
+
+JSON fields: path, url, node_index
+
 | Flag                  | Description                                                                       |
 | --------------------- | --------------------------------------------------------------------------------- |
 | `--jq string`         | Process values from the response using jq syntax (see `circleci help formatting`) |
@@ -30,22 +37,64 @@ List and download a job's artifact files
 list or download,
 for example. `5034460f-c7c4-4c43-9457-de07e2029e7b`.
 
+**Examples:**
+
+- List artifacts for a job: 
+  `circleci artifact 5034460f-c7c4-4c43-9457-de07e2029e7b`
+- Download all artifacts into ./artifacts: 
+  `circleci artifact 5034460f-c7c4-4c43-9457-de07e2029e7b --output ./artifacts`
+- Output as JSON for scripting: 
+  `circleci artifact 5034460f-c7c4-4c43-9457-de07e2029e7b --json`
+
 ### `circleci config <command>`
 
 Generate, validate, process and pack config YAML
 
+Work with the pipeline configuration file at .circleci/config.yml.
+
+This group manages the pipeline YAML that CircleCI executes. For CLI
+tool settings (API token, host, defaults), use 'circleci setting'.
+
 #### `circleci config generate [path]`
 
 Generate .circleci/config.yml from a repository scan
+
+Detect the language stack, container image, and setup commands for a
+repository, then write a starter pipeline to `<path>/.circleci/config.yml`.
+
+If no supported stack is detected, a minimal cimg/base:stable template
+with a placeholder build step is written instead so you have something
+to iterate on.
+
+If a config file already exists at that path, generate does not overwrite
+it; it prints a confirmation and exits successfully. The .circleci/
+directory is created if needed, and the file is written atomically.
 
 **Arguments:**
 
 `<path>` is optional and is the directory to scan. Defaults to
 the current directory.
 
+**Examples:**
+
+- Generate a config for the current directory: 
+  `circleci config generate`
+- Generate a config for a specific project path: 
+  `circleci config generate ./my-app`
+- Re-run is a no-op when a config already exists: 
+  `circleci config generate`
+- ✓ Using existing config at .circleci/config.yml
+
 #### `circleci config pack <path>`
 
 Bundle split config files into a single YAML document
+
+Merge a split CircleCI config directory into the single YAML document CircleCI
+accepts, printed to stdout.
+
+The directory structure maps to YAML keys: .circleci/config.yml merges at the
+top level, and .circleci/jobs/build.yml becomes jobs.build. Files whose names
+begin with "@" merge at the current level instead of nesting under a key.
 
 **Arguments:**
 
@@ -53,9 +102,25 @@ Bundle split config files into a single YAML document
 for example, `.circleci` or `src/ci`. The directory structure is
 mapped to YAML keys in the merged document.
 
+**Examples:**
+
+- Pack the default config directory: 
+  `circleci config pack .circleci`
+- Pack and pipe to validate: 
+  `circleci config pack .circleci | circleci config validate --config -`
+- Pack a custom directory: 
+  `circleci config pack src/ci`
+
 #### `circleci config process <path> [flags]`
 
 Compile and expand a pipeline config file
+
+Compile a CircleCI pipeline config and print the fully expanded YAML: orbs
+inlined, matrix jobs expanded, parameter expressions resolved. The output is
+what CircleCI would actually execute.
+
+Private and namespaced orbs resolve against your organization: with --org
+omitted, from a 'circleci project link' binding, else the git remote.
 
 | Flag                           | Description                                                                                  |
 | ------------------------------ | -------------------------------------------------------------------------------------------- |
@@ -70,9 +135,28 @@ Compile and expand a pipeline config file
 for example, `.circleci/config.yml`. Pass `-` to read the config
 from stdin.
 
+**Examples:**
+
+- Process the default config: 
+  `circleci config process .circleci/config.yml`
+- Process with pipeline parameters: 
+  `circleci config process .circleci/config.yml --pipeline-parameters 'env: staging'`
+- Process against a specific org (otherwise inferred from the git remote): 
+  `circleci config process .circleci/config.yml --org gh/myorg`
+- Read from stdin: 
+  `cat .circleci/config.yml | circleci config process -`
+
 #### `circleci config validate [flags]`
 
 Validate a pipeline config file
+
+Validate a CircleCI pipeline config file against the CircleCI API.
+
+Private and namespaced orbs resolve against your organization. With --org
+omitted the org comes from a 'circleci project link' binding if present,
+otherwise the git remote.
+
+JSON fields (--json): valid (bool), compiled_yaml (string, when valid), errors (array of compilation messages, when invalid)
 
 | Flag                  | Description                                                                                  |
 | --------------------- | -------------------------------------------------------------------------------------------- |
@@ -82,13 +166,35 @@ Validate a pipeline config file
 | `--org string`        | Organization slug (e.g. gh/myorg) or UUID for private orb resolution; defaults to git remote |
 
 
+**Examples:**
+
+- Validate the default config file: 
+  `circleci config validate`
+- Validate a specific file: 
+  `circleci config validate --config path/to/config.yml`
+- Validate against a specific org (otherwise inferred from the git remote): 
+  `circleci config validate --org gh/myorg`
+- Validate and output as JSON: 
+  `circleci config validate --json`
+
 ### `circleci job <command>`
 
 Inspect a job's details, output and artifacts
 
+Work with CircleCI jobs.
+
+Jobs are the individual units of work within a workflow.
+
 #### `circleci job artifact <job-id> [flags]`
 
 List or download artifacts for a job
+
+List or download artifacts produced by a specific job.
+
+Pass the job UUID to list its artifacts. Use --output to save
+them to a local directory.
+
+JSON fields: path, url, node_index
 
 | Flag                  | Description                                                                       |
 | --------------------- | --------------------------------------------------------------------------------- |
@@ -103,9 +209,25 @@ List or download artifacts for a job
 Job UUIDs are shown in the output of `circleci workflow get` and
 `circleci run get --json`.
 
+**Examples:**
+
+- List artifacts for a job: 
+  `circleci job artifact 5034460f-c7c4-4c43-9457-de07e2029e7b`
+- Download artifacts into ./artifacts: 
+  `circleci job artifact 5034460f-c7c4-4c43-9457-de07e2029e7b --output ./artifacts`
+- Output as JSON: 
+  `circleci job artifact 5034460f-c7c4-4c43-9457-de07e2029e7b --json`
+
 #### `circleci job get <job-id> [flags]`
 
 Get job details
+
+Display the status and steps of a CircleCI job.
+
+Job IDs are shown in the output of 'circleci workflow get' and
+'circleci run get --json'.
+
+JSON fields: id, name, type, status, started_at, stopped_at, project_id, pipeline_id, workflow_id, executions[].index/steps[].name/type/status/duration/exit_code
 
 | Flag          | Description                                                                       |
 | ------------- | --------------------------------------------------------------------------------- |
@@ -118,6 +240,15 @@ Get job details
 `<job-id>` is the UUID of the job to look up. Job UUIDs are shown in
 the output of `circleci workflow get` and `circleci run get --json`.
 
+**Examples:**
+
+- Get job details by UUID: 
+  `circleci job get 8e50c384-0083-43d0-bc8f-93f0db589d6b`
+- Output as JSON: 
+  `circleci job get 8e50c384-0083-43d0-bc8f-93f0db589d6b --json`
+- Get a specific field with jq: 
+  `circleci job get 8e50c384-0083-43d0-bc8f-93f0db589d6b --json | jq '.status'`
+
 #### `circleci job open <job-id>`
 
 Open job in browser
@@ -127,13 +258,30 @@ Open job in browser
 `<job-id>` is the UUID of the job to look up. Job UUIDs are shown in
 the output of `circleci workflow get` and `circleci run get --json`.
 
+**Examples:**
+
+- Open job by UUID: 
+  `circleci job open 8e50c384-0083-43d0-bc8f-93f0db589d6b`
+
 #### `circleci job output <command>`
 
 Work with job step output
 
+Fetch the raw stdout and stderr produced by a job's steps.
+
+Steps are identified by their step number within a job; for parallel
+jobs, an execution index selects which executor's output to fetch.
+
 ##### `circleci job output get <job-id> [flags]`
 
 Get the output of a job step
+
+Fetch the raw stdout and stderr of a single step within a job. Both streams
+are fetched in parallel and printed together, stdout first.
+
+Output passes through unchanged on a terminal and is rendered to plain text
+when redirected (ANSI stripped, progress redraws collapsed). --strip-ansi
+forces either behaviour.
 
 | Flag              | Description                                                                                    |
 | ----------------- | ---------------------------------------------------------------------------------------------- |
@@ -149,9 +297,28 @@ Get the output of a job step
 are shown in the output of `circleci workflow get` and `circleci job get`.
 Use `--step-num` to select which step's output to read.
 
+**Examples:**
+
+- Get the output of step 3 in a job: 
+  `circleci job output get 8e50c384-0083-43d0-bc8f-93f0db589d6b --step-num 3`
+- Get the output of step 3 from the second parallel execution: 
+  `circleci job output get 8e50c384-0083-43d0-bc8f-93f0db589d6b --step-num 3 --execution 1`
+- Pipe the output to a file: 
+  `circleci job output get 8e50c384-0083-43d0-bc8f-93f0db589d6b --step-num 3 > step.log`
+- Pipe condensed output to an AI CLI tool: 
+  `circleci job output get 8e50c384-0083-43d0-bc8f-93f0db589d6b --step-num 3 --condensed | llm "Why did this fail?"`
+
 ##### `circleci job output list <job-id> [flags]`
 
 List a job's steps with their output
+
+List every step in a job alongside its terminal-processed output.
+
+Each step's output is replayed through a virtual terminal, so progress
+redraws collapse to the final state a human would have seen. --tail limits
+the rendered view only; --json always carries each step's full output.
+
+JSON fields: id, name, execution, steps[].num/name/type/phase/outcome/started_at/stopped_at/exit_code/command/output
 
 | Flag              | Description                                                                                     |
 | ----------------- | ----------------------------------------------------------------------------------------------- |
@@ -167,13 +334,39 @@ List a job's steps with their output
 UUIDs are shown in the output of `circleci workflow get` and
 `circleci job get`.
 
+**Examples:**
+
+- List the steps and output of a job: 
+  `circleci job output list 8e50c384-0083-43d0-bc8f-93f0db589d6b`
+- List output for the second parallel execution: 
+  `circleci job output list 8e50c384-0083-43d0-bc8f-93f0db589d6b --execution 1`
+- As JSON, with the output of the failing step: 
+  `circleci job output list 8e50c384-0083-43d0-bc8f-93f0db589d6b --json | jq '.steps[] | select(.exit_code != 0) | .output'`
+- Show every line of every step in the rendered view: 
+  `circleci job output list 8e50c384-0083-43d0-bc8f-93f0db589d6b --tail 0`
+
 ### `circleci pipeline <command>`
 
 Define what will happen in a run
 
+Create and list pipeline definitions for a CircleCI project.
+
+A pipeline definition decides what happens when a run is triggered:
+which repository to check out and where to find the config YAML that
+CircleCI compiles into workflows. Attach triggers to a definition with
+'circleci project trigger create'.
+
 #### `circleci pipeline create [flags]`
 
 Create a pipeline definition
+
+Create a new pipeline definition for a CircleCI project: where CircleCI finds
+the config YAML, and which repository to check out. Attach triggers to it
+afterwards with `circleci project trigger create`.
+
+Required flags must be given in non-interactive mode; a terminal prompts.
+
+JSON fields: id, name, description, created_at, config_source.provider, config_source.file_path, config_source.repo.external_id, config_source.repo.full_name, checkout_source.provider, checkout_source.repo.external_id, checkout_source.repo.full_name
 
 | Flag                         | Description                                                                       |
 | ---------------------------- | --------------------------------------------------------------------------------- |
@@ -190,9 +383,22 @@ Create a pipeline definition
 | `--project-id string`        | Project UUID (overrides --project)                                                |
 
 
+**Examples:**
+
+- Create a pipeline definition using GitHub App: 
+  `circleci pipeline create --project gh/myorg/myrepo --name "my-pipeline" --config-provider github_app --config-repo-id 123456789 --config-file .circleci/config.yml --checkout-provider github_app --checkout-repo-id 123456789`
+- Create with a description and output as JSON: 
+  `circleci pipeline create --name "release-pipeline" --description "Runs on tagged releases" --config-provider github_app --config-repo-id 123456789 --config-file .circleci/release.yml --checkout-provider github_app --checkout-repo-id 123456789 --json`
+- Create using a direct project UUID (skips project info lookup): 
+  `circleci pipeline create --project-id a1b2c3d4-... --name "nightly" --config-provider github_app --config-repo-id 123456789 --config-file .circleci/nightly.yml --checkout-provider github_app --checkout-repo-id 123456789`
+
 #### `circleci pipeline list [flags]`
 
 List pipeline definitions for a project
+
+List all pipeline definitions for a CircleCI project.
+
+JSON fields: id, name, description, created_at, config_source.provider, config_source.file_path, config_source.repo.external_id, config_source.repo.full_name, checkout_source.provider, checkout_source.repo.external_id, checkout_source.repo.full_name
 
 | Flag                  | Description                                                                       |
 | --------------------- | --------------------------------------------------------------------------------- |
@@ -207,9 +413,30 @@ List pipeline definitions for a project
 
 `circleci pipeline ls`
 
+**Examples:**
+
+- List pipeline definitions for the current repository's project: 
+  `circleci pipeline list`
+- List pipeline definitions for a specific project: 
+  `circleci pipeline list --project gh/myorg/myrepo`
+- Output as JSON for scripting: 
+  `circleci pipeline list --json`
+- Filter by config provider: 
+  `circleci pipeline list --json --jq '.[] | select(.config_source.provider == "github_app")'`
+
 #### `circleci pipeline run [flags]`
 
 Trigger a new pipeline run
+
+Trigger a new pipeline run using the recommended CircleCI v2 API.
+
+In a terminal, a missing --definition-id or --branch/--tag is prompted for; in
+non-interactive mode both are optional. --branch and --tag are mutually
+exclusive and each sets both the config-fetch and checkout revision.
+
+A skipped pipeline (e.g. a [ci skip] commit message) exits 0 and prints why.
+
+JSON fields: id, state, number, created_at, triggered — or triggered, message when skipped.
 
 | Flag                     | Description                                                                       |
 | ------------------------ | --------------------------------------------------------------------------------- |
@@ -222,13 +449,35 @@ Trigger a new pipeline run
 | `-t, --tag string`       | Tag for config fetch and checkout (mutually exclusive with --branch)              |
 
 
+**Examples:**
+
+- Trigger a pipeline interactively — pick definition and branch from menus: 
+  `circleci pipeline run --project gh/myorg/myrepo`
+- Trigger a specific definition on a branch non-interactively: 
+  `circleci pipeline run --project gh/myorg/myrepo --definition-id 2338d0ae-5541-4bbf-88a2-55e9f7281f80 --branch main`
+- Trigger on a tag with parameters: 
+  `circleci pipeline run --project gh/myorg/myrepo --definition-id 2338d0ae-5541-4bbf-88a2-55e9f7281f80 --tag v1.2.3 --param deploy_env=staging`
+- Output as JSON for scripting: 
+  `circleci pipeline run --project gh/myorg/myrepo --definition-id 2338d0ae-5541-4bbf-88a2-55e9f7281f80 --branch main --json`
+
 ### `circleci run <command>`
 
 Trigger, watch and cancel CI runs
 
+Work with CircleCI runs.
+
+A run is created each time a trigger fires for a pipeline. It carries
+the VCS context for that firing and groups the workflows it produced;
+each workflow in turn contains jobs.
+
 #### `circleci run cancel <run-number-or-id> [flags]`
 
 Cancel a run
+
+Cancel a running CircleCI run by number or UUID.
+
+Cancelling a run stops all in-progress workflows and jobs within it.
+Workflows that have already completed are unaffected.
 
 | Flag               | Description                                                     |
 | ------------------ | --------------------------------------------------------------- |
@@ -244,9 +493,29 @@ Cancel a run
 
 The project is inferred from the git remote unless overridden with `--project`.
 
+**Examples:**
+
+- Cancel a run by number (with confirmation): 
+  `circleci run cancel 75`
+- Cancel a run by UUID without confirmation: 
+  `circleci run cancel 5034460f-c7c4-4c43-9457-de07e2029e7b --force`
+- Cancel the latest run on a branch: 
+  `circleci run list --branch main --json --jq '.[0].id' | xargs circleci run cancel --force`
+
 #### `circleci run get [<run-id>] [flags]`
 
 Get a run's status
+
+Display the status of a CircleCI run and its workflows.
+
+With no run UUID in an interactive terminal, a picker walks you through the
+recent runs; --no-interactive, --json, or a non-interactive session skips it
+and resolves the latest run directly.
+
+JSON fields: id, phase, outcome, current_outcome, branch, tag, revision,
+repository_url, commit.subject/url/author_name/author_login, created_at,
+errors[].type/message, workflows[].id/name/phase/outcome/current_outcome/duration/
+jobs[].id/name/phase/outcome/current_outcome/type
 
 | Flag                  | Description                                                                       |
 | --------------------- | --------------------------------------------------------------------------------- |
@@ -267,9 +536,34 @@ inferred from the current git repository's remote and checked-out
 branch (override with `--project` and `--branch`). With
 `--project` set, the branch defaults to main unless `--branch` is given.
 
+**Examples:**
+
+- Get the latest run for the current branch: 
+  `circleci run get`
+- Get a run by UUID: 
+  `circleci run get 5034460f-c7c4-4c43-9457-de07e2029e7b`
+- Output as JSON for scripting: 
+  `circleci run get --json`
+- Get only your runs: 
+  `circleci run get --mine`
+- Skip the picker and resolve the latest run directly: 
+  `circleci run get --no-interactive`
+
 #### `circleci run list [flags]`
 
 List recent runs for a project
+
+List recent runs for a CircleCI project.
+
+The project is inferred from the current git repository's remote
+unless overridden with --project. Use --branch to filter results
+to a single branch, or --current-branch (-B) to automatically use
+the branch you have checked out.
+
+The markdown table includes the commit subject; the JSON adds the full
+commit and repository detail.
+
+JSON fields: id, phase, outcome, current_outcome, branch, tag, revision, repository_url, commit.subject/url/author_name/author_login, created_at
 
 | Flag                   | Description                                                                       |
 | ---------------------- | --------------------------------------------------------------------------------- |
@@ -286,9 +580,32 @@ List recent runs for a project
 
 `circleci run ls`
 
+**Examples:**
+
+- List recent runs for the current project: 
+  `circleci run list`
+- Filter to the branch you have checked out: 
+  `circleci run list --current-branch`
+- Filter to a specific branch: 
+  `circleci run list --branch main`
+- List runs for an explicit project: 
+  `circleci run list --project gh/org/repo`
+- Show more results: 
+  `circleci run list --limit 25`
+- Output as JSON for scripting: 
+  `circleci run list --json`
+
 #### `circleci run open [flags]`
 
 Open the current project's runs page in the browser
+
+Open the CircleCI runs page for the current project in your
+default web browser.
+
+The project is inferred from the current git repository's remote.
+Supports GitHub, Bitbucket, and GitLab remotes.
+
+Use --current-branch or --branch/-b to filter runs to a specific branch.
 
 | Flag                  | Description                                                 |
 | --------------------- | ----------------------------------------------------------- |
@@ -296,9 +613,32 @@ Open the current project's runs page in the browser
 | `--project string`    | Project slug (e.g. gh/org/repo); used for latest-run lookup |
 
 
+**Examples:**
+
+- Open runs for the current repo: 
+  `circleci run open`
+- Open runs filtered to the current git branch: 
+  `circleci run open --current-branch`
+- Open runs filtered to a specific branch: 
+  `circleci run open --branch my-feature`
+- Open runs filtered to a specific branch (short flag): 
+  `circleci run open -b main`
+- Open when your remote is on CircleCI server: 
+  `circleci run open --host https://circleci.example.com`
+
 #### `circleci run trigger [flags]`
 
 Trigger a new run
+
+Trigger a new run for a CircleCI project.
+
+The project and branch are inferred from the current git repository
+unless overridden with --project or --branch.
+
+Pass run parameters with --parameter. Values are parsed as
+booleans (true/false), integers, or strings.
+
+JSON fields: id, number, state, created_at
 
 | Flag                      | Description                                                                       |
 | ------------------------- | --------------------------------------------------------------------------------- |
@@ -309,9 +649,29 @@ Trigger a new run
 | `--project string`        | Project slug (e.g. gh/org/repo); defaults to git remote                           |
 
 
+**Examples:**
+
+- Trigger a run on the current branch: 
+  `circleci run trigger`
+- Trigger on a specific branch: 
+  `circleci run trigger --branch main`
+- Trigger with run parameters: 
+  `circleci run trigger --parameter deploy_env=staging --parameter run_e2e=true`
+- Output the triggered run as JSON: 
+  `circleci run trigger --json`
+
 #### `circleci run watch [<run-id>] [flags]`
 
 Watch a run until it completes
+
+Monitor a CircleCI run and block until it reaches a terminal state. Without
+arguments, watches the latest run for the current branch.
+
+Exit code reflects the result: 0 all workflows succeeded, 1 one or more
+failed, 6 cancelled, 8 timed out.
+
+With --sha, polls for up to 2 minutes for a run matching that commit to
+appear — useful immediately after git push.
 
 | Flag                  | Description                                                            |
 | --------------------- | ---------------------------------------------------------------------- |
@@ -329,13 +689,40 @@ or a run number (as shown by `circleci run list`).
 
 When omitted, the latest run for the current branch is watched.
 
+**Examples:**
+
+- Watch the latest run on the current branch: 
+  `circleci run watch`
+- Push and watch in one step: 
+  `git push && circleci run watch --sha $(git rev-parse HEAD)`
+- Watch by UUID (e.g. from 'run list --json'): 
+  `circleci run watch 5034460f-c7c4-4c43-9457-de07e2029e7b`
+- Watch with a longer timeout: 
+  `circleci run watch --timeout 30m`
+- Exit as soon as any job fails: 
+  `circleci run watch --failfast`
+
 ### `circleci testresult <command>`
 
 Inspect test results for a job
 
+Work with the test metadata CircleCI collects for a job.
+
+When a job stores test results (via the 'store_test_results' step),
+CircleCI parses them into per-test records. Use these commands to
+review which tests failed, passed or were skipped without opening the
+web UI.
+
 #### `circleci testresult get <job-id> <name> [flags]`
 
 Get a single test result by name
+
+Get a single test result from a job by its exact name.
+
+When several tests share a name the lookup is ambiguous and fails; narrow it
+with `--filter classname=<value>`, or browse with `circleci testresult list`.
+
+JSON fields: classname, name, result, run_time, message
 
 | Flag               | Description                                                                       |
 | ------------------ | --------------------------------------------------------------------------------- |
@@ -353,9 +740,27 @@ UUIDs are shown in `circleci job get` and `circleci run get --json`.
 `<name>` is the exact test name to look up. If more than one test
 shares that name, use `--filter classname=<value>` to disambiguate.
 
+**Examples:**
+
+- Get a test by name: 
+  `circleci testresult get 8e50c384-0083-43d0-bc8f-93f0db589d6b TestLogin`
+- Disambiguate when the name appears in multiple suites: 
+  `circleci testresult get <job-id> TestLogin --filter classname=api`
+- Print only the raw test message: 
+  `circleci testresult get <job-id> TestLogin --plain`
+- Output as JSON: 
+  `circleci testresult get <job-id> TestLogin --json`
+
 #### `circleci testresult list <job-id> [flags]`
 
 List test results for a job
+
+Show the test results recorded for a CircleCI job. Only failed tests are
+shown unless --all or a result= filter selects otherwise.
+
+JSON fields: classname, name, result, run_time, message — emitted as one
+object per line (JSONL), so --jq runs once per record. See
+`circleci help formatting` for aggregating across the stream.
 
 | Flag                   | Description                                                                                                                                                                                                       |
 | ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -377,13 +782,40 @@ UUIDs are shown in `circleci job get` and `circleci run get --json`.
 
 `circleci testresult ls`
 
+**Examples:**
+
+- List failed tests for a job (the default): 
+  `circleci testresult list 8e50c384-0083-43d0-bc8f-93f0db589d6b`
+- Show every result: passing, failed and skipped: 
+  `circleci testresult list <job-id> --all`
+- Show skipped tests instead: 
+  `circleci testresult list <job-id> --filter result=skipped`
+- Failed tests in one suite, slowest last: 
+  `circleci testresult list <job-id> --filter classname=api --sort run_time`
+- Count failed tests by aggregating the JSONL stream with jq: 
+  `circleci testresult list <job-id> --json --jq '[.,inputs] | length'`
+
 ### `circleci workflow <command>`
 
 Inspect, rerun and cancel workflows (job graphs)
 
+Work with CircleCI workflows.
+
+Workflows orchestrate jobs within a run. Use these commands to
+inspect workflow status, rerun failed jobs, or cancel a running workflow.
+
+Workflow IDs are shown in the output of 'circleci run get'.
+
 #### `circleci workflow cancel <workflow-id> [flags]`
 
 Cancel a running workflow
+
+Cancel a running CircleCI workflow.
+
+Any in-progress jobs will be stopped. Jobs that have already
+completed are not affected.
+
+Workflow IDs are shown in the output of 'circleci run get'.
 
 | Flag          | Description              |
 | ------------- | ------------------------ |
@@ -395,9 +827,24 @@ Cancel a running workflow
 `<workflow-id>` is the UUID of the workflow to cancel. Workflow IDs are
 shown in the output of `circleci run get`.
 
+**Examples:**
+
+- Cancel a running workflow (with confirmation): 
+  `circleci workflow cancel 5034460f-c7c4-4c43-9457-de07e2029e7b`
+- Cancel without confirmation: 
+  `circleci workflow cancel 5034460f-c7c4-4c43-9457-de07e2029e7b --force`
+- Find a running workflow ID from the latest run and cancel it: 
+  `circleci run get --json --jq '.workflows[] | select(.status=="running") | .id' | xargs circleci workflow cancel --force`
+
 #### `circleci workflow get <workflow-id> [flags]`
 
 Get workflow details
+
+Display the status and jobs of a CircleCI workflow.
+
+Workflow IDs are shown in the output of 'circleci run get'.
+
+JSON fields: id, name, phase, outcome, current_outcome, run_id, created_at, ended_at, jobs[].id/name/phase/outcome/current_outcome/type
 
 | Flag          | Description                                                                       |
 | ------------- | --------------------------------------------------------------------------------- |
@@ -410,9 +857,24 @@ Get workflow details
 `<workflow-id>` is the UUID of the workflow to look up. Workflow IDs are
 shown in the output of `circleci run get`.
 
+**Examples:**
+
+- Get workflow details: 
+  `circleci workflow get 5034460f-c7c4-4c43-9457-de07e2029e7b`
+- Output as JSON: 
+  `circleci workflow get 5034460f-c7c4-4c43-9457-de07e2029e7b --json`
+- Get workflow ID from a run: 
+  `circleci run get | grep -A1 "Workflows"`
+
 #### `circleci workflow list [<run-id>] [flags]`
 
 List workflows for a run or recent runs
+
+List workflows for a CircleCI run, or for recent runs in the project when
+no run is given.
+
+JSON fields (single run): id, name, phase, outcome, current_outcome.
+Recent-runs mode adds run_id.
 
 | Flag                  | Description                                                                       |
 | --------------------- | --------------------------------------------------------------------------------- |
@@ -436,6 +898,19 @@ grouped by run.
 
 `circleci workflow ls`
 
+**Examples:**
+
+- List workflows for recent runs in the current project: 
+  `circleci workflow list`
+- Filter to a specific branch: 
+  `circleci workflow list --branch main`
+- List workflows by run number: 
+  `circleci workflow list 75`
+- List workflows by run UUID: 
+  `circleci workflow list 9e0c9d52-3b7e-4cd6-b5f7-bfc5e4a07e81`
+- Output as JSON: 
+  `circleci workflow list --json`
+
 #### `circleci workflow open <workflow-id>`
 
 Open workflow in browser
@@ -445,9 +920,22 @@ Open workflow in browser
 `<workflow-id>` is the UUID of the workflow to look up. Workflow IDs are
 shown in the output of `circleci run get`.
 
+**Examples:**
+
+- Open workflow details: 
+  `circleci workflow open 5034460f-c7c4-4c43-9457-de07e2029e7b`
+
 #### `circleci workflow rerun <workflow-id> [flags]`
 
 Rerun a workflow
+
+Rerun a CircleCI workflow.
+
+By default all jobs in the workflow are rerun from scratch. Use
+--from-failed to rerun only the jobs that failed, leaving successful
+jobs untouched.
+
+Workflow IDs are shown in the output of 'circleci run get'.
 
 | Flag            | Description            |
 | --------------- | ---------------------- |
@@ -459,15 +947,37 @@ Rerun a workflow
 `<workflow-id>` is the UUID of the workflow to rerun. Workflow IDs are
 shown in the output of `circleci run get`.
 
+**Examples:**
+
+- Rerun all jobs in a workflow from scratch: 
+  `circleci workflow rerun 5034460f-c7c4-4c43-9457-de07e2029e7b`
+- Rerun only the failed jobs: 
+  `circleci workflow rerun 5034460f-c7c4-4c43-9457-de07e2029e7b --from-failed`
+- Find a workflow ID from the latest run: 
+  `circleci run get --json --jq '.workflows[].id'`
+
 ## Management Commands
 
 ### `circleci certificate <command>`
 
 Manage iOS code signing certificates
 
+Upload, list, and delete Apple .p12 code signing certificates stored in
+your CircleCI organization's secure storage.
+
+Certificates are referenced by ID from a signing config. Deleting a
+certificate that is referenced by a signing config will invalidate that
+signing config.
+
 #### `circleci certificate delete <cert-id> [flags]`
 
 Delete an iOS certificate
+
+Remove an Apple certificate from your organization's secure storage.
+
+This action is irreversible. The server rejects the delete with an
+error if the certificate is referenced by any signing config; delete
+those signing configs first.
 
 | Flag          | Description              |
 | ------------- | ------------------------ |
@@ -484,9 +994,21 @@ Find the certificate ID with `circleci certificate list`.
 
 `circleci certificate rm`
 
+**Examples:**
+
+- Delete a certificate (with confirmation): 
+  `circleci certificate delete <cert-id>`
+- Delete without confirmation: 
+  `circleci certificate delete <cert-id> --force`
+
 #### `circleci certificate list [flags]`
 
 List uploaded iOS certificates
+
+List Apple .p12 certificates currently stored in your organization's
+secure storage.
+
+JSON fields: id, file_name, org_id, created_at
 
 | Flag           | Description                                                                       |
 | -------------- | --------------------------------------------------------------------------------- |
@@ -500,9 +1022,32 @@ List uploaded iOS certificates
 
 `circleci certificate ls`
 
+**Examples:**
+
+- List certificates (org inferred from git remote): 
+  `circleci certificate list`
+- List for a specific org: 
+  `circleci certificate list --org gh/acme`
+- Output as JSON: 
+  `circleci certificate list --json`
+- Get cert IDs only: 
+  `circleci certificate list --json --jq '.[].id'`
+
 #### `circleci certificate upload [flags]`
 
 Upload a .p12 certificate
+
+Upload an Apple .p12 code signing certificate to your CircleCI
+organization's secure storage.
+
+The certificate file is read from disk and base64-encoded locally
+before being sent. In a terminal, --password may be omitted and you
+will be prompted with input masking.
+
+Pass --password - to read the password from stdin, keeping it out of
+shell history and process listings.
+
+JSON fields: id, file_name
 
 | Flag                 | Description                                                                               |
 | -------------------- | ----------------------------------------------------------------------------------------- |
@@ -513,13 +1058,32 @@ Upload a .p12 certificate
 | `--password string`  | Password for the .p12 file. Pass - to read from stdin. Prompted if omitted in a terminal. |
 
 
+**Examples:**
+
+- Upload a certificate (org inferred from git remote, password prompted): 
+  `circleci certificate upload --cert-file ./Certificates.p12`
+- Read the password from stdin (no shell history exposure): 
+  `echo "$P12_PASSWORD" | circleci certificate upload --cert-file ./Certificates.p12 --password -`
+- Explicit org and capture the new cert id for scripting: 
+  `echo "$P12_PASSWORD" | circleci certificate upload --org gh/acme --cert-file ./Certificates.p12 --password - --json --jq -r '.id'`
+
 ### `circleci context <command>`
 
 Manage secret env vars shared across pipelines
 
+Work with CircleCI contexts.
+
+Contexts are named collections of secret environment variables that
+can be shared across runs within an organization. Jobs can
+reference a context to inject its variables into the build environment.
+
 #### `circleci context create <name> [flags]`
 
 Create a new context
+
+Create a new CircleCI context for an organization.
+
+JSON fields: id, name, created_at
 
 | Flag           | Description                                                                       |
 | -------------- | --------------------------------------------------------------------------------- |
@@ -532,9 +1096,23 @@ Create a new context
 
 `<name>` is the name for the new context, for example, `build-secrets`.
 
+**Examples:**
+
+- Create a context for the org inferred from git remote: 
+  `circleci context create my-context`
+- Create a context for a specific organization: 
+  `circleci context create my-context --org gh/myorg`
+- Create and capture the ID: 
+  `circleci context create my-context --org gh/myorg --json --jq '.id'`
+
 #### `circleci context delete <context-id|context-name> [flags]`
 
 Delete a context
+
+Delete a CircleCI context by UUID or name.
+
+Deleting a context removes all environment variables stored in it.
+Jobs that reference this context will fail until they are updated.
 
 | Flag           | Description                                                       |
 | -------------- | ----------------------------------------------------------------- |
@@ -553,9 +1131,25 @@ A context can be specified by name or ID:
 
 `circleci context rm`
 
+**Examples:**
+
+- Delete a context by UUID (with confirmation): 
+  `circleci context delete ctx-uuid-here`
+- Delete a context by name (org inferred from git remote): 
+  `circleci context delete my-context`
+- Delete a context by name in a specific org, without confirmation: 
+  `circleci context delete my-context --org gh/myorg --force`
+
 #### `circleci context get <context-id|context-name> [flags]`
 
 Get details of a context
+
+Display details of a CircleCI context, including its environment
+variable names and metadata.
+
+Variable values are never returned by the API once set.
+
+JSON fields: id, name, org_id, created_at, environment_variables, restrictions
 
 | Flag           | Description                                                                       |
 | -------------- | --------------------------------------------------------------------------------- |
@@ -570,9 +1164,26 @@ A context can be specified by name or ID:
 - By name, for example, `context-name`
 - By ID, for example, `849e7902-802f-4082-8a70-da77dcd084e3`
 
+**Examples:**
+
+- Get a context by UUID: 
+  `circleci context get ctx-uuid-here`
+- Get a context by name (org inferred from git remote): 
+  `circleci context get my-context`
+- Get a context by name in a specific org: 
+  `circleci context get my-context --org gh/myorg`
+- Output as JSON: 
+  `circleci context get my-context --json`
+- Get just the org ID: 
+  `circleci context get ctx-uuid-here --json --jq '.org_id'`
+
 #### `circleci context list [flags]`
 
 List contexts for an organization
+
+List all contexts for a CircleCI organization.
+
+JSON fields: id, name, created_at
 
 | Flag            | Description                                                                       |
 | --------------- | --------------------------------------------------------------------------------- |
@@ -587,22 +1198,62 @@ List contexts for an organization
 
 `circleci context ls`
 
+**Examples:**
+
+- List contexts for the org inferred from git remote: 
+  `circleci context list`
+- List contexts containing the given name: 
+  `circleci context list --name substring`
+- List contexts for a specific organization: 
+  `circleci context list --org gh/myorg`
+- Output as JSON for scripting: 
+  `circleci context list --json`
+- Get just context names: 
+  `circleci context list --json --jq '.[].name'`
+
 #### `circleci context open [flags]`
 
 Open the contexts settings page in the browser
+
+Open the CircleCI contexts settings page for an organization in your
+default web browser.
+
+The organization is inferred from the current git repository's remote
+unless overridden with --org. Supports GitHub, Bitbucket, and GitLab
+remotes.
 
 | Flag           | Description                                               |
 | -------------- | --------------------------------------------------------- |
 | `--org string` | Organization slug (e.g. gh/myorg); defaults to git remote |
 
 
+**Examples:**
+
+- Open contexts for the org inferred from git remote: 
+  `circleci context open`
+- Open contexts for a specific organization: 
+  `circleci context open --org gh/myorg`
+- Open when your remote is on CircleCI server: 
+  `circleci context open --host https://circleci.example.com`
+
 #### `circleci context restriction <command>`
 
 Manage context restrictions
 
+Add and remove restrictions that control which projects and groups
+can use a CircleCI context.
+
+Restrictions scope context access to specific projects, pipeline
+expressions, or VCS groups. A context with no restrictions is
+accessible to all members of the organization.
+
 ##### `circleci context restriction create <context-id|context-name> [flags]`
 
 Add a restriction to a context
+
+Add a restriction to a CircleCI context.
+
+JSON fields: id, name, restriction_type, restriction_value
 
 | Flag             | Description                                                                       |
 | ---------------- | --------------------------------------------------------------------------------- |
@@ -619,9 +1270,25 @@ A context can be specified by name or ID:
 - By name, for example, `context-name`
 - By ID, for example, `849e7902-802f-4082-8a70-da77dcd084e3`
 
+**Examples:**
+
+- Restrict context to a specific project: 
+  `circleci context restriction create ctx-uuid --type project --value proj-uuid`
+- Restrict context to a specific group: 
+  `circleci context restriction create ctx-uuid --type group --value group-uuid`
+- Restrict context using a pipeline expression: 
+  `circleci context restriction create ctx-uuid --type expression --value 'pipeline.git.branch == "main"'`
+- Capture the restriction ID: 
+  `circleci context restriction create ctx-uuid --type project --value proj-uuid --json --jq '.id'`
+
 ##### `circleci context restriction delete <context-id|context-name> [flags]`
 
 Delete a restriction from a context
+
+Remove a restriction from a CircleCI context.
+
+This action is irreversible. Once removed, the context will be
+accessible to any project or group that was previously blocked.
 
 | Flag                      | Description                                                       |
 | ------------------------- | ----------------------------------------------------------------- |
@@ -641,13 +1308,30 @@ A context can be specified by name or ID:
 
 `circleci context restriction rm`
 
+**Examples:**
+
+- Delete a restriction (with confirmation): 
+  `circleci context restriction delete ctx-uuid --restriction-id r-uuid`
+- Delete without confirmation: 
+  `circleci context restriction delete ctx-uuid --restriction-id r-uuid --force`
+
 #### `circleci context secret <command>`
 
 Manage context environment variables
 
+List, set, and delete environment variables stored in a CircleCI context.
+
+Context environment variables are injected into jobs that reference the
+context. Variable values are never returned by the API after being set.
+
 ##### `circleci context secret delete <context-id|context-name> [flags]`
 
 Delete an environment variable from a context
+
+Remove an environment variable from a CircleCI context.
+
+This action is irreversible. Jobs that depend on this variable will
+fail until a new value is set.
 
 | Flag            | Description                                                       |
 | --------------- | ----------------------------------------------------------------- |
@@ -667,9 +1351,22 @@ A context can be specified by name or ID:
 
 `circleci context secret rm`
 
+**Examples:**
+
+- Delete a variable (with confirmation): 
+  `circleci context secret delete ctx-uuid-here --name MY_SECRET`
+- Delete without confirmation: 
+  `circleci context secret delete ctx-uuid-here --name MY_SECRET --force`
+
 ##### `circleci context secret list <context-id|context-name> [flags]`
 
 List environment variables in a context
+
+List the environment variable names stored in a CircleCI context.
+
+Variable values are never returned by the API once set.
+
+JSON fields: variable, truncated_value, context_id, created_at, updated_at
 
 | Flag           | Description                                                                       |
 | -------------- | --------------------------------------------------------------------------------- |
@@ -689,9 +1386,25 @@ A context can be specified by name or ID:
 
 `circleci context secret ls`
 
+**Examples:**
+
+- List env vars in a context by UUID: 
+  `circleci context secret list ctx-uuid-here`
+- List env vars by context name (org inferred from git remote): 
+  `circleci context secret list my-context`
+- List env vars by context name in a specific org: 
+  `circleci context secret list my-context --org gh/myorg`
+- Get variable names only: 
+  `circleci context secret list ctx-uuid-here --json --jq '.[].variable'`
+
 ##### `circleci context secret set <context-id|context-name> [flags]`
 
 Set an environment variable in a context
+
+Add or update an environment variable in a CircleCI context.
+
+An existing variable is overwritten. The value is never retrievable once
+set, and in a terminal --value may be omitted to be prompted with masking.
 
 | Flag             | Description                                                           |
 | ---------------- | --------------------------------------------------------------------- |
@@ -706,13 +1419,39 @@ A context can be specified by name or ID:
 - By name, for example, `context-name`
 - By ID, for example, `849e7902-802f-4082-8a70-da77dcd084e3`
 
+**Examples:**
+
+- Set an environment variable by context UUID (value prompted): 
+  `circleci context secret set ctx-uuid-here --name MY_SECRET`
+- Set an environment variable by context name: 
+  `circleci context secret set my-context --org gh/myorg --name MY_SECRET --value s3cr3t`
+- Read a value from a file: 
+  `circleci context secret set ctx-uuid-here --name MY_SECRET --value "$(cat secret.txt)"`
+- Read a value from stdin: 
+  `circleci context secret set ctx-uuid-here --name MY_SECRET --value "$(cat)"`
+
 ### `circleci deploy <command>`
 
 Track released components and versions
 
+Work with CircleCI Deploys.
+
+View deployed components and their versions across environments.
+
 #### `circleci deploy init [flags]`
 
 Instrument your config for deploy tracking
+
+Set up deploy markers in .circleci/config.yml.
+
+Scans the config for deploy-like jobs (names containing deploy,
+release, publish, or ship), prompts for your service name and
+target environment, then adds a log step to each deploy job.
+
+The command is idempotent: running it twice on the same config
+makes no duplicate changes.
+
+Works offline — no API calls required.
 
 | Flag                       | Description                                                                |
 | -------------------------- | -------------------------------------------------------------------------- |
@@ -721,9 +1460,28 @@ Instrument your config for deploy tracking
 | `--pipeline-config string` | Path to CircleCI pipeline config file (default ".circleci/config.yml")     |
 
 
+**Examples:**
+
+- Interactive setup in the current repo: 
+  `circleci deploy init`
+- Skip the service-name prompt: 
+  `circleci deploy init --component api`
+- Fully non-interactive (supply both answers as flags): 
+  `circleci deploy init --component api --environment production`
+- Use a non-default config location: 
+  `circleci deploy init --pipeline-config path/to/config.yml`
+
 #### `circleci deploy list [flags]`
 
 List recent deploys
+
+List deploys for a CircleCI project.
+
+The project is inferred from the current git repository's remote
+unless overridden with --project. Each deploy shows the component,
+version, status, type, and when it was created.
+
+JSON fields: id, component_name, version, type, status, is_rollback, pipeline_id, workflow_id, created_at, ended_at
 
 | Flag               | Description                                                                       |
 | ------------------ | --------------------------------------------------------------------------------- |
@@ -737,22 +1495,71 @@ List recent deploys
 
 `circleci deploy ls`
 
+**Examples:**
+
+- List the 10 most recent deploys (auto-detect project from git remote): 
+  `circleci deploy list`
+- List for a specific project: 
+  `circleci deploy list --project gh/myorg/myrepo`
+- Output as JSON for scripting: 
+  `circleci deploy list --json`
+
 #### `circleci deploy open [flags]`
 
 Open the deploys page in the browser
+
+Open the CircleCI deploys page for the current project in your
+default web browser.
+
+The project is inferred from the current git repository's remote
+unless overridden with --project. Supports GitHub, Bitbucket, and
+GitLab remotes.
 
 | Flag               | Description                                             |
 | ------------------ | ------------------------------------------------------- |
 | `--project string` | Project slug (e.g. gh/org/repo); defaults to git remote |
 
 
+**Examples:**
+
+- Open the deploys page for the current project: 
+  `circleci deploy open`
+- Open the deploys page for a specific project: 
+  `circleci deploy open --project gh/myorg/myrepo`
+
 ### `circleci dlc <command>`
 
 Purge a project's Docker layer cache (DLC)
 
+Manage docker layer caching (DLC) for projects.
+
+Docker layer caching allows CircleCI to cache individual Docker image
+layers between pipeline runs. Use 'circleci dlc purge' to invalidate
+the cache for a project and force a fresh image build on the next run.
+
+These commands are also available under 'circleci project dlc'.
+
+**Examples:**
+
+- Purge DLC for the current git repository's project: 
+  `circleci dlc purge`
+- Purge DLC for a specific project: 
+  `circleci dlc purge --project gh/myorg/myrepo`
+- Purge DLC and output result as JSON: 
+  `circleci dlc purge --project gh/myorg/myrepo --json`
+
 #### `circleci dlc purge [flags]`
 
 Purge the Docker Layer Cache for a project
+
+Purge the docker layer cache (DLC) for a project.
+
+Docker layer caching stores individual Docker image layers between
+pipeline runs to speed up builds. Purging the cache forces CircleCI
+to rebuild all layers from scratch on the next run, which is useful
+when a cached layer contains stale or corrupt data.
+
+JSON fields (--json): project_id, project_slug
 
 | Flag               | Description                                             |
 | ------------------ | ------------------------------------------------------- |
@@ -761,13 +1568,47 @@ Purge the Docker Layer Cache for a project
 | `--project string` | Project slug (e.g. gh/org/repo); defaults to git remote |
 
 
+**Examples:**
+
+- Purge DLC for the current git repository's project: 
+  `circleci dlc purge`
+- Purge DLC for a specific project: 
+  `circleci dlc purge --project gh/myorg/myrepo`
+- Skip the confirmation prompt (for scripting): 
+  `circleci dlc purge --project gh/myorg/myrepo --force`
+- Purge DLC and output result as JSON: 
+  `circleci dlc purge --project gh/myorg/myrepo --force --json`
+- Purge DLC for a Bitbucket project: 
+  `circleci dlc purge --project bb/myorg/myrepo`
+
 ### `circleci envvar <command>`
 
 List, set and delete a project's environment variables
 
+List, set, and delete environment variables for a CircleCI project.
+
+Environment variable values are masked in list output (shown as "xxxx").
+The full value is never retrievable after it has been set.
+
+Also available as: circleci project envvar `<command>`
+
+**Examples:**
+
+- List all environment variables for the current project: 
+  `circleci envvar list`
+- Set an environment variable: 
+  `circleci envvar set MY_SECRET s3cr3t --project gh/myorg/myrepo`
+- Delete an environment variable: 
+  `circleci envvar delete MY_SECRET`
+
 #### `circleci envvar delete <name> [flags]`
 
 Delete a project environment variable
+
+Delete an environment variable from a CircleCI project.
+
+This action is irreversible. The variable will be removed and any
+jobs that reference it will fail until a new value is set.
 
 | Flag               | Description                                             |
 | ------------------ | ------------------------------------------------------- |
@@ -785,9 +1626,25 @@ the project. This action is irreversible.
 
 `circleci envvar rm`
 
+**Examples:**
+
+- Delete an env var from the current project (with confirmation): 
+  `circleci envvar delete MY_SECRET`
+- Delete without confirmation: 
+  `circleci envvar delete MY_SECRET --force`
+- Delete an env var from a specific project: 
+  `circleci envvar delete MY_SECRET --project gh/myorg/myrepo --force`
+
 #### `circleci envvar list [flags]`
 
 List project environment variables
+
+List the environment variables defined for a CircleCI project.
+
+Values are always masked in the response (shown as "xxxx") — CircleCI
+does not expose secret values after they are set.
+
+JSON fields: name, value
 
 | Flag               | Description                                                                       |
 | ------------------ | --------------------------------------------------------------------------------- |
@@ -801,9 +1658,24 @@ List project environment variables
 
 `circleci envvar ls`
 
+**Examples:**
+
+- List env vars for the current project: 
+  `circleci envvar list`
+- List env vars for a specific project: 
+  `circleci envvar list --project gh/myorg/myrepo`
+- Output as JSON: 
+  `circleci envvar list --json`
+
 #### `circleci envvar set <name> <value> [flags]`
 
 Set a project environment variable
+
+Create or update an environment variable for a CircleCI project.
+
+If the variable already exists it will be overwritten. The value
+is never retrievable after being set — CircleCI masks it in all
+subsequent list responses.
 
 | Flag               | Description                                             |
 | ------------------ | ------------------------------------------------------- |
@@ -816,13 +1688,36 @@ Set a project environment variable
 update. `<value>` is the value to store; it is never retrievable
 after being set and is masked in all subsequent list output.
 
+**Examples:**
+
+- Set an env var for the current project: 
+  `circleci envvar set MY_SECRET s3cr3t`
+- Set an env var for a specific project: 
+  `circleci envvar set MY_SECRET s3cr3t --project gh/myorg/myrepo`
+- Read a value from a file: 
+  `circleci envvar set MY_SECRET "$(cat secret.txt)"`
+
 ### `circleci namespace <command>`
 
 Manage the org namespace orbs publish under
 
+Work with CircleCI orb namespaces.
+
+Namespaces are unique identifiers used to publish orbs.
+Each organization may claim one namespace. Orbs are published
+and referenced as `<namespace>/<orb>`. All published orbs are world-readable.
+
 #### `circleci namespace create <name> --org <org> [flags]`
 
 Create a namespace
+
+Create a CircleCI orb namespace for an organization.
+
+Each organization may claim one namespace. Namespace names must
+be globally unique across CircleCI. All orbs published in a
+namespace are world-readable.
+
+JSON fields: id, name
 
 | Flag           | Description                                                                       |
 | -------------- | --------------------------------------------------------------------------------- |
@@ -836,9 +1731,23 @@ Create a namespace
 `<name>` is the namespace name to create. It must be globally unique
 across CircleCI, for example, `myorg`.
 
+**Examples:**
+
+- Create a namespace for an organization: 
+  `circleci namespace create myorg --org gh/acme`
+- Create a namespace and output JSON: 
+  `circleci namespace create myorg --org gh/acme --json`
+- Capture just the namespace ID: 
+  `circleci namespace create myorg --org gh/acme --json --jq '.id'`
+
 #### `circleci namespace delete <name> [flags]`
 
 Delete a namespace and all its orbs
+
+Delete a CircleCI orb namespace and all orbs published under it.
+
+This operation is irreversible. Any pipelines referencing orbs in
+this namespace will fail after deletion.
 
 | Flag            | Description                                  |
 | --------------- | -------------------------------------------- |
@@ -855,9 +1764,24 @@ Delete a namespace and all its orbs
 
 `circleci namespace rm`
 
+**Examples:**
+
+- Delete a namespace (with confirmation prompt): 
+  `circleci namespace delete myorg`
+- Preview what would be deleted without deleting: 
+  `circleci namespace delete myorg --dry-run`
+- Delete without a confirmation prompt: 
+  `circleci namespace delete myorg --force`
+- Delete in a CI environment (non-interactive; --force required): 
+  `circleci namespace delete myorg -f`
+
 #### `circleci namespace get <name> [flags]`
 
 Get details of a namespace
+
+Display details of a CircleCI orb namespace.
+
+JSON fields: id, name
 
 | Flag          | Description                                                                       |
 | ------------- | --------------------------------------------------------------------------------- |
@@ -869,9 +1793,26 @@ Get details of a namespace
 
 `<name>` is the name of the namespace to look up, for example, `myorg`.
 
+**Examples:**
+
+- Get a namespace by name: 
+  `circleci namespace get myorg`
+- Output as JSON: 
+  `circleci namespace get myorg --json`
+- Extract just the namespace ID: 
+  `circleci namespace get myorg --json --jq '.id'`
+
 #### `circleci namespace rename <name> <new-name> [flags]`
 
 Rename a namespace
+
+Rename a CircleCI orb namespace.
+
+Any orbs already published under the old name will continue to be
+accessible — renaming creates an alias. Ensure that any configs
+and orbs still referencing the old name are updated.
+
+JSON fields: id, name
 
 | Flag          | Description                                                                       |
 | ------------- | --------------------------------------------------------------------------------- |
@@ -884,22 +1825,58 @@ Rename a namespace
 - `<name>` is the current name of the namespace, for example, `oldname`.
 - `<new-name>` is the new name to assign, for example, `newname`.
 
+**Examples:**
+
+- Rename a namespace: 
+  `circleci namespace rename oldname newname`
+- Rename and output the result as JSON: 
+  `circleci namespace rename oldname newname --json`
+- Confirm the new ID after rename: 
+  `circleci namespace rename oldname newname --json --jq '.id'`
+
 ### `circleci orb <command>`
 
 Create, publish and inspect orbs (reusable config)
 
+Manage orbs in the orb registry.
+
+Orbs are reusable packages of CircleCI configuration, published to a
+namespace and either shared publicly or kept private. Manage the namespace
+itself with 'circleci namespace'.
+
 #### `circleci orb add-to-category <namespace>/<orb> <category>`
 
 Add an orb to a registry category
+
+Add an orb to an orb registry category.
+
+Categories help users discover orbs. Use 'circleci orb list-categories'
+to see available categories.
 
 **Arguments:**
 
 - `<namespace>/<orb>` is the orb to add, for example, `namespace/orb-name`.
 - `<category>` is the registry category name, for example, `Testing`.
 
+**Examples:**
+
+- Add an orb to the Testing category: 
+  `circleci orb add-to-category myorg/my-orb "Testing"`
+- Add an orb to the Deployment category: 
+  `circleci orb add-to-category myorg/my-orb "Deployment"`
+- List available categories first: 
+  `circleci orb list-categories`
+
 #### `circleci orb create <namespace>/<orb> [flags]`
 
 Reserve an orb name in a namespace
+
+Reserve an orb name in the given namespace.
+
+This registers the name without publishing any versions; publish them with
+'circleci orb publish'. The namespace must already exist.
+
+JSON fields: id, name, namespace, is_private
 
 | Flag          | Description                                                                       |
 | ------------- | --------------------------------------------------------------------------------- |
@@ -913,9 +1890,25 @@ Reserve an orb name in a namespace
 - `<namespace>/<orb>` is the orb name to reserve, for example, `namespace/orb-name`.
   The namespace must already exist.
 
+**Examples:**
+
+- Create a public orb: 
+  `circleci orb create myorg/my-orb`
+- Create a private orb: 
+  `circleci orb create myorg/my-orb --private`
+- Create and output as JSON: 
+  `circleci orb create myorg/my-orb --json`
+
 #### `circleci orb diff <namespace>/<orb> --from <v1> --to <v2> [flags]`
 
 Show a unified diff between two orb versions
+
+Show a unified diff between two versions of an orb.
+
+The --from and --to versions can be semver (e.g. 1.0.0) or dev labels
+(e.g. dev:my-branch).
+
+Exit code is 0 regardless of whether the versions differ.
 
 | Flag            | Description                                                              |
 | --------------- | ------------------------------------------------------------------------ |
@@ -927,9 +1920,26 @@ Show a unified diff between two orb versions
 
 - `<namespace>/<orb>` is the orb to diff, for example, `namespace/orb-name`.
 
+**Examples:**
+
+- Diff two semver versions: 
+  `circleci orb diff myorg/my-orb --from 1.0.0 --to 1.1.0`
+- Diff a semver and a dev version: 
+  `circleci orb diff myorg/my-orb --from 1.0.0 --to dev:my-branch`
+- Diff two dev versions: 
+  `circleci orb diff myorg/my-orb --from dev:branch-a --to dev:branch-b`
+
 #### `circleci orb get <namespace>/<orb>[@<version>]/<orb-id> [flags]`
 
 Get orb metadata and statistics
+
+Get metadata and statistics for an orb.
+
+Displays the orb name, namespace, privacy status, latest version,
+usage statistics for the past 30 days, associated categories, and
+all published versions.
+
+JSON fields: id, name, namespace, is_private, is_listed, created_at, latest_version, categories, versions, stats
 
 | Flag          | Description                                                                       |
 | ------------- | --------------------------------------------------------------------------------- |
@@ -943,9 +1953,26 @@ An orb can be specified by name or ID:
 - By name, for example, `namespace/orb-name`, optionally with a version, for example, `namespace/orb-name@1.2.3`
 - By ID, the orb ID (UUID), for example, `849e7902-802f-4082-8a70-da77dcd084e3`
 
+**Examples:**
+
+- Get info for an orb: 
+  `circleci orb get myorg/my-orb`
+- Get info for a specific version: 
+  `circleci orb get myorg/my-orb@1.2.3`
+- Output as JSON: 
+  `circleci orb get myorg/my-orb --json`
+
 #### `circleci orb init <path> [flags]`
 
 Initialize a new orb project
+
+Scaffold a new orb project from CircleCI-Public/Orb-Template into <path>.
+
+It then walks you through setup: reserving the namespace and orb, assigning
+categories, creating an 'orb-publishing' context, initializing git, and
+publishing a dev:alpha version.
+
+Note: once published, orbs cannot be deleted.
 
 | Flag              | Description                                                                               |
 | ----------------- | ----------------------------------------------------------------------------------------- |
@@ -962,9 +1989,28 @@ Initialize a new orb project
 - `<path>` is the directory to scaffold the orb project into. It is
   created if it does not exist.
 
+**Examples:**
+
+- Interactive setup: 
+  `circleci orb init ./my-orb`
+- Just download the template, no setup: 
+  `circleci orb init ./my-orb --template-only`
+- Non-interactive: create a private orb under an org, skip git: 
+  `circleci orb init ./my-orb --private --org gh/acme --skip-git`
+
 #### `circleci orb list [<namespace>] [flags]`
 
 List orbs in the registry
+
+List orbs in the CircleCI orb registry.
+
+Without a namespace argument, lists certified orbs globally.
+Pass a namespace to list all orbs in that namespace.
+
+Use --uncertified to include orbs that are not certified by CircleCI.
+Use --private to list only private orbs (requires namespace).
+
+JSON fields: id, name, is_private, is_listed, latest_version
 
 | Flag            | Description                                                                       |
 | --------------- | --------------------------------------------------------------------------------- |
@@ -984,9 +2030,29 @@ List orbs in the registry
 
 `circleci orb ls`
 
+**Examples:**
+
+- List certified orbs globally: 
+  `circleci orb list`
+- List all orbs in a namespace: 
+  `circleci orb list myorg`
+- Include uncertified orbs: 
+  `circleci orb list --uncertified`
+- List orbs as JSON: 
+  `circleci orb list --json`
+- List private orbs in a namespace: 
+  `circleci orb list myorg --private`
+
 #### `circleci orb list-categories [flags]`
 
 List orb registry categories
+
+List all categories available in the CircleCI orb registry.
+
+Categories are used to organize and discover orbs. Use
+'circleci orb add-to-category' to categorize your orbs.
+
+JSON fields: id, name
 
 | Flag          | Description                                                                       |
 | ------------- | --------------------------------------------------------------------------------- |
@@ -994,17 +2060,56 @@ List orb registry categories
 | `--json`      | Output as JSON                                                                    |
 
 
+**Examples:**
+
+- List all orb categories: 
+  `circleci orb list-categories`
+- Output as JSON: 
+  `circleci orb list-categories --json`
+- Capture category names only: 
+  `circleci orb list-categories --json --jq '.[].name'`
+
 #### `circleci orb pack <path>`
 
 Pack a multi-file orb directory into a single YAML
+
+Pack an orb source directory into a single YAML file.
+
+If the path is a directory, the '@orb.yml' (or 'orb.yml') file at the
+root is merged with any 'commands/', 'jobs/', 'executors/', and 'examples/'
+subdirectories. Each .yml file in those directories is added as a named
+entry under the corresponding top-level key.
+
+If the path is a single file it is parsed and written to stdout.
+
+The merged YAML is written to stdout.
 
 **Arguments:**
 
 - `<path>` is the path to an orb source directory or a single orb YAML file.
 
+**Examples:**
+
+- Pack a single orb file: 
+  `circleci orb pack orb.yml`
+- Pack a multi-file orb directory: 
+  `circleci orb pack ./src`
+- Pack and save to a file: 
+  `circleci orb pack ./src > orb.yml`
+- Pack and immediately validate: 
+  `circleci orb pack ./src | circleci orb validate -`
+
 #### `circleci orb process <path> [flags]`
 
 Validate and print expanded orb YAML
+
+Validate an orb YAML file and print the expanded (processed) YAML.
+
+The processed output resolves all orb references and expands inline
+configurations. Useful to verify what CircleCI will see when the orb
+is published.
+
+Pass '-' as the path to read from stdin.
 
 | Flag           | Description                                                            |
 | -------------- | ---------------------------------------------------------------------- |
@@ -1015,13 +2120,53 @@ Validate and print expanded orb YAML
 
 - `<path>` is the path to an orb YAML file. Pass `-` to read from stdin.
 
+**Examples:**
+
+- Process an orb file and print expanded YAML: 
+  `circleci orb process orb.yml`
+- Process from stdin: 
+  `cat orb.yml | circleci orb process -`
+- Process with a specific org for private deps: 
+  `circleci orb process orb.yml --org gh/acme`
+
 #### `circleci orb publish <command>`
 
 Publish orb versions
 
+Publish orb versions to the CircleCI orb registry.
+
+To publish a specific version:
+  circleci orb publish `<path> <namespace>/<orb>@<version>`
+
+To promote a dev version to a stable semver:
+  circleci orb publish promote `<namespace>/<orb>@dev:<label>` --bump major|minor|patch
+
+To increment the latest stable version and publish:
+  circleci orb publish increment `<path> <namespace>/<orb>` --bump major|minor|patch
+
+**Examples:**
+
+- Publish a specific version: 
+  `circleci orb publish orb.yml myorg/my-orb@1.0.0`
+- Publish a dev version: 
+  `circleci orb publish orb.yml myorg/my-orb@dev:my-branch`
+- Promote a dev version to a patch release: 
+  `circleci orb publish promote myorg/my-orb@dev:my-branch --bump patch`
+- Increment major version and publish: 
+  `circleci orb publish increment orb.yml myorg/my-orb --bump major`
+
 ##### `circleci orb publish increment <path> <namespace>/<orb> --bump major|minor|patch [flags]`
 
 Increment and publish a new orb version
+
+Read orb YAML from path, compute the next version by incrementing
+the current latest stable version, and publish it.
+
+The --bump flag selects which segment to increment. If no stable
+version exists yet, publishes as 0.0.1 (patch), 0.1.0 (minor),
+or 1.0.0 (major) depending on --bump.
+
+Pass '-' as the path to read from stdin.
 
 | Flag            | Description                                                |
 | --------------- | ---------------------------------------------------------- |
@@ -1033,9 +2178,24 @@ Increment and publish a new orb version
 - `<path>` is the path to the orb YAML to publish. Pass `-` to read from stdin.
 - `<namespace>/<orb>` is the orb to publish, for example, `namespace/orb-name`.
 
+**Examples:**
+
+- Increment patch version and publish: 
+  `circleci orb publish increment orb.yml myorg/my-orb --bump patch`
+- Increment minor version: 
+  `circleci orb publish increment orb.yml myorg/my-orb --bump minor`
+- Read orb from stdin, increment major: 
+  `cat orb.yml | circleci orb publish increment - myorg/my-orb --bump major`
+
 ##### `circleci orb publish promote <namespace>/<orb>@dev:<label> --bump major|minor|patch [flags]`
 
 Promote a dev orb version to a stable semver
+
+Promote a dev orb version to a stable semver version.
+
+The dev version ref must be in the form `<namespace>/<orb>@dev:<label>`.
+The --bump flag determines how the version is incremented
+from the latest stable release.
 
 | Flag            | Description                                                |
 | --------------- | ---------------------------------------------------------- |
@@ -1046,18 +2206,47 @@ Promote a dev orb version to a stable semver
 
 - `<namespace>/<orb>@dev:<label>` is the dev version to promote, for example, `namespace/orb-name@dev:my-branch`
 
+**Examples:**
+
+- Promote dev:my-branch to a patch release: 
+  `circleci orb publish promote myorg/my-orb@dev:my-branch --bump patch`
+- Promote to a minor release: 
+  `circleci orb publish promote myorg/my-orb@dev:my-branch --bump minor`
+- Promote to a major release: 
+  `circleci orb publish promote myorg/my-orb@dev:my-branch --bump major`
+
 #### `circleci orb remove-from-category <namespace>/<orb> <category>`
 
 Remove an orb from a registry category
+
+Remove an orb from an orb registry category.
+
+Use 'circleci orb get `<namespace>/<orb>`' to see the current categories
+for an orb, and 'circleci orb list-categories' for all available
+categories.
 
 **Arguments:**
 
 - `<namespace>/<orb>` is the orb to remove, for example, `namespace/orb-name`
 - `<category>` is the registry category name, for example, `Testing`
 
+**Examples:**
+
+- Remove an orb from the Testing category: 
+  `circleci orb remove-from-category myorg/my-orb "Testing"`
+- Remove an orb from the Deployment category: 
+  `circleci orb remove-from-category myorg/my-orb "Deployment"`
+- See current categories: 
+  `circleci orb get myorg/my-orb`
+
 #### `circleci orb source <namespace>/<orb>[@<version>]`
 
 Print the YAML source of an orb version
+
+Print the raw YAML source of an orb version.
+
+If no version is specified, the latest published version is shown.
+Specify a version with `@<version>` (e.g. @1.2.3 or @volatile for latest).
 
 **Arguments:**
 
@@ -1065,9 +2254,27 @@ Print the YAML source of an orb version
   Optionally append `@<version>` (for example, `@1.2.3`, `@volatile`, or `@dev:my-branch`).
   When omitted, the latest published version is shown.
 
+**Examples:**
+
+- Print source of the latest version: 
+  `circleci orb source myorg/my-orb`
+- Print source of a specific version: 
+  `circleci orb source myorg/my-orb@1.2.3`
+- Print source of a dev version: 
+  `circleci orb source myorg/my-orb@dev:my-branch`
+- Save the source to a file: 
+  `circleci orb source myorg/my-orb@1.0.0 > orb.yml`
+
 #### `circleci orb unlist <namespace>/<orb> [flags]`
 
 Hide or restore an orb in the registry
+
+Control whether an orb is visible in the CircleCI orb registry.
+
+By default, hides the orb (unlists it from search results).
+Pass --restore to make the orb visible again.
+
+Unlisted orbs can still be used if you know the exact orb reference.
 
 | Flag        | Description                                       |
 | ----------- | ------------------------------------------------- |
@@ -1078,9 +2285,25 @@ Hide or restore an orb in the registry
 
 - `<namespace>/<orb>` is the orb to update, for example, `namespace/orb-name`
 
+**Examples:**
+
+- Hide an orb from the registry: 
+  `circleci orb unlist myorg/my-orb`
+- Restore an orb's visibility: 
+  `circleci orb unlist myorg/my-orb --restore`
+
 #### `circleci orb validate <path> [flags]`
 
 Validate an orb YAML file
+
+Validate an orb YAML file against the CircleCI API.
+
+Pass `-` as the path to read from stdin.
+
+Use --org (a slug or UUID) to validate against a specific
+organization's private orb dependencies.
+
+Exit code 7 if the orb is invalid.
 
 | Flag           | Description                                                            |
 | -------------- | ---------------------------------------------------------------------- |
@@ -1091,13 +2314,32 @@ Validate an orb YAML file
 
 - `<path>` is the path to an orb YAML file. Pass `-` to read from stdin.
 
+**Examples:**
+
+- Validate an orb file: 
+  `circleci orb validate orb.yml`
+- Validate from stdin: 
+  `cat orb.yml | circleci orb validate -`
+- Validate with a specific org for private deps: 
+  `circleci orb validate orb.yml --org gh/acme`
+
 ### `circleci org <command>`
 
 Manage CircleCI organizations
 
+List and manage CircleCI organizations.
+
+Use 'circleci org list' to see all organizations you belong to.
+Use 'circleci org setting list' to view advanced settings for an org,
+or a specific settings subcommand to view or change an individual setting.
+
 #### `circleci org list [flags]`
 
 List organizations you belong to
+
+List all CircleCI organizations the authenticated user is a member of.
+
+JSON fields: id, slug, name, vcs_type
 
 | Flag          | Description                                                                       |
 | ------------- | --------------------------------------------------------------------------------- |
@@ -1110,13 +2352,31 @@ List organizations you belong to
 
 `circleci org ls`
 
+**Examples:**
+
+- List all your organizations: 
+  `circleci org list`
+- Output as JSON for scripting: 
+  `circleci org list --json`
+- Extract just the slugs: 
+  `circleci org list --json --jq '.[].slug'`
+
 #### `circleci org setting <command>`
 
 View and update org advanced settings
 
+View and update advanced settings for a CircleCI organization.
+
+Use 'get' to read a setting's current value and 'set' to change it.
+Use 'list' to see all settings at once.
+
 ##### `circleci org setting get <setting> [flags]`
 
 Get the current value of an org setting
+
+Get the current value of an advanced org setting.
+
+JSON fields: name, value
 
 | Flag           | Description                                                                       |
 | -------------- | --------------------------------------------------------------------------------- |
@@ -1131,9 +2391,22 @@ Get the current value of an org setting
 
 Run `circleci org setting list` for each setting's description and current value.
 
+**Examples:**
+
+- Get a setting for the current org: 
+  `circleci org setting get private-orbs`
+- Get a setting for a specific org: 
+  `circleci org setting get private-orbs --org gh/myorg`
+- Output as JSON: 
+  `circleci org setting get private-orbs --json`
+
 ##### `circleci org setting list [flags]`
 
 List all advanced settings for an org
+
+List all advanced settings for a CircleCI organization.
+
+JSON fields: enable_ai_error_summarization, enable_ai_agents, enable_unversioned_config, enable_certified_public_orbs, enable_chunk_ip_ranges, enable_minor_ai_features, enable_private_orbs, enable_uncertified_public_orbs, is_bitbucket_workspace_member_org_member, is_user_checkout_keys_disabled, is_running_disabled, enable_image_brownouts, is_context_group_restriction_required, enable_resource_class_brownouts, is_runner_terms_of_service_accepted
 
 | Flag           | Description                                                                       |
 | -------------- | --------------------------------------------------------------------------------- |
@@ -1147,9 +2420,22 @@ List all advanced settings for an org
 
 `circleci org setting ls`
 
+**Examples:**
+
+- List settings for the current org: 
+  `circleci org setting list`
+- List settings for a specific org: 
+  `circleci org setting list --org gh/myorg`
+- Output as JSON: 
+  `circleci org setting list --json`
+
 ##### `circleci org setting set <setting> <true|false> [flags]`
 
 Set an org setting
+
+Set an advanced org setting to true or false.
+
+JSON fields: name, value
 
 | Flag           | Description                                                                       |
 | -------------- | --------------------------------------------------------------------------------- |
@@ -1165,13 +2451,37 @@ Set an org setting
 `<true|false>` is the new value. Run `circleci org setting list` for each
 setting's description and current value.
 
+**Examples:**
+
+- Enable a setting for the current org: 
+  `circleci org setting set private-orbs true`
+- Disable a setting for a specific org: 
+  `circleci org setting set private-orbs false --org gh/myorg`
+- Output the updated value as JSON: 
+  `circleci org setting set ai-error-summarization true --json`
+
 ### `circleci policy <command>`
 
 Govern config with Rego security policies
 
+Manage security policies.
+
+Policies are written in Rego and evaluated against pipeline configs to
+enforce organizational security rules.
+
+Most commands require --org, your organization's slug (e.g. gh/acme) or UUID,
+found at <https://app.circleci.com/settings/organization>.
+
 #### `circleci policy decide [flags]`
 
 Evaluate a config against remote policies
+
+Evaluate a CircleCI pipeline config against the remote policy bundle
+and return a policy decision.
+
+The decision status is one of PASS, SOFT_FAIL, HARD_FAIL or ERROR.
+
+JSON fields: status, enabled_rules, hard_failures, soft_failures, violations, metadata
 
 | Flag                      | Description                                                                       |
 | ------------------------- | --------------------------------------------------------------------------------- |
@@ -1185,9 +2495,25 @@ Evaluate a config against remote policies
 | `--strict`                | Exit non-zero for HARD_FAIL or ERROR decisions                                    |
 
 
+**Examples:**
+
+- Evaluate a config against remote policies: 
+  `circleci policy decide --org gh/acme --input .circleci/config.yml`
+- Exit non-zero on hard failures: 
+  `circleci policy decide --org gh/acme --input .circleci/config.yml --strict`
+- Pass metadata alongside the decision: 
+  `circleci policy decide --org gh/acme --input .circleci/config.yml --meta '{"project_id":"abc"}'`
+- Output decision as JSON: 
+  `circleci policy decide --org gh/acme --input .circleci/config.yml --json`
+
 #### `circleci policy diff <path> [flags]`
 
 Show diff between local and remote policy bundles
+
+Compare a local directory of .rego files against the remote policy
+bundle without making any changes.
+
+JSON fields: created, deleted, updated (policy names)
 
 | Flag                      | Description                                                                       |
 | ------------------------- | --------------------------------------------------------------------------------- |
@@ -1203,9 +2529,28 @@ Show diff between local and remote policy bundles
 for example, "./policies". Its contents are compared against the remote
 policy bundle.
 
+**Examples:**
+
+- Diff policies in ./policies against the remote bundle: 
+  `circleci policy diff ./policies --org gh/acme`
+- Diff against a custom policy context: 
+  `circleci policy diff ./policies --org gh/acme --policy-context config`
+- Output diff as JSON for scripting: 
+  `circleci policy diff ./policies --org gh/acme --json`
+
 #### `circleci policy eval <policy-path> [flags]`
 
 Evaluate a raw OPA query against policies locally
+
+Run a raw OPA query against a policy bundle entirely locally and print the
+result as JSON. Unlike 'policy decide', which returns a CircleCI policy
+decision from the remote service, this evaluates on your machine — the
+escape hatch for inspecting arbitrary Rego values while authoring policies.
+
+The config is compiled before evaluation, with the source config exposed to
+policies and its compiled form nested under "_compiled_".
+
+Output is whatever the query evaluates to, so it has no fixed schema.
 
 | Flag                           | Description                                                                                  |
 | ------------------------------ | -------------------------------------------------------------------------------------------- |
@@ -1226,9 +2571,27 @@ Evaluate a raw OPA query against policies locally
 `<policy-path>` is the path to a .rego policy file or a directory
 of policy files to evaluate.
 
+**Examples:**
+
+- Evaluate a policy directory against a compiled config: 
+  `circleci policy eval ./policies --input .circleci/config.yml`
+- Evaluate a specific query: 
+  `circleci policy eval ./policies --input .circleci/config.yml --query 'data.org.enable_rule'`
+- Evaluate the raw (uncompiled) config: 
+  `circleci policy eval ./policies --input .circleci/config.yml --no-compile`
+- Pass decision metadata: 
+  `circleci policy eval ./policies --input .circleci/config.yml --meta '{"project_id":"abc"}'`
+
 #### `circleci policy fetch [policy-name] [flags]`
 
 Download the remote policy bundle
+
+Download the remote policy bundle for the given owner and context.
+Pass a policy name to fetch a single policy.
+
+Output is always JSON (the bundle is structured data).
+
+JSON fields: policies (map of name → Rego source)
 
 | Flag                      | Description                                                                       |
 | ------------------------- | --------------------------------------------------------------------------------- |
@@ -1243,9 +2606,29 @@ Download the remote policy bundle
 `<policy-name>` is optional and fetches a single policy.
 When omitted, the full policy bundle is fetched.
 
+**Examples:**
+
+- Fetch the full policy bundle: 
+  `circleci policy fetch --org gh/acme`
+- Fetch a single policy by name: 
+  `circleci policy fetch my-policy --org gh/acme`
+- Output as JSON with jq filtering: 
+  `circleci policy fetch --org gh/acme --json --jq 'keys'`
+
 #### `circleci policy logs [decision-id] [flags]`
 
 Get policy decision logs
+
+Retrieve policy decision logs for an owner.
+
+Without a decision ID, returns all logs (paginated automatically).
+Pass a decision ID to retrieve a single log entry. Use --policy-bundle
+to retrieve only the policy bundle snapshot for a given decision.
+
+Logs can be filtered by status, branch, project, and time range.
+Use --out to write results to a file.
+
+JSON fields: id, status, created_at, org_id, project_id, branch, build_number, policies, decision, metadata
 
 | Flag                      | Description                                                                       |
 | ------------------------- | --------------------------------------------------------------------------------- |
@@ -1267,9 +2650,27 @@ Get policy decision logs
 `<decision-id>` is optional and retrieves a single log entry.
 When omitted, all logs are returned (paginated automatically).
 
+**Examples:**
+
+- Get all decision logs: 
+  `circleci policy logs --org gh/acme`
+- Get a specific decision log: 
+  `circleci policy logs abc123 --org gh/acme`
+- Filter by status and branch: 
+  `circleci policy logs --org gh/acme --status HARD_FAIL --branch main`
+- Write output to a file: 
+  `circleci policy logs --org gh/acme --out logs.json`
+
 #### `circleci policy push <path> [flags]`
 
 Push a policy bundle to CircleCI
+
+Upload a directory of .rego files as a policy bundle, replacing the existing
+bundle for the given owner and policy context.
+
+A diff is shown and confirmed before anything is applied.
+
+JSON fields: created, deleted, updated (policy names)
 
 | Flag                      | Description                                                                       |
 | ------------------------- | --------------------------------------------------------------------------------- |
@@ -1286,13 +2687,33 @@ Push a policy bundle to CircleCI
 for example, "./policies". Its contents are uploaded as the policy
 bundle, replacing the existing bundle.
 
+**Examples:**
+
+- Push policies in the ./policies directory: 
+  `circleci policy push ./policies --org gh/acme`
+- Push without confirmation prompt: 
+  `circleci policy push ./policies --org gh/acme --no-prompt`
+- Push to a custom policy context: 
+  `circleci policy push ./policies --org gh/acme --policy-context config`
+- Output the diff as JSON: 
+  `circleci policy push ./policies --org gh/acme --no-prompt --json`
+
 #### `circleci policy settings <command>`
 
 Manage policy enforcement settings
 
+Get or update policy enforcement settings for an organization.
+
+Policy enforcement controls whether pipeline configs are evaluated
+against the policy bundle before running.
+
 ##### `circleci policy settings get [flags]`
 
 Get policy enforcement settings
+
+Retrieve the current policy enforcement settings for an organization.
+
+JSON fields: enabled
 
 | Flag                      | Description                                                                       |
 | ------------------------- | --------------------------------------------------------------------------------- |
@@ -1302,9 +2723,25 @@ Get policy enforcement settings
 | `--policy-context string` | Policy context (default "config")                                                 |
 
 
+**Examples:**
+
+- Get policy enforcement settings: 
+  `circleci policy settings get --org gh/acme`
+- Output as JSON: 
+  `circleci policy settings get --org gh/acme --json`
+- Use with jq to extract the enabled field: 
+  `circleci policy settings get --org gh/acme --json --jq '.enabled'`
+
 ##### `circleci policy settings set [flags]`
 
 Update policy enforcement settings
+
+Enable or disable policy enforcement for an organization.
+
+When enabled, pipeline configs are evaluated against the policy bundle
+before each run. Configs that produce a HARD_FAIL decision are blocked.
+
+JSON fields: enabled
 
 | Flag                      | Description                                                                       |
 | ------------------------- | --------------------------------------------------------------------------------- |
@@ -1315,9 +2752,29 @@ Update policy enforcement settings
 | `--policy-context string` | Policy context (default "config")                                                 |
 
 
+**Examples:**
+
+- Enable policy enforcement: 
+  `circleci policy settings set --org gh/acme --enabled`
+- Disable policy enforcement: 
+  `circleci policy settings set --org gh/acme --enabled=false`
+- Output result as JSON: 
+  `circleci policy settings set --org gh/acme --enabled --json`
+
 #### `circleci policy test <path> [flags]`
 
 Run policy tests
+
+Discover and run policy tests locally, exiting non-zero if any fails.
+
+Tests live in *_test.yaml files alongside your .rego policies; each test key
+must start with "test_" and compares its expected "decision" against the
+engine's decision for its "input". Native OPA unit tests run too.
+
+An input is compiled first only when it sets "compile: true" or provides
+"pipeline_parameters", so --org and a token are needed only in that case.
+
+JSON fields: Passed, Group, Name, Elapsed, ElapsedMS, Err, Ctx
 
 | Flag           | Description                                                                                                       |
 | -------------- | ----------------------------------------------------------------------------------------------------------------- |
@@ -1335,13 +2792,37 @@ Run policy tests
 `<path>` is a directory of policies and tests. Append `/...`
 to discover tests recursively in every subdirectory.
 
+**Examples:**
+
+- Run every test under ./policies and its subdirectories: 
+  `circleci policy test ./policies/...`
+- Run tests in a single directory, showing passing tests too: 
+  `circleci policy test ./policies --all`
+- Run only tests whose name matches a regexp: 
+  `circleci policy test ./policies/... --run 'test_enforce_.*'`
+- Emit JUnit XML for CI: 
+  `circleci policy test ./policies/... --junit`
+
 ### `circleci project <command>`
 
 List, follow and configure CircleCI projects
 
+List, follow, and manage settings for CircleCI projects.
+
+A project corresponds to a version-control repository connected to CircleCI.
+Environment variables are also reachable as the top-level alias
+'circleci envvar'.
+
 #### `circleci project create [project-name] --org <vcs/org-slug> [flags]`
 
 Create a new project
+
+Create a new CircleCI project in the given organization.
+
+The name and --org are prompted for in a terminal; otherwise the name defaults
+to the current repository and --org is required.
+
+JSON fields: id, slug, name, organization_name, organization_slug, organization_id, vcs_provider, vcs_default_branch, vcs_url
 
 | Flag           | Description                       |
 | -------------- | --------------------------------- |
@@ -1356,13 +2837,50 @@ When omitted, the current git repository's name is used: In a
 terminal you are prompted with the name of the current git repository as the default, and in
 non-interactive mode it is used automatically.
 
+**Examples:**
+
+- Create a project (prompted for name if run interactively): 
+  `circleci project create --org gh/myorg`
+- Create a GitHub-hosted project: 
+  `circleci project create my-new-repo --org gh/myorg`
+- Create a CircleCI-native project (standalone pipelines): 
+  `circleci project create new-service --org circleci/9YytKzouJxzu4TjCRFqAoD`
+- Create a project and output as JSON for scripting: 
+  `circleci project create my-new-repo --org gh/myorg --json`
+
 #### `circleci project dlc <command>`
 
 Purge a project's Docker layer cache (DLC)
 
+Manage docker layer caching (DLC) for projects.
+
+Docker layer caching allows CircleCI to cache individual Docker image
+layers between pipeline runs. Use 'circleci dlc purge' to invalidate
+the cache for a project and force a fresh image build on the next run.
+
+These commands are also available under 'circleci project dlc'.
+
+**Examples:**
+
+- Purge DLC for the current git repository's project: 
+  `circleci dlc purge`
+- Purge DLC for a specific project: 
+  `circleci dlc purge --project gh/myorg/myrepo`
+- Purge DLC and output result as JSON: 
+  `circleci dlc purge --project gh/myorg/myrepo --json`
+
 ##### `circleci project dlc purge [flags]`
 
 Purge the Docker Layer Cache for a project
+
+Purge the docker layer cache (DLC) for a project.
+
+Docker layer caching stores individual Docker image layers between
+pipeline runs to speed up builds. Purging the cache forces CircleCI
+to rebuild all layers from scratch on the next run, which is useful
+when a cached layer contains stale or corrupt data.
+
+JSON fields (--json): project_id, project_slug
 
 | Flag               | Description                                             |
 | ------------------ | ------------------------------------------------------- |
@@ -1371,13 +2889,39 @@ Purge the Docker Layer Cache for a project
 | `--project string` | Project slug (e.g. gh/org/repo); defaults to git remote |
 
 
+**Examples:**
+
+- Purge DLC for the current git repository's project: 
+  `circleci dlc purge`
+- Purge DLC for a specific project: 
+  `circleci dlc purge --project gh/myorg/myrepo`
+- Skip the confirmation prompt (for scripting): 
+  `circleci dlc purge --project gh/myorg/myrepo --force`
+- Purge DLC and output result as JSON: 
+  `circleci dlc purge --project gh/myorg/myrepo --force --json`
+- Purge DLC for a Bitbucket project: 
+  `circleci dlc purge --project bb/myorg/myrepo`
+
 #### `circleci project envvar <command>`
 
 List, set and delete a project's environment variables
 
+List, set, and delete environment variables for a CircleCI project.
+
+Environment variable values are masked in list output (shown as "xxxx").
+The full value is never retrievable after it has been set.
+
+For quick access, use the top-level alias:
+  circleci envvar list --project gh/org/repo
+
 ##### `circleci project envvar delete <name> [flags]`
 
 Delete a project environment variable
+
+Delete an environment variable from a CircleCI project.
+
+This action is irreversible. The variable will be removed and any
+jobs that reference it will fail until a new value is set.
 
 | Flag               | Description                                             |
 | ------------------ | ------------------------------------------------------- |
@@ -1395,9 +2939,25 @@ the project. This action is irreversible.
 
 `circleci project envvar rm`
 
+**Examples:**
+
+- Delete an env var from the current project (with confirmation): 
+  `circleci envvar delete MY_SECRET`
+- Delete without confirmation: 
+  `circleci envvar delete MY_SECRET --force`
+- Delete an env var from a specific project: 
+  `circleci envvar delete MY_SECRET --project gh/myorg/myrepo --force`
+
 ##### `circleci project envvar list [flags]`
 
 List project environment variables
+
+List the environment variables defined for a CircleCI project.
+
+Values are always masked in the response (shown as "xxxx") — CircleCI
+does not expose secret values after they are set.
+
+JSON fields: name, value
 
 | Flag               | Description                                                                       |
 | ------------------ | --------------------------------------------------------------------------------- |
@@ -1411,9 +2971,24 @@ List project environment variables
 
 `circleci project envvar ls`
 
+**Examples:**
+
+- List env vars for the current project: 
+  `circleci envvar list`
+- List env vars for a specific project: 
+  `circleci envvar list --project gh/myorg/myrepo`
+- Output as JSON: 
+  `circleci envvar list --json`
+
 ##### `circleci project envvar set <name> <value> [flags]`
 
 Set a project environment variable
+
+Create or update an environment variable for a CircleCI project.
+
+If the variable already exists it will be overwritten. The value
+is never retrievable after being set — CircleCI masks it in all
+subsequent list responses.
 
 | Flag               | Description                                             |
 | ------------------ | ------------------------------------------------------- |
@@ -1426,18 +3001,45 @@ Set a project environment variable
 update. `<value>` is the value to store; it is never retrievable
 after being set and is masked in all subsequent list output.
 
+**Examples:**
+
+- Set an env var for the current project: 
+  `circleci envvar set MY_SECRET s3cr3t`
+- Set an env var for a specific project: 
+  `circleci envvar set MY_SECRET s3cr3t --project gh/myorg/myrepo`
+- Read a value from a file: 
+  `circleci envvar set MY_SECRET "$(cat secret.txt)"`
+
 #### `circleci project follow [flags]`
 
 Follow a project
+
+Follow a CircleCI project to enable builds and receive status updates.
+
+Following a project that is already followed is a no-op.
 
 | Flag               | Description                                             |
 | ------------------ | ------------------------------------------------------- |
 | `--project string` | Project slug (e.g. gh/org/repo); defaults to git remote |
 
 
+**Examples:**
+
+- Follow the project for the current git repository: 
+  `circleci project follow`
+- Follow a specific project: 
+  `circleci project follow --project gh/myorg/myrepo`
+- Follow a Bitbucket project: 
+  `circleci project follow --project bb/myorg/myrepo`
+
 #### `circleci project get [flags]`
 
 Show project details
+
+Display detailed information about a CircleCI project, including
+its UUID, organization ID, and VCS configuration.
+
+JSON fields: id, slug, name, organization_name, organization_slug, organization_id, vcs_provider, vcs_default_branch, vcs_url
 
 | Flag               | Description                                             |
 | ------------------ | ------------------------------------------------------- |
@@ -1445,9 +3047,26 @@ Show project details
 | `--project string` | Project slug (e.g. gh/org/repo); defaults to git remote |
 
 
+**Examples:**
+
+- Show details for the current git repository's project: 
+  `circleci project get`
+- Show details for a specific project: 
+  `circleci project get --project gh/myorg/myrepo`
+- Output as JSON for scripting: 
+  `circleci project get --json`
+
 #### `circleci project link [flags]`
 
 Bind this checkout to a CircleCI project
+
+Record the CircleCI project for the current checkout in .circleci/info.yml, so
+other commands resolve it without re-detecting from the git remote each time.
+
+The project comes from `--project`, else the git remote (origin), else an
+interactive prompt. Because the slug is verified against the CircleCI API,
+this exits with an authentication error when you are not logged in rather
+than prompting blindly.
 
 | Flag                                     | Description                                                     |
 | ---------------------------------------- | --------------------------------------------------------------- |
@@ -1455,9 +3074,28 @@ Bind this checkout to a CircleCI project
 | `--project circleci/<orgID>/<projectID>` | Project slug (e.g. gh/org/repo or circleci/<orgID>/<projectID>) |
 
 
+**Examples:**
+
+- Auto-detect from the current git repository: 
+  `circleci project link`
+- Bind to a specific project (skips lookup if it exists): 
+  `circleci project link --project gh/myorg/myrepo`
+- Bind to a standalone project by its CircleCI slug: 
+  `circleci project link --project circleci/<orgID>/<projectID>`
+- Overwrite an existing .circleci/info.yml: 
+  `circleci project link --force`
+
 #### `circleci project list [flags]`
 
 List followed projects
+
+List all CircleCI projects followed by the authenticated user.
+
+Projects are identified by a slug in the form vcs/org/repo
+(e.g. gh/myorg/myrepo). Use 'circleci project follow' to start
+following a new project.
+
+JSON fields: slug, name, vcs_type, username, reponame
 
 | Flag          | Description                                                                       |
 | ------------- | --------------------------------------------------------------------------------- |
@@ -1470,22 +3108,56 @@ List followed projects
 
 `circleci project ls`
 
+**Examples:**
+
+- List all followed projects: 
+  `circleci project list`
+- Output as JSON for scripting: 
+  `circleci project list --json`
+- Filter by org: 
+  `circleci project list --json --jq '.[] | select(.username == "myorg")'`
+
 #### `circleci project open [flags]`
 
 Open the project page in the browser
+
+Open the CircleCI project page for the current project in your
+default web browser.
+
+The project is inferred from the current git repository's remote
+unless overridden with --project. Supports GitHub, Bitbucket, and
+GitLab remotes.
 
 | Flag               | Description                                             |
 | ------------------ | ------------------------------------------------------- |
 | `--project string` | Project slug (e.g. gh/org/repo); defaults to git remote |
 
 
+**Examples:**
+
+- Open the project page for the current repo: 
+  `circleci project open`
+- Open the project page for a specific project: 
+  `circleci project open --project gh/myorg/myrepo`
+- Open when your remote is on CircleCI server: 
+  `circleci project open --host https://circleci.example.com`
+
 #### `circleci project setting <command>`
 
 View and update project advanced settings
 
+View and update advanced settings for a CircleCI project.
+
+Use 'get' to read a setting's current value and 'set' to change it.
+Use 'list' to see all settings at once.
+
 ##### `circleci project setting get <setting> [flags]`
 
 Get the current value of a project setting
+
+Get the current value of an advanced project setting.
+
+JSON fields: name, value
 
 | Flag               | Description                                                                       |
 | ------------------ | --------------------------------------------------------------------------------- |
@@ -1500,9 +3172,22 @@ Get the current value of a project setting
 
 Run `circleci project setting list` for each setting's description and current value.
 
+**Examples:**
+
+- Get a setting for the current project: 
+  `circleci project setting get build-forked-pull-requests`
+- Get a setting for a specific project: 
+  `circleci project setting get build-forked-pull-requests --project gh/myorg/myrepo`
+- Output as JSON: 
+  `circleci project setting get build-forked-pull-requests --json`
+
 ##### `circleci project setting list [flags]`
 
 List all advanced settings for a project
+
+List all advanced settings for a CircleCI project.
+
+JSON fields: enable_ai_error_summarization, enable_auto_cancel_redundant_workflows, enable_building_fork_prs, is_build_prs_only, can_pass_secrets_to_fork_pr_jobs, can_set_github_status, is_running_disabled, is_ssh_disabled, enable_dynamic_config, is_admin_required_for_writing_settings, is_oss, pr_only_branch_overrides, enable_unversioned_config
 
 | Flag               | Description                                                                       |
 | ------------------ | --------------------------------------------------------------------------------- |
@@ -1516,9 +3201,22 @@ List all advanced settings for a project
 
 `circleci project setting ls`
 
+**Examples:**
+
+- List settings for the current project: 
+  `circleci project setting list`
+- List settings for a specific project: 
+  `circleci project setting list --project gh/myorg/myrepo`
+- Output as JSON: 
+  `circleci project setting list --json`
+
 ##### `circleci project setting set <setting> <true|false> [flags]`
 
 Set a project setting
+
+Set an advanced project setting to true or false.
+
+JSON fields: name, value
 
 | Flag               | Description                                                                       |
 | ------------------ | --------------------------------------------------------------------------------- |
@@ -1534,13 +3232,36 @@ Set a project setting
 `<true|false>` is the new value. Run `circleci project setting list` for each
 setting's description and current value.
 
+**Examples:**
+
+- Enable a setting for the current project: 
+  `circleci project setting set build-forked-pull-requests true`
+- Disable a setting for a specific project: 
+  `circleci project setting set build-forked-pull-requests false --project gh/myorg/myrepo`
+- Output the updated value as JSON: 
+  `circleci project setting set auto-cancel-builds true --json`
+
 #### `circleci project trigger <command>`
 
 Manage project triggers
 
+List and create triggers for a CircleCI project.
+
+Triggers watch a GitHub repository for events and automatically run
+a pipeline definition when matching events occur. Only projects
+connected via the CircleCI GitHub App are supported.
+
 ##### `circleci project trigger create [flags]`
 
 Create a new project trigger
+
+Create a new trigger for a CircleCI project, connecting an event source to a
+pipeline definition so that matching events start a pipeline run.
+
+Required values are prompted for in a terminal, and must be flags otherwise.
+Run `circleci help triggers` for what each provider and event preset means.
+
+JSON fields: id, created_at, event_name, event_preset, config_ref, checkout_ref, disabled
 
 | Flag                              | Description                                                                                                                                                                                                                                                                                                                                             |
 | --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -1556,9 +3277,26 @@ Create a new project trigger
 | `--repo-id string`                | Repository external ID (required for github_app, github_server, github_oauth)                                                                                                                                                                                                                                                                           |
 
 
+**Examples:**
+
+- Create a GitHub App trigger (provider defaults to github_app): 
+  `circleci project trigger create --pipeline-definition-id a1b2c3d4-... --repo-id 123456789`
+- Create a trigger for a GitHub Server installation: 
+  `circleci project trigger create --provider github_server --pipeline-definition-id a1b2c3d4-... --repo-id 123456789`
+- Create a trigger with event filtering and output as JSON: 
+  `circleci project trigger create --pipeline-definition-id a1b2c3d4-... --repo-id 123456789 --event-preset all-pushes --json`
+
 ##### `circleci project trigger list [flags]`
 
 List triggers for a pipeline definition
+
+List all triggers attached to a pipeline definition.
+
+--pipeline-definition-id is required. In a terminal it will be prompted
+interactively if omitted; in non-interactive mode (CI, agents) it must
+be passed as a flag.
+
+JSON fields: id, created_at, event_name, event_preset, config_ref, checkout_ref, disabled, event_source.provider, event_source.repo.external_id, event_source.repo.full_name
 
 | Flag                              | Description                                                                       |
 | --------------------------------- | --------------------------------------------------------------------------------- |
@@ -1574,13 +3312,33 @@ List triggers for a pipeline definition
 
 `circleci project trigger ls`
 
+**Examples:**
+
+- List triggers for the current repository's project: 
+  `circleci project trigger list --pipeline-definition-id a1b2c3d4-...`
+- List triggers for a specific project: 
+  `circleci project trigger list --project gh/myorg/myrepo --pipeline-definition-id a1b2c3d4-...`
+- Output as JSON for scripting: 
+  `circleci project trigger list --pipeline-definition-id a1b2c3d4-... --json`
+
 ### `circleci runner <command>`
 
 Manage self-hosted runners
 
+Manage self-hosted runner resources.
+
+Self-hosted runners let you run CircleCI jobs on your own infrastructure.
+Resource class names use the format namespace/name (e.g. my-org/my-runner).
+
 #### `circleci runner config <resource-class> [flags]`
 
 Generate a runner agent configuration file
+
+Generate a runner agent configuration YAML for a resource class, suitable for
+use as the agent's launch-agent-config.yaml.
+
+A new authentication token is created unless you pass an existing one with
+--token, which generates the YAML without an API call.
 
 | Flag                  | Description                                               |
 | --------------------- | --------------------------------------------------------- |
@@ -1594,13 +3352,35 @@ Generate a runner agent configuration file
 `<resource-class>` is the runner resource class to generate config for,
 in the form `namespace/name` (for example, `my-org/my-runner`).
 
+**Examples:**
+
+- Create a new token and print config to stdout: 
+  `circleci runner config my-org/my-runner`
+- Write config directly to a file: 
+  `circleci runner config my-org/my-runner --output launch-agent-config.yaml`
+- Create a nicely-labeled token and write to a file: 
+  `circleci runner config my-org/my-runner --nickname "prod-server-1" --output /etc/circleci/launch-agent-config.yaml`
+- Generate config from an existing token value (no API token creation): 
+  `circleci runner config my-org/my-runner --token "$EXISTING_TOKEN_VALUE"`
+
 #### `circleci runner instance <command>`
 
 Manage runner instances
 
+View CircleCI runner instances connected to your organization.
+
+Instances are live runner agents currently connected to CircleCI.
+
 ##### `circleci runner instance list [flags]`
 
 List connected runner instances
+
+List CircleCI runner instances currently connected to your organization.
+
+STATUS is derived from last_connected_at: online within the last 2 minutes,
+idle 2–30 minutes ago, offline beyond that.
+
+JSON fields: resource_class, hostname, name, version, ip, status, first_connected, last_connected, last_used
 
 | Flag                      | Description                                                                       |
 | ------------------------- | --------------------------------------------------------------------------------- |
@@ -1616,22 +3396,61 @@ List connected runner instances
 
 `circleci runner instance ls`
 
+**Examples:**
+
+- List connected instances for the org inferred from the git remote: 
+  `circleci runner instance list`
+- List instances for a specific organization (slug or UUID): 
+  `circleci runner instance list --org gh/my-org`
+- List instances for a specific resource class: 
+  `circleci runner instance list --resource-class my-org/my-runner`
+- Output as JSON: 
+  `circleci runner instance list --org gh/my-org --json`
+
 #### `circleci runner open [flags]`
 
 Open the runners inventory page in the browser
+
+Open the CircleCI runners inventory page for an organization in your
+default web browser.
+
+The organization is inferred from the current git repository's remote
+unless overridden with --org. Supports GitHub, Bitbucket, and GitLab
+remotes.
 
 | Flag           | Description                                               |
 | -------------- | --------------------------------------------------------- |
 | `--org string` | Organization slug (e.g. gh/myorg); defaults to git remote |
 
 
+**Examples:**
+
+- Open runners for the org inferred from git remote: 
+  `circleci runner open`
+- Open runners for a specific organization: 
+  `circleci runner open --org gh/myorg`
+- Open when your remote is on CircleCI server: 
+  `circleci runner open --host https://circleci.example.com`
+
 #### `circleci runner resource-class <command>`
 
 Manage runner resource classes
 
+Manage runner resource classes.
+
+Resource classes define the type of runner available to your jobs.
+Each resource class belongs to a namespace (usually your organization).
+
 ##### `circleci runner resource-class create <namespace>/<name> [flags]`
 
 Create a runner resource class
+
+Create a new CircleCI runner resource class.
+
+The resource class name must be in the format namespace/name,
+where namespace is your organization name.
+
+JSON fields: id, resource_class, description
 
 | Flag                   | Description                                                                       |
 | ---------------------- | --------------------------------------------------------------------------------- |
@@ -1645,9 +3464,23 @@ Create a runner resource class
 The resource class name must be given in the form `namespace/name`,
 where namespace is your organization name (for example, `my-org/my-runner`).
 
+**Examples:**
+
+- Create a resource class: 
+  `circleci runner resource-class create my-org/my-runner`
+- Create with a description: 
+  `circleci runner resource-class create my-org/my-runner --description "Linux amd64 runner"`
+- Output as JSON: 
+  `circleci runner resource-class create my-org/my-runner --json`
+
 ##### `circleci runner resource-class delete <namespace>/<name> [flags]`
 
 Delete a runner resource class
+
+Delete a CircleCI runner resource class.
+
+All tokens associated with the resource class will also be deleted.
+Connected runner instances will no longer be able to claim jobs.
 
 | Flag          | Description              |
 | ------------- | ------------------------ |
@@ -1664,9 +3497,22 @@ where namespace is your organization name (for example, `my-org/my-runner`).
 
 `circleci runner resource-class rm`
 
+**Examples:**
+
+- Delete a resource class (with confirmation prompt): 
+  `circleci runner resource-class delete my-org/my-runner`
+- Delete without confirmation: 
+  `circleci runner resource-class delete my-org/my-runner --force`
+- Delete in a script: 
+  `circleci runner resource-class delete my-org/my-runner --force`
+
 ##### `circleci runner resource-class list [flags]`
 
 List runner resource classes
+
+List CircleCI runner resource classes.
+
+JSON fields: id, resource_class, description
 
 | Flag                 | Description                                                                       |
 | -------------------- | --------------------------------------------------------------------------------- |
@@ -1681,9 +3527,28 @@ List runner resource classes
 
 `circleci runner resource-class ls`
 
+**Examples:**
+
+- List resource classes for the org inferred from the git remote: 
+  `circleci runner resource-class list`
+- List resource classes for a specific organization (slug): 
+  `circleci runner resource-class list --org gh/my-org`
+- List resource classes for a specific organization (UUID): 
+  `circleci runner resource-class list --org f22b6566-597d-46d5-ba74-99ef5bb3d85c`
+- Output as JSON: 
+  `circleci runner resource-class list --org gh/my-org --json`
+
 #### `circleci runner task [flags]`
 
 Show task counts for a runner resource class
+
+Show the number of unclaimed and running tasks for a CircleCI runner
+resource class.
+
+Unclaimed tasks are queued and waiting for a runner to pick them up.
+Running tasks are actively executing on a runner instance.
+
+JSON fields: resource_class, unclaimed, running
 
 | Flag                      | Description                                                                       |
 | ------------------------- | --------------------------------------------------------------------------------- |
@@ -1692,13 +3557,39 @@ Show task counts for a runner resource class
 | `--resource-class string` | Resource class to query (namespace/name)                                          |
 
 
+**Examples:**
+
+- Show task counts for a resource class: 
+  `circleci runner task --resource-class my-org/my-runner`
+- Output as JSON: 
+  `circleci runner task --resource-class my-org/my-runner --json`
+- Check for a backlog across multiple classes: 
+  `for rc in my-org/build my-org/deploy; do`
+- circleci runner task --resource-class $rc
+- done
+
 #### `circleci runner token <command>`
 
 Manage runner tokens
 
+Manage runner authentication tokens.
+
+Tokens are used by runner agents to authenticate with CircleCI.
+Each token is associated with a specific resource class.
+
+Token values are only shown once at creation time and cannot be retrieved afterwards.
+
 ##### `circleci runner token create <resource-class> [flags]`
 
 Create a token for a resource class
+
+Create a new authentication token for a runner resource class.
+
+The token value is shown only once at creation time. Store it securely —
+it cannot be retrieved afterwards. If lost, delete this token and create
+a new one.
+
+JSON fields: id, resource_class, nickname, created_at, token
 
 | Flag                | Description                                                                       |
 | ------------------- | --------------------------------------------------------------------------------- |
@@ -1712,9 +3603,25 @@ Create a token for a resource class
 `<resource-class>` is the runner resource class to create a token for,
 in the form `namespace/name` (for example, `my-org/my-runner`).
 
+**Examples:**
+
+- Create a token for a resource class: 
+  `circleci runner token create my-org/my-runner`
+- Create a token with a nickname: 
+  `circleci runner token create my-org/my-runner --nickname "prod-server-1"`
+- Output as JSON (includes the token value): 
+  `circleci runner token create my-org/my-runner --json`
+
 ##### `circleci runner token delete <token-id> [flags]`
 
 Delete a runner token
+
+Delete a CircleCI runner authentication token by its ID.
+
+Any runner agents using this token will immediately lose their ability
+to claim new jobs. Running jobs are not affected.
+
+Find token IDs with: circleci runner token list `<resource-class>`
 
 | Flag          | Description              |
 | ------------- | ------------------------ |
@@ -1731,9 +3638,29 @@ with: `circleci runner token list --resource-class <namespace/name>`
 
 `circleci runner token rm`
 
+**Examples:**
+
+- Delete a token by ID (with confirmation prompt): 
+  `circleci runner token delete abc12345-0000-0000-0000-000000000000`
+- Delete without confirmation: 
+  `circleci runner token delete abc12345-0000-0000-0000-000000000000 --force`
+- Delete in a script using JSON output: 
+  `ID=$(circleci runner token list --resource-class my-org/my-runner --json --jq '.[0].id')`
+- `circleci runner token delete "$ID" --force`
+
 ##### `circleci runner token list [flags]`
 
 List tokens for a resource class
+
+List authentication tokens for runner resource classes.
+
+Without --resource-class, lists tokens for all resource classes
+you have access to.
+
+Token values are never shown after creation. This command lists
+token metadata (ID, nickname, creation date) only.
+
+JSON fields: id, resource_class, nickname, created_at
 
 | Flag                      | Description                                                                       |
 | ------------------------- | --------------------------------------------------------------------------------- |
@@ -1747,13 +3674,41 @@ List tokens for a resource class
 
 `circleci runner token ls`
 
+**Examples:**
+
+- List tokens across all resource classes: 
+  `circleci runner token list`
+- List tokens for a specific resource class: 
+  `circleci runner token list --resource-class my-org/my-runner`
+- Output as JSON: 
+  `circleci runner token list --json`
+- Extract IDs with --jq: 
+  `circleci runner token list --resource-class my-org/my-runner --json --jq '.[].id'`
+
 ### `circleci signing-config <command>`
 
 Manage iOS signing configs
 
+Create, list, and delete iOS signing configs.
+
+A signing config pairs an uploaded .p12 certificate with one or more
+provisioning profiles under a stable name. Reference the signing config
+by name from your pipeline config under the 'code_signing' block to
+install it onto the macOS runner during a job.
+
 #### `circleci signing-config create [flags]`
 
 Create an iOS signing config
+
+Create a signing config that pairs a previously-uploaded certificate
+with one or more provisioning profiles. The signing config name is what
+you reference in your pipeline config under 'code_signing'.
+
+Each --profile flag points to a single provisioning profile file on
+disk. The file is read and base64-encoded locally. Repeat the flag to
+add additional profiles.
+
+JSON fields: id, name, cert_id
 
 | Flag                    | Description                                                                       |
 | ----------------------- | --------------------------------------------------------------------------------- |
@@ -1765,9 +3720,23 @@ Create an iOS signing config
 | `--profile stringArray` | Path to a provisioning profile file (repeatable)                                  |
 
 
+**Examples:**
+
+- Create a signing config (org inferred from git remote): 
+  `circleci signing-config create --name production-signing --cert-id `<cert-id>` --profile ./MyApp.mobileprovision`
+- Multiple profiles: 
+  `circleci signing-config create --name multi-target-signing --cert-id `<cert-id>` --profile ./MyApp.mobileprovision --profile ./MyAppExtension.mobileprovision`
+- Explicit org and capture the id for scripting: 
+  `circleci signing-config create --org gh/acme --name prod --cert-id <cert-id> --profile ./p.mobileprovision --json --jq -r '.id'`
+
 #### `circleci signing-config delete <signing-config-id> [flags]`
 
 Delete an iOS signing config
+
+Permanently remove an iOS signing config from your organization.
+
+This action is irreversible. Pipelines that reference the signing config
+by name will fail until they are updated.
 
 | Flag          | Description              |
 | ------------- | ------------------------ |
@@ -1784,9 +3753,20 @@ Use `circleci signing-config list` to find the ID.
 
 `circleci signing-config rm`
 
+**Examples:**
+
+- Delete a signing config (with confirmation): 
+  `circleci signing-config delete <signing-config-id>`
+- Delete without confirmation: 
+  `circleci signing-config delete <signing-config-id> --force`
+
 #### `circleci signing-config list [flags]`
 
 List iOS signing configs
+
+List the iOS signing configs defined for your organization.
+
+JSON fields: id, name, certificate, provisioning_profiles
 
 | Flag           | Description                                                                       |
 | -------------- | --------------------------------------------------------------------------------- |
@@ -1800,39 +3780,114 @@ List iOS signing configs
 
 `circleci signing-config ls`
 
+**Examples:**
+
+- List signing configs (org inferred from git remote): 
+  `circleci signing-config list`
+- List for a specific org: 
+  `circleci signing-config list --org gh/acme`
+- Output as JSON: 
+  `circleci signing-config list --json`
+- Get signing config names only: 
+  `circleci signing-config list --json --jq '.[].name'`
+
 ## User Commands
 
 ### `circleci auth <command>`
 
 Log in, sign up and check your CircleCI identity
 
+Manage authentication for the CLI.
+
+Use 'circleci auth signup' to create a new CircleCI account via the browser.
+Use 'circleci auth login' to authenticate via the browser-based OAuth flow.
+Use 'circleci auth me' to get current user info.
+Use 'circleci auth logout' to clear your stored credentials.
+
 #### `circleci auth id [flags]`
 
 Show the device ID for this CLI installation
+
+Print the device ID for this CLI installation as "`<os>:<uuid>`".
+
+The UUID is generated on first use and stored in the config file.
+The OS prefix (e.g. darwin, linux) is added at print time so you
+can identify the machine and platform at a glance. The same UUID
+is sent with every OAuth authorization request, so you can match
+a token in the CircleCI UI back to this installation.
+
+JSON fields: device_id (string) — stable identifier in the form `<os>:<uuid>`
 
 | Flag     | Description    |
 | -------- | -------------- |
 | `--json` | Output as JSON |
 
 
+**Examples:**
+
+- Print the device ID: 
+  `circleci auth id`
+- Output as JSON: 
+  `circleci auth id --json`
+- Use in a script: 
+  `DEVICE=$(circleci auth id)`
+
 #### `circleci auth login [flags]`
 
 Log in to a CircleCI account
+
+Log in to CircleCI by opening the OAuth authorization page in your
+browser. After you approve the request, an authorization code is
+delivered back to a temporary loopback server on 127.0.0.1, then
+exchanged for an access token via POST /oauth/token.
+
+The token is saved to the system keyring (or to the YAML config
+when --insecure-storage is set) and used automatically by all
+subsequent CLI commands.
 
 | Flag           | Description                                          |
 | -------------- | ---------------------------------------------------- |
 | `--no-browser` | Print the authorize URL instead of opening a browser |
 
 
+**Examples:**
+
+- Open the browser and authorize the CLI: 
+  `circleci auth login`
+- Print the authorize URL instead of opening a browser: 
+  `circleci auth login --no-browser`
+- Authenticate against a non-default host: 
+  `CIRCLE_HOST=https://example.circleci.com circleci auth login`
+
 #### `circleci auth logout [flags]`
 
 Log out of a CircleCI account
+
+Remove the stored API token, from the system keyring or from the YAML
+config file depending on where it was saved.
+
+CIRCLE_TOKEN is not affected: while it is set in the environment it
+takes precedence over stored credentials, so the CLI stays
+authenticated after logging out.
+
+JSON fields: storage ("keyring" or "file"), path (the config file, present only when storage is "file")
 
 | Flag          | Description                                                                       |
 | ------------- | --------------------------------------------------------------------------------- |
 | `--jq string` | Process values from the response using jq syntax (see `circleci help formatting`) |
 | `--json`      | Output as JSON                                                                    |
 
+
+**Examples:**
+
+- Log out of the current account: 
+  `circleci auth logout`
+- Log out, then sign in as a different account: 
+  `circleci auth logout && circleci auth login`
+- Log out without printing the confirmation line: 
+  `circleci auth logout --quiet`
+- Report where the token was removed from, for scripting: 
+  `circleci auth logout --json --jq '.storage'`
 
 #### `circleci auth me [flags]`
 
@@ -1848,34 +3903,99 @@ Display active account information
 
 Sign-up for a new CircleCI account
 
+Create a CircleCI account by opening the signup page in your browser.
+This uses the same browser-based OAuth flow as 'circleci auth login'
+but routes you to the signup page instead of the login page.
+
+If a token is already configured, run 'circleci auth logout' first
+(signup will not silently overwrite an existing token). If you
+already have a CircleCI account, use 'circleci auth login' instead.
+
 | Flag           | Description                                          |
 | -------------- | ---------------------------------------------------- |
 | `--no-browser` | Print the authorize URL instead of opening a browser |
 
 
+**Examples:**
+
+- Open the signup page in your browser: 
+  `circleci auth signup`
+- Print the authorize URL instead of opening a browser: 
+  `circleci auth signup --no-browser`
+- Authenticate against a non-default host: 
+  `CIRCLE_HOST=https://example.circleci.com circleci auth signup`
+
 ### `circleci completion <command>`
 
 Install, remove or print shell completions
+
+Manage shell tab-completion for circleci.
+
+Run 'circleci completion install' to add completion to your shell
+profile automatically. Supported shells: bash, zsh.
+
+To install manually, add one of the following to your shell profile:
+
+  bash:        source <(circleci completion bash)
+  zsh:         source <(circleci completion zsh)
+  fish:        circleci completion fish | source
+  powershell:  circleci completion powershell | Out-String | Invoke-Expression
+
+PowerShell has no auto-loaded completion directory, so completions must be
+registered from your profile. Append the powershell line above to your
+$PROFILE to enable them in every session.
 
 #### `circleci completion install`
 
 Install shell completion into your shell profile
 
+Append a completion source line to your shell profile (~/.zshrc or ~/.bashrc).
+
+The line is tagged so it can be cleanly removed with:
+  circleci completion uninstall
+
+**Examples:**
+
+- Install completion (detects shell from $SHELL): 
+  `circleci completion install`
+- Then reload your shell: 
+  `source ~/.zshrc`
+- To install manually instead, source the output directly: 
+  `source <(circleci completion bash)`
+
 #### `circleci completion uninstall`
 
 Remove shell completion from your shell profile
+
+Remove the completion block previously added by 'circleci completion install'.
+Other content in your shell profile is left untouched.
+
+**Examples:**
+
+- Remove completion: 
+  `circleci completion uninstall`
+- Then reload your shell: 
+  `source ~/.zshrc`
+- Check whether completion is currently installed: 
+  `grep -l "circleci shell completion" ~/.zshrc ~/.bashrc 2>/dev/null`
 
 ### `circleci mcp`
 
 Run the CLI as an MCP server for AI tools
 
+Manage MCP servers for AI assistants and code editors
+
 #### `circleci mcp claude`
 
 Manage Claude Desktop MCP servers
 
+Manage MCP server configuration for Claude Desktop
+
 ##### `circleci mcp claude disable [flags]`
 
 Remove server from Claude config
+
+Remove this application from Claude Desktop MCP servers
 
 | Flag                   | Description                                               |
 | ---------------------- | --------------------------------------------------------- |
@@ -1886,6 +4006,8 @@ Remove server from Claude config
 ##### `circleci mcp claude enable [flags]`
 
 Add server to Claude config
+
+Add this application as an MCP server in Claude Desktop
 
 | Flag                       | Description                                                                    |
 | -------------------------- | ------------------------------------------------------------------------------ |
@@ -1899,6 +4021,8 @@ Add server to Claude config
 
 Show Claude MCP servers
 
+Show all MCP servers configured in Claude Desktop
+
 | Flag                   | Description                |
 | ---------------------- | -------------------------- |
 | `--config-path string` | Path to Claude config file |
@@ -1908,9 +4032,13 @@ Show Claude MCP servers
 
 Manage Cursor MCP servers
 
+Manage MCP server configuration for Cursor
+
 ##### `circleci mcp cursor disable [flags]`
 
 Remove server from Cursor config
+
+Remove this application from Cursor MCP servers
 
 | Flag                   | Description                                                                |
 | ---------------------- | -------------------------------------------------------------------------- |
@@ -1922,6 +4050,8 @@ Remove server from Cursor config
 ##### `circleci mcp cursor enable [flags]`
 
 Add server to Cursor config
+
+Add this application as an MCP server in Cursor
 
 | Flag                       | Description                                                                    |
 | -------------------------- | ------------------------------------------------------------------------------ |
@@ -1936,6 +4066,8 @@ Add server to Cursor config
 
 Show Cursor MCP servers
 
+Show all MCP servers configured in Cursor
+
 | Flag                   | Description                                                              |
 | ---------------------- | ------------------------------------------------------------------------ |
 | `--config-path string` | Path to Cursor config file                                               |
@@ -1946,6 +4078,8 @@ Show Cursor MCP servers
 
 Start the MCP server
 
+Start stdio server to expose CLI commands to AI assistants
+
 | Flag                 | Description                          |
 | -------------------- | ------------------------------------ |
 | `--log-level string` | Log level (debug, info, warn, error) |
@@ -1954,6 +4088,8 @@ Start the MCP server
 #### `circleci mcp stream [flags]`
 
 Stream the MCP server over HTTP
+
+Start HTTP server to expose CLI commands to AI assistants
 
 | Flag                 | Description                             |
 | -------------------- | --------------------------------------- |
@@ -1966,6 +4102,8 @@ Stream the MCP server over HTTP
 
 Export tools as JSON
 
+Export available MCP tools to mcp-tools.json for inspection
+
 | Flag                 | Description                          |
 | -------------------- | ------------------------------------ |
 | `--log-level string` | Log level (debug, info, warn, error) |
@@ -1975,9 +4113,13 @@ Export tools as JSON
 
 Manage VSCode MCP servers
 
+Manage MCP server configuration for Visual Studio Code
+
 ##### `circleci mcp vscode disable [flags]`
 
 Remove server from VSCode config
+
+Remove this application from VSCode MCP servers
 
 | Flag                   | Description                                                                |
 | ---------------------- | -------------------------------------------------------------------------- |
@@ -1989,6 +4131,8 @@ Remove server from VSCode config
 ##### `circleci mcp vscode enable [flags]`
 
 Add server to VSCode config
+
+Add this application as an MCP server in VSCode
 
 | Flag                       | Description                                                                    |
 | -------------------------- | ------------------------------------------------------------------------------ |
@@ -2003,6 +4147,8 @@ Add server to VSCode config
 
 Show VSCode MCP servers
 
+Show all MCP servers configured in VSCode
+
 | Flag                   | Description                                                              |
 | ---------------------- | ------------------------------------------------------------------------ |
 | `--config-path string` | Path to VSCode config file                                               |
@@ -2013,9 +4159,25 @@ Show VSCode MCP servers
 
 Show resources for the authenticated user
 
+Show CircleCI resources scoped to you, the authenticated user.
+
+These commands answer "what's mine?" across every project you have
+access to, rather than a single project inferred from the current
+git repository.
+
 #### `circleci my runs [flags]`
 
 List your recent runs grouped by project
+
+List recent runs you triggered, across every project you have access to.
+
+This is the personal counterpart to "circleci run list": rather than a
+single project, it shows your runs everywhere, in the order the API
+returns them, with the project of each run in its own column.
+
+JSON: an array of runs, each { project, project_id, id, phase, outcome,
+current_outcome, branch, tag, revision, created_at }, where project is
+the run's "org/repo" repository (when known) and project_id its UUID.
 
 | Flag          | Description                                                                       |
 | ------------- | --------------------------------------------------------------------------------- |
@@ -2029,9 +4191,25 @@ List your recent runs grouped by project
 
 `circleci my run`
 
+**Examples:**
+
+- List your recent runs across all projects: 
+  `circleci my runs`
+- Show more results: 
+  `circleci my runs --limit 50`
+- Output as JSON for scripting: 
+  `circleci my runs --json`
+- Pull out just the run IDs with jq: 
+  `circleci my runs --json --jq '.[].id'`
+
 ### `circleci onboard [path] [flags]`
 
 Guided onboarding: scan, test, generate config, sign up
+
+Guided onboarding: scan a local repository, run its detected tests,
+generate a starter .circleci/config.yml, and sign up for CircleCI.
+
+Interactively without --scan or --signup, a prompt offers both.
 
 | Flag           | Description                                       |
 | -------------- | ------------------------------------------------- |
@@ -2045,13 +4223,42 @@ Guided onboarding: scan, test, generate config, sign up
 `<path>` is optional and is the directory to scan. Defaults to
 the current directory.
 
+**Examples:**
+
+- Interactive mode: choose scan or signup: 
+  `circleci onboard`
+- Scan the current directory (skip the choice prompt): 
+  `circleci onboard --scan`
+- Sign up for CircleCI (no repo needed): 
+  `circleci onboard --signup`
+- Onboard a specific project path: 
+  `circleci onboard --scan ./my-app`
+- Print the signup URL instead of opening a browser: 
+  `circleci onboard --signup --no-browser`
+
 ### `circleci setting <command>`
 
 Configure the CLI itself (token, host, defaults)
 
+View and modify settings for the circleci CLI tool.
+
+Use 'circleci setting set token' to configure your personal API token.
+Use 'circleci setting unset token' to remove your stored API token.
+Use 'circleci setting set telemetry on/off' to manage telemetry preferences.
+Use 'circleci setting list' to view current settings.
+
+For pipeline YAML operations, see 'circleci config'.
+
 #### `circleci setting list [flags]`
 
 List current CLI settings
+
+Display the current CLI settings.
+
+The token value is masked for security. Settings are read from
+$XDG_CONFIG_HOME/circleci/config.yml (default: ~/.config/circleci/config.yml).
+
+JSON fields: token_set, host, telemetry, theme
 
 | Flag          | Description                                                                       |
 | ------------- | --------------------------------------------------------------------------------- |
@@ -2064,9 +4271,21 @@ List current CLI settings
 
 `circleci setting ls`
 
+**Examples:**
+
+- Show current settings: 
+  `circleci setting list`
+- Output as JSON: 
+  `circleci setting list --json`
+
 #### `circleci setting set <key> <value>`
 
 Set a CLI setting
+
+Set a CLI setting by key.
+
+Run 'circleci setting set theme' with no value in an interactive terminal to
+pick a theme from a list.
 
 **Arguments:**
 
@@ -2074,13 +4293,40 @@ Set a CLI setting
 - `<value>` is the value to store. Pass `-` to read it from stdin.
   May be omitted for `theme` to pick interactively.
 
+**Examples:**
+
+- Store your personal API token: 
+  `circleci setting set token mytoken123`
+- Read the token from stdin to avoid shell history exposure: 
+  `echo "mytoken123" | circleci setting set token -`
+- Point to a self-hosted CircleCI server: 
+  `circleci setting set host https://circleci.mycompany.com`
+- Enable telemetry: 
+  `circleci setting set telemetry on`
+- Disable telemetry: 
+  `circleci setting set telemetry off`
+- Set the color theme used for rendered output: 
+  `circleci setting set theme dracula`
+- Pick the color theme interactively: 
+  `circleci setting set theme`
+
 #### `circleci setting unset <key>`
 
 Remove a stored CLI setting
 
+Remove a stored CLI setting by key.
+
+Supported keys:
+  token      Remove your stored CircleCI personal API token
+
 **Arguments:**
 
 `<key>` is the setting to remove. Currently only `token` is supported.
+
+**Examples:**
+
+- Remove your stored API token: 
+  `circleci setting unset token`
 
 ## Extension Commands
 
@@ -2088,28 +4334,75 @@ Remove a stored CLI setting
 
 Manage CLI extensions
 
+Manage CircleCI CLI extensions.
+
+Extensions are binaries named circleci-<name> that add new
+commands to the CLI. Once installed, an extension is invoked transparently
+as 'circleci <name>'.
+
+Use 'circleci extension install <name>' to fetch an extension from the CircleCI
+extension registry and verify its checksum before installing it.
+
 #### `circleci extension install <extension>`
 
 Install an extension
 
+Install a CircleCI CLI extension from the extension registry.
+
+The extension binary is downloaded, its SHA-256 checksum is verified
+against the release manifest, and the binary is written to the
+extension directory.
+
+A manifest file is written alongside the binary recording the version,
+checksum, and source URL so the extension can be upgraded or removed later.
+
+**Examples:**
+
+- Install the testsuite extension: 
+  `circleci extension install testsuite`
+
 #### `circleci extension remove <extension> [flags]`
 
 Remove an installed extension
+
+Remove an installed CircleCI CLI extension.
+
+The extension binary and its manifest are deleted from the extension
+directory. After removal, the extension is no longer available as a
+CLI command.
 
 | Flag          | Description              |
 | ------------- | ------------------------ |
 | `-f, --force` | Skip confirmation prompt |
 
 
+**Examples:**
+
+- Remove using the name of the extension: 
+  `circleci extension remove <name>`
+- Remove using the full binary name: 
+  `circleci extension remove circleci-<name>`
+- Remove without confirmation prompt: 
+  `circleci extension remove <name> --force`
+
 ### `circleci testsuite`
 
 Extension (circleci-testsuite)
+
+The CircleCI "testsuite" extension is not installed by default.
+
+Install it with 'circleci extension install testsuite'.
 
 ## Additional Commands
 
 ### `circleci api <path> [flags]`
 
 Call the CircleCI REST API directly
+
+Make an authenticated HTTP request to the REST API and print the raw
+response body. The Authorization header is added from your stored token.
+
+Exit code reflects the HTTP response: 0 for 2xx, 4 for 4xx/5xx.
 
 | Flag                       | Description                                                                       |
 | -------------------------- | --------------------------------------------------------------------------------- |
@@ -2126,20 +4419,68 @@ Call the CircleCI REST API directly
 (for example, "projects/{project-id}"). To target
 a different version prefix, include it explicitly, for example, "api/v2/me".
 
+**Examples:**
+
+- Get your user profile: 
+  `circleci api me`
+- List runs for a project: 
+  `circleci api projects/{project-id}/runs`
+- Trigger a pipeline on a branch: 
+  `circleci api projects/{project-id}/run -f definition_id=<id> -f "config[branch]=main"`
+- Send a body read from a file (@- reads from stdin): 
+  `circleci api projects/{project-id}/run -d @payload.json`
+- Access the v1.1 API with a custom header: 
+  `circleci api api/v1.1/me -H "X-Custom: value"`
+
 ### `circleci env <command>`
 
 Work with environment variables
+
+Work with environment variables in CircleCI workflows.
 
 #### `circleci env subst [string]`
 
 Substitute environment variables in a string
 
+Substitute environment variables in a string, similar to the POSIX envsubst utility.
+
+Pass the string as an argument, or pipe it through stdin. The command writes
+the substituted result to stdout with no trailing newline added.
+
+Supports $VAR and ${VAR} syntax. References to unset variables are replaced
+with an empty string.
+
+**Examples:**
+
+- Substitute a single variable: 
+  `export API_URL=https://circleci.com`
+- `circleci env subst "Base URL: $API_URL"`
+- Substitute variables in a JSON payload via stdin: 
+  `export TOKEN=abc123`
+- `echo '{"token": "$TOKEN"}' | circleci env subst`
+- Substitute into a config file before uploading: 
+  `circleci env subst < .circleci/config.template.yml > .circleci/config.yml`
+
 ### `circleci version [flags]`
 
 Print version information
+
+Print the version and commit hash this binary was built from.
+
+JSON fields: version (release tag, or "dev" for unreleased builds), commit
+(full git hash), modified (true when built from a dirty working tree)
 
 | Flag     | Description                                        |
 | -------- | -------------------------------------------------- |
 | `--json` | output as JSON (fields: version, commit, modified) |
 
+
+**Examples:**
+
+- Print version and commit hash: 
+  `circleci version`
+- Print as JSON: 
+  `circleci version --json`
+- Extract just the commit hash: 
+  `circleci version --json | jq -r .commit`
 
