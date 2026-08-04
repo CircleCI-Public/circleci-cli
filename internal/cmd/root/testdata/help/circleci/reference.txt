@@ -146,11 +146,9 @@ from stdin.
 - Read from stdin: 
   `cat .circleci/config.yml | circleci config process -`
 
-#### `circleci config validate [flags]`
+#### `circleci config validate [<path>] [flags]`
 
 Validate a pipeline config file
-
-Validate a CircleCI pipeline config file against the CircleCI API.
 
 Private and namespaced orbs resolve against your organization. With --org
 omitted the org comes from a 'circleci project link' binding if present,
@@ -166,12 +164,17 @@ JSON fields (--json): valid (bool), compiled_yaml (string, when valid), errors (
 | `--org string`        | Organization slug (e.g. gh/myorg) or UUID for private orb resolution; defaults to git remote |
 
 
+**Arguments:**
+
+`<path>` is the pipeline config file to validate, by default
+`.circleci/config.yml`. Pass `-` to read the config from stdin.
+
 **Examples:**
 
 - Validate the default config file: 
   `circleci config validate`
 - Validate a specific file: 
-  `circleci config validate --config path/to/config.yml`
+  `circleci config validate path/to/config.yml`
 - Validate against a specific org (otherwise inferred from the git remote): 
   `circleci config validate --org gh/myorg`
 - Validate and output as JSON: 

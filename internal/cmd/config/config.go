@@ -77,14 +77,14 @@ func readConfigInput(ctx context.Context, path string) (string, error) {
 		}
 		return string(b), nil
 	}
-	b, err := os.ReadFile(path) //#nosec:G304 // path is a user-supplied --config flag value, not arbitrary external input
+	b, err := os.ReadFile(path) //#nosec:G304 // path is a user-supplied argument or --config flag value, not arbitrary external input
 	if err != nil {
 		if os.IsNotExist(err) {
 			return "", clierrors.New("config.not_found", "Config file not found",
 				fmt.Sprintf("No config file found at %q.", path)).
 				WithSuggestions(
 					"Check the path and try again",
-					"Run from the root of your project, or pass --config <path>",
+					"Run from the root of your project, or pass the path to your config file",
 				).
 				WithExitCode(clierrors.ExitBadArguments)
 		}

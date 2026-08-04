@@ -165,6 +165,101 @@ func TestConfigValidate_FileNotFound(t *testing.T) {
 	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 }
 
+// TestConfigValidate_PositionalPath is the regression test for the first half of
+// https://github.com/CircleCI-Public/circleci-cli/issues/1636: `circleci config
+// validate <path>` — the form 0.1.x documented — must read the file it is given.
+func TestConfigValidate_PositionalPath(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+
+	dir := t.TempDir()
+	writeFile(t, filepath.Join(dir, "other.yml"), testConfigYAML)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"config", "validate", "other.yml"},
+		Env:     env.Environ(),
+		WorkDir: dir,
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 0))
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+}
+
+// TestConfigValidate_PositionalPathNotFound pins the failure mode reported in
+// issue 1636: a positional path that does not exist used to be ignored in favour
+// of .circleci/config.yml, so validation passed for a file nobody had read. The
+// working directory holds a valid default config precisely so that silent
+// fallback would show up as a success here.
+func TestConfigValidate_PositionalPathNotFound(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+
+	dir := t.TempDir()
+	writeConfig(t, dir, testConfigYAML)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"config", "validate", "does-not-exist.yml"},
+		Env:     env.Environ(),
+		WorkDir: dir,
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 2))
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+}
+
+// TestConfigValidate_PositionalPathBeatsConfigFlag pins the 0.1.x precedence:
+// when a caller passes both, the positional path is the one that is read.
+func TestConfigValidate_PositionalPathBeatsConfigFlag(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+
+	dir := t.TempDir()
+	writeFile(t, filepath.Join(dir, "wins.yml"), testConfigYAML)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"config", "validate", "wins.yml", "--config", "loses.yml"},
+		Env:     env.Environ(),
+		WorkDir: dir,
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 0))
+	assert.Check(t, cmp.Contains(result.Stdout, "wins.yml"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+}
+
+// TestConfigValidate_TooManyArgs keeps the argument contract explicit: a second
+// positional is a usage error rather than a silently ignored argument. The exit
+// code is Cobra's own for arg-count violations, as it is for config pack and
+// config process.
+func TestConfigValidate_TooManyArgs(t *testing.T) {
+	env := testenv.New(t)
+	env.Token = testToken
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"config", "validate", "a.yml", "b.yml"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Check(t, result.ExitCode != 0)
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+}
+
 const testOrgUUID = "00000000-0000-0000-0000-0000000000aa"
 
 func TestConfigValidate_WithOrgSlug(t *testing.T) {

@@ -1,4 +1,4 @@
-Usage:  circleci config validate [flags]
+Usage:  circleci config validate [<path>] [flags]
 
 Flags:
   -c, --config string   Path to config file (use "-" for stdin) (default ".circleci/config.yml")
