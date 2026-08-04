@@ -70,15 +70,30 @@ var (
 	keyRight  = tea.KeyPressMsg{Code: tea.KeyRight}
 )
 
+// teaTimeout bounds every wait on a teatest program in this package. It is a
+// liveness ceiling, not a latency budget: each wait returns the moment its
+// condition is met, so raising it cannot slow a passing test — but a wait that
+// is too tight fails a healthy program whenever the machine stalls. CI runs the
+// whole tree with -race while the acceptance suite compiles and execs binaries
+// on the same cores, and a 2s ceiling was tight enough to lose that race — on a
+// step that takes ~10ms even with the CPUs saturated.
+const teaTimeout = 10 * time.Second
+
 // quitMsg tells flowHarness to end the program. The flow ignores unknown message
-// types, so sending it does not perturb the model's state — the harness quits
-// the program with the inner model parked on its current (live) stage, so its
-// View can be snapshotted. (The flow's own quit paths switch to a "done" stage
-// that renders an empty frame, which would defeat a snapshot.)
+// types, so sending it does not perturb the model's state.
 type quitMsg struct{}
 
-// flowHarness drives a RunGetFlowModel as a standalone teatest program and quits
-// on quitMsg without disturbing the inner model.
+// snapshotMsg asks flowHarness for the inner model's current frame, delivered on
+// frame. The harness answers from inside the program loop, so a snapshot costs
+// one message round-trip and — unlike quitting to read the final model — never
+// waits on the renderer stopping and the terminal being restored. It also leaves
+// the program running, so a test can snapshot and then keep driving the flow.
+type snapshotMsg struct{ frame chan string }
+
+// flowHarness drives a RunGetFlowModel as a standalone teatest program, serving
+// snapshots and quitting on request without disturbing the inner model. (The
+// flow's own quit paths switch to a "done" stage that renders an empty frame,
+// which would defeat a snapshot.)
 type flowHarness struct {
 	m ui.RunGetFlowModel
 }
@@ -86,8 +101,12 @@ type flowHarness struct {
 func (h flowHarness) Init() tea.Cmd { return h.m.Init() }
 
 func (h flowHarness) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	if _, ok := msg.(quitMsg); ok {
+	switch msg := msg.(type) {
+	case quitMsg:
 		return h, tea.Quit
+	case snapshotMsg:
+		msg.frame <- h.m.View().Content
+		return h, nil
 	}
 	u, cmd := h.m.Update(msg)
 	h.m = u.(ui.RunGetFlowModel)
@@ -97,30 +116,49 @@ func (h flowHarness) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (h flowHarness) View() tea.View { return h.m.View() }
 
 // startFlow runs a flow at a known terminal size and waits for the run picker.
+// The program is ended on cleanup, since snapshots no longer end it themselves.
 func startFlow(t *testing.T, m ui.RunGetFlowModel) *teatest.TestModel {
 	t.Helper()
 	tm := teatest.NewTestModel(t, flowHarness{m: m}, teatest.WithInitialTermSize(80, 24))
+	t.Cleanup(func() {
+		tm.Send(quitMsg{})
+		tm.WaitFinished(t, teatest.WithFinalTimeout(teaTimeout))
+	})
 	waitForOutput(t, tm, "Select a run")
 	return tm
 }
 
-// waitForOutput blocks until the program's cumulative output contains s. The
-// timeout is generous so the streaming pager's 2s stdout poll has time to fire;
-// it returns as soon as the substring appears, so fast assertions stay fast.
+// waitForOutput blocks until the program's cumulative output contains s. It
+// returns as soon as the substring appears, so fast assertions stay fast; the
+// ceiling has to clear the streaming pager's 2s stdout poll.
 func waitForOutput(t *testing.T, tm *teatest.TestModel, s string) {
 	t.Helper()
 	teatest.WaitFor(t, tm.Output(), func(b []byte) bool {
 		return bytes.Contains(b, []byte(s))
-	}, teatest.WithDuration(4*time.Second))
+	}, teatest.WithDuration(teaTimeout))
 }
 
-// flowSnapshot quits via quitMsg and returns the inner model's final,
-// ANSI-stripped frame.
+// flowFrame returns the inner model's current frame with its ANSI intact, for
+// the few assertions about color and cursor-return handling.
+func flowFrame(t *testing.T, tm *teatest.TestModel) string {
+	t.Helper()
+	// Buffered so the program loop is never left blocked on a send, however this
+	// test goroutine ends.
+	frame := make(chan string, 1)
+	tm.Send(snapshotMsg{frame: frame})
+	select {
+	case f := <-frame:
+		return f
+	case <-time.After(teaTimeout):
+		t.Fatalf("no frame from the flow after %s", teaTimeout)
+		return ""
+	}
+}
+
+// flowSnapshot returns the inner model's current frame, ANSI stripped.
 func flowSnapshot(t *testing.T, tm *teatest.TestModel) string {
 	t.Helper()
-	tm.Send(quitMsg{})
-	fm := tm.FinalModel(t, teatest.WithFinalTimeout(2*time.Second)).(flowHarness)
-	return ansi.Strip(fm.m.View().Content)
+	return ansi.Strip(flowFrame(t, tm))
 }
 
 func runItem(label string) ui.RunGetItem {
@@ -780,9 +818,7 @@ func TestRunGetFlow_StepPagerStreams(t *testing.T) {
 	assert.Assert(t, t.Run("the pager shows every chunk and clears the streaming indicator", func(t *testing.T) {
 		// teatest's WaitFor consumes the stream, so the content is asserted from
 		// the snapshot, which holds the whole accumulated buffer.
-		tm.Send(quitMsg{})
-		fm := tm.FinalModel(t, teatest.WithFinalTimeout(2*time.Second)).(flowHarness)
-		raw := fm.m.View().Content
+		raw := flowFrame(t, tm)
 		body := ansi.Strip(raw)
 
 		assert.Check(t, cmp.Contains(body, "ERROR first line"))
@@ -814,9 +850,7 @@ func TestRunGetFlow_StepPagerCollapsesCarriageReturns(t *testing.T) {
 	tm.Send(keyEnt) // open the failed step's output in the pager
 	waitForOutput(t, tm, "Hit:1 archive InRelease")
 
-	tm.Send(quitMsg{})
-	fm := tm.FinalModel(t, teatest.WithFinalTimeout(2*time.Second)).(flowHarness)
-	raw := fm.m.View().Content
+	raw := flowFrame(t, tm)
 	body := ansi.Strip(raw)
 
 	assert.Check(t, cmp.Contains(body, "Hit:1 archive InRelease"))

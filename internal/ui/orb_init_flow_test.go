@@ -26,7 +26,6 @@ import (
 	"bytes"
 	"context"
 	"testing"
-	"time"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
@@ -81,7 +80,7 @@ func oiWaitFor(t *testing.T, tm *teatest.TestModel, s string) {
 	t.Helper()
 	teatest.WaitFor(t, tm.Output(), func(b []byte) bool {
 		return bytes.Contains(b, []byte(s))
-	}, teatest.WithDuration(4*time.Second))
+	}, teatest.WithDuration(teaTimeout))
 }
 
 // oiSnapshot quits via oiQuitMsg (leaving the inner model on its live stage) and
@@ -89,7 +88,7 @@ func oiWaitFor(t *testing.T, tm *teatest.TestModel, s string) {
 func oiSnapshot(t *testing.T, tm *teatest.TestModel) string {
 	t.Helper()
 	tm.Send(oiQuitMsg{})
-	fm := tm.FinalModel(t, teatest.WithFinalTimeout(2*time.Second)).(oiHarness)
+	fm := tm.FinalModel(t, teatest.WithFinalTimeout(teaTimeout)).(oiHarness)
 	return ansi.Strip(fm.m.View().Content)
 }
 
@@ -97,7 +96,7 @@ func oiSnapshot(t *testing.T, tm *teatest.TestModel) string {
 // gathered result.
 func oiResult(t *testing.T, tm *teatest.TestModel) ui.OrbInitResult {
 	t.Helper()
-	fm := tm.FinalModel(t, teatest.WithFinalTimeout(2*time.Second)).(oiHarness)
+	fm := tm.FinalModel(t, teatest.WithFinalTimeout(teaTimeout)).(oiHarness)
 	return fm.m.Result()
 }
 
