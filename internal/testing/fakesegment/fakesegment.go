@@ -106,5 +106,16 @@ func basicAuth(username, password string) string {
 
 var (
 	CompareTrack = cmpopts.IgnoreFields(analytics.Track{}, "MessageId")
-	CompareTime  = cmpopts.EquateApproxTime(time.Second)
+
+	// CompareTime treats timestamps as equal when they are close, because a test
+	// cannot know the instant the sender stamped an event or the instant this fake
+	// received the batch.
+	//
+	// The window is deliberately loose. What these assertions are for is "a
+	// plausible time was recorded" — that the field was populated at all, from the
+	// clock rather than left zero — not sub-second precision. A tight window buys
+	// no extra coverage and turns a slow CI box, or a `-race` run under load, into
+	// a failure: flushing the batch and delivering it over HTTP is what separates
+	// the two times, and that is not bounded by anything the test controls.
+	CompareTime = cmpopts.EquateApproxTime(time.Minute)
 )

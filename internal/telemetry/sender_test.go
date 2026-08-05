@@ -106,6 +106,13 @@ func TestClient_Track_with_user_id(t *testing.T) {
 	})
 	assert.NilError(t, err)
 
+	// Anchor the expected timestamps before the event is tracked, rather than
+	// inside the poll callback below. A time.Now() evaluated per retry drifts
+	// further from the timestamps actually recorded with every attempt, so once the
+	// batch takes longer than the comparison tolerance to arrive the test can never
+	// pass — it failed only under load, which is what made it flaky.
+	sent := time.Now()
+
 	err = ac.Track("myevent", map[string]any{
 		"foo": "bar",
 		"baz": 42,
@@ -118,15 +125,14 @@ func TestClient_Track_with_user_id(t *testing.T) {
 
 	poll.WaitOn(t, func(t poll.LogT) poll.Result {
 		batches := fs.Batches()
-		now := time.Now()
 		return poll.Compare(cmp.DeepEqual(batches, []fakesegment.Batch{
 			{
-				SentAt: now,
+				SentAt: sent,
 				Messages: []analytics.Track{
 					{
 						Type:      "track",
 						MessageId: "ignored",
-						Timestamp: now,
+						Timestamp: sent,
 						UserId:    userID.String(),
 						Event:     "myevent",
 						Properties: analytics.Properties{
@@ -194,6 +200,13 @@ func TestClient_Track_without_userid(t *testing.T) {
 	})
 	assert.NilError(t, err)
 
+	// Anchor the expected timestamps before the event is tracked, rather than
+	// inside the poll callback below. A time.Now() evaluated per retry drifts
+	// further from the timestamps actually recorded with every attempt, so once the
+	// batch takes longer than the comparison tolerance to arrive the test can never
+	// pass — it failed only under load, which is what made it flaky.
+	sent := time.Now()
+
 	err = ac.Track("user-event", map[string]any{
 		"foo": "bar",
 		"baz": 84,
@@ -206,15 +219,14 @@ func TestClient_Track_without_userid(t *testing.T) {
 
 	poll.WaitOn(t, func(t poll.LogT) poll.Result {
 		batches := fs.Batches()
-		now := time.Now()
 		return poll.Compare(cmp.DeepEqual(batches, []fakesegment.Batch{
 			{
-				SentAt: now,
+				SentAt: sent,
 				Messages: []analytics.Track{
 					{
 						Type:      "track",
 						MessageId: "ignored",
-						Timestamp: now,
+						Timestamp: sent,
 						UserId:    telemetry.AnonymousID.String(),
 						Event:     "user-event",
 						Properties: analytics.Properties{
