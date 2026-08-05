@@ -561,6 +561,41 @@ func TestConfigPack(t *testing.T) {
 	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 }
 
+// TestConfigPack_ParseErrorIsClickable is the end-to-end check for
+// https://github.com/CircleCI-Public/circleci-cli/issues/519: a YAML problem in
+// one file of a packed tree has to name that file and line, leading the message,
+// so the terminal turns it into a link.
+//
+// Asserted with Contains rather than a golden file because the message carries an
+// absolute path: a golden would embed this machine's temp directory, and would
+// need a second copy for Windows' separators.
+func TestConfigPack_ParseErrorIsClickable(t *testing.T) {
+	env := testenv.New(t)
+	env.Token = testToken
+
+	dir := t.TempDir()
+	assert.NilError(t, os.MkdirAll(filepath.Join(dir, ".circleci", "executors"), 0o755))
+	writeFile(t, filepath.Join(dir, ".circleci", "@config.yml"), "version: \"2.1\"\n")
+	writeFile(t, filepath.Join(dir, ".circleci", "executors", "executorA.yml"),
+		"docker:\n  - image: not-relevant\n    auth:\n"+
+			"      username: $DOCKERHUB_USER\n      password: $DOCKERHUB_ACCESSTOKEN\n    auth:\n")
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"config", "pack", ".circleci"},
+		Env:     env.Environ(),
+		WorkDir: dir,
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 2))
+	// The packed document is not emitted when packing fails.
+	assert.Check(t, cmp.Equal(result.Stdout, ""))
+	// The path is resolved by the CLI, so compare on the tail: the leading
+	// directory is the test's temp dir, which varies per run and per platform.
+	assert.Check(t, cmp.Contains(result.Stderr,
+		filepath.Join("executors", "executorA.yml")+`:6: mapping key "auth" already defined at line 3`))
+}
+
 func TestConfigPack_NotFound(t *testing.T) {
 	env := testenv.New(t)
 	env.Token = testToken

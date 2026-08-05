@@ -36,6 +36,7 @@
 package pack
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -156,7 +157,7 @@ func packFile(path string) (map[string]any, error) {
 	}
 	var v any
 	if err := yaml.Unmarshal(b, &v); err != nil {
-		return nil, fmt.Errorf("parsing %q: %w", path, err)
+		return nil, parseError(path, err)
 	}
 	if v == nil {
 		return make(map[string]any), nil
@@ -198,6 +199,50 @@ func toStringMap(v any) map[string]any {
 		return out
 	}
 	return nil
+}
+
+// yamlLineRe matches the "line N: " prefix that gopkg.in/yaml.v3 puts on the
+// front of its messages. It appears on both top-level parse errors
+// ("yaml: line 4: could not find expected ':'") and on each entry of a
+// *yaml.TypeError ("line 6: mapping key \"auth\" already defined at line 3"),
+// so one expression handles both after the "yaml: " prefix is trimmed.
+var yamlLineRe = regexp.MustCompile(`^line (\d+): `)
+
+// parseError rewrites a gopkg.in/yaml.v3 parse or decode failure so the source
+// location leads the message, in the `file:line:` form that editors and
+// terminals turn into a clickable link:
+//
+//	/path/to/src/executors/executorA.yml:6: mapping key "auth" already defined at line 3
+//
+// rather than yaml.v3's own shape, which buries the filename in prose and puts
+// the line on a continuation line:
+//
+//	parsing "/path/to/src/executors/executorA.yml": yaml: unmarshal errors:
+//	  line 6: mapping key "auth" already defined at line 3
+//
+// A *yaml.TypeError carries one entry per problem found; each gets its own
+// located line so a file with several errors reports all of them. Messages with
+// no line number degrade to "file: message" — still a location, just a coarser
+// one. Columns are not available: yaml.v3 reports lines only.
+func parseError(path string, err error) error {
+	var typeErr *yaml.TypeError
+	if errors.As(err, &typeErr) && len(typeErr.Errors) > 0 {
+		located := make([]string, 0, len(typeErr.Errors))
+		for _, e := range typeErr.Errors {
+			located = append(located, locate(path, e))
+		}
+		return errors.New(strings.Join(located, "\n"))
+	}
+	return errors.New(locate(path, strings.TrimPrefix(err.Error(), "yaml: ")))
+}
+
+// locate prefixes msg with path, moving any leading "line N: " into the prefix
+// so the result reads "path:N: msg".
+func locate(path, msg string) string {
+	if m := yamlLineRe.FindStringSubmatch(msg); m != nil {
+		return fmt.Sprintf("%s:%s: %s", path, m[1], msg[len(m[0]):])
+	}
+	return fmt.Sprintf("%s: %s", path, msg)
 }
 
 var (
