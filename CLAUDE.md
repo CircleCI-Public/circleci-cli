@@ -299,12 +299,15 @@ Defined in `internal/errors/exitcodes.go`. Document new codes there before using
 
 ---
 
-## Commit messages
+## Committing
 
 Write plain imperative subject lines. Do **not** use conventional commit prefixes (`feat:`, `fix:`, `chore:`, etc.).
 
 Good: `Implement config validate/process/pack`
 Bad: `feat(config): implement config validate/process/pack`
+
+When addressing CI failures or PR feedback, squash / amend the previous commit so that branches / PRs only contain a single
+commit.
 
 ---
 
