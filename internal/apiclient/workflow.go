@@ -118,14 +118,27 @@ func (c *Client) GetRunWorkflowsV3(ctx context.Context, runID uuid.UUID) ([]Work
 
 // RerunWorkflow triggers a rerun of the given workflow. When fromFailed is
 // true only the failed jobs are rerun; otherwise all jobs restart from scratch.
-func (c *Client) RerunWorkflow(ctx context.Context, id string, fromFailed bool) error {
-	body := map[string]any{"from_failed": fromFailed}
+//
+// It returns the id of the *new* workflow the rerun created, which is what the
+// caller needs to follow the run they just started — the id passed in belongs to
+// the old workflow and is of no further use.
+//
+// The request field is "is_from_failed". Not "from_failed": that is the name the
+// v2 endpoint and the service's own internal client use, and the v3 handler
+// tolerates unknown fields rather than rejecting them — so sending the v2 name
+// here silently reran everything from scratch, with a 201 and a new workflow to
+// make it look like it had worked.
+func (c *Client) RerunWorkflow(ctx context.Context, id string, fromFailed bool) (string, error) {
+	body := map[string]any{"is_from_failed": fromFailed}
 	var resp v3Entity[struct {
-		WorkflowID string `json:"workflow_id"`
+		ID string `json:"id"`
 	}]
-	return c.postV3(ctx, "/workflows/%s/rerun", body, &resp,
+	if err := c.postV3(ctx, "/workflows/%s/rerun", body, &resp,
 		routeParams(id),
-	)
+	); err != nil {
+		return "", err
+	}
+	return resp.Data.ID, nil
 }
 
 // CancelWorkflow requests cancellation of a running workflow. Cancellation
