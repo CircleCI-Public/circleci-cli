@@ -1,0 +1,18 @@
+commands:
+    vpn:
+        parameters:
+            killswitch:
+                default: true
+                type: boolean
+            label:
+                default: "on"
+                type: string
+            quiet:
+                default: false
+                type: boolean
+            verbose:
+                default: true
+                type: boolean
+        steps:
+            - run: echo hi
+version: 2.1

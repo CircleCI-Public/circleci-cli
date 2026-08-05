@@ -32,6 +32,8 @@
 //   - Dotfiles and non-YAML files are skipped.
 //   - Packing a single file round-trips it through the YAML parser (normalising
 //     formatting) and returns the result.
+//   - Unquoted yes/no/on/off are booleans, as the CircleCI config compiler reads
+//     them, not strings as YAML 1.2 would.
 //   - Output is indented with four spaces, matching the 0.1.x CLI byte for byte.
 package pack
 
@@ -150,13 +152,33 @@ func packDir(dirPath, absRoot string) (map[string]any, error) {
 }
 
 // packFile reads and parses a single YAML file, returning its root map.
+//
+// Parsing goes through a yaml.Node rather than straight into `any` so that
+// plain YAML 1.1 booleans can be retagged before the value is materialised —
+// see resolveYAML11Bools for why that matters.
 func packFile(path string) (map[string]any, error) {
 	b, err := os.ReadFile(path) //#nosec:G304 // path is a resolved filesystem path under the user-supplied pack root directory
 	if err != nil {
 		return nil, fmt.Errorf("reading %q: %w", path, err)
 	}
+
+	var node yaml.Node
+	if err := yaml.Unmarshal(b, &node); err != nil {
+		return nil, parseError(path, err)
+	}
+	// A file that is empty, or holds only comments, produces a zero node.
+	if node.Kind == 0 {
+		return make(map[string]any), nil
+	}
+
+	resolveYAML11Bools(&node, false)
+
 	var v any
-	if err := yaml.Unmarshal(b, &v); err != nil {
+	// Decoding is what surfaces duplicate mapping keys: yaml.Unmarshal into a
+	// yaml.Node accepts them, and only the decode into a Go value reports them.
+	// Both stages report through parseError, so a problem found at either one
+	// still leads with its file and line.
+	if err := node.Decode(&v); err != nil {
 		return nil, parseError(path, err)
 	}
 	if v == nil {
@@ -167,6 +189,67 @@ func packFile(path string) (map[string]any, error) {
 		return nil, fmt.Errorf("%q must have a YAML map at the root, got %T", path, v)
 	}
 	return m, nil
+}
+
+// yaml11Bools maps the plain scalars that YAML 1.1 resolves as booleans, but
+// YAML 1.2 — and therefore gopkg.in/yaml.v3 — resolves as strings.
+//
+// The single-character forms y/Y/n/N are deliberately absent. YAML 1.1 lists
+// them, but SnakeYAML (which backs the CircleCI config compiler) does not
+// resolve them as booleans, and "n" is a plausible string value in a real
+// config. Matching the compiler matters more here than matching the spec.
+var yaml11Bools = map[string]string{
+	"yes": "true", "Yes": "true", "YES": "true",
+	"on": "true", "On": "true", "ON": "true",
+	"no": "false", "No": "false", "NO": "false",
+	"off": "false", "Off": "false", "OFF": "false",
+}
+
+// resolveYAML11Bools retags unquoted yes/no/on/off scalars as booleans.
+//
+// The CircleCI config compiler reads YAML 1.1, where those six words are
+// booleans. gopkg.in/yaml.v3 reads YAML 1.2, where they are strings — so
+// packing decoded `default: on` to the string "on" and, because that string
+// would be ambiguous on the way out, re-emitted it quoted. A boolean parameter
+// then failed validation against its own declared type:
+//
+//	Parameter error: default value of parameter 'killswitch' is 'on' (type string): expected type boolean
+//
+// Retagging makes the packed output say what the compiler would have read from
+// the source, which is the whole job of pack. `on` becomes `true` rather than
+// an unquoted `on`: both are booleans in YAML 1.1 and 1.2, and `true` cannot be
+// misread by either.
+//
+// Two things are left alone:
+//
+//   - Quoted scalars. A source that says "on" or 'on' asked for the string, and
+//     yaml.v3 records that in Style, so the intent survives.
+//   - Mapping keys. isKey tracks them through the walk. A key retagged to a
+//     boolean would no longer decode into map[string]any, and CircleCI config
+//     has no boolean keys.
+func resolveYAML11Bools(n *yaml.Node, isKey bool) {
+	if n == nil {
+		return
+	}
+	if n.Kind == yaml.ScalarNode {
+		if !isKey && n.Tag == "!!str" && n.Style == 0 {
+			if b, ok := yaml11Bools[n.Value]; ok {
+				n.Tag = "!!bool"
+				n.Value = b
+			}
+		}
+		return
+	}
+	// Mappings alternate key, value, key, value through Content.
+	if n.Kind == yaml.MappingNode {
+		for i, child := range n.Content {
+			resolveYAML11Bools(child, i%2 == 0)
+		}
+		return
+	}
+	for _, child := range n.Content {
+		resolveYAML11Bools(child, false)
+	}
 }
 
 // mergeMaps shallow-merges any number of maps into a new map[string]any.
