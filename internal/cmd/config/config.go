@@ -32,6 +32,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 
 	"github.com/MakeNowJust/heredoc"
 	"github.com/spf13/cobra"
@@ -120,6 +121,19 @@ func resolveOrgID(ctx context.Context, client *apiclient.Client, org, cmdName st
 		return "", err
 	}
 	return id.String(), nil
+}
+
+// printValidationErrors writes each compilation error as a bulleted line to
+// stderr. An error's message may itself span multiple newline-separated
+// lines (the API sometimes returns one error with embedded detail lines
+// rather than several separate errors), so each line gets its own bullet to
+// keep the output visually aligned.
+func printValidationErrors(ctx context.Context, errs []string) {
+	for _, e := range errs {
+		for _, line := range strings.Split(e, "\n") {
+			iostream.ErrPrintf(ctx, "  • %s\n", line)
+		}
+	}
 }
 
 func configAPIErr(err error) *clierrors.CLIError {

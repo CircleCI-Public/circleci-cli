@@ -116,9 +116,7 @@ func newValidateCmd() *cobra.Command {
 			}
 
 			if !result.Valid {
-				for _, e := range result.Errors {
-					iostream.ErrPrintf(ctx, "  • %s\n", e)
-				}
+				printValidationErrors(ctx, result.Errors)
 				return clierrors.New("config.invalid", "Config is invalid",
 					fmt.Sprintf("Config file %q contains compilation errors.", path)).
 					WithExitCode(clierrors.ExitValidationFail)
