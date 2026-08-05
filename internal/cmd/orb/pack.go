@@ -24,6 +24,7 @@ package orb
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/MakeNowJust/heredoc"
 	"github.com/spf13/cobra"
@@ -77,7 +78,11 @@ func newPackCmd() *cobra.Command {
 			packed, err := pack.Pack(args[0])
 			if err != nil {
 				return clierrors.New("orb.pack_failed", "Orb pack failed",
-					fmt.Sprintf("Could not pack %q: %s", args[0], err)).
+					// A pack failure can name more than one bad file; indent the
+					// continuation lines so each located problem stays readable
+					// under the single-line "error: " prefix.
+					fmt.Sprintf("Could not pack %q: %s", args[0],
+						strings.ReplaceAll(err.Error(), "\n", "\n  "))).
 					WithExitCode(clierrors.ExitBadArguments)
 			}
 			_, _ = fmt.Fprint(iostream.Out(ctx), packed)
