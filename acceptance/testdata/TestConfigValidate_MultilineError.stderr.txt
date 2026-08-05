@@ -1,0 +1,6 @@
+  • Error calling workflow: 'build-test-deploy-bug'
+  • Error calling job: 'buggy-orb/exhibit-bug'
+  • Referred to a variable "pipeline.parameters.bug" that does not exist:
+  • << pipeline.parameters.bug >>
+  •  ^^^^^^^^^^^^^^^^^^^^^^^
+error: Config file ".circleci/config.yml" contains compilation errors.
