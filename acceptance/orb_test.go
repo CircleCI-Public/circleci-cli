@@ -55,6 +55,10 @@ const testOrbUUID = "a1b2c3d4-0000-4000-8000-000000000001"
 const testOrbName = "myorg/my-orb"
 const testOrbNsName = "myorg"
 const testOrbShortName = "my-orb"
+
+// Valid hex UUIDs: ProjectRef.ID is a uuid.UUID and has to parse.
+const testOrbProjectID = "00000000-0000-4000-8000-0000000000b1"
+const testOrbOrgID = "00000000-0000-4000-8000-0000000000b2"
 const testOrbVersion = "1.0.0"
 const testOrbSource = "version: 2.1\ndescription: My test orb\n"
 
@@ -1001,6 +1005,10 @@ func TestOrbInit_SkipGit(t *testing.T) {
 func TestOrbInit_Git(t *testing.T) {
 	fake, env := setupOrbFake(t)
 	registerOrbTemplate(t, fake, env)
+	// Resolvable by slug so orb init can find the project it just followed, and
+	// known by UUID so the settings update lands, not 404s.
+	fake.AddProjectBySlug("gh/myorg/my-orb", testOrbProjectID, testOrbShortName, testOrbOrgID)
+	fake.SetProjectSettings(testOrbProjectID, map[string]any{"advanced": map[string]any{}})
 	// Provide a git identity so the initial commit succeeds deterministically.
 	env.Extra["GIT_AUTHOR_NAME"] = "Test"
 	env.Extra["GIT_AUTHOR_EMAIL"] = "test@example.com"
@@ -1047,6 +1055,57 @@ func TestOrbInit_Git(t *testing.T) {
 	}
 	assert.Check(t, published, "expected a POST to /api/v3/orb/versions")
 	assert.Check(t, followed, "expected a follow request")
+
+	// Dynamic config was enabled, so the orb dev kit's setup workflow will
+	// actually run on the first pipeline (issue 834).
+	var dynamicConfig any
+	for _, req := range fake.AllRequests() {
+		if req.Method == http.MethodPost &&
+			req.URL.Path == "/api/v3/projects/"+testOrbProjectID+"/update-settings" {
+			if req.Body == nil {
+				continue
+			}
+			var body map[string]any
+			assert.NilError(t, json.Unmarshal([]byte(*req.Body), &body))
+			if v, ok := body["enable_dynamic_config"]; ok {
+				dynamicConfig = v
+			}
+		}
+	}
+	assert.Check(t, cmp.Equal(dynamicConfig, true),
+		"expected enable_dynamic_config: true in an update-settings request")
+}
+
+// TestOrbInit_Git_DynamicConfigFailureDoesNotAbort pins the failure mode. By the
+// time dynamic config is enabled, the namespace, orb, publishing context, git
+// repository and dev release all exist. If the project cannot be resolved — it is
+// not registered by slug here — orb init must warn and still finish, rather than
+// abort and leave the author with a half-built project and no way to resume.
+func TestOrbInit_Git_DynamicConfigFailureDoesNotAbort(t *testing.T) {
+	fake, env := setupOrbFake(t)
+	registerOrbTemplate(t, fake, env)
+	env.Extra["GIT_AUTHOR_NAME"] = "Test"
+	env.Extra["GIT_AUTHOR_EMAIL"] = "test@example.com"
+	env.Extra["GIT_COMMITTER_NAME"] = "Test"
+	env.Extra["GIT_COMMITTER_EMAIL"] = "test@example.com"
+
+	workDir := t.TempDir()
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary: binaryPath,
+		Args: []string{
+			"orb", "init", orbInitDir,
+			"--org", "gh/myorg",
+			"--remote", "https://github.com/myorg/my-orb.git",
+			"--branch", "main",
+		},
+		Env:     env.Environ(),
+		WorkDir: workDir,
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, cmp.Contains(result.Stdout, "Could not enable dynamic configuration"))
+	// The run still reached its end: the orb is set up and on the alpha branch.
+	assert.Check(t, cmp.Contains(result.Stdout, "alpha"))
 }
 
 // writeOrbFile writes a file for the pack tests, creating parent directories.

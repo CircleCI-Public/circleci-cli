@@ -1972,8 +1972,8 @@ Initialize a new orb project
 Scaffold a new orb project from CircleCI-Public/Orb-Template into <path>.
 
 It then walks you through setup: reserving the namespace and orb, assigning
-categories, creating an 'orb-publishing' context, initializing git, and
-publishing a dev:alpha version.
+categories, creating an 'orb-publishing' context, initializing git, enabling
+dynamic config, and publishing a dev:alpha version.
 
 Note: once published, orbs cannot be deleted.
 
