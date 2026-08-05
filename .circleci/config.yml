@@ -109,7 +109,7 @@ jobs:
       - store_artifacts:
           path: dist
 
-  smoke-test-preview:
+  smoke-test:
     parameters:
       executor:
         type: executor
@@ -217,7 +217,7 @@ workflows:
           context:
             - devex-release
 
-      - smoke-test-preview:
+      - smoke-test:
           name: smoke-test-snap
           executor: linux
           install-steps:
@@ -225,15 +225,15 @@ workflows:
                 name: Install snapd
                 command: sudo apt update --yes && sudo apt install snapd --yes
             - run:
-                name: Install circleci via Snap edge channel
-                command: sudo snap install circleci --channel=edge
+                name: Install circleci via Snap stable channel
+                command: sudo snap install circleci
           requires:
             - deploy
           filters:
             branches:
               only: main
 
-      - smoke-test-preview:
+      - smoke-test:
           name: smoke-test-brew
           executor: macos
           install-steps:
@@ -251,13 +251,13 @@ workflows:
             branches:
               only: main
 
-      - smoke-test-preview:
+      - smoke-test:
           name: smoke-test-choco
           executor: windows
           install-steps:
             - run:
-                name: Install circleci via Chocolatey pre-release
-                command: choco install circleci-cli --pre -y
+                name: Install circleci via Chocolatey
+                command: choco install circleci-cli -y
           requires:
             - deploy
           filters:

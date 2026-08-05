@@ -116,7 +116,6 @@ chocolateys:
       `circleci` is CircleCI's official command line tool. It is an agent-friendly CLI that brings CI runs, jobs,
       configuration, and other CircleCI features to the terminal right where you're already working.
     api_key: "{{ .Env.CHOCO_API_KEY }}"
-    skip_publish: true # TODO: Remove this once we're ready to release
 
 winget:
   - publisher: CircleCI
@@ -153,8 +152,6 @@ winget:
     url_template: "https://github.com/CircleCI-Public/circleci-cli/releases/download/{{ .Tag }}/{{ .ArtifactName }}"
     homepage: "https://circleci.com"
     copyright: "Circle Internet Services, Inc."
-    # TODO: Remove this once we're ready to release'
-    skip_upload: true
     release_notes: "{{.Changelog}}"
     release_notes_url: "https://github.com/CircleCI-Public/circleci-cli/releases/tag/{{ .Tag }}"
     repository:
@@ -162,10 +159,13 @@ winget:
       name: winget-pkgs
       branch: "circleci-cli-{{ .Tag }}"
       pull_request:
+        enabled: false
         base:
           owner: microsoft
           name: winget-pkgs
           branch: master
+  # Superseded by CircleCI.CLI above, but kept up to date so users who
+  # installed the preview package keep receiving releases.
   - publisher: CircleCI
     name: CircleCI CLI Preview
     short_description: "CircleCI command line tool."
@@ -207,6 +207,7 @@ winget:
       name: winget-pkgs
       branch: "circleci-cli-next-{{ .Tag }}"
       pull_request:
+        enabled: false
         base:
           owner: microsoft
           name: winget-pkgs
@@ -229,14 +230,17 @@ snapcrafts:
       `sudo snap connect circleci:password-manager-service`. Without it, the token
       falls back to the config file.
     license: MIT
-    grade: devel # TODO: Change to stable once we're ready to release
+    grade: stable
     confinement: strict
     publish: true
-    # devel-grade snaps can only be released to edge/beta, never
-    # candidate/stable. Pin the channels until grade becomes stable.
+    # stable-grade snaps can go to every channel. Listed explicitly rather than
+    # relying on the goreleaser default so a future grade change can't silently
+    # narrow them back to edge/beta.
     channel_templates:
-      - edge
+      - stable
+      - candidate
       - beta
+      - edge
     apps:
       circleci:
         plugs:
@@ -246,6 +250,9 @@ snapcrafts:
         command: circleci
 
 homebrew_casks:
+  # The stable `circleci` install on macOS is the homebrew-core formula, which
+  # Homebrew's autobump bot updates itself from /releases/latest — so nothing
+  # here publishes it. This tap only carries the preview cask.
   - name: circleci@next
     directory: Casks
     repository:
@@ -289,4 +296,4 @@ archives:
 release:
   prerelease: auto
   name_template: "CircleCI CLI {{.Version}}"
-  make_latest: false
+  make_latest: true
