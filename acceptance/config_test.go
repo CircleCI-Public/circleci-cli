@@ -655,6 +655,79 @@ func TestConfigPack_UnknownAnchor(t *testing.T) {
 	assert.Check(t, cmp.Contains(result.Stderr, "c.yml"))
 }
 
+// TestConfigPack_WarnsOnDetachedListKey is the end-to-end check for
+// https://github.com/CircleCI-Public/circleci-cli/issues/512: `requires`
+// indented level with the job name is, in YAML, a sibling of it, so the job gets
+// no value and CircleCI rejects the packed result at compile time.
+//
+// The pack still succeeds and still emits what the YAML says — the warning is
+// advisory. Two things matter here that the unit tests cannot show: the warning
+// goes to stderr, so stdout stays pipeable into validate, and the exit code
+// stays 0.
+func TestConfigPack_WarnsOnDetachedListKey(t *testing.T) {
+	env := testenv.New(t)
+	env.Token = testToken
+
+	dir := t.TempDir()
+	assert.NilError(t, os.MkdirAll(filepath.Join(dir, ".circleci", "workflows"), 0o755))
+	writeFile(t, filepath.Join(dir, ".circleci", "@config.yml"), "version: \"2.1\"\n")
+	writeFile(t, filepath.Join(dir, ".circleci", "workflows", "build_and_test.yml"),
+		"jobs:\n"+
+			"  - specs\n"+
+			"  - specs_feature_failures_only:\n"+
+			"    requires:\n"+
+			"      - specs\n")
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"config", "pack", ".circleci"},
+		Env:     env.Environ(),
+		WorkDir: dir,
+	})
+
+	// Advisory: the document is well-formed YAML, so packing succeeds.
+	assert.Check(t, cmp.Equal(result.ExitCode, 0))
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+
+	// Asserted with Contains rather than a golden because the warning carries an
+	// absolute path: a golden would embed this machine's temp directory, and would
+	// need a second copy for Windows' separators.
+	assert.Check(t, cmp.Contains(result.Stderr,
+		`"specs_feature_failures_only" has no value but shares a list item with "requires"`))
+	assert.Check(t, cmp.Contains(result.Stderr, `indent "requires" one level further`))
+	// The location leads, and points at the line the job name is on.
+	assert.Check(t, cmp.Contains(result.Stderr, filepath.Join("workflows", "build_and_test.yml")+":3: "))
+}
+
+// TestConfigPack_NoSpuriousWarning is the other half: a correctly indented
+// workflow job must pack silently. A warning on valid config is worse than a
+// missing one, so this pins stderr as empty.
+func TestConfigPack_NoSpuriousWarning(t *testing.T) {
+	env := testenv.New(t)
+	env.Token = testToken
+
+	dir := t.TempDir()
+	assert.NilError(t, os.MkdirAll(filepath.Join(dir, ".circleci", "workflows"), 0o755))
+	writeFile(t, filepath.Join(dir, ".circleci", "@config.yml"), "version: \"2.1\"\n")
+	writeFile(t, filepath.Join(dir, ".circleci", "workflows", "build_and_test.yml"),
+		"jobs:\n"+
+			"  - specs\n"+
+			"  - specs_feature_failures_only:\n"+
+			"      requires:\n"+
+			"        - specs\n")
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"config", "pack", ".circleci"},
+		Env:     env.Environ(),
+		WorkDir: dir,
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 0))
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, cmp.Equal(result.Stderr, ""))
+}
+
 func TestConfigPack_NotFound(t *testing.T) {
 	env := testenv.New(t)
 	env.Token = testToken
