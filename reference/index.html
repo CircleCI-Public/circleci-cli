@@ -408,7 +408,8 @@ When omitted, lists certified orbs globally.</li></ul><p><strong>Aliases:</stron
 <code>circleci orb list-categories --json --jq '.[].name'</code></li></ul><h4 id=circleci-orb-pack-path><a class=heading-anchor href=#circleci-orb-pack-path><code>circleci orb pack &lt;path></code><span class=heading-anchor-icon aria-hidden=true>#</span></a></h4><p>Pack a multi-file orb directory into a single YAML</p><p>Pack an orb source directory into a single YAML file.</p><p>If the path is a directory, the &lsquo;@orb.yml&rsquo; (or &lsquo;orb.yml&rsquo;) file at the
 root is merged with any &lsquo;commands/&rsquo;, &lsquo;jobs/&rsquo;, &rsquo;executors/&rsquo;, and &rsquo;examples/&rsquo;
 subdirectories. Each .yml file in those directories is added as a named
-entry under the corresponding top-level key.</p><p>If the path is a single file it is parsed and written to stdout.</p><p>The merged YAML is written to stdout.</p><p><strong>Arguments:</strong></p><ul><li><code>&lt;path></code> is the path to an orb source directory or a single orb YAML file.</li></ul><p><strong>Examples:</strong></p><ul><li>Pack a single orb file:
+entry under the corresponding top-level key.</p><p>If the path is a single file it is parsed and written to stdout.</p><p>A value that is exactly &lsquo;&#171; include(path) &#187;&rsquo; is replaced with the
+contents of that file, resolved relative to the orb root.</p><p>The merged YAML is written to stdout.</p><p><strong>Arguments:</strong></p><ul><li><code>&lt;path></code> is the path to an orb source directory or a single orb YAML file.</li></ul><p><strong>Examples:</strong></p><ul><li>Pack a single orb file:
 <code>circleci orb pack orb.yml</code></li><li>Pack a multi-file orb directory:
 <code>circleci orb pack ./src</code></li><li>Pack and save to a file:
 <code>circleci orb pack ./src > orb.yml</code></li><li>Pack and immediately validate:
