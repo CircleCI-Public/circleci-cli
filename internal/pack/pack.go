@@ -27,6 +27,9 @@
 //   - Files at the pack root are merged at the top level of the output.
 //   - Subdirectory names become top-level YAML keys; files inside become entries
 //     under that key, keyed by filename without extension.
+//   - Deeper subdirectories are organisational only: their files join the
+//     top-level section their ancestor opened, so commands/aws/login.yml becomes
+//     commands.login. Two files that would claim the same key are an error.
 //   - Files whose names begin with "@" are merged at the current directory level
 //     rather than nested under a key (used for base files like @orb.yml).
 //   - Dotfiles and non-YAML files are skipped.
@@ -75,7 +78,7 @@ func Pack(rootPath string) (string, error) {
 
 	var result map[string]any
 	if info.IsDir() {
-		result, err = packDir(absRoot, absRoot)
+		result, err = packDir(absRoot, 0)
 	} else {
 		result, err = packFile(absRoot)
 	}
@@ -94,16 +97,39 @@ func Pack(rootPath string) (string, error) {
 }
 
 // packDir recursively merges all YAML files under dirPath.
-// absRoot identifies which level is the "root" for top-level merge behaviour.
-func packDir(dirPath, absRoot string) (map[string]any, error) {
+//
+// depth is the nesting level below the pack root, and it decides what a
+// subdirectory means:
+//
+//   - At depth 0 (the pack root) a subdirectory opens a top-level section:
+//     src/commands/ becomes the "commands" key.
+//   - Below that, subdirectories are organisational only. Their files join the
+//     section their ancestor opened, keyed by filename, so
+//     src/commands/aws/login.yml becomes commands.login rather than
+//     commands.aws.login — which was not a command at all, just a map that
+//     happened to sit where one belonged.
+func packDir(dirPath string, depth int) (map[string]any, error) {
 	entries, err := os.ReadDir(dirPath)
 	if err != nil {
 		return nil, fmt.Errorf("reading directory %q: %w", dirPath, err)
 	}
 
 	subtree := make(map[string]any)
-	isRoot := dirPath == absRoot
 	dirBasename := nameWithoutExt(filepath.Base(dirPath))
+
+	// origins records which file or directory claimed each key at this level, so
+	// a collision between two sources can name both of them. Only populated
+	// below the root, where flattening makes collisions possible.
+	origins := make(map[string]string)
+
+	// Subdirectory results are held back and merged after the files at this
+	// level, so a collision is caught whichever order os.ReadDir returns them
+	// in: commands/login.yml and commands/aws/login.yml collide either way.
+	type nestedResult struct {
+		path    string
+		content map[string]any
+	}
+	var nested []nestedResult
 
 	for _, entry := range entries {
 		name := entry.Name()
@@ -114,12 +140,16 @@ func packDir(dirPath, absRoot string) (map[string]any, error) {
 		}
 
 		if entry.IsDir() {
-			childMap, err := packDir(fullPath, absRoot)
+			childMap, err := packDir(fullPath, depth+1)
 			if err != nil {
 				return nil, err
 			}
-			existing, _ := subtree[name].(map[string]any)
-			subtree[name] = mergeMaps(existing, childMap)
+			if depth == 0 {
+				existing, _ := subtree[name].(map[string]any)
+				subtree[name] = mergeMaps(existing, childMap)
+			} else {
+				nested = append(nested, nestedResult{path: fullPath, content: childMap})
+			}
 			continue
 		}
 
@@ -133,7 +163,7 @@ func packDir(dirPath, absRoot string) (map[string]any, error) {
 		}
 
 		switch {
-		case isRoot:
+		case depth == 0:
 			// Files directly under the pack root are merged at the top level.
 			subtree = mergeMaps(subtree, content)
 		case isSpecialName(name):
@@ -146,8 +176,22 @@ func packDir(dirPath, absRoot string) (map[string]any, error) {
 			key := nameWithoutExt(name)
 			existing, _ := subtree[key].(map[string]any)
 			subtree[key] = mergeMaps(existing, content)
+			origins[key] = fullPath
 		}
 	}
+
+	for _, n := range nested {
+		for key := range n.content {
+			if from, taken := origins[key]; taken {
+				return nil, fmt.Errorf(
+					"%q and %q both define %q; two files that pack into the same section cannot share a name",
+					from, filepath.Join(n.path, key+".yml"), key)
+			}
+			origins[key] = filepath.Join(n.path, key+".yml")
+		}
+		subtree = mergeMaps(subtree, n.content)
+	}
+
 	return subtree, nil
 }
 

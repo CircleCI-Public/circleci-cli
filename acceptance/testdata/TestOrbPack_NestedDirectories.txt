@@ -1,0 +1,15 @@
+commands:
+    auth:
+        steps:
+            - run: echo auth
+    login:
+        steps:
+            - run: echo login
+    top:
+        steps:
+            - run: echo top
+jobs:
+    unit:
+        steps:
+            - run: echo unit
+version: 2.1
