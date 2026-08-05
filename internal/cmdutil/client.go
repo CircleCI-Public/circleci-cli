@@ -150,7 +150,8 @@ func GetConfig(ctx context.Context) *config.Config {
 
 // LoadClient reads the CLI config, validates that a token is present, and
 // returns an authenticated API client. On failure it returns a structured
-// CLIError ready to be returned directly from a RunE handler.
+// CLIError ready to be returned directly from a RunE handler. This is the
+// default; see LoadClientOptionalAuth for the anonymous-capable variant.
 //
 // Honors a --config path set by the root PersistentPreRunE via WithConfigPath.
 func LoadClient(ctx context.Context) (*apiclient.Client, error) {
@@ -168,6 +169,23 @@ func LoadClient(ctx context.Context) (*apiclient.Client, error) {
 			WithRef("https://app.circleci.com/settings/user/oauth-clients").
 			WithExitCode(clierrors.ExitAuthError)
 	}
+	return newAPIClient(ctx, cfg, token), nil
+}
+
+// LoadClientOptionalAuth returns an API client without requiring a token, for
+// commands that work against endpoints CircleCI also serves anonymously. When a
+// token *is* configured it is still sent, so the authenticated behaviour is
+// unchanged; the returned client reports which it is via Authenticated().
+//
+// Prefer LoadClient everywhere else. Against an endpoint that requires a token,
+// an anonymous client turns the actionable "Authentication required" error into
+// a bare 401 from the API.
+func LoadClientOptionalAuth(ctx context.Context) *apiclient.Client {
+	cfg := GetConfig(ctx)
+	return newAPIClient(ctx, cfg, cfg.EffectiveToken())
+}
+
+func newAPIClient(ctx context.Context, cfg *config.Config, token string) *apiclient.Client {
 	return apiclient.New(apiclient.Config{
 		BaseURL: cfg.EffectiveHost(),
 		Token:   token,
@@ -176,7 +194,7 @@ func LoadClient(ctx context.Context) (*apiclient.Client, error) {
 		OnWarn: func(msg string) {
 			iostream.ErrPrintf(ctx, "warning: %s\n", msg)
 		},
-	}), nil
+	})
 }
 
 func AppURL(ctx context.Context) (string, error) {

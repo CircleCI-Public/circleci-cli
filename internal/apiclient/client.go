@@ -32,7 +32,8 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/internal/httpcl"
 )
 
-// Client is an authenticated CircleCI API client.
+// Client is a CircleCI API client. It is authenticated when Config.Token was
+// set; see Authenticated.
 type Client struct {
 	main  *httpcl.Client // circleci.com/api/v1.1, /api/v2
 	raw   *httpcl.Client
@@ -60,11 +61,18 @@ func New(cfg Config) *Client {
 	}
 
 	baseCfg := httpcl.Config{
-		AuthToken:  "Bearer " + cfg.Token,
 		AuthHeader: "Authorization",
 		UserAgent:  httpcl.UserAgent(runtime.GOOS, runtime.GOARCH, cfg.Version, cfg.Agent),
 		Transport:  cfg.Transport,
 		OnWarn:     cfg.OnWarn,
+	}
+	// Leave AuthToken empty for an anonymous client so httpcl omits the header
+	// entirely. Sending a valueless "Authorization: Bearer" instead makes the API
+	// reject the request as malformed credentials rather than treating it as
+	// unauthenticated, which breaks the endpoints that do serve anonymous callers
+	// (see cmdutil.LoadClientOptionalAuth).
+	if cfg.Token != "" {
+		baseCfg.AuthToken = "Bearer " + cfg.Token
 	}
 
 	mainCfg := baseCfg
@@ -76,6 +84,9 @@ func New(cfg Config) *Client {
 		token: cfg.Token,
 	}
 }
+
+// Authenticated reports whether the client carries an API token.
+func (c *Client) Authenticated() bool { return c.token != "" }
 
 func queryParam(key, val string) func(*httpcl.Request) {
 	return httpcl.QueryParam(key, val)
