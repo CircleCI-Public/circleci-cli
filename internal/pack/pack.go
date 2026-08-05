@@ -91,10 +91,10 @@ type options struct {
 	resolveIncludes bool
 }
 
-// WithIncludes enables resolution of `<< include(file) >>` directives: a scalar
-// whose entire value is such a directive is replaced with the contents of the
-// referenced file, resolved relative to the pack root. This is an orb-authoring
-// feature — config packing does not use it. See resolveIncludes.
+// WithIncludes enables resolution of `<< include(file) >>` directives: each such
+// directive in a scalar is replaced with the contents of the referenced file,
+// resolved relative to the pack root. This is an orb-authoring feature — config
+// packing does not use it. See resolveIncludes.
 func WithIncludes() Option {
 	return func(o *options) { o.resolveIncludes = true }
 }
@@ -902,34 +902,39 @@ func resolveIncludeValue(v any, baseDir string) (any, error) {
 	}
 }
 
-// maybeIncludeFile returns the contents of the file named by a lone
-// `<< include(file) >>` directive, or s unchanged when it holds no directive.
+// maybeIncludeFile replaces every `<< include(file) >>` directive in s with the
+// contents of the referenced file, and returns s unchanged when it holds none.
 //
-// The directive must be the entire value: a scalar is either an include or it
-// is not, so a directive with text around it, or more than one directive in the
-// same scalar, is an error rather than a partial substitution. `<<` sequences in
-// the included file are escaped to `\<<` so the inlined content is never itself
-// interpreted as parameter interpolation.
+// A value may hold more than one directive and may surround them with other
+// text: `echo "<< include(banner.txt) >>"` inlines banner.txt inside the echo.
+// Each file is read relative to baseDir, and `<<` sequences in the included
+// content are escaped to `\<<` so inlined content is never itself interpreted as
+// parameter interpolation.
 func maybeIncludeFile(s, baseDir string) (string, error) {
-	// Find at most two matches: one is a valid include, more than one is the
-	// error case, and there is no reason to scan further.
-	matches := includeRe.FindAllStringSubmatch(s, 2)
-	if len(matches) > 1 {
-		return "", fmt.Errorf("multiple include statements in one value: %q", s)
-	}
-	if len(matches) == 0 {
+	// Submatch indices let us rewrite in a single pass: loc[0:2] spans the whole
+	// directive and loc[2:4] the captured path. Replacing by index (rather than
+	// string) means overlapping or repeated directives cannot substitute each
+	// other's output.
+	locs := includeRe.FindAllStringSubmatchIndex(s, -1)
+	if len(locs) == 0 {
 		return s, nil
 	}
 
-	full, rel := matches[0][0], matches[0][1]
-	if full != s {
-		return "", fmt.Errorf("an include statement must be the entire value: %q", s)
-	}
+	var b strings.Builder
+	last := 0
+	for _, loc := range locs {
+		b.WriteString(s[last:loc[0]])
 
-	path := filepath.Join(baseDir, rel)
-	content, err := os.ReadFile(path) //#nosec:G304 // path is under the user-supplied pack root; includes are an author-controlled, local-only feature
-	if err != nil {
-		return "", fmt.Errorf("could not read included file %q: %w", path, err)
+		rel := s[loc[2]:loc[3]]
+		path := filepath.Join(baseDir, rel)
+		content, err := os.ReadFile(path) //#nosec:G304 // path is under the user-supplied pack root; includes are an author-controlled, local-only feature
+		if err != nil {
+			return "", fmt.Errorf("could not read included file %q: %w", path, err)
+		}
+		b.WriteString(strings.ReplaceAll(string(content), "<<", `\<<`))
+
+		last = loc[1]
 	}
-	return strings.ReplaceAll(string(content), "<<", `\<<`), nil
+	b.WriteString(s[last:])
+	return b.String(), nil
 }
