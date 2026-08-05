@@ -89,5 +89,7 @@ func (m MarkdownViewportModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m MarkdownViewportModel) View() tea.View {
-	return m.pager.View("")
+	// A generic pager for arbitrary long output, so there is no single action to
+	// name — the bare prefix still marks the tab as ours.
+	return withWindowTitle(m.pager.View(""), flowTitle(""))
 }

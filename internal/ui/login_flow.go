@@ -481,6 +481,19 @@ func (m LoginFlowModel) cmdGetUsername(token string) tea.Cmd {
 // --- views ---
 
 func (m LoginFlowModel) View() tea.View {
+	return withWindowTitle(m.buildView(), m.windowTitle())
+}
+
+// windowTitle names the auth flow in the terminal tab. Signup and login share
+// this model, so the wording follows opts.Signup.
+func (m LoginFlowModel) windowTitle() string {
+	if m.opts.Signup {
+		return flowTitle("sign up")
+	}
+	return flowTitle("log in")
+}
+
+func (m LoginFlowModel) buildView() tea.View {
 	var b strings.Builder
 	switch m.stage {
 	case stageHostSelect:
