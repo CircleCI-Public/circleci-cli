@@ -53,8 +53,8 @@ func newPackCmd() *cobra.Command {
 
 			If the path is a single file it is parsed and written to stdout.
 
-			A value that is exactly '<< include(path) >>' is replaced with the
-			contents of that file, resolved relative to the orb root.
+			Any '<< include(path) >>' directive, alone or embedded in a larger
+			value, is replaced with that file's contents, relative to the orb root.
 
 			The merged YAML is written to stdout.
 		`),

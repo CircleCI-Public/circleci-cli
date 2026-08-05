@@ -679,39 +679,46 @@ func TestPack_IncludeOnlyInJobsCommandsExecutors(t *testing.T) {
 		"a directive in description should be left verbatim, got:\n%s", packed)
 }
 
-func TestPack_IncludeErrors(t *testing.T) {
-	tests := []struct {
-		name    string
-		command string
-		wantErr string
-	}{
-		{
-			name:    "directive not the entire value",
-			command: "steps:\n  - run: echo << include(scripts/greet.sh) >>\n",
-			wantErr: "entire value",
-		},
-		{
-			name:    "two directives in one value",
-			command: "steps:\n  - run: << include(scripts/greet.sh) >> << include(scripts/greet.sh) >>\n",
-			wantErr: "multiple include statements",
-		},
-		{
-			name:    "missing file",
-			command: "steps:\n  - run: << include(scripts/nope.sh) >>\n",
-			wantErr: "could not read included file",
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			dir := t.TempDir()
-			writeFile(t, filepath.Join(dir, "@orb.yml"), "version: 2.1\n")
-			writeFile(t, filepath.Join(dir, "commands", "greet.yml"), tt.command)
-			writeFile(t, filepath.Join(dir, "scripts", "greet.sh"), "echo hello\n")
+// TestPack_IncludeEmbeddedInLargerValue checks that a directive surrounded by
+// other text is inlined in place rather than rejected — the "embedded" half of
+// https://github.com/CircleCI-Public/circleci-cli/pull/737.
+func TestPack_IncludeEmbeddedInLargerValue(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, filepath.Join(dir, "@orb.yml"), "version: 2.1\n")
+	writeFile(t, filepath.Join(dir, "commands", "greet.yml"),
+		"steps:\n  - run: echo \"<< include(scripts/banner.txt) >>\"\n")
+	writeFile(t, filepath.Join(dir, "scripts", "banner.txt"), "Hello, world!")
 
-			_, _, err := pack.Pack(dir, pack.WithIncludes())
-			assert.ErrorContains(t, err, tt.wantErr)
-		})
-	}
+	packed, _, err := pack.Pack(dir, pack.WithIncludes())
+	assert.NilError(t, err)
+	assert.Check(t, strings.Contains(packed, `echo "Hello, world!"`),
+		"directive should be inlined in place, got:\n%s", packed)
+}
+
+// TestPack_MultipleIncludesInOneValue checks that several directives in one
+// value are each inlined — the "multiple" half of #737.
+func TestPack_MultipleIncludesInOneValue(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, filepath.Join(dir, "@orb.yml"), "version: 2.1\n")
+	writeFile(t, filepath.Join(dir, "commands", "greet.yml"),
+		"steps:\n  - run: << include(scripts/a.sh) >> << include(scripts/b.sh) >>\n")
+	writeFile(t, filepath.Join(dir, "scripts", "a.sh"), "echo Hello,")
+	writeFile(t, filepath.Join(dir, "scripts", "b.sh"), "world!")
+
+	packed, _, err := pack.Pack(dir, pack.WithIncludes())
+	assert.NilError(t, err)
+	assert.Check(t, strings.Contains(packed, "echo Hello, world!"),
+		"both directives should be inlined, got:\n%s", packed)
+}
+
+func TestPack_IncludeMissingFileErrors(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, filepath.Join(dir, "@orb.yml"), "version: 2.1\n")
+	writeFile(t, filepath.Join(dir, "commands", "greet.yml"),
+		"steps:\n  - run: << include(scripts/nope.sh) >>\n")
+
+	_, _, err := pack.Pack(dir, pack.WithIncludes())
+	assert.ErrorContains(t, err, "could not read included file")
 }
 
 func writeFile(t *testing.T, path, content string) {

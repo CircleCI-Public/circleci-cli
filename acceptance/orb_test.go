@@ -754,6 +754,31 @@ func TestOrbPack_Includes(t *testing.T) {
 	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 }
 
+// TestOrbPack_IncludesMultipleAndEmbedded is the end-to-end check for
+// https://github.com/CircleCI-Public/circleci-cli/pull/737: a value may hold
+// several '<< include(...) >>' directives and surround them with other text.
+func TestOrbPack_IncludesMultipleAndEmbedded(t *testing.T) {
+	_, env := setupOrbFake(t)
+
+	dir := t.TempDir()
+	writeOrbFile(t, filepath.Join(dir, "src", "@orb.yml"), "version: 2.1\n")
+	writeOrbFile(t, filepath.Join(dir, "src", "commands", "greet.yml"),
+		"steps:\n  - run: echo \"<< include(scripts/a.txt) >> << include(scripts/b.txt) >>\"\n")
+	writeOrbFile(t, filepath.Join(dir, "src", "scripts", "a.txt"), "Hello,")
+	writeOrbFile(t, filepath.Join(dir, "src", "scripts", "b.txt"), "world!")
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"orb", "pack", "src"},
+		Env:     env.Environ(),
+		WorkDir: dir,
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 0), "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+}
+
 // TestOrbPack_NestedDirectories is the end-to-end check for
 // https://github.com/CircleCI-Public/circleci-cli/issues/755: an orb author
 // organising commands/ into subdirectories. Those files used to pack into
