@@ -408,6 +408,71 @@ func TestOrbInitFlow_GitGathersBranchAndRemote(t *testing.T) {
 	assert.Check(t, cmp.Contains(v, "https://github.com/acme/my-orb"))
 }
 
+// TestOrbInitFlow_AdoptedRepoSkipsBranchAndRemote is the flow half of
+// https://github.com/CircleCI-Public/circleci-cli/issues/803: when the orb path
+// is already a clone, its branch and origin are on disk. Asking the author to
+// retype them invites a typo and was the first of the two complaints in the
+// issue.
+func TestOrbInitFlow_AdoptedRepoSkipsBranchAndRemote(t *testing.T) {
+	f := &oiFakes{}
+	tm := startOrbFlow(t, newOrbFlow(f, ui.OrbInitFlowOptions{
+		Path:           "my-orb",
+		OrgSlug:        "gh/acme",
+		ExistingBranch: "trunk",
+		ExistingRemote: "git@github.com:myorg/circleci-orb-myorbname.git",
+	}))
+	oiWaitFor(t, tm, "public or private orb")
+	tm.Send(oiKeyEnter)
+	oiWaitFor(t, tm, "automated setup")
+	tm.Send(oiKeyEnter)
+	oiWaitFor(t, tm, "Enter the namespace")
+	tm.Send(oiKeyEnter)
+	oiWaitFor(t, tm, "Orb name")
+	tm.Send(oiKeyEnter)
+	oiWaitFor(t, tm, "publishing context")
+	tm.Send(oiKeyN)
+	oiWaitFor(t, tm, "set up your git project")
+	tm.Send(oiKeyY) // yes — and neither branch nor remote is asked for
+
+	res := oiResult(t, tm)
+	assert.Check(t, cmp.Equal(res.GitSetup, true))
+	assert.Check(t, cmp.Equal(res.Branch, "trunk"))
+	assert.Check(t, cmp.Equal(res.Remote, "git@github.com:myorg/circleci-orb-myorbname.git"))
+}
+
+// TestOrbInitFlow_AdoptedRepoWithoutCommitsStillAsksBranch covers a fresh clone
+// of an empty repository: it has an origin but no HEAD, so the branch is still an
+// open question while the remote is not.
+func TestOrbInitFlow_AdoptedRepoWithoutCommitsStillAsksBranch(t *testing.T) {
+	f := &oiFakes{}
+	tm := startOrbFlow(t, newOrbFlow(f, ui.OrbInitFlowOptions{
+		Path:           "my-orb",
+		OrgSlug:        "gh/acme",
+		Branch:         "main",
+		ExistingRemote: "git@github.com:myorg/circleci-orb-myorbname.git",
+	}))
+	oiWaitFor(t, tm, "public or private orb")
+	tm.Send(oiKeyEnter)
+	oiWaitFor(t, tm, "automated setup")
+	tm.Send(oiKeyEnter)
+	oiWaitFor(t, tm, "Enter the namespace")
+	tm.Send(oiKeyEnter)
+	oiWaitFor(t, tm, "Orb name")
+	tm.Send(oiKeyEnter)
+	oiWaitFor(t, tm, "publishing context")
+	tm.Send(oiKeyN)
+	oiWaitFor(t, tm, "set up your git project")
+	tm.Send(oiKeyY)
+
+	// Branch is asked, remote is not.
+	oiWaitFor(t, tm, "primary git branch")
+	tm.Send(oiKeyEnter)
+
+	res := oiResult(t, tm)
+	assert.Check(t, cmp.Equal(res.Branch, "main"))
+	assert.Check(t, cmp.Equal(res.Remote, "git@github.com:myorg/circleci-orb-myorbname.git"))
+}
+
 // TestOrbInitFlow_GitEndToEnd accepts git setup and accepts both defaults,
 // confirming the gathered branch and remote reach the result.
 func TestOrbInitFlow_GitEndToEnd(t *testing.T) {

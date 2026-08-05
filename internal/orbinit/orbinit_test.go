@@ -32,6 +32,9 @@ import (
 	"os"
 	"testing"
 
+	"github.com/go-git/go-git/v6"
+	"github.com/go-git/go-git/v6/config"
+
 	"github.com/CircleCI-Public/circleci-cli/internal/iostream"
 
 	"gotest.tools/v3/assert"
@@ -266,9 +269,100 @@ func TestInitRepoAndCheckoutAlpha(t *testing.T) {
 	})
 }
 
-func TestInitRepo_ExistingRepoRejected(t *testing.T) {
+// TestInitRepo_AdoptsExistingRepo is the regression test for
+// https://github.com/CircleCI-Public/circleci-cli/issues/803. Cloning an empty
+// repository and running orb init inside it used to dead-end with "already a git
+// repository; delete its .git directory and retry" — which is the obvious way to
+// use the command when only admins may create repositories.
+//
+// The clone's own origin wins: it is where the author actually intends to push,
+// so the URL orb init was given must not overwrite it.
+func TestInitRepo_AdoptsExistingRepo(t *testing.T) {
+	dir := fs.NewDir(t, "orbinit", fs.WithFile("README.md", "hi"))
+
+	// Stand in for `git clone` of an empty repository: a repository with an
+	// origin and no commits.
+	existing, err := git.PlainInit(dir.Path(), false)
+	assert.NilError(t, err)
+	_, err = existing.CreateRemote(&config.RemoteConfig{
+		Name: "origin",
+		URLs: []string{"git@github.com:myorg/circleci-orb-myorbname.git"},
+	})
+	assert.NilError(t, err)
+
+	repo, _, err := InitRepo(dir.Path(), "https://github.com/wrong/url.git", "main")
+	assert.NilError(t, err)
+
+	t.Run("keeps the existing origin", func(t *testing.T) {
+		remote, err := repo.Remote("origin")
+		assert.NilError(t, err)
+		assert.Check(t, is.DeepEqual(remote.Config().URLs,
+			[]string{"git@github.com:myorg/circleci-orb-myorbname.git"}))
+	})
+
+	t.Run("commits the template into it", func(t *testing.T) {
+		head, err := repo.Head()
+		assert.NilError(t, err)
+		_, err = repo.CommitObject(head.Hash())
+		assert.NilError(t, err)
+	})
+}
+
+// TestInitRepo_BrokenRepoStillErrors keeps a real failure loud: a .git that is
+// not a usable repository must not be silently re-initialised over.
+func TestInitRepo_BrokenRepoStillErrors(t *testing.T) {
 	dir := fs.NewDir(t, "orbinit", fs.WithDir(".git"))
 
 	_, _, err := InitRepo(dir.Path(), "https://github.com/acme/my-orb.git", "main")
-	assert.ErrorContains(t, err, "already a git repository")
+	assert.ErrorContains(t, err, "opening git repository")
+}
+
+// TestInspectRepo reports what orb init can reuse instead of prompting for it.
+func TestInspectRepo(t *testing.T) {
+	t.Run("reads origin from a clone with no commits", func(t *testing.T) {
+		dir := fs.NewDir(t, "orbinit")
+		repo, err := git.PlainInit(dir.Path(), false)
+		assert.NilError(t, err)
+		_, err = repo.CreateRemote(&config.RemoteConfig{
+			Name: "origin",
+			URLs: []string{"git@github.com:myorg/my-orb.git"},
+		})
+		assert.NilError(t, err)
+
+		found, err := InspectRepo(dir.Path())
+		assert.NilError(t, err)
+		assert.Check(t, is.Equal(found.RemoteURL, "git@github.com:myorg/my-orb.git"))
+		// No commits yet, so HEAD resolves to nothing. Not an error.
+		assert.Check(t, is.Equal(found.Branch, ""))
+	})
+
+	t.Run("reads the branch once there is a commit", func(t *testing.T) {
+		dir := fs.NewDir(t, "orbinit", fs.WithFile("README.md", "hi"))
+		repo, _, err := InitRepo(dir.Path(), "https://github.com/acme/my-orb.git", "trunk")
+		assert.NilError(t, err)
+		head, err := repo.Head()
+		assert.NilError(t, err)
+
+		found, err := InspectRepo(dir.Path())
+		assert.NilError(t, err)
+		assert.Check(t, is.Equal(found.RemoteURL, "https://github.com/acme/my-orb.git"))
+		assert.Check(t, is.Equal(found.Branch, head.Name().Short()))
+	})
+
+	t.Run("errors when there is no repository", func(t *testing.T) {
+		dir := fs.NewDir(t, "orbinit")
+		_, err := InspectRepo(dir.Path())
+		assert.ErrorContains(t, err, "opening git repository")
+	})
+}
+
+// TestIsRepo distinguishes a directory that already holds a repository.
+func TestIsRepo(t *testing.T) {
+	plain := fs.NewDir(t, "orbinit")
+	assert.Check(t, !IsRepo(plain.Path()))
+
+	repo := fs.NewDir(t, "orbinit")
+	_, err := git.PlainInit(repo.Path(), false)
+	assert.NilError(t, err)
+	assert.Check(t, IsRepo(repo.Path()))
 }
