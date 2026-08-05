@@ -29,6 +29,7 @@ package orbinit
 import (
 	"archive/zip"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -231,27 +232,78 @@ func Substitute(contents, projectName, org, orbName, namespace string) string {
 	return metaLineRegex.ReplaceAllString(replacer.Replace(contents), "")
 }
 
-// InitRepo initializes a git repository at orbPath, adds an "origin" remote
-// pointing at remoteURL, tracks branch, stages all files, and creates an
-// initial commit. It returns the repository and its worktree.
-func InitRepo(orbPath, remoteURL, branch string) (*git.Repository, *git.Worktree, error) {
-	if _, err := os.Stat(filepath.Join(orbPath, ".git")); err == nil {
-		return nil, nil, fmt.Errorf("%s is already a git repository; delete its .git directory and retry", orbPath)
+// IsRepo reports whether orbPath already holds a git repository.
+func IsRepo(orbPath string) bool {
+	_, err := os.Stat(filepath.Join(orbPath, ".git"))
+	return err == nil
+}
+
+// ExistingRepo describes a git repository that is already present at the orb
+// path. Both fields are best-effort: a freshly cloned empty repository has an
+// origin but no commits, so no branch can be resolved from HEAD.
+type ExistingRepo struct {
+	// RemoteURL is origin's URL, empty if there is no origin remote.
+	RemoteURL string
+	// Branch is the checked-out branch, empty if HEAD cannot be resolved.
+	Branch string
+}
+
+// InspectRepo reads what is already configured in the repository at orbPath, so
+// orb init can adopt it instead of asking for details that are on disk.
+//
+// Cloning an empty repository and running `orb init .` inside it is the obvious
+// way to use this command when only admins may create repositories — and it is
+// the case that used to dead-end.
+func InspectRepo(orbPath string) (ExistingRepo, error) {
+	repo, err := git.PlainOpen(orbPath)
+	if err != nil {
+		return ExistingRepo{}, fmt.Errorf("opening git repository at %s: %w", orbPath, err)
 	}
 
-	repo, err := git.PlainInit(orbPath, false)
+	var found ExistingRepo
+	if remote, err := repo.Remote("origin"); err == nil {
+		if urls := remote.Config().URLs; len(urls) > 0 {
+			found.RemoteURL = urls[0]
+		}
+	}
+	// A repository with no commits has an unresolvable HEAD. That is normal for a
+	// fresh clone of an empty repository, so it is not an error here.
+	if head, err := repo.Head(); err == nil {
+		found.Branch = head.Name().Short()
+	}
+	return found, nil
+}
+
+// InitRepo prepares the git repository at orbPath for the orb's initial commit:
+// it stages every file and commits. It returns the repository and its worktree.
+//
+// An existing repository is adopted rather than refused. remoteURL and branch are
+// only applied to what is missing — a repository that already has an origin keeps
+// it, and one that already has commits keeps its current branch. Cloning an empty
+// repository and initialising the orb into it is a reasonable way to work, and is
+// the only way when repository creation is restricted to admins.
+func InitRepo(orbPath, remoteURL, branch string) (*git.Repository, *git.Worktree, error) {
+	repo, err := openOrInitRepo(orbPath)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	if _, err := repo.CreateRemote(&config.RemoteConfig{
-		Name: "origin",
-		URLs: []string{remoteURL},
-	}); err != nil {
-		return nil, nil, err
+	// Only add origin if the repository does not already have one. A clone's
+	// origin is authoritative: it is where the user actually intends to push.
+	if _, err := repo.Remote("origin"); err != nil {
+		if _, err := repo.CreateRemote(&config.RemoteConfig{
+			Name: "origin",
+			URLs: []string{remoteURL},
+		}); err != nil {
+			return nil, nil, err
+		}
 	}
 
-	if err := repo.CreateBranch(&config.Branch{Name: branch, Remote: "origin"}); err != nil {
+	// CreateBranch records tracking config, and errors if the branch is already
+	// configured — which it is when the repository came from a clone. Nothing to
+	// do in that case.
+	if err := repo.CreateBranch(&config.Branch{Name: branch, Remote: "origin"}); err != nil &&
+		!errors.Is(err, git.ErrBranchExists) {
 		return nil, nil, fmt.Errorf("creating branch %q: %w", branch, err)
 	}
 
@@ -266,6 +318,18 @@ func InitRepo(orbPath, remoteURL, branch string) (*git.Repository, *git.Worktree
 		return nil, nil, err
 	}
 	return repo, w, nil
+}
+
+// openOrInitRepo opens the repository at orbPath, creating one if there is none.
+func openOrInitRepo(orbPath string) (*git.Repository, error) {
+	if IsRepo(orbPath) {
+		repo, err := git.PlainOpen(orbPath)
+		if err != nil {
+			return nil, fmt.Errorf("opening git repository at %s: %w", orbPath, err)
+		}
+		return repo, nil
+	}
+	return git.PlainInit(orbPath, false)
 }
 
 // commitInitial creates the initial commit. It first lets go-git read the

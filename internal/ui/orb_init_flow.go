@@ -143,6 +143,14 @@ type OrbInitFlowOptions struct {
 	// prompts for it) but carried for symmetry.
 	Remote string
 
+	// ExistingRemote and ExistingBranch are what the git repository already at
+	// Path has configured, empty when there is no repository or the value is not
+	// set there yet. When a value is present its prompt is skipped: asking for a
+	// remote URL that is sitting in .git/config is asking the author to retype
+	// something the CLI can read, and lets them mistype it.
+	ExistingRemote string
+	ExistingBranch string
+
 	// Download fetches and extracts the orb template into Path, removing the
 	// template LICENSE when private is true. Shown behind a spinner.
 	Download func(ctx context.Context, private bool) error
@@ -374,8 +382,7 @@ func (m OrbInitFlowModel) commitText(val string) (tea.Model, tea.Cmd) {
 		return m, m.startCheckOrb()
 	case oiBranch:
 		m.result.Branch = val
-		def := "https://github.com/" + m.owner + "/" + m.result.OrbName
-		return m, m.enterText(oiRemote, "Enter the remote git repository URL", def, def)
+		return m, m.afterBranch()
 	case oiRemote:
 		m.result.Remote = val
 		m.stage = oiDone
@@ -436,11 +443,31 @@ func (m *OrbInitFlowModel) afterGitSetup() tea.Cmd {
 		m.stage = oiDone
 		return tea.Quit
 	}
+
+	// An adopted repository answers these questions itself. Take what it has and
+	// only prompt for the rest.
+	if m.opts.ExistingBranch != "" {
+		m.result.Branch = m.opts.ExistingBranch
+		return m.afterBranch()
+	}
+
 	branch := m.opts.Branch
 	if branch == "" {
 		branch = "main"
 	}
 	return m.enterText(oiBranch, "Enter your primary git branch", branch, branch)
+}
+
+// afterBranch moves on from the branch to the remote, skipping the remote prompt
+// when the repository already has an origin.
+func (m *OrbInitFlowModel) afterBranch() tea.Cmd {
+	if m.opts.ExistingRemote != "" {
+		m.result.Remote = m.opts.ExistingRemote
+		m.stage = oiDone
+		return tea.Quit
+	}
+	def := "https://github.com/" + m.owner + "/" + m.result.OrbName
+	return m.enterText(oiRemote, "Enter the remote git repository URL", def, def)
 }
 
 // --- async callbacks + their result handlers ---

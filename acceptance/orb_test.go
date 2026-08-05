@@ -35,6 +35,9 @@ import (
 	"testing"
 
 	"github.com/CircleCI-Public/circleci-cli/internal/httpcl"
+	"github.com/go-git/go-git/v6"
+	gitconfig "github.com/go-git/go-git/v6/config"
+
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/golden"
@@ -1218,6 +1221,111 @@ func TestOrbInit_Interactive_CategoryFailureDoesNotAbort(t *testing.T) {
 	expect(`Could not add myorg/my-orb to the "Testing" category`)
 	// ...and the run still reaches its normal end rather than aborting.
 	expect("is ready")
+}
+
+// TestOrbInit_AdoptsExistingClone is the regression test for
+// https://github.com/CircleCI-Public/circleci-cli/issues/803, following the steps
+// in the report: an admin creates an empty repository, the author clones it and
+// runs orb init inside. That used to dead-end on "already a git repository;
+// delete its .git directory and retry", with no way through — and cloning first
+// is the only route when repository creation is restricted to admins.
+//
+// No --remote is passed: the clone's origin is what the author intends to push
+// to, so orb init has to read it rather than demand it again.
+func TestOrbInit_AdoptsExistingClone(t *testing.T) {
+	fake, env := setupOrbFake(t)
+	registerOrbTemplate(t, fake, env)
+	env.Extra["GIT_AUTHOR_NAME"] = "Test"
+	env.Extra["GIT_AUTHOR_EMAIL"] = "test@example.com"
+	env.Extra["GIT_COMMITTER_NAME"] = "Test"
+	env.Extra["GIT_COMMITTER_EMAIL"] = "test@example.com"
+
+	workDir := t.TempDir()
+	orbDir := filepath.Join(workDir, orbInitDir)
+
+	// The repository is named differently from the orb directory, as in the
+	// issue (circleci-orb-myorbname cloned into my-orb). That difference is what
+	// proves the project details come from the clone's origin rather than from
+	// the directory name or a flag default.
+	const cloneURL = "https://github.com/myorg/circleci-orb-myorbname.git"
+	const cloneProject = "circleci-orb-myorbname"
+
+	// Resolvable so the followed project can have dynamic config enabled on it.
+	fake.AddProjectBySlug("gh/myorg/"+cloneProject, testOrbProjectID, cloneProject, testOrbOrgID)
+	fake.SetProjectSettings(testOrbProjectID, map[string]any{"advanced": map[string]any{}})
+
+	// Stand in for `git clone` of an empty repository: a repository with an
+	// origin and no commits.
+	assert.NilError(t, os.MkdirAll(orbDir, 0o750))
+	repo, err := git.PlainInit(orbDir, false)
+	assert.NilError(t, err)
+	_, err = repo.CreateRemote(&gitconfig.RemoteConfig{
+		Name: "origin",
+		URLs: []string{cloneURL},
+	})
+	assert.NilError(t, err)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary: binaryPath,
+		// Deliberately no --remote: it comes from the clone.
+		Args:    []string{"orb", "init", orbInitDir, "--org", "gh/myorg", "--branch", "main"},
+		Env:     env.Environ(),
+		WorkDir: workDir,
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, cmp.Contains(result.Stdout, "Using origin from the existing repository"))
+	assert.Check(t, cmp.Contains(result.Stdout, cloneURL))
+
+	// The clone's origin survived rather than being replaced.
+	reopened, err := git.PlainOpen(orbDir)
+	assert.NilError(t, err)
+	origin, err := reopened.Remote("origin")
+	assert.NilError(t, err)
+	assert.Check(t, cmp.DeepEqual(origin.Config().URLs, []string{cloneURL}))
+
+	// And the template was committed into it, so the project is genuinely set up.
+	cfg, err := os.ReadFile(filepath.Join(orbDir, ".circleci", "config.yml"))
+	assert.NilError(t, err)
+	assert.Check(t, cmp.Contains(string(cfg), "myorg/my-orb"))
+
+	// The project followed, and the one dynamic config was enabled on, are both
+	// derived from the clone's origin — not from the orb directory name. This is
+	// the seam between adopting a clone (issue 803) and enabling dynamic config
+	// (issue 834), which only exists once both are in.
+	var followed, configured bool
+	for _, req := range fake.AllRequests() {
+		if req.Method == http.MethodPost &&
+			req.URL.Path == "/api/v1.1/project/gh/myorg/"+cloneProject+"/follow" {
+			followed = true
+		}
+		if req.Method == http.MethodPost &&
+			req.URL.Path == "/api/v3/projects/"+testOrbProjectID+"/update-settings" {
+			configured = true
+		}
+	}
+	assert.Check(t, followed, "expected the project from the clone's origin to be followed")
+	assert.Check(t, configured, "expected dynamic config to be enabled on that project")
+	assert.Check(t, cmp.Contains(result.Stdout, "Dynamic configuration enabled"))
+}
+
+// TestOrbInit_NoRemoteAndNoRepoStillErrors keeps the other side intact: with
+// nothing to adopt and no --remote, git setup cannot proceed and says so.
+func TestOrbInit_NoRemoteAndNoRepoStillErrors(t *testing.T) {
+	fake, env := setupOrbFake(t)
+	registerOrbTemplate(t, fake, env)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"orb", "init", orbInitDir, "--org", "gh/myorg"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 2))
+	assert.Check(t, cmp.Contains(result.Stderr, "Pass --remote <url>"))
+	// The suggestion names the way out that issue 803 added.
+	assert.Check(t, cmp.Contains(result.Stderr, "Running inside an existing clone uses its origin automatically"))
 }
 
 // writeOrbFile writes a file for the pack tests, creating parent directories.

@@ -177,16 +177,22 @@ func runOrbInitInteractive(ctx context.Context, opts orbInitOpts) error {
 		return client, clientErr
 	}
 
+	// A repository already at the path answers the branch and remote questions,
+	// so read it before prompting rather than asking for what is on disk.
+	existing := detectExistingRepo(ctx, opts.path)
+
 	model := ui.NewOrbInitFlow(ctx, ui.OrbInitFlowOptions{
-		Path:         opts.path,
-		Private:      opts.private,
-		TemplateOnly: opts.templateOnly,
-		OrgSlug:      opts.org,
-		SkipGit:      opts.skipGit,
-		Branch:       opts.branch,
-		Remote:       opts.remote,
-		Color:        iostream.ColorEnabled(ctx),
-		Animate:      iostream.SpinnerEnabled(ctx),
+		Path:           opts.path,
+		Private:        opts.private,
+		TemplateOnly:   opts.templateOnly,
+		OrgSlug:        opts.org,
+		SkipGit:        opts.skipGit,
+		Branch:         opts.branch,
+		Remote:         opts.remote,
+		ExistingRemote: existing.RemoteURL,
+		ExistingBranch: existing.Branch,
+		Color:          iostream.ColorEnabled(ctx),
+		Animate:        iostream.SpinnerEnabled(ctx),
 		Download: func(ctx context.Context, private bool) error {
 			if err := orbinit.FetchTemplate(ctx, opts.path); err != nil {
 				return orbInitDownloadErr(err)
@@ -391,13 +397,24 @@ type orbInitGitContext struct {
 }
 
 func applyOrbInitGit(ctx context.Context, client *apiclient.Client, path string, d orbInitDecisions, interactive bool, g orbInitGitContext) error {
-	if d.remote == "" {
-		return clierrors.New("orb.init_remote_required", "Remote repository required",
-			"Pass --remote <url> to set up git non-interactively, or use --skip-git.").
-			WithExitCode(clierrors.ExitBadArguments)
+	// A repository already at the path supplies the remote, so --remote is only
+	// required when there is nothing to adopt. Cloning an empty repository and
+	// running orb init in it is a normal way to work — and the only way when
+	// repository creation is restricted to admins.
+	remote := d.remote
+	if remote == "" {
+		existing := detectExistingRepo(ctx, path)
+		if existing.RemoteURL == "" {
+			return clierrors.New("orb.init_remote_required", "Remote repository required",
+				"Pass --remote <url> to set up git non-interactively, or use --skip-git.").
+				WithSuggestions("Running inside an existing clone uses its origin automatically.").
+				WithExitCode(clierrors.ExitBadArguments)
+		}
+		remote = existing.RemoteURL
+		iostream.Printf(ctx, "Using origin from the existing repository: %s\n", remote)
 	}
 
-	projectName := orbinit.ProjectNameFromRemote(d.remote)
+	projectName := orbinit.ProjectNameFromRemote(remote)
 
 	// Rewrite the template placeholders now that we know the project details.
 	if err := orbinit.ApplyTemplate(path, projectName, g.owner, g.orbName, g.namespace); err != nil {
@@ -407,7 +424,7 @@ func applyOrbInitGit(ctx context.Context, client *apiclient.Client, path string,
 	}
 
 	iostream.Printf(ctx, "Setting up your orb...\n")
-	_, w, err := orbinit.InitRepo(path, d.remote, d.branch)
+	_, w, err := orbinit.InitRepo(path, remote, d.branch)
 	if err != nil {
 		return clierrors.New("orb.init_git_failed", "Could not initialize git repository",
 			err.Error()).
@@ -530,6 +547,24 @@ func enableDynamicConfig(ctx context.Context, client *apiclient.Client, vcsType,
 	}
 
 	iostream.Printf(ctx, "%s Dynamic configuration enabled\n", iostream.SymbolOK(ctx))
+}
+
+// detectExistingRepo reports what the git repository at path already has
+// configured, so orb init can adopt it rather than prompt for details that are
+// sitting in .git/config.
+//
+// Anything unreadable is reported as "nothing found" rather than as an error:
+// this only ever removes a question, so the fallback is simply to ask it.
+func detectExistingRepo(ctx context.Context, path string) orbinit.ExistingRepo {
+	if !orbinit.IsRepo(path) {
+		return orbinit.ExistingRepo{}
+	}
+	found, err := orbinit.InspectRepo(path)
+	if err != nil {
+		iostream.DebugContext(ctx, "could not inspect existing git repository", "path", path, "error", err)
+		return orbinit.ExistingRepo{}
+	}
+	return found
 }
 
 func finalizeOrbInit(ctx context.Context, private bool, namespace, orbName, projectName string) error {
