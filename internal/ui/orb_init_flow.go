@@ -24,6 +24,7 @@ package ui
 
 import (
 	"context"
+	"fmt"
 	"path/filepath"
 	"strings"
 
@@ -65,9 +66,27 @@ const (
 const (
 	orbInitVisibilityPrompt = "Would you like to create a public or private orb?"
 	orbInitModePrompt       = "Would you like to perform an automated setup of this orb?"
-	orbInitCategoryPrompt   = "Add a category for this orb (choose (done) to finish)"
 	orbInitCategoryDone     = "(done)"
 )
+
+// maxOrbCategories is how many categories an orb may belong to.
+//
+// The registry enforces this and rejects the extras:
+//
+//	Orbs may only belong to 2 category(s). This orb has already been placed
+//	under the following category(s): Build,Deployment.
+//
+// It is a constant here because the API does not advertise it: GET
+// /orb/categories returns each category's id and name and nothing about how many
+// an orb may hold. If the server-side limit ever changes, picking too few is the
+// safe direction to be wrong in — and the assignment step warns rather than
+// aborting, so a mismatch costs a warning instead of a failed run.
+const maxOrbCategories = 2
+
+// orbInitCategoryPrompt names the limit, so the answer to "how many can I have?"
+// arrives before the choice rather than after the registry rejects it.
+var orbInitCategoryPrompt = fmt.Sprintf(
+	"Add a category for this orb (up to %d, choose (done) to finish)", maxOrbCategories)
 
 var (
 	orbInitVisibilityOptions = []string{"Public", "Private"}
@@ -306,7 +325,9 @@ func (m *OrbInitFlowModel) afterCategoryPick(idx int) tea.Cmd {
 	}
 	m.result.Categories = append(m.result.Categories, m.catRemaining[idx-1])
 	m.catRemaining = append(m.catRemaining[:idx-1], m.catRemaining[idx:]...)
-	if len(m.catRemaining) == 0 {
+	// Stop offering once the limit is reached, so the invalid state is
+	// unreachable rather than rejected by the registry three prompts later.
+	if len(m.catRemaining) == 0 || len(m.result.Categories) >= maxOrbCategories {
 		return m.enterConfirm(oiPublishingContext, "Automatically set up a publishing context with your API token?")
 	}
 	return m.enterCategorySelect()

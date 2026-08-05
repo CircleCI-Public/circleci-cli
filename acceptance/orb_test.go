@@ -1108,6 +1108,67 @@ func TestOrbInit_Git_DynamicConfigFailureDoesNotAbort(t *testing.T) {
 	assert.Check(t, cmp.Contains(result.Stdout, "alpha"))
 }
 
+// TestOrbInit_Interactive_CategoryFailureDoesNotAbort is the regression test for
+// the costly half of https://github.com/CircleCI-Public/circleci-cli/issues/609.
+//
+// Assigning a category used to abort the run on failure. That happens after the
+// namespace and the orb already exist, and orb init has no resume — so the
+// author's only recourse was to start over and re-answer every prompt, which is
+// what the issue complains about. The registry refusing a category has to warn
+// and let the rest of the setup finish.
+//
+// Driven through a PTY because categories are gathered interactively: the
+// non-interactive path takes no category flags, so it never reaches this code.
+func TestOrbInit_Interactive_CategoryFailureDoesNotAbort(t *testing.T) {
+	fake, env := setupOrbFake(t)
+	registerOrbTemplate(t, fake, env)
+	fake.AddOrbCategory(testOrbCategoryID, "Testing")
+	// The registry refuses the category, as it does past an orb's limit.
+	fake.SetOrbAddCategoryStatus(http.StatusBadRequest)
+
+	console := binary.RunCLIInteractive(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"orb", "init", orbInitDir, "--org", "gh/myorg"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	expect := func(want string) {
+		t.Helper()
+		_, err := console.ExpectString(want)
+		assert.NilError(t, err, "waiting for %q", want)
+	}
+	send := func(keys string) {
+		t.Helper()
+		_, err := console.Send(keys)
+		assert.NilError(t, err)
+	}
+
+	expect("public or private orb")
+	send("\r") // Public
+	expect("automated setup")
+	send("\r") // Yes, walk me through it
+	expect("Enter the namespace")
+	send("\r") // default: myorg
+	expect("Orb name")
+	send("\r") // default: my-orb
+
+	// The prompt states the limit before the choice is made.
+	expect("up to 2")
+	send("\x1b[B") // down: "(done)" → "Testing"
+	send("\r")     // choose it; only one category exists, so the loop ends
+
+	expect("publishing context")
+	send("n")
+	expect("set up your git project")
+	send("n")
+
+	// The refusal is reported, naming the category...
+	expect(`Could not add myorg/my-orb to the "Testing" category`)
+	// ...and the run still reaches its normal end rather than aborting.
+	expect("is ready")
+}
+
 // writeOrbFile writes a file for the pack tests, creating parent directories.
 func writeOrbFile(t *testing.T, path, content string) {
 	t.Helper()
