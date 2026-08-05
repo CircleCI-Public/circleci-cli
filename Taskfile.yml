@@ -34,6 +34,16 @@ vars:
   GH_NAME: 'circleci'
   GH_EMAIL: 'ops+deploy-bot@circleci.com'
 
+  # Release version. Every merge to main tags and publishes, so the patch
+  # component is the CI build number: unique and monotonically increasing
+  # without any manual bookkeeping. Bump RELEASE_SERIES for a minor or major
+  # release — 1.1.<build> sorts above every 1.0.<build> under semver.
+  #
+  # No pre-release suffix: these are full releases, marked latest on GitHub and
+  # published to the stable channel of every package manager.
+  RELEASE_SERIES: '1.0'
+  RELEASE_VERSION: 'v{{.RELEASE_SERIES}}.{{env "CIRCLE_BUILD_NUM" | default "0"}}'
+
 tasks:
   build:
     desc: Build the circleci binary
@@ -320,7 +330,7 @@ tasks:
   ci:release:
     desc: Tag, build, and publish a release
     vars:
-      VERSION: 'v1.0.{{env "CIRCLE_BUILD_NUM" | default "0"}}-pre'
+      VERSION: '{{.RELEASE_VERSION}}'
     cmds:
       # Only set the deploy-bot identity in CI; never clobber a local git config.
       - |
@@ -365,7 +375,7 @@ tasks:
   ci:build:
     desc: Dry-run a release — build a snapshot (incl. nfpms) and dry-run the packagecloud publish
     vars:
-      VERSION: 'v1.0.{{env "CIRCLE_BUILD_NUM" | default "0"}}-pre'
+      VERSION: '{{.RELEASE_VERSION}}'
     cmds:
       # Only set the deploy-bot identity in CI; never clobber a local git config.
       - |
