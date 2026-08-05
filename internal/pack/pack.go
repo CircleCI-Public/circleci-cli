@@ -84,6 +84,21 @@ func (w Warning) String() string {
 	return fmt.Sprintf("%s:%d: %s", w.Path, w.Line, w.Message)
 }
 
+// Option configures a Pack call.
+type Option func(*options)
+
+type options struct {
+	resolveIncludes bool
+}
+
+// WithIncludes enables resolution of `<< include(file) >>` directives: a scalar
+// whose entire value is such a directive is replaced with the contents of the
+// referenced file, resolved relative to the pack root. This is an orb-authoring
+// feature — config packing does not use it. See resolveIncludes.
+func WithIncludes() Option {
+	return func(o *options) { o.resolveIncludes = true }
+}
+
 // Pack reads all YAML files under rootPath and merges them into a single YAML
 // document. If rootPath is a single file it is parsed and re-serialised.
 //
@@ -91,7 +106,12 @@ func (w Warning) String() string {
 // suspicious but not fatal. They are ordered by the lexical file walk, so they
 // are stable across runs, and callers that have nowhere to show them may discard
 // them.
-func Pack(rootPath string) (string, []Warning, error) {
+func Pack(rootPath string, opts ...Option) (string, []Warning, error) {
+	var o options
+	for _, opt := range opts {
+		opt(&o)
+	}
+
 	absRoot, err := filepath.Abs(rootPath)
 	if err != nil {
 		return "", nil, fmt.Errorf("resolving path: %w", err)
@@ -119,6 +139,18 @@ func Pack(rootPath string) (string, []Warning, error) {
 	}
 	if err != nil {
 		return "", nil, err
+	}
+
+	if o.resolveIncludes {
+		// Includes resolve relative to the pack root directory, or the
+		// containing directory when a single file is packed.
+		baseDir := absRoot
+		if !info.IsDir() {
+			baseDir = filepath.Dir(absRoot)
+		}
+		if err := resolveIncludes(result, baseDir); err != nil {
+			return "", nil, err
+		}
 	}
 
 	var buf strings.Builder
@@ -184,7 +216,14 @@ func packDir(dirPath string, depth int, anchors map[string]*yaml.Node, warnings 
 			}
 			if depth == 0 {
 				existing, _ := subtree[name].(map[string]any)
-				subtree[name] = mergeMaps(existing, childMap)
+				merged := mergeMaps(existing, childMap)
+				// A root subdirectory with no YAML content is not a section: it
+				// holds sidecar files such as the scripts an orb pulls in with
+				// << include(...) >>. Emitting it as an empty "scripts: {}" key
+				// would invent a top-level section the author never wrote.
+				if len(merged) > 0 {
+					subtree[name] = merged
+				}
 			} else {
 				nested = append(nested, nestedResult{path: fullPath, content: childMap})
 			}
@@ -794,4 +833,103 @@ func isSpecialName(name string) bool { return specialRe.MatchString(name) }
 
 func nameWithoutExt(name string) string {
 	return strings.TrimSuffix(name, filepath.Ext(name))
+}
+
+// includeRe matches a `<< include(path) >>` directive. Whitespace inside the
+// guillemets is optional and the closing paren is tolerated as absent, matching
+// the directive the 0.1.x CLI accepted byte for byte.
+var includeRe = regexp.MustCompile(`<<[\s]*include\(([-\w/.]+)\)?[\s]*>>`)
+
+// resolveIncludes replaces `<< include(file) >>` directives in the jobs,
+// commands and executors sections of a packed orb with the contents of the
+// referenced files.
+//
+// Only those three sections are searched, matching the 0.1.x CLI: includes are
+// a way to pull a script or template into a step, so resolving them in, say, a
+// description or an example would inline a file where the author meant to show
+// the directive itself.
+func resolveIncludes(result map[string]any, baseDir string) error {
+	for _, key := range []string{"jobs", "commands", "executors"} {
+		section, ok := result[key]
+		if !ok {
+			continue
+		}
+		resolved, err := resolveIncludeValue(section, baseDir)
+		if err != nil {
+			return err
+		}
+		result[key] = resolved
+	}
+	return nil
+}
+
+// resolveIncludeValue walks a decoded YAML value, replacing every scalar string
+// that is a `<< include(file) >>` directive with the referenced file's contents.
+// Maps and sequences are recursed into; other scalars are returned unchanged.
+func resolveIncludeValue(v any, baseDir string) (any, error) {
+	switch t := v.(type) {
+	case string:
+		return maybeIncludeFile(t, baseDir)
+	case map[string]any:
+		for k, val := range t {
+			r, err := resolveIncludeValue(val, baseDir)
+			if err != nil {
+				return nil, err
+			}
+			t[k] = r
+		}
+		return t, nil
+	case map[any]any:
+		for k, val := range t {
+			r, err := resolveIncludeValue(val, baseDir)
+			if err != nil {
+				return nil, err
+			}
+			t[k] = r
+		}
+		return t, nil
+	case []any:
+		for i, val := range t {
+			r, err := resolveIncludeValue(val, baseDir)
+			if err != nil {
+				return nil, err
+			}
+			t[i] = r
+		}
+		return t, nil
+	default:
+		return v, nil
+	}
+}
+
+// maybeIncludeFile returns the contents of the file named by a lone
+// `<< include(file) >>` directive, or s unchanged when it holds no directive.
+//
+// The directive must be the entire value: a scalar is either an include or it
+// is not, so a directive with text around it, or more than one directive in the
+// same scalar, is an error rather than a partial substitution. `<<` sequences in
+// the included file are escaped to `\<<` so the inlined content is never itself
+// interpreted as parameter interpolation.
+func maybeIncludeFile(s, baseDir string) (string, error) {
+	// Find at most two matches: one is a valid include, more than one is the
+	// error case, and there is no reason to scan further.
+	matches := includeRe.FindAllStringSubmatch(s, 2)
+	if len(matches) > 1 {
+		return "", fmt.Errorf("multiple include statements in one value: %q", s)
+	}
+	if len(matches) == 0 {
+		return s, nil
+	}
+
+	full, rel := matches[0][0], matches[0][1]
+	if full != s {
+		return "", fmt.Errorf("an include statement must be the entire value: %q", s)
+	}
+
+	path := filepath.Join(baseDir, rel)
+	content, err := os.ReadFile(path) //#nosec:G304 // path is under the user-supplied pack root; includes are an author-controlled, local-only feature
+	if err != nil {
+		return "", fmt.Errorf("could not read included file %q: %w", path, err)
+	}
+	return strings.ReplaceAll(string(content), "<<", `\<<`), nil
 }
