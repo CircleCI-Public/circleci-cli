@@ -66,33 +66,59 @@ import (
 // the same bytes and neither churns the other's output.
 const indent = 4
 
+// Warning is a problem found while packing that does not stop the pack. Packing
+// is a mechanical merge, so anything it notices about the *meaning* of the input
+// is advisory: the merge still produces output.
+type Warning struct {
+	// Path is the file the problem is in.
+	Path string
+	// Line is the 1-indexed line within Path.
+	Line int
+	// Message describes the problem and what to do about it.
+	Message string
+}
+
+// String renders the warning with its location leading, in the file:line: form
+// editors and terminals turn into a clickable link.
+func (w Warning) String() string {
+	return fmt.Sprintf("%s:%d: %s", w.Path, w.Line, w.Message)
+}
+
 // Pack reads all YAML files under rootPath and merges them into a single YAML
 // document. If rootPath is a single file it is parsed and re-serialised.
-func Pack(rootPath string) (string, error) {
+//
+// The returned warnings describe anything noticed about the input that is
+// suspicious but not fatal. They are ordered by the lexical file walk, so they
+// are stable across runs, and callers that have nowhere to show them may discard
+// them.
+func Pack(rootPath string) (string, []Warning, error) {
 	absRoot, err := filepath.Abs(rootPath)
 	if err != nil {
-		return "", fmt.Errorf("resolving path: %w", err)
+		return "", nil, fmt.Errorf("resolving path: %w", err)
 	}
 
 	info, err := os.Stat(absRoot)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return "", fmt.Errorf("accessing %q: no such file or directory", rootPath)
+			return "", nil, fmt.Errorf("accessing %q: no such file or directory", rootPath)
 		}
-		return "", fmt.Errorf("accessing %q: %w", rootPath, err)
+		return "", nil, fmt.Errorf("accessing %q: %w", rootPath, err)
 	}
 
-	var result map[string]any
+	var (
+		result   map[string]any
+		warnings []Warning
+	)
 	if info.IsDir() {
 		// Anchors are collected up front so a file may alias an anchor defined
 		// in any other file of the tree, not just its own.
-		result, err = packDir(absRoot, 0, collectAnchors(absRoot))
+		result, err = packDir(absRoot, 0, collectAnchors(absRoot), &warnings)
 	} else {
 		// A single file has nothing else to draw anchors from.
-		result, err = packFile(absRoot, nil)
+		result, err = packFile(absRoot, nil, &warnings)
 	}
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
 
 	var buf strings.Builder
@@ -100,9 +126,9 @@ func Pack(rootPath string) (string, error) {
 	enc.SetIndent(indent)
 	err = enc.Encode(result)
 	if err != nil {
-		return "", fmt.Errorf("marshaling result: %w", err)
+		return "", nil, fmt.Errorf("marshaling result: %w", err)
 	}
-	return buf.String(), nil
+	return buf.String(), warnings, nil
 }
 
 // packDir recursively merges all YAML files under dirPath.
@@ -119,7 +145,8 @@ func Pack(rootPath string) (string, error) {
 //     happened to sit where one belonged.
 //
 // anchors holds the anchors defined anywhere in the tree; see collectAnchors.
-func packDir(dirPath string, depth int, anchors map[string]*yaml.Node) (map[string]any, error) {
+// warnings accumulates advisory findings; see Warning.
+func packDir(dirPath string, depth int, anchors map[string]*yaml.Node, warnings *[]Warning) (map[string]any, error) {
 	entries, err := os.ReadDir(dirPath)
 	if err != nil {
 		return nil, fmt.Errorf("reading directory %q: %w", dirPath, err)
@@ -151,7 +178,7 @@ func packDir(dirPath string, depth int, anchors map[string]*yaml.Node) (map[stri
 		}
 
 		if entry.IsDir() {
-			childMap, err := packDir(fullPath, depth+1, anchors)
+			childMap, err := packDir(fullPath, depth+1, anchors, warnings)
 			if err != nil {
 				return nil, err
 			}
@@ -168,7 +195,7 @@ func packDir(dirPath string, depth int, anchors map[string]*yaml.Node) (map[stri
 			continue
 		}
 
-		content, err := packFile(fullPath, anchors)
+		content, err := packFile(fullPath, anchors, warnings)
 		if err != nil {
 			return nil, err
 		}
@@ -212,19 +239,26 @@ func packDir(dirPath string, depth int, anchors map[string]*yaml.Node) (map[stri
 // one of them fails to parse on its own — anchors are a property of a single YAML
 // document — so on that specific failure the parse is retried with those
 // definitions prepended. Pass nil to parse the file in isolation.
-func packFile(path string, anchors map[string]*yaml.Node) (map[string]any, error) {
+//
+// warnings accumulates advisory findings about this file; see Warning.
+func packFile(path string, anchors map[string]*yaml.Node, warnings *[]Warning) (map[string]any, error) {
 	b, err := os.ReadFile(path) //#nosec:G304 // path is a resolved filesystem path under the user-supplied pack root directory
 	if err != nil {
 		return nil, fmt.Errorf("reading %q: %w", path, err)
 	}
 
-	v, err := decodeYAML(b)
+	res, err := decodeYAML(b)
 	if err != nil {
-		v, err = retryWithAnchors(b, anchors, err)
+		res, err = retryWithAnchors(b, anchors, err)
 		if err != nil {
 			return nil, parseError(path, err)
 		}
 	}
+	if res.node != nil {
+		findDetachedListKeys(path, res.node, res.lineOffset, warnings)
+	}
+
+	v := res.value
 	if v == nil {
 		return make(map[string]any), nil
 	}
@@ -245,22 +279,36 @@ func packFile(path string, anchors map[string]*yaml.Node) (map[string]any, error
 // The separate Decode step is also what surfaces duplicate mapping keys:
 // yaml.Unmarshal into a yaml.Node accepts them, and only the decode into a Go
 // value reports them.
-func decodeYAML(b []byte) (any, error) {
+func decodeYAML(b []byte) (parsed, error) {
 	var node yaml.Node
 	if err := yaml.Unmarshal(b, &node); err != nil {
-		return nil, err
+		return parsed{}, err
 	}
 	if node.Kind == 0 {
-		return nil, nil
+		return parsed{}, nil
 	}
 
 	resolveYAML11Bools(&node, false)
 
 	var v any
 	if err := node.Decode(&v); err != nil {
-		return nil, err
+		return parsed{}, err
 	}
-	return v, nil
+	return parsed{value: v, node: &node}, nil
+}
+
+// parsed is a decoded document together with the node tree it came from, so a
+// caller can still ask where in the source something was after the value has
+// been materialised.
+type parsed struct {
+	value any
+	node  *yaml.Node
+
+	// lineOffset is how many lines were prepended ahead of the file's own first
+	// line before parsing. Non-zero only on the cross-file anchor retry, which
+	// parses a synthesised document; source positions must have it subtracted
+	// before they are reported to the user.
+	lineOffset int
 }
 
 // yaml11Bools maps the plain scalars that YAML 1.1 resolves as booleans, but
@@ -440,32 +488,33 @@ func containsAlias(n *yaml.Node) bool {
 //
 // The retry parses through decodeYAML rather than yaml.Unmarshal so that a file
 // which needed a sibling's anchor is treated identically to every other file.
-func retryWithAnchors(src []byte, anchors map[string]*yaml.Node, firstErr error) (any, error) {
+func retryWithAnchors(src []byte, anchors map[string]*yaml.Node, firstErr error) (parsed, error) {
 	if len(anchors) == 0 || !isUnknownAnchorErr(firstErr) {
-		return nil, firstErr
+		return parsed{}, firstErr
 	}
 
 	prefix, err := anchorDefinitions(anchors)
 	if err != nil {
-		return nil, firstErr
+		return parsed{}, firstErr
 	}
 
 	// decodeYAML, not a bare Unmarshal: a file that needed a sibling's anchor
 	// must still get YAML 1.1 boolean retagging and duplicate-key detection.
-	v, err := decodeYAML(append(prefix, src...))
+	res, err := decodeYAML(append(prefix, src...))
 	if err != nil {
 		var typeErr *yaml.TypeError
 		if errors.As(err, &typeErr) {
-			return nil, shiftLines(typeErr, bytes.Count(prefix, []byte("\n")))
+			return parsed{}, shiftLines(typeErr, bytes.Count(prefix, []byte("\n")))
 		}
-		return nil, firstErr
+		return parsed{}, firstErr
 	}
 	// The definitions block did its job during parsing; the aliases in the file
 	// are resolved values now, so drop it before the content is merged.
-	if m, ok := v.(map[string]any); ok {
+	if m, ok := res.value.(map[string]any); ok {
 		delete(m, anchorsKey)
 	}
-	return v, nil
+	res.lineOffset = bytes.Count(prefix, []byte("\n"))
+	return res, nil
 }
 
 // lineRefRe matches every line reference in a yaml.v3 decode message. A single
@@ -551,6 +600,112 @@ func flowCopy(n *yaml.Node) *yaml.Node {
 // yaml.v3 gives it no distinct type, so the message is all there is to match on.
 func isUnknownAnchorErr(err error) bool {
 	return err != nil && strings.Contains(err.Error(), "unknown anchor")
+}
+
+// attachedKeys are keys that only mean anything as part of the thing above them:
+// a workflow job's requires/context/filters, a step's name/command. Finding one
+// as a *sibling* of a valueless key inside a list item is the signature of the
+// mis-indentation this warning is about.
+//
+// Membership is deliberately narrow. The check only fires when one of these sits
+// beside a valueless key in a sequence item, and a wrong warning is worse than a
+// missing one.
+var attachedKeys = map[string]bool{
+	"requires":     true,
+	"context":      true,
+	"filters":      true,
+	"matrix":       true,
+	"name":         true,
+	"type":         true,
+	"pre-steps":    true,
+	"post-steps":   true,
+	"serial-group": true,
+	"parameters":   true,
+	"command":      true,
+}
+
+// findDetachedListKeys warns about a list item shaped like this:
+//
+//	jobs:
+//	  - specs
+//	  - other:
+//	    requires:
+//	      - specs
+//
+// `requires` is indented level with `other`, so YAML reads it as a *sibling* key
+// of `other` in the same list item, and `other` itself has no value. Packing is a
+// faithful merge, so it round-trips that as `other: null` alongside `requires`,
+// which CircleCI then rejects at compile time:
+//
+//   - other: null
+//     requires:
+//   - specs
+//
+// The YAML is not malformed and pack is not wrong, so this is a warning rather
+// than an error. But pack can see what was almost certainly meant, and saying so
+// at pack time beats a compile error later with no file or line attached.
+//
+// The check is on shape alone, not on position in the document. A decomposed
+// config puts `jobs:` at the top level of workflows/build_and_test.yml, so there
+// is no workflows.*.jobs path to match on — and the same mis-indentation in a
+// steps list deserves the same warning anyway.
+func findDetachedListKeys(path string, n *yaml.Node, lineOffset int, warnings *[]Warning) {
+	if n == nil {
+		return
+	}
+
+	if n.Kind == yaml.SequenceNode {
+		for _, item := range n.Content {
+			if item.Kind == yaml.MappingNode {
+				if w, ok := detachedKeyWarning(path, item, lineOffset); ok {
+					*warnings = append(*warnings, w)
+				}
+			}
+		}
+	}
+
+	for _, child := range n.Content {
+		findDetachedListKeys(path, child, lineOffset, warnings)
+	}
+}
+
+// detachedKeyWarning inspects one list item, reporting the valueless key and the
+// attached key that looks like it was meant to belong to it.
+//
+// Both halves are required, and they must be different keys. A valueless key on
+// its own is fine — `- specs:` is just a job with no configuration. An empty
+// attached key on its own is fine too: `- image: alpine` with a bare `command:`
+// under it is odd but says what it means.
+func detachedKeyWarning(path string, item *yaml.Node, lineOffset int) (Warning, bool) {
+	var (
+		orphan   *yaml.Node // valueless key, i.e. the intended job or step name
+		attached string     // the key that looks like it belongs to orphan
+	)
+
+	for i := 0; i+1 < len(item.Content); i += 2 {
+		key, value := item.Content[i], item.Content[i+1]
+		isAttached := attachedKeys[key.Value]
+		isEmpty := value.Tag == "!!null"
+
+		switch {
+		case isEmpty && !isAttached && orphan == nil:
+			orphan = key
+		case !isEmpty && isAttached && attached == "":
+			attached = key.Value
+		}
+	}
+
+	if orphan == nil || attached == "" {
+		return Warning{}, false
+	}
+
+	return Warning{
+		Path: path,
+		Line: orphan.Line - lineOffset,
+		Message: fmt.Sprintf(
+			"%q has no value but shares a list item with %q; indent %q one level further to attach it to %q",
+			orphan.Value, attached, attached, orphan.Value),
+	}, true
 }
 
 // mergeMaps shallow-merges any number of maps into a new map[string]any.

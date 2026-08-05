@@ -1,0 +1,8 @@
+version: "2.1"
+workflows:
+    build_and_test:
+        jobs:
+            - specs
+            - requires:
+                - specs
+              specs_feature_failures_only: null

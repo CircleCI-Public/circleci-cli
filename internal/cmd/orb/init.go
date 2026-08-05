@@ -408,7 +408,9 @@ func applyOrbInitGit(ctx context.Context, client *apiclient.Client, path string,
 	}
 
 	// Pack the orb source and publish a dev:alpha version.
-	packed, err := pack.Pack(filepath.Join(path, "src"))
+	// Warnings are dropped here: orb init is a guided flow with its own output,
+	// and `circleci orb pack` is where an author sees them.
+	packed, _, err := pack.Pack(filepath.Join(path, "src"))
 	if err != nil {
 		return clierrors.New("orb.init_pack_failed", "Could not pack orb source",
 			err.Error()).

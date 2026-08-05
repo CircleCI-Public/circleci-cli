@@ -45,7 +45,7 @@ func TestPack_IndentationMatchesLegacyCLI(t *testing.T) {
 	writeFile(t, filepath.Join(dir, "jobs", "build.yml"),
 		"docker:\n  - image: cimg/base:2024.01\nsteps:\n  - checkout\n")
 
-	packed, err := pack.Pack(dir)
+	packed, _, err := pack.Pack(dir)
 	assert.NilError(t, err)
 
 	const want = `jobs:
@@ -97,7 +97,7 @@ func TestPack_ParseErrorIsClickable(t *testing.T) {
 			target := filepath.Join(dir, "executors", "executorA.yml")
 			writeFile(t, target, tt.content)
 
-			_, err := pack.Pack(dir)
+			_, _, err := pack.Pack(dir)
 			assert.ErrorContains(t, err, fmt.Sprintf("%s:%d: %s", target, tt.line, tt.message))
 
 			// The location has to lead the message — a filename mentioned
@@ -117,7 +117,7 @@ func TestPack_ParseErrorWithoutLine(t *testing.T) {
 	target := filepath.Join(dir, "commands", "bad.yml")
 	writeFile(t, target, "a: b: c\n")
 
-	_, err := pack.Pack(dir)
+	_, _, err := pack.Pack(dir)
 	assert.ErrorContains(t, err, target+": mapping values are not allowed in this context")
 	// No bare "yaml: " prefix left over once the location leads.
 	assert.Equal(t, strings.Contains(err.Error(), "yaml: "), false,
@@ -139,7 +139,7 @@ func TestPack_YAML11Booleans(t *testing.T) {
 			"  dryrun:\n    type: boolean\n    default: no\n"+
 			"steps:\n  - run: echo hi\n")
 
-	packed, err := pack.Pack(dir)
+	packed, _, err := pack.Pack(dir)
 	assert.NilError(t, err)
 
 	const want = `commands:
@@ -178,7 +178,7 @@ func TestPack_YAML11Booleans_QuotedStaysString(t *testing.T) {
 			"  short:\n    type: string\n    default: n\n"+
 			"steps:\n  - run: echo hi\n")
 
-	packed, err := pack.Pack(dir)
+	packed, _, err := pack.Pack(dir)
 	assert.NilError(t, err)
 
 	assert.Check(t, strings.Contains(packed, `default: "on"`), "got:\n%s", packed)
@@ -198,7 +198,7 @@ func TestPack_YAML11Booleans_KeysAreNotRetagged(t *testing.T) {
 	writeFile(t, filepath.Join(dir, "@config.yml"), "version: 2.1\n")
 	writeFile(t, filepath.Join(dir, "jobs", "build.yml"), "environment:\n  on: value\n  off: other\n")
 
-	packed, err := pack.Pack(dir)
+	packed, _, err := pack.Pack(dir)
 	assert.NilError(t, err)
 
 	assert.Check(t, strings.Contains(packed, `"on": value`), "got:\n%s", packed)
@@ -215,7 +215,7 @@ func TestPack_DuplicateKeysStillDetected(t *testing.T) {
 	writeFile(t, filepath.Join(dir, "executors", "e.yml"),
 		"docker:\n  - image: x\n    auth:\n      username: $U\n    auth:\n")
 
-	_, err := pack.Pack(dir)
+	_, _, err := pack.Pack(dir)
 	assert.ErrorContains(t, err, `mapping key "auth" already defined at line 3`)
 }
 
@@ -232,7 +232,7 @@ func TestPack_NestedDirectoriesFlattenIntoSection(t *testing.T) {
 	writeFile(t, filepath.Join(dir, "commands", "gcp", "auth.yml"), "steps:\n  - run: echo auth\n")
 	writeFile(t, filepath.Join(dir, "jobs", "build", "unit.yml"), "steps:\n  - run: echo unit\n")
 
-	packed, err := pack.Pack(dir)
+	packed, _, err := pack.Pack(dir)
 	assert.NilError(t, err)
 
 	const want = `commands:
@@ -261,7 +261,7 @@ func TestPack_DeeplyNestedDirectoriesFlatten(t *testing.T) {
 	writeFile(t, filepath.Join(dir, "@orb.yml"), "version: 2.1\n")
 	writeFile(t, filepath.Join(dir, "commands", "a", "b", "c", "deep.yml"), "steps:\n  - run: echo deep\n")
 
-	packed, err := pack.Pack(dir)
+	packed, _, err := pack.Pack(dir)
 	assert.NilError(t, err)
 
 	const want = `commands:
@@ -316,7 +316,7 @@ func TestPack_NestedNameCollision(t *testing.T) {
 				writeFile(t, filepath.Join(dir, path), content)
 			}
 
-			_, err := pack.Pack(dir)
+			_, _, err := pack.Pack(dir)
 			assert.ErrorContains(t, err, `both define "login"`)
 			assert.ErrorContains(t, err, "cannot share a name")
 		})
@@ -332,7 +332,7 @@ func TestPack_TopLevelDirectoriesStillBecomeSections(t *testing.T) {
 	writeFile(t, filepath.Join(dir, "commands", "c.yml"), "steps:\n  - run: echo c\n")
 	writeFile(t, filepath.Join(dir, "executors", "e.yml"), "docker:\n  - image: alpine\n")
 
-	packed, err := pack.Pack(dir)
+	packed, _, err := pack.Pack(dir)
 	assert.NilError(t, err)
 
 	assert.Check(t, strings.Contains(packed, "commands:\n    c:"), "got:\n%s", packed)
@@ -348,7 +348,7 @@ func TestPack_CrossFileAnchors(t *testing.T) {
 	writeFile(t, filepath.Join(dir, "anchors", "@anchors.yml"), "my-anchor: &my-anchor my-value\n")
 	writeFile(t, filepath.Join(dir, "commands", "my-command.yml"), "description: *my-anchor\n")
 
-	packed, err := pack.Pack(dir)
+	packed, _, err := pack.Pack(dir)
 	assert.NilError(t, err)
 
 	const want = `anchors:
@@ -372,7 +372,7 @@ func TestPack_CrossFileAnchors_Collections(t *testing.T) {
 	writeFile(t, filepath.Join(dir, "jobs", "build.yml"),
 		"executor: *base\nbranches: *tags\nsteps:\n  - checkout\n")
 
-	packed, err := pack.Pack(dir)
+	packed, _, err := pack.Pack(dir)
 	assert.NilError(t, err)
 
 	const want = `anchors:
@@ -405,7 +405,7 @@ func TestPack_SameFileAnchorsStillWork(t *testing.T) {
 	writeFile(t, filepath.Join(dir, "commands", "c.yml"),
 		"parameters:\n  a: &shared\n    type: string\n    default: x\n  b: *shared\nsteps:\n  - run: echo hi\n")
 
-	packed, err := pack.Pack(dir)
+	packed, _, err := pack.Pack(dir)
 	assert.NilError(t, err)
 
 	assert.Check(t, strings.Count(packed, "default: x") == 2, "got:\n%s", packed)
@@ -420,7 +420,7 @@ func TestPack_UnknownAnchorStillReported(t *testing.T) {
 	target := filepath.Join(dir, "commands", "c.yml")
 	writeFile(t, target, "description: *my-anchr\n")
 
-	_, err := pack.Pack(dir)
+	_, _, err := pack.Pack(dir)
 	// The location leads, in the file:line: form parseError produces (issue 519),
 	// with no line to report for an unresolved alias. Built from filepath.Join so
 	// the separator is right on every platform.
@@ -443,7 +443,7 @@ func TestPack_CrossFileAnchors_RetagsYAML11Booleans(t *testing.T) {
 	writeFile(t, filepath.Join(dir, "commands", "vpn.yml"),
 		"parameters:\n  killswitch:\n    type: boolean\n    default: *flag\nsteps:\n  - run: echo hi\n")
 
-	packed, err := pack.Pack(dir)
+	packed, _, err := pack.Pack(dir)
 	assert.NilError(t, err)
 
 	// true, not "on" — in the anchor definition and at the alias site alike.
@@ -462,7 +462,7 @@ func TestPack_AnchorRetryReportsTheRealError(t *testing.T) {
 	writeFile(t, filepath.Join(dir, "commands", "c.yml"),
 		"description: *shared\ndupe: 1\ndupe: 2\n")
 
-	_, err := pack.Pack(dir)
+	_, _, err := pack.Pack(dir)
 	// The duplicate key is the surviving problem once the alias resolves, and its
 	// line numbers describe c.yml, not the synthesised document.
 	assert.ErrorContains(t, err, `mapping key "dupe" already defined at line 2`)
@@ -477,8 +477,142 @@ func TestPack_SingleFileAnchorsAreSelfContained(t *testing.T) {
 	target := filepath.Join(dir, "one.yml")
 	writeFile(t, target, "description: *shared\n")
 
-	_, err := pack.Pack(target)
+	_, _, err := pack.Pack(target)
 	assert.ErrorContains(t, err, "unknown anchor 'shared' referenced")
+}
+
+// TestPack_WarnsOnDetachedListKey is the regression test for
+// https://github.com/CircleCI-Public/circleci-cli/issues/512, using the layout
+// from the report: `requires` indented level with the job name, so YAML reads it
+// as a sibling and the job gets no value.
+func TestPack_WarnsOnDetachedListKey(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, filepath.Join(dir, "@config.yml"), "version: 2.1\n")
+	writeFile(t, filepath.Join(dir, "workflows", "build_and_test.yml"),
+		"jobs:\n"+
+			"  - specs\n"+
+			"  - specs_feature_failures_only:\n"+
+			"    requires:\n"+
+			"      - specs\n")
+
+	packed, warnings, err := pack.Pack(dir)
+	assert.NilError(t, err)
+
+	// The pack still succeeds — the YAML is well-formed, just not what was meant.
+	assert.Check(t, strings.Contains(packed, "specs_feature_failures_only: null"), "got:\n%s", packed)
+
+	assert.Assert(t, len(warnings) == 1, "got %d warnings: %v", len(warnings), warnings)
+	w := warnings[0]
+	assert.Equal(t, w.Path, filepath.Join(dir, "workflows", "build_and_test.yml"))
+	// Line 3 is where the job name sits, which is what needs looking at.
+	assert.Equal(t, w.Line, 3)
+	assert.Check(t, strings.Contains(w.Message, `"specs_feature_failures_only" has no value`), w.Message)
+	assert.Check(t, strings.Contains(w.Message, `indent "requires" one level further`), w.Message)
+	// The rendered form leads with a clickable location.
+	assert.Check(t, strings.HasPrefix(w.String(), w.Path+":3: "), w.String())
+}
+
+// TestPack_WarnsOnDetachedStepKey covers the same mis-indentation in a steps
+// list, since the check is on shape rather than position: a decomposed config
+// puts `jobs:` at the top level of its own file, so there is no
+// workflows.*.jobs path to key off.
+func TestPack_WarnsOnDetachedStepKey(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, filepath.Join(dir, "@orb.yml"), "version: 2.1\n")
+	writeFile(t, filepath.Join(dir, "commands", "c.yml"),
+		"steps:\n"+
+			"  - run:\n"+
+			"    name: say hello\n"+
+			"    command: echo hi\n")
+
+	_, warnings, err := pack.Pack(dir)
+	assert.NilError(t, err)
+
+	assert.Assert(t, len(warnings) == 1, "got %d warnings: %v", len(warnings), warnings)
+	assert.Check(t, strings.Contains(warnings[0].Message, `"run" has no value`), warnings[0].Message)
+}
+
+// TestPack_WarnsOnDetachedListKey_AfterAnchorRetry guards the seam between this
+// warning and cross-file anchors (issue 341).
+//
+// A file that aliases a sibling's anchor cannot parse alone, so it is parsed a
+// second time with the anchor definitions prepended. Those prepended lines shift
+// every source position in that parse, so a position taken from it has to have
+// the offset subtracted before the user sees it — otherwise the warning points at
+// the line after the one that needs fixing, which is worse than no line at all.
+func TestPack_WarnsOnDetachedListKey_AfterAnchorRetry(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, filepath.Join(dir, "@config.yml"), "version: 2.1\n")
+	writeFile(t, filepath.Join(dir, "anchors", "@anchors.yml"), "ref: &ref specs\n")
+	target := filepath.Join(dir, "workflows", "build.yml")
+	writeFile(t, target,
+		"jobs:\n"+
+			"  - *ref\n"+
+			"  - other:\n"+
+			"    requires:\n"+
+			"      - specs\n")
+
+	_, warnings, err := pack.Pack(dir)
+	assert.NilError(t, err)
+
+	assert.Assert(t, len(warnings) == 1, "got %d warnings: %v", len(warnings), warnings)
+	assert.Equal(t, warnings[0].Path, target)
+	// Line 3 in the file the user wrote — "  - other:" — not line 4, which is
+	// where it sat in the synthesised document the retry parsed.
+	assert.Equal(t, warnings[0].Line, 3)
+}
+
+// TestPack_NoFalseWarnings is the important half. A wrong warning on valid config
+// is worse than a missing one, so every shape here must stay quiet.
+func TestPack_NoFalseWarnings(t *testing.T) {
+	tests := []struct {
+		name    string
+		content string
+	}{
+		{
+			name:    "correctly indented job config",
+			content: "jobs:\n  - specs\n  - other:\n      requires:\n        - specs\n",
+		},
+		{
+			// `- specs:` is a job with no configuration, which is fine.
+			name:    "valueless job name alone",
+			content: "jobs:\n  - specs:\n  - other\n",
+		},
+		{
+			name:    "plain string items",
+			content: "jobs:\n  - specs\n  - js_tests\n  - static_analysis\n",
+		},
+		{
+			name:    "approval job",
+			content: "jobs:\n  - hold:\n      type: approval\n",
+		},
+		{
+			// A docker entry legitimately carries image and command together.
+			name:    "docker entry with siblings",
+			content: "docker:\n  - image: golang\n  - image: cockroach\n    command: start --insecure\n",
+		},
+		{
+			// An empty attached key with no orphan beside it says what it means.
+			name:    "empty command beside a set image",
+			content: "docker:\n  - image: alpine\n    command:\n",
+		},
+		{
+			name:    "empty non-attached key",
+			content: "docker:\n  - image: alpine\n    environment:\n",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dir := t.TempDir()
+			writeFile(t, filepath.Join(dir, "@config.yml"), "version: 2.1\n")
+			writeFile(t, filepath.Join(dir, "jobs", "build.yml"), tt.content)
+
+			_, warnings, err := pack.Pack(dir)
+			assert.NilError(t, err)
+			assert.Check(t, len(warnings) == 0, "expected no warnings, got: %v", warnings)
+		})
+	}
 }
 
 func writeFile(t *testing.T, path, content string) {
