@@ -174,6 +174,38 @@ func TestConfigValidate_MultilineError(t *testing.T) {
 	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 }
 
+// TestConfigValidate_MultipleErrors covers the same error content as
+// TestConfigValidate_MultilineError, but sent as separate error strings
+// rather than one string with embedded newlines. It asserts against the same
+// golden files to prove both API response shapes render identically.
+func TestConfigValidate_MultipleErrors(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	fake.SetCompileResponse(false, "",
+		"Error calling workflow: 'build-test-deploy-bug'",
+		"Error calling job: 'buggy-orb/exhibit-bug'",
+		"Referred to a variable \"pipeline.parameters.bug\" that does not exist:",
+		"<< pipeline.parameters.bug >>",
+		" ^^^^^^^^^^^^^^^^^^^^^^^")
+
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+
+	dir := t.TempDir()
+	writeConfig(t, dir, "version: \"2.1\"\nfoo: bar\n")
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"config", "validate", "--config", ".circleci/config.yml"},
+		Env:     env.Environ(),
+		WorkDir: dir,
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 7))
+	assert.Check(t, golden.String(result.Stdout, "TestConfigValidate_MultilineError.txt"))
+	assert.Check(t, golden.String(result.Stderr, "TestConfigValidate_MultilineError.stderr.txt"))
+}
+
 func TestConfigValidate_FileNotFound(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
 
