@@ -69,8 +69,8 @@ func newInitCmd() *cobra.Command {
 			Scaffold a new orb project from CircleCI-Public/Orb-Template into <path>.
 
 			It then walks you through setup: reserving the namespace and orb, assigning
-			categories, creating an 'orb-publishing' context, initializing git, and
-			publishing a dev:alpha version.
+			categories, creating an 'orb-publishing' context, initializing git, enabling
+			dynamic config, and publishing a dev:alpha version.
 
 			Note: once published, orbs cannot be deleted.
 		`),
@@ -437,6 +437,7 @@ func applyOrbInitGit(ctx context.Context, client *apiclient.Client, path string,
 		iostream.Printf(ctx, "%s Could not follow the project automatically: %s\n", iostream.SymbolWarn(ctx), err)
 	} else {
 		iostream.Printf(ctx, "%s Project followed on CircleCI\n", iostream.SymbolOK(ctx))
+		enableDynamicConfig(ctx, client, g.vcsType, g.owner, projectName)
 	}
 
 	if err := orbinit.CheckoutAlpha(w); err != nil {
@@ -484,6 +485,44 @@ func setupPublishingContext(ctx context.Context, client *apiclient.Client, orgSl
 	if _, err := client.SetContextEnvVar(ctx, ctxt.ID.String(), "CIRCLE_TOKEN", token); err != nil {
 		iostream.Printf(ctx, "%s Could not set CIRCLE_TOKEN on the publishing context: %s\n", iostream.SymbolWarn(ctx), err)
 	}
+}
+
+// enableDynamicConfig turns on dynamic configuration for the orb's project.
+//
+// The orb development kit's config is a setup workflow, and a setup workflow does
+// nothing unless the project has dynamic config enabled. Without this the very
+// first pipeline of a brand-new orb fails with:
+//
+//	Use of setup workflows must be enabled in project settings
+//	(Project settings > Advanced -> Dynamic config using setup workflows)
+//
+// which every orb author then has to go and fix by hand in the web UI before
+// their orb can publish anything.
+//
+// Failures only warn. By the time this runs the namespace, orb, publishing
+// context, git repository and dev release all exist; aborting would leave the
+// author with a half-finished setup and no way to resume, to save them one click.
+// The same reasoning as the publishing context and project follow above.
+func enableDynamicConfig(ctx context.Context, client *apiclient.Client, vcsType, owner, projectName string) {
+	slug := vcsType + "/" + owner + "/" + projectName
+
+	proj, err := client.GetProjectBySlug(ctx, slug)
+	if err != nil {
+		iostream.Printf(ctx, "%s Could not enable dynamic configuration for %s: %s\n",
+			iostream.SymbolWarn(ctx), slug, err)
+		return
+	}
+
+	enabled := true
+	if _, err := client.UpdateProjectSettings(ctx, proj.ID, apiclient.ProjectSettingsUpdate{
+		DynamicConfig: &enabled,
+	}); err != nil {
+		iostream.Printf(ctx, "%s Could not enable dynamic configuration for %s: %s\n",
+			iostream.SymbolWarn(ctx), slug, err)
+		return
+	}
+
+	iostream.Printf(ctx, "%s Dynamic configuration enabled\n", iostream.SymbolOK(ctx))
 }
 
 func finalizeOrbInit(ctx context.Context, private bool, namespace, orbName, projectName string) error {
