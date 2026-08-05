@@ -449,8 +449,7 @@ func applyOrbInitGit(ctx context.Context, client *apiclient.Client, path string,
 	}
 	iostream.Printf(ctx, "%s Published %s@dev:alpha\n", iostream.SymbolOK(ctx), g.fullName)
 
-	iostream.Printf(ctx, "\nAn initial commit has been created. Push it with:\n")
-	iostream.Printf(ctx, "  git branch -M %s\n", d.branch)
+	iostream.Printf(ctx, "\nAn initial commit has been created on %s. Push it with:\n", d.branch)
 	iostream.Printf(ctx, "  git push origin %s\n", d.branch)
 
 	if interactive {

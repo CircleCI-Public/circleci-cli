@@ -1091,6 +1091,11 @@ func TestOrbInit_Git(t *testing.T) {
 	_, err := os.Stat(filepath.Join(orbDir, ".git"))
 	assert.NilError(t, err)
 
+	// The initial commit landed on the configured branch, never go-git's default
+	// "master" (PR 678) — so a master ref is never created.
+	_, err = os.Stat(filepath.Join(orbDir, ".git", "refs", "heads", "master"))
+	assert.Check(t, os.IsNotExist(err), "orb init must not create a master branch")
+
 	// Template placeholders were substituted in the generated config.
 	cfg, err := os.ReadFile(filepath.Join(orbDir, ".circleci", "config.yml"))
 	assert.NilError(t, err)

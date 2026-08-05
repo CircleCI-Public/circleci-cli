@@ -288,6 +288,19 @@ func InitRepo(orbPath, remoteURL, branch string) (*git.Repository, *git.Worktree
 		return nil, nil, err
 	}
 
+	// A repository with no commits yet — freshly initialised here, or a clone of
+	// an empty repository — has an unborn HEAD that go-git points at "master".
+	// Point it at the branch the orb is meant to track so the initial commit
+	// lands there; without this a brand-new orb starts on "master" however the
+	// author set --branch (default "main"). A repository that already has commits
+	// keeps whatever branch it is on.
+	if _, err := repo.Head(); err != nil {
+		ref := plumbing.NewSymbolicReference(plumbing.HEAD, plumbing.NewBranchReferenceName(branch))
+		if err := repo.Storer.SetReference(ref); err != nil {
+			return nil, nil, fmt.Errorf("setting initial branch to %q: %w", branch, err)
+		}
+	}
+
 	// Only add origin if the repository does not already have one. A clone's
 	// origin is authoritative: it is where the user actually intends to push.
 	if _, err := repo.Remote("origin"); err != nil {

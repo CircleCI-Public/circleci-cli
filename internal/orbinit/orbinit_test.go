@@ -261,6 +261,15 @@ func TestInitRepoAndCheckoutAlpha(t *testing.T) {
 		assert.NilError(t, err)
 	})
 
+	// Regression test for https://github.com/CircleCI-Public/circleci-cli/pull/678:
+	// a fresh repository committed on go-git's default "master" regardless of the
+	// requested branch. Must run before the CheckoutAlpha subtest, which moves HEAD.
+	t.Run("initial commit is on the configured branch", func(t *testing.T) {
+		head, err := repo.Head()
+		assert.NilError(t, err)
+		assert.Check(t, is.Equal(head.Name().Short(), "main"))
+	})
+
 	t.Run("CheckoutAlpha switches to the alpha branch", func(t *testing.T) {
 		assert.NilError(t, CheckoutAlpha(w))
 		head, err := repo.Head()
@@ -306,6 +315,52 @@ func TestInitRepo_AdoptsExistingRepo(t *testing.T) {
 		_, err = repo.CommitObject(head.Hash())
 		assert.NilError(t, err)
 	})
+}
+
+// TestInitRepo_EmptyCloneUsesConfiguredBranch covers the second no-commits case
+// from https://github.com/CircleCI-Public/circleci-cli/pull/678: a clone of an
+// empty repository has an origin but an unborn HEAD, so the initial commit must
+// land on the branch orb init was told to track.
+func TestInitRepo_EmptyCloneUsesConfiguredBranch(t *testing.T) {
+	dir := fs.NewDir(t, "orbinit", fs.WithFile("README.md", "hi"))
+
+	// Stand in for `git clone` of an empty repository: an origin, no commits.
+	existing, err := git.PlainInit(dir.Path(), false)
+	assert.NilError(t, err)
+	_, err = existing.CreateRemote(&config.RemoteConfig{
+		Name: "origin",
+		URLs: []string{"git@github.com:myorg/my-orb.git"},
+	})
+	assert.NilError(t, err)
+
+	repo, _, err := InitRepo(dir.Path(), "https://github.com/wrong/url.git", "main")
+	assert.NilError(t, err)
+
+	head, err := repo.Head()
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(head.Name().Short(), "main"))
+}
+
+// TestInitRepo_AdoptedRepoKeepsItsBranch pins the other half of #1682: a
+// repository that already has commits keeps its current branch, so a requested
+// branch that disagrees must not move HEAD.
+func TestInitRepo_AdoptedRepoKeepsItsBranch(t *testing.T) {
+	dir := fs.NewDir(t, "orbinit", fs.WithFile("README.md", "hi"))
+
+	// The first init puts the repository on "trunk" with a commit.
+	_, _, err := InitRepo(dir.Path(), "git@github.com:myorg/my-orb.git", "trunk")
+	assert.NilError(t, err)
+
+	// A new file gives the adopting init something to commit.
+	assert.NilError(t, os.WriteFile(dir.Join("orb.yml"), []byte("version: 2.1\n"), 0o600))
+
+	// Re-run asking for "main": the existing branch must win.
+	repo, _, err := InitRepo(dir.Path(), "git@github.com:myorg/my-orb.git", "main")
+	assert.NilError(t, err)
+
+	head, err := repo.Head()
+	assert.NilError(t, err)
+	assert.Check(t, is.Equal(head.Name().Short(), "trunk"))
 }
 
 // TestInitRepo_BrokenRepoStillErrors keeps a real failure loud: a .git that is
