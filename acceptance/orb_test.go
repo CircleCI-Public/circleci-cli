@@ -693,6 +693,38 @@ func TestOrbPack_Directory_OrbYml(t *testing.T) {
 	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 }
 
+// TestOrbPack_YAML11Booleans is the end-to-end check for
+// https://github.com/CircleCI-Public/circleci-cli/issues/691: a boolean orb
+// parameter defaulting to `on` packed to the string "on", so `orb validate` on
+// the packed output rejected the parameter against its own declared type.
+func TestOrbPack_YAML11Booleans(t *testing.T) {
+	_, env := setupOrbFake(t)
+
+	dir := t.TempDir()
+	assert.NilError(t, os.MkdirAll(filepath.Join(dir, "src", "commands"), 0o755))
+	writeOrbFile(t, filepath.Join(dir, "src", "@orb.yml"), "version: 2.1\n")
+	writeOrbFile(t, filepath.Join(dir, "src", "commands", "vpn.yml"),
+		"parameters:\n"+
+			"  killswitch:\n    type: boolean\n    default: on\n"+
+			"  verbose:\n    type: boolean\n    default: yes\n"+
+			"  quiet:\n    type: boolean\n    default: off\n"+
+			// Quoted: the author asked for the string, and packing must not
+			// decide otherwise.
+			"  label:\n    type: string\n    default: \"on\"\n"+
+			"steps:\n  - run: echo hi\n")
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"orb", "pack", "src"},
+		Env:     env.Environ(),
+		WorkDir: dir,
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 0), "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+}
+
 // --- edge case: missing args ---
 
 func TestOrbList_Namespace_NotFound(t *testing.T) {
@@ -957,4 +989,11 @@ func TestOrbInit_Git(t *testing.T) {
 	}
 	assert.Check(t, published, "expected a POST to /api/v3/orb/versions")
 	assert.Check(t, followed, "expected a follow request")
+}
+
+// writeOrbFile writes a file for the pack tests, creating parent directories.
+func writeOrbFile(t *testing.T, path, content string) {
+	t.Helper()
+	assert.NilError(t, os.MkdirAll(filepath.Dir(path), 0o750))
+	assert.NilError(t, os.WriteFile(path, []byte(content), 0o600))
 }

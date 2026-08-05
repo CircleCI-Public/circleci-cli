@@ -124,6 +124,101 @@ func TestPack_ParseErrorWithoutLine(t *testing.T) {
 		"the yaml.v3 prefix should be replaced by the location, got: %s", err)
 }
 
+// TestPack_YAML11Booleans is the regression test for
+// https://github.com/CircleCI-Public/circleci-cli/issues/691: a boolean orb
+// parameter defaulting to `on` packed to the string "on", so `orb validate` on
+// the packed output rejected the parameter against its own declared type.
+func TestPack_YAML11Booleans(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, filepath.Join(dir, "@orb.yml"), "version: 2.1\n")
+	writeFile(t, filepath.Join(dir, "commands", "vpn.yml"),
+		"parameters:\n"+
+			"  killswitch:\n    type: boolean\n    default: on\n"+
+			"  verbose:\n    type: boolean\n    default: yes\n"+
+			"  quiet:\n    type: boolean\n    default: off\n"+
+			"  dryrun:\n    type: boolean\n    default: no\n"+
+			"steps:\n  - run: echo hi\n")
+
+	packed, err := pack.Pack(dir)
+	assert.NilError(t, err)
+
+	const want = `commands:
+    vpn:
+        parameters:
+            dryrun:
+                default: false
+                type: boolean
+            killswitch:
+                default: true
+                type: boolean
+            quiet:
+                default: false
+                type: boolean
+            verbose:
+                default: true
+                type: boolean
+        steps:
+            - run: echo hi
+version: 2.1
+`
+	assert.Equal(t, packed, want)
+}
+
+// TestPack_YAML11Booleans_QuotedStaysString checks the other half of the
+// contract: a source that quotes the value asked for a string, and packing must
+// not decide otherwise.
+func TestPack_YAML11Booleans_QuotedStaysString(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, filepath.Join(dir, "@orb.yml"), "version: 2.1\n")
+	writeFile(t, filepath.Join(dir, "commands", "c.yml"),
+		"parameters:\n"+
+			"  double:\n    type: string\n    default: \"on\"\n"+
+			"  single:\n    type: string\n    default: 'no'\n"+
+			// y/n are strings to the config compiler, so they stay strings here.
+			"  short:\n    type: string\n    default: n\n"+
+			"steps:\n  - run: echo hi\n")
+
+	packed, err := pack.Pack(dir)
+	assert.NilError(t, err)
+
+	assert.Check(t, strings.Contains(packed, `default: "on"`), "got:\n%s", packed)
+	assert.Check(t, strings.Contains(packed, `default: "no"`), "got:\n%s", packed)
+	// `n` stays a string. yaml.v3 quotes it on the way out because YAML 1.1
+	// would read a bare n as a boolean — which is the point: the quoting is
+	// what stops it being reinterpreted, and it is what the CLI already emitted
+	// before this change, so no committed packed file churns.
+	assert.Check(t, strings.Contains(packed, `default: "n"`), "got:\n%s", packed)
+}
+
+// TestPack_YAML11Booleans_KeysAreNotRetagged guards the mapping-key exclusion.
+// An `on:` key retagged to a boolean would stop the document decoding into
+// map[string]any at all.
+func TestPack_YAML11Booleans_KeysAreNotRetagged(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, filepath.Join(dir, "@config.yml"), "version: 2.1\n")
+	writeFile(t, filepath.Join(dir, "jobs", "build.yml"), "environment:\n  on: value\n  off: other\n")
+
+	packed, err := pack.Pack(dir)
+	assert.NilError(t, err)
+
+	assert.Check(t, strings.Contains(packed, `"on": value`), "got:\n%s", packed)
+	assert.Check(t, strings.Contains(packed, `"off": other`), "got:\n%s", packed)
+}
+
+// TestPack_DuplicateKeysStillDetected guards a side effect of parsing through a
+// yaml.Node: yaml.Unmarshal into a Node accepts duplicate mapping keys, and only
+// the subsequent decode into a Go value reports them. Losing that would turn a
+// merge conflict into silently dropped config.
+func TestPack_DuplicateKeysStillDetected(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, filepath.Join(dir, "@orb.yml"), "version: 2.1\n")
+	writeFile(t, filepath.Join(dir, "executors", "e.yml"),
+		"docker:\n  - image: x\n    auth:\n      username: $U\n    auth:\n")
+
+	_, err := pack.Pack(dir)
+	assert.ErrorContains(t, err, `mapping key "auth" already defined at line 3`)
+}
+
 func writeFile(t *testing.T, path, content string) {
 	t.Helper()
 	assert.NilError(t, os.MkdirAll(filepath.Dir(path), 0o750))
