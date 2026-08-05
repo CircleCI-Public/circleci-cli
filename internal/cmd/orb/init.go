@@ -354,9 +354,16 @@ func applyOrbInitSetup(ctx context.Context, client *apiclient.Client, path strin
 		iostream.Printf(ctx, "%s Created orb %q\n", iostream.SymbolOK(ctx), fullName)
 	}
 
+	// A category that will not attach is not worth abandoning the run over. The
+	// namespace, the orb and possibly the publishing context already exist by
+	// now, and orb init has no resume: aborting here means the author starts over
+	// and re-answers every prompt, which is the complaint in issue 609. Warn and
+	// carry on — categories are metadata, and `circleci orb add-to-category` can
+	// fix them up afterwards.
 	for _, cat := range d.categories {
 		if err := client.AddOrbToCategory(ctx, orbID, cat.ID); err != nil {
-			return orbAPIErr(err, cat.Name)
+			iostream.Printf(ctx, "%s Could not add %s to the %q category: %s\n",
+				iostream.SymbolWarn(ctx), fullName, cat.Name, err)
 		}
 	}
 

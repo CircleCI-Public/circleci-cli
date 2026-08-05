@@ -153,18 +153,22 @@ type CircleCI struct {
 	parCounter         int          // monotonic ID generator for request_uri values
 
 	// Orb state (v3).
-	orbPackages         map[string]map[string]any // id → package object
-	orbPackagesByName   map[string]string         // "ns/name" → id
-	orbVersions         map[string]map[string]any // id → version object
-	orbVersionsByRef    map[string]string         // "ns/name@version" → id
-	orbVersionsByOrbID  map[string][]string       // orbID → ordered version IDs
-	orbCategories       map[string]map[string]any // id → category object
-	orbCategoriesByName map[string]string         // name → id
-	orbValidateResponse *orbFakeValidateResponse  // override for validate/process responses
-	orbCreatedPackages  []map[string]any          // packages created via POST
-	orbCreatedVersions  []map[string]any          // versions created via POST
-	orbUnlistedPackages map[string]bool           // id → unlisted
-	orbCategoryMembers  map[string][]string       // packageID → []categoryID
+	orbPackages        map[string]map[string]any // id → package object
+	orbPackagesByName  map[string]string         // "ns/name" → id
+	orbVersions        map[string]map[string]any // id → version object
+	orbVersionsByRef   map[string]string         // "ns/name@version" → id
+	orbVersionsByOrbID map[string][]string       // orbID → ordered version IDs
+	orbCategories      map[string]map[string]any // id → category object
+	// orbAddCategoryStatus, when non-zero, is the HTTP status returned for every
+	// POST /api/v3/orb/packages/{id}/add-category, so a test can exercise how a
+	// caller copes with the registry refusing a category.
+	orbAddCategoryStatus int
+	orbCategoriesByName  map[string]string        // name → id
+	orbValidateResponse  *orbFakeValidateResponse // override for validate/process responses
+	orbCreatedPackages   []map[string]any         // packages created via POST
+	orbCreatedVersions   []map[string]any         // versions created via POST
+	orbUnlistedPackages  map[string]bool          // id → unlisted
+	orbCategoryMembers   map[string][]string      // packageID → []categoryID
 
 	// Namespace state (served via /graphql-unstable).
 	namespaces        map[string]any    // namespace id → {id, name}
@@ -441,6 +445,15 @@ func (f *CircleCI) SetPipelineCancelResponse(pipelineID string, status int) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.pipelineCancelResponses[pipelineID] = status
+}
+
+// SetOrbAddCategoryStatus makes every POST
+// /api/v3/orb/packages/<id>/add-category fail with the given status, carrying the
+// message the real registry returns when an orb is already at its category limit.
+func (f *CircleCI) SetOrbAddCategoryStatus(status int) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.orbAddCategoryStatus = status
 }
 
 // SetRerunResponse sets the HTTP status code returned for POST /api/v2/workflow/<id>/rerun.
@@ -3262,6 +3275,18 @@ func (f *CircleCI) handleOrbSetListed(w http.ResponseWriter, r *http.Request) {
 
 func (f *CircleCI) handleOrbAddCategory(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
+
+	f.mu.RLock()
+	forced := f.orbAddCategoryStatus
+	f.mu.RUnlock()
+	if forced != 0 {
+		render.Status(r, forced)
+		render.JSON(w, r, map[string]any{
+			"message": "Orbs may only belong to 2 category(s). This orb has already been " +
+				"placed under the following category(s): Build,Deployment.",
+		})
+		return
+	}
 	var body struct {
 		CategoryID string `json:"category_id"`
 	}

@@ -333,6 +333,51 @@ func TestOrbInitFlow_Categories(t *testing.T) {
 	assert.Check(t, cmp.Equal(res.Categories[0].Name, "Testing"))
 }
 
+// TestOrbInitFlow_CategoryLimit is the regression test for
+// https://github.com/CircleCI-Public/circleci-cli/issues/609: the picker used to
+// keep offering categories past the registry's limit of two, and the run then
+// failed at the end with "Orbs may only belong to 2 category(s)" — after every
+// other prompt had been answered.
+//
+// Three categories are offered and two are chosen; the flow must move on to the
+// publishing-context question by itself rather than offering the third.
+func TestOrbInitFlow_CategoryLimit(t *testing.T) {
+	f := &oiFakes{categories: []ui.OrbInitCategory{
+		{ID: "c1", Name: "Testing"},
+		{ID: "c2", Name: "Deployment"},
+		{ID: "c3", Name: "Monitoring"},
+	}}
+	tm := startOrbFlow(t, newOrbFlow(f, ui.OrbInitFlowOptions{Path: "my-orb", OrgSlug: "gh/acme"}))
+	oiWaitFor(t, tm, "public or private orb")
+	tm.Send(oiKeyEnter)
+	oiWaitFor(t, tm, "automated setup")
+	tm.Send(oiKeyEnter)
+	oiWaitFor(t, tm, "Enter the namespace")
+	tm.Send(oiKeyEnter)
+	oiWaitFor(t, tm, "Orb name")
+	tm.Send(oiKeyEnter)
+
+	// The prompt states the limit up front.
+	oiWaitFor(t, tm, "up to 2")
+
+	tm.Send(oiKeyDown)  // "(done)" → "Testing"
+	tm.Send(oiKeyEnter) // 1 of 2
+	oiWaitFor(t, tm, "Deployment")
+	tm.Send(oiKeyDown)  // "(done)" → "Deployment"
+	tm.Send(oiKeyEnter) // 2 of 2 → limit reached, picker must not reappear
+
+	// Straight to the publishing context: "Monitoring" is never offered.
+	oiWaitFor(t, tm, "publishing context")
+	tm.Send(oiKeyN)
+	oiWaitFor(t, tm, "set up your git project")
+	tm.Send(oiKeyN)
+
+	res := oiResult(t, tm)
+	assert.Assert(t, cmp.Len(res.Categories, 2))
+	assert.Check(t, cmp.Equal(res.Categories[0].Name, "Testing"))
+	assert.Check(t, cmp.Equal(res.Categories[1].Name, "Deployment"))
+}
+
 // TestOrbInitFlow_GitGathersBranchAndRemote confirms accepting git setup gathers
 // the branch and remote, defaulting them from the flag and the org/orb.
 func TestOrbInitFlow_GitGathersBranchAndRemote(t *testing.T) {
