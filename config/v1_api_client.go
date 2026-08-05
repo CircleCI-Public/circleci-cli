@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"sort"
+	"strings"
 
 	"github.com/CircleCI-Public/circleci-cli/api/graphql"
 	"github.com/pkg/errors"
@@ -31,7 +32,11 @@ func (errs GQLErrorsCollection) Error() string {
 	message := "config compilation contains errors:"
 
 	for i := range errs {
-		message += fmt.Sprintf("\n\t- %s", errs[i].Message)
+		// A single error's message may itself span multiple newline-separated
+		// lines, so bullet every line rather than only the first.
+		for _, line := range strings.Split(errs[i].Message, "\n") {
+			message += fmt.Sprintf("\n\t- %s", line)
+		}
 	}
 
 	return message

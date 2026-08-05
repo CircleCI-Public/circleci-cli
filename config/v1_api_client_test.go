@@ -132,3 +132,22 @@ func TestAPIV1Flow(t *testing.T) {
 		assert.Equal(t, 0, gqlHitCounter)
 	})
 }
+
+func TestGQLErrorsCollection_Error(t *testing.T) {
+	t.Run("bullets every error", func(t *testing.T) {
+		errs := GQLErrorsCollection{
+			{Message: "error on line 1"},
+			{Message: "error on line 42"},
+		}
+		assert.Equal(t, "config compilation contains errors:\n\t- error on line 1\n\t- error on line 42", errs.Error())
+	})
+
+	t.Run("bullets every line of a single multiline error", func(t *testing.T) {
+		// A single error's Message may itself span multiple newline-separated
+		// lines; every line should get its own bullet rather than only the first.
+		errs := GQLErrorsCollection{
+			{Message: "error on line 1\nerror on line 42"},
+		}
+		assert.Equal(t, "config compilation contains errors:\n\t- error on line 1\n\t- error on line 42", errs.Error())
+	})
+}

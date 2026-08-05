@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"net/url"
+	"strings"
 
 	"github.com/CircleCI-Public/circleci-cli/api/rest"
 	"github.com/pkg/errors"
@@ -17,7 +18,11 @@ type v2APIClient struct {
 func configErrorsAsError(configErrors []ConfigError) error {
 	message := "config compilation contains errors:"
 	for _, err := range configErrors {
-		message += fmt.Sprintf("\n\t- %s", err.Message)
+		// A single error's message may itself span multiple newline-separated
+		// lines, so bullet every line rather than only the first.
+		for _, line := range strings.Split(err.Message, "\n") {
+			message += fmt.Sprintf("\n\t- %s", line)
+		}
 	}
 	return errors.New(message)
 }
