@@ -34,7 +34,10 @@ import (
 )
 
 func newRerunCmd() *cobra.Command {
-	var fromFailed bool
+	var (
+		fromFailed bool
+		jsonOut    bool
+	)
 
 	cmd := &cobra.Command{
 		Use:   "rerun <workflow-id>",
@@ -46,13 +49,11 @@ func newRerunCmd() *cobra.Command {
 			`, "`"),
 		},
 		Long: heredoc.Doc(`
-			Rerun a CircleCI workflow.
+			All jobs rerun from scratch unless --from-failed is given, which reruns
+			only the jobs that failed. Either way a new workflow is created, and its
+			ID is reported so you can follow the run.
 
-			By default all jobs in the workflow are rerun from scratch. Use
-			--from-failed to rerun only the jobs that failed, leaving successful
-			jobs untouched.
-
-			Workflow IDs are shown in the output of 'circleci run get'.
+			JSON fields: workflow_id, rerun_from, from_failed
 		`),
 		Example: heredoc.Doc(`
 			# Rerun all jobs in a workflow from scratch
@@ -63,6 +64,9 @@ func newRerunCmd() *cobra.Command {
 
 			# Find a workflow ID from the latest run
 			$ circleci run get --json --jq '.workflows[].id'
+
+			# Rerun and capture the new workflow's ID
+			$ circleci workflow rerun <workflow-id> --from-failed --json --jq .workflow_id
 		`),
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -74,23 +78,44 @@ func newRerunCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return runRerun(ctx, client, args[0], fromFailed)
+			return runRerun(ctx, client, args[0], fromFailed, jsonOut)
 		},
 	}
 
 	cmd.Flags().BoolVar(&fromFailed, "from-failed", false, "Rerun only failed jobs")
+	cmdutil.AddJSONFlag(cmd, &jsonOut)
 	return cmd
 }
 
-func runRerun(ctx context.Context, client *apiclient.Client, id string, fromFailed bool) error {
-	if err := client.RerunWorkflow(ctx, id, fromFailed); err != nil {
+// rerunJSONOutput is the --json shape. rerun_from is echoed back because the new
+// workflow ID alone does not say what it came from.
+type rerunJSONOutput struct {
+	WorkflowID string `json:"workflow_id"`
+	RerunFrom  string `json:"rerun_from"`
+	FromFailed bool   `json:"from_failed"`
+}
+
+func runRerun(ctx context.Context, client *apiclient.Client, id string, fromFailed, jsonOut bool) error {
+	newID, err := client.RerunWorkflow(ctx, id, fromFailed)
+	if err != nil {
 		return apiErr(err, id)
 	}
 
+	if jsonOut {
+		return iostream.PrintJSON(ctx, rerunJSONOutput{
+			WorkflowID: newID,
+			RerunFrom:  id,
+			FromFailed: fromFailed,
+		})
+	}
+
+	// Lead with the new workflow's ID rather than the one that was passed in: the
+	// old one is spent, and the new one is what `workflow get` or `run watch`
+	// needs next.
 	if fromFailed {
-		iostream.Printf(ctx, "Rerunning failed jobs in workflow %s\n", id)
+		iostream.Printf(ctx, "Rerunning failed jobs from %s as workflow %s\n", id, newID)
 	} else {
-		iostream.Printf(ctx, "Rerunning workflow %s from scratch\n", id)
+		iostream.Printf(ctx, "Rerunning %s from scratch as workflow %s\n", id, newID)
 	}
 	return nil
 }

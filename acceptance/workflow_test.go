@@ -58,7 +58,7 @@ func setupWorkflowFake(t *testing.T) (*fakes.CircleCI, *testenv.TestEnv) {
 		fakeJobV3("d0000000-0000-4000-8000-000000000201", "run-tests", testWorkflowDetailID, wfProjectID),
 		fakeJobV3("d0000000-0000-4000-8000-000000000202", "deploy", testWorkflowDetailID, wfProjectID),
 	)
-	fake.SetRerunResponse(testWorkflowDetailID, http.StatusAccepted)
+	fake.SetRerunResponse(testWorkflowDetailID, http.StatusCreated) // the real endpoint answers 201
 	fake.SetCancelResponse(testWorkflowDetailID, http.StatusAccepted)
 
 	env := testenv.New(t)
@@ -521,6 +521,12 @@ func TestWorkflowRerun(t *testing.T) {
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
 
+	// The rerun created a new workflow, and its id — not the spent one that was
+	// passed in — is what the user needs next.
+	assert.Check(t, cmp.Contains(result.Stdout, fakes.DefaultRerunWorkflowID))
+	// Without --from-failed the endpoint must see is_from_failed false.
+	assert.Check(t, !fake.RerunWasFromFailed(testWorkflowDetailID))
+
 	t.Run("check request", func(t *testing.T) {
 		assert.Check(t, cmp.DeepEqual(fake.LastRequest(), &httprecorder.Request{
 			Method: http.MethodPost,
@@ -529,9 +535,37 @@ func TestWorkflowRerun(t *testing.T) {
 				"Authorization": {"Bearer test-token"},
 				"User-Agent":    {httpcl.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
 			},
-			Body: new(`{"from_failed":false}`),
+			Body: new(`{"is_from_failed":false}`),
 		}, ignoreCommonHeaders))
 	})
+}
+
+// TestWorkflowRerun_JSON pins the machine-readable shape. Reporting the new
+// workflow id is the point of --json here: it is the handle for whatever comes
+// next, and previously the CLI decoded it from the response and threw it away.
+func TestWorkflowRerun_JSON(t *testing.T) {
+	_, env := setupWorkflowFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"workflow", "rerun", testWorkflowDetailID, "--from-failed", "--json"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+
+	var out struct {
+		WorkflowID string `json:"workflow_id"`
+		RerunFrom  string `json:"rerun_from"`
+		FromFailed bool   `json:"from_failed"`
+	}
+	assert.NilError(t, json.Unmarshal([]byte(result.Stdout), &out))
+	assert.Check(t, cmp.Equal(out.WorkflowID, fakes.DefaultRerunWorkflowID))
+	assert.Check(t, cmp.Equal(out.RerunFrom, testWorkflowDetailID))
+	assert.Check(t, cmp.Equal(out.FromFailed, true))
+	// The two must differ, or the id is useless for following the new run.
+	assert.Check(t, out.WorkflowID != out.RerunFrom)
 }
 
 func TestWorkflowRerun_Color(t *testing.T) {
@@ -570,9 +604,15 @@ func TestWorkflowRerun_FromFailed(t *testing.T) {
 				"Authorization": {"Bearer test-token"},
 				"User-Agent":    {httpcl.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
 			},
-			Body: new(`{"from_failed":true}`),
+			Body: new(`{"is_from_failed":true}`),
 		}, ignoreCommonHeaders))
 	})
+
+	// The assertion with teeth: what the endpoint decoded, not merely what the
+	// client and the fake agreed to exchange. Sending the v2 field name to this v3
+	// endpoint left it false, and everything else still looked fine.
+	assert.Check(t, fake.RerunWasFromFailed(testWorkflowDetailID),
+		"the endpoint must have seen is_from_failed true")
 }
 
 func TestWorkflowRerun_FromFailed_Color(t *testing.T) {

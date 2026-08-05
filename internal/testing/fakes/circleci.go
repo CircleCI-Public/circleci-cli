@@ -73,12 +73,14 @@ type CircleCI struct {
 	listTriggerResponses              map[string][]any  // "projectID/pipelineDefinitionID" → list of triggers
 
 	// GitHub App state.
-	githubAppInstalled      map[string]bool  // orgID → app installed (200) vs not (404)
-	githubAppRepos          map[string][]any // orgID → repositories the app can access
-	githubAppInstallResp    any              // response body for POST /github-app/install
-	rerunResponses          map[string]int   // workflow id → HTTP status to return
-	cancelResponses         map[string]int   // workflow id → HTTP status to return
-	pipelineCancelResponses map[string]int   // pipeline id → HTTP status to return
+	githubAppInstalled      map[string]bool   // orgID → app installed (200) vs not (404)
+	githubAppRepos          map[string][]any  // orgID → repositories the app can access
+	githubAppInstallResp    any               // response body for POST /github-app/install
+	rerunResponses          map[string]int    // workflow id → HTTP status to return
+	rerunNewIDs             map[string]string // workflow id → id of the workflow its rerun creates
+	rerunFromFailed         map[string]bool   // workflow id → is_from_failed as the request actually set it
+	cancelResponses         map[string]int    // workflow id → HTTP status to return
+	pipelineCancelResponses map[string]int    // pipeline id → HTTP status to return
 
 	// Job (v3) state.
 	jobsV3             map[string]any    // job UUID → V3 response body
@@ -223,6 +225,8 @@ func NewCircleCI(t *testing.T) *CircleCI {
 		githubAppInstalled:                map[string]bool{},
 		githubAppRepos:                    map[string][]any{},
 		rerunResponses:                    map[string]int{},
+		rerunNewIDs:                       map[string]string{},
+		rerunFromFailed:                   map[string]bool{},
 		cancelResponses:                   map[string]int{},
 		pipelineCancelResponses:           map[string]int{},
 		jobsV3:                            map[string]any{},
@@ -454,6 +458,35 @@ func (f *CircleCI) SetOrbAddCategoryStatus(status int) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.orbAddCategoryStatus = status
+}
+
+// DefaultRerunWorkflowID is the id of the workflow a rerun creates, unless a test
+// overrides it with SetRerunNewWorkflowID.
+//
+// It is deliberately not the id being rerun. A rerun creates a *new* workflow, and
+// echoing the old id back would let a caller that mistakenly reports the id it was
+// given pass its tests.
+const DefaultRerunWorkflowID = "11111111-1111-4111-8111-111111111111"
+
+// RerunWasFromFailed reports whether the rerun request for workflowID actually set
+// is_from_failed, as decoded from the wire.
+//
+// Assert on this rather than on the raw request body: a body comparison passes as
+// long as client and fake agree, which is how sending the v2 field name to a v3
+// endpoint went unnoticed. This reports what the *endpoint* would have acted on, so
+// a wrong field name reads as false.
+func (f *CircleCI) RerunWasFromFailed(workflowID string) bool {
+	f.mu.RLock()
+	defer f.mu.RUnlock()
+	return f.rerunFromFailed[workflowID]
+}
+
+// SetRerunNewWorkflowID sets the id that rerunning workflowID reports, for a test
+// that needs to distinguish several reruns.
+func (f *CircleCI) SetRerunNewWorkflowID(workflowID, newID string) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.rerunNewIDs[workflowID] = newID
 }
 
 // SetRerunResponse sets the HTTP status code returned for POST /api/v2/workflow/<id>/rerun.
@@ -1245,6 +1278,15 @@ func runStatus(run any) string {
 	return outcome
 }
 
+// handleRerunWorkflow mirrors POST /api/v3/workflows/:id/rerun as the real service
+// implements it, which matters more than usual here: this fake used to reply with a
+// "workflow_id" field the API does not have, and to ignore the request body
+// entirely. Because the client made the matching mistakes, assertions round-tripped
+// through agreeing errors and passed.
+//
+// So: decode *only* is_from_failed, tolerating unknown fields exactly as the real
+// handler does. A caller sending the wrong field name gets false recorded here and
+// fails a test, rather than being quietly accepted.
 func (f *CircleCI) handleRerunWorkflow(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	f.mu.RLock()
@@ -1256,8 +1298,25 @@ func (f *CircleCI) handleRerunWorkflow(w http.ResponseWriter, r *http.Request) {
 		render.JSON(w, r, map[string]any{"message": "not found"})
 		return
 	}
+
+	// An absent body is a valid full rerun, so a decode failure is not an error.
+	var req struct {
+		IsFromFailed bool `json:"is_from_failed"`
+	}
+	_ = json.NewDecoder(r.Body).Decode(&req)
+
+	f.mu.Lock()
+	newID, override := f.rerunNewIDs[id]
+	f.rerunFromFailed[id] = req.IsFromFailed
+	f.mu.Unlock()
+	if !override {
+		newID = DefaultRerunWorkflowID
+	}
+
+	// The real endpoint identifies the new workflow at data.id, and sets Location.
+	w.Header().Set("Location", "/api/v3/workflows/"+newID)
 	render.Status(r, status)
-	render.JSON(w, r, map[string]any{"data": map[string]any{"workflow_id": id}})
+	render.JSON(w, r, map[string]any{"data": map[string]any{"id": newID}})
 }
 
 func (f *CircleCI) handleCancelWorkflow(w http.ResponseWriter, r *http.Request) {
