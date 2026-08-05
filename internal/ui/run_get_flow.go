@@ -1667,6 +1667,10 @@ func (m RunGetFlowModel) updateHelp(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m RunGetFlowModel) View() tea.View {
+	return withWindowTitle(m.buildView(), flowTitle("run get"))
+}
+
+func (m RunGetFlowModel) buildView() tea.View {
 	switch m.stage {
 	case runGetStageRunSelect:
 		return m.runSelect.View()

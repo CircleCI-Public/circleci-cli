@@ -277,6 +277,10 @@ func (m ThemePickerModel) loadingView() string {
 }
 
 func (m ThemePickerModel) View() tea.View {
+	return withWindowTitle(m.buildView(), flowTitle("theme"))
+}
+
+func (m ThemePickerModel) buildView() tea.View {
 	if !m.ready {
 		return tea.NewView("")
 	}
