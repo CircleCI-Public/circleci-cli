@@ -279,9 +279,9 @@ from stdin.
 
 Validate a pipeline config file
 
-Private and namespaced orbs resolve against your organization. With --org
-omitted the org comes from a 'circleci project link' binding if present,
-otherwise the git remote.
+No API token is required; without one, only public orbs resolve.
+Private and namespaced orbs need a token and resolve against your org, taken
+from --org, a 'circleci project link' binding, or the git remote, in that order.
 
 JSON fields (--json): valid (bool), compiled_yaml (string, when valid), errors (array of compilation messages, when invalid)
 
