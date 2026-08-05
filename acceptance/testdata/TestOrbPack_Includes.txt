@@ -1,0 +1,7 @@
+commands:
+    greet:
+        steps:
+            - run: |
+                echo hello
+                echo world
+version: 2.1

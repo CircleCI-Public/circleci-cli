@@ -728,6 +728,32 @@ func TestOrbPack_YAML11Booleans(t *testing.T) {
 	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 }
 
+// TestOrbPack_Includes is the end-to-end check for the include directive that
+// was dropped in the v1 rewrite: a step whose value is exactly
+// '<< include(file) >>' must be replaced with that file's contents. See
+// https://github.com/CircleCI-Public/circleci-cli/pull/737.
+func TestOrbPack_Includes(t *testing.T) {
+	_, env := setupOrbFake(t)
+
+	dir := t.TempDir()
+	writeOrbFile(t, filepath.Join(dir, "src", "@orb.yml"), "version: 2.1\n")
+	writeOrbFile(t, filepath.Join(dir, "src", "commands", "greet.yml"),
+		"steps:\n  - run: << include(scripts/greet.sh) >>\n")
+	writeOrbFile(t, filepath.Join(dir, "src", "scripts", "greet.sh"),
+		"echo hello\necho world\n")
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"orb", "pack", "src"},
+		Env:     env.Environ(),
+		WorkDir: dir,
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 0), "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+}
+
 // TestOrbPack_NestedDirectories is the end-to-end check for
 // https://github.com/CircleCI-Public/circleci-cli/issues/755: an orb author
 // organising commands/ into subdirectories. Those files used to pack into

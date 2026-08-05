@@ -53,6 +53,9 @@ func newPackCmd() *cobra.Command {
 
 			If the path is a single file it is parsed and written to stdout.
 
+			A value that is exactly '<< include(path) >>' is replaced with the
+			contents of that file, resolved relative to the orb root.
+
 			The merged YAML is written to stdout.
 		`),
 		Example: heredoc.Doc(`
@@ -74,7 +77,7 @@ func newPackCmd() *cobra.Command {
 			if err := cmdutil.RequireArgs(args, "path"); err != nil {
 				return err
 			}
-			packed, warnings, err := pack.Pack(args[0])
+			packed, warnings, err := pack.Pack(args[0], pack.WithIncludes())
 			if err != nil {
 				return clierrors.New("orb.pack_failed", "Orb pack failed",
 					fmt.Sprintf("Could not pack %q: %s", args[0], err)).

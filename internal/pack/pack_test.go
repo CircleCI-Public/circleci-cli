@@ -615,6 +615,105 @@ func TestPack_NoFalseWarnings(t *testing.T) {
 	}
 }
 
+// TestPack_ResolvesIncludes is the regression test for the include directive
+// dropped in the v1 rewrite: a value that is exactly '<< include(file) >>' must
+// be replaced with that file's contents when WithIncludes is set. See
+// https://github.com/CircleCI-Public/circleci-cli/pull/737.
+func TestPack_ResolvesIncludes(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, filepath.Join(dir, "@orb.yml"), "version: 2.1\n")
+	writeFile(t, filepath.Join(dir, "commands", "greet.yml"),
+		"steps:\n  - run: << include(scripts/greet.sh) >>\n")
+	writeFile(t, filepath.Join(dir, "scripts", "greet.sh"), "echo hello\n")
+
+	packed, _, err := pack.Pack(dir, pack.WithIncludes())
+	assert.NilError(t, err)
+	assert.Check(t, strings.Contains(packed, "echo hello"),
+		"included file contents should be inlined, got:\n%s", packed)
+	assert.Check(t, !strings.Contains(packed, "include("),
+		"the directive should be gone, got:\n%s", packed)
+}
+
+// TestPack_WithoutIncludesLeavesDirectiveUntouched pins that the directive is a
+// no-op unless WithIncludes is passed, so config packing never reads sidecar
+// files.
+func TestPack_WithoutIncludesLeavesDirectiveUntouched(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, filepath.Join(dir, "@orb.yml"), "version: 2.1\n")
+	writeFile(t, filepath.Join(dir, "commands", "greet.yml"),
+		"steps:\n  - run: << include(scripts/greet.sh) >>\n")
+	writeFile(t, filepath.Join(dir, "scripts", "greet.sh"), "echo hello\n")
+
+	packed, _, err := pack.Pack(dir)
+	assert.NilError(t, err)
+	assert.Check(t, strings.Contains(packed, "include(scripts/greet.sh)"),
+		"directive should be left verbatim without WithIncludes, got:\n%s", packed)
+}
+
+// TestPack_IncludeEscapesInterpolation checks that '<<' in the included file is
+// escaped to '\<<' so inlined content is never itself read as a parameter.
+func TestPack_IncludeEscapesInterpolation(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, filepath.Join(dir, "@orb.yml"), "version: 2.1\n")
+	writeFile(t, filepath.Join(dir, "commands", "greet.yml"),
+		"steps:\n  - run: << include(scripts/tmpl.sh) >>\n")
+	writeFile(t, filepath.Join(dir, "scripts", "tmpl.sh"), "echo << parameters.name >>\n")
+
+	packed, _, err := pack.Pack(dir, pack.WithIncludes())
+	assert.NilError(t, err)
+	assert.Check(t, strings.Contains(packed, `\<< parameters.name >>`),
+		"<< in included content should be escaped, got:\n%s", packed)
+}
+
+// TestPack_IncludeOnlyInJobsCommandsExecutors pins that directives outside those
+// three sections are left alone, matching the 0.1.x CLI.
+func TestPack_IncludeOnlyInJobsCommandsExecutors(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, filepath.Join(dir, "@orb.yml"),
+		"version: 2.1\ndescription: << include(scripts/greet.sh) >>\n")
+	writeFile(t, filepath.Join(dir, "scripts", "greet.sh"), "echo hello\n")
+
+	packed, _, err := pack.Pack(dir, pack.WithIncludes())
+	assert.NilError(t, err)
+	assert.Check(t, strings.Contains(packed, "include(scripts/greet.sh)"),
+		"a directive in description should be left verbatim, got:\n%s", packed)
+}
+
+func TestPack_IncludeErrors(t *testing.T) {
+	tests := []struct {
+		name    string
+		command string
+		wantErr string
+	}{
+		{
+			name:    "directive not the entire value",
+			command: "steps:\n  - run: echo << include(scripts/greet.sh) >>\n",
+			wantErr: "entire value",
+		},
+		{
+			name:    "two directives in one value",
+			command: "steps:\n  - run: << include(scripts/greet.sh) >> << include(scripts/greet.sh) >>\n",
+			wantErr: "multiple include statements",
+		},
+		{
+			name:    "missing file",
+			command: "steps:\n  - run: << include(scripts/nope.sh) >>\n",
+			wantErr: "could not read included file",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dir := t.TempDir()
+			writeFile(t, filepath.Join(dir, "@orb.yml"), "version: 2.1\n")
+			writeFile(t, filepath.Join(dir, "commands", "greet.yml"), tt.command)
+			writeFile(t, filepath.Join(dir, "scripts", "greet.sh"), "echo hello\n")
+
+			_, _, err := pack.Pack(dir, pack.WithIncludes())
+			assert.ErrorContains(t, err, tt.wantErr)
+		})
+	}
+}
+
 func writeFile(t *testing.T, path, content string) {
 	t.Helper()
 	assert.NilError(t, os.MkdirAll(filepath.Dir(path), 0o750))
