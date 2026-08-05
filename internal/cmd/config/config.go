@@ -123,6 +123,33 @@ func resolveOrgID(ctx context.Context, client *apiclient.Client, org, cmdName st
 	return id.String(), nil
 }
 
+// validateOrgID is resolveOrgID for `config validate`, which accepts an
+// unauthenticated client (see cmdutil.LoadClientOptionalAuth).
+//
+// Every path to an org ID needs a token: inference looks the project up through
+// the API, and an org only owns orbs the caller is authorized to read. So when
+// there is no token we skip resolution entirely and compile with no owner —
+// public orbs still resolve — rather than spending a round-trip on a request
+// that can only 401. An explicit --org is a hard error instead: silently
+// ignoring it would report a config as valid while skipping the private orb
+// resolution the user asked for.
+func validateOrgID(ctx context.Context, client *apiclient.Client, org string) (string, error) {
+	if !client.Authenticated() {
+		if org != "" {
+			return "", clierrors.New("auth.token_missing", "Authentication required",
+				"Resolving --org requires a CircleCI API token.").
+				WithSuggestions(
+					"Run: circleci auth login",
+					"Or set the CIRCLE_TOKEN environment variable",
+					"Or drop --org to validate against public orbs only",
+				).
+				WithExitCode(clierrors.ExitAuthError)
+		}
+		return "", nil
+	}
+	return resolveOrgID(ctx, client, org, "circleci config validate")
+}
+
 // printValidationErrors writes each compilation error as a bulleted line to
 // stderr. An error's message may itself span multiple newline-separated
 // lines (the API sometimes returns one error with embedded detail lines

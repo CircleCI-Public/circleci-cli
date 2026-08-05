@@ -24,6 +24,7 @@ package cmdconfig
 
 import (
 	"fmt"
+	"net/http"
 
 	"github.com/MakeNowJust/heredoc"
 	"github.com/spf13/cobra"
@@ -31,6 +32,7 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/internal/cmdutil"
 	"github.com/CircleCI-Public/circleci-cli/internal/configcmd"
 	clierrors "github.com/CircleCI-Public/circleci-cli/internal/errors"
+	"github.com/CircleCI-Public/circleci-cli/internal/httpcl"
 	"github.com/CircleCI-Public/circleci-cli/internal/iostream"
 )
 
@@ -52,9 +54,9 @@ func newValidateCmd() *cobra.Command {
 			`, "`"),
 		},
 		Long: heredoc.Doc(`
-			Private and namespaced orbs resolve against your organization. With --org
-			omitted the org comes from a 'circleci project link' binding if present,
-			otherwise the git remote.
+			No API token is required; without one, only public orbs resolve.
+			Private and namespaced orbs need a token and resolve against your org, taken
+			from --org, a 'circleci project link' binding, or the git remote, in that order.
 
 			JSON fields (--json): valid (bool), compiled_yaml (string, when valid), errors (array of compilation messages, when invalid)
 		`),
@@ -83,23 +85,37 @@ func newValidateCmd() *cobra.Command {
 				path = args[0]
 			}
 
-			client, err := cmdutil.LoadClient(ctx)
-			if err != nil {
-				return err
-			}
+			// Validation is the one config command that works without a token:
+			// the compile endpoint serves anonymous callers, and linting a config
+			// that uses only public orbs is the first thing a new user — or a
+			// pre-commit hook, or a CI job without a token — wants to do. An
+			// authenticated call is unchanged.
+			client := cmdutil.LoadClientOptionalAuth(ctx)
 
 			yaml, err := readConfigInput(ctx, path)
 			if err != nil {
 				return err
 			}
 
-			orgID, err := resolveOrgID(ctx, client, org, "circleci config validate")
+			orgID, err := validateOrgID(ctx, client, org)
 			if err != nil {
 				return err
 			}
 
 			result, err := configcmd.Validate(ctx, client, yaml, orgID, previewNext)
 			if err != nil {
+				// A 401 on an anonymous call means this host will not compile
+				// without credentials, so the generic "token was rejected" wording
+				// APIErr uses for an authenticated 401 would be wrong here.
+				if !client.Authenticated() && httpcl.HasStatusCode(err, http.StatusUnauthorized) {
+					return clierrors.New("auth.token_missing", "Authentication required",
+						"This CircleCI host requires an API token to validate config.").
+						WithSuggestions(
+							"Run: circleci auth login",
+							"Or set the CIRCLE_TOKEN environment variable",
+						).
+						WithExitCode(clierrors.ExitAuthError)
+				}
 				return configAPIErr(err)
 			}
 

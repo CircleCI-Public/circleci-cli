@@ -474,6 +474,104 @@ func TestConfigValidate_NoOrgOutsideGitRemote(t *testing.T) {
 	assert.Check(t, cmp.Equal(fake.LastCompileOwnerID(), ""))
 }
 
+// TestConfigValidate_NoToken pins that validation is usable with no API token
+// at all: the compile endpoint serves anonymous callers, so linting a config
+// that uses only public orbs must not demand `circleci auth login` first.
+//
+// It also asserts the request carried no Authorization header. Sending a
+// valueless "Bearer" instead reads as malformed credentials rather than as an
+// anonymous request, which the real API rejects.
+func TestConfigValidate_NoToken(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	fake.SetCompileResponse(true, testCompiledYAML)
+
+	env := testenv.New(t)
+	env.CircleCIURL = fake.URL()
+
+	dir := t.TempDir()
+	writeConfig(t, dir, testConfigYAML)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"config", "validate", "--config", ".circleci/config.yml"},
+		Env:     env.Environ(),
+		WorkDir: dir,
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 0), "stderr: %s", result.Stderr)
+	assert.Check(t, cmp.Contains(result.Stdout, ".circleci/config.yml"))
+
+	var compiled bool
+	for _, req := range fake.AllRequests() {
+		if req.URL.Path != "/api/v2/compile-config-with-defaults" {
+			continue
+		}
+		compiled = true
+		assert.Check(t, cmp.Equal(req.Header.Get("Authorization"), ""),
+			"anonymous validate must send no Authorization header")
+	}
+	assert.Check(t, compiled, "expected a compile request")
+}
+
+// TestConfigValidate_NoTokenSkipsOrgInference pins that the anonymous path
+// makes no attempt to infer the org. Every route to an org ID needs a token, so
+// inside a git checkout with no token the project lookup would only ever 401 —
+// validate compiles with an empty owner_id instead of spending the round-trip.
+func TestConfigValidate_NoTokenSkipsOrgInference(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	fake.SetCompileResponse(true, testCompiledYAML)
+	fake.AddProjectBySlug("gh/myorg/myrepo", "00000000-0000-0000-0000-0000000000b5", "myrepo", testOrgUUID)
+
+	env := testenv.New(t)
+	env.CircleCIURL = fake.URL()
+
+	dir := t.TempDir()
+	initGitRepoWithRemote(t, dir, "https://github.com/myorg/myrepo")
+	writeConfig(t, dir, testConfigYAML)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"config", "validate", "--config", ".circleci/config.yml"},
+		Env:     env.Environ(),
+		WorkDir: dir,
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 0), "stderr: %s", result.Stderr)
+	assert.Check(t, cmp.Equal(fake.LastCompileOwnerID(), ""))
+	for _, req := range fake.AllRequests() {
+		assert.Check(t, cmp.Equal(req.URL.Path, "/api/v2/compile-config-with-defaults"),
+			"unexpected request on the anonymous path")
+	}
+}
+
+// TestConfigValidate_NoTokenWithOrg pins the one case where the anonymous path
+// still fails: --org cannot be honoured without a token, and quietly ignoring
+// it would report a config as valid while skipping the private orb resolution
+// the user explicitly asked for.
+func TestConfigValidate_NoTokenWithOrg(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	fake.SetCompileResponse(true, testCompiledYAML)
+	fake.AddOrg(testOrgUUID, "gh/myorg", "myorg", "github")
+
+	env := testenv.New(t)
+	env.CircleCIURL = fake.URL()
+
+	dir := t.TempDir()
+	writeConfig(t, dir, testConfigYAML)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"config", "validate", "--org", "gh/myorg"},
+		Env:     env.Environ(),
+		WorkDir: dir,
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 3))
+	assert.Check(t, cmp.Contains(result.Stderr, "Resolving --org requires a CircleCI API token."))
+	assert.Check(t, cmp.Contains(result.Stderr, "Or drop --org to validate against public orbs only"))
+	assert.Check(t, cmp.Len(fake.AllRequests(), 0), "must not call the API without a token")
+}
+
 // TestConfigValidate_RemovedOrgFlags pins the clean break from the legacy org
 // flag names: --org-id and --org-slug were collapsed into --org and must no
 // longer be accepted. Cobra reports unknown flags with a non-zero exit and an
