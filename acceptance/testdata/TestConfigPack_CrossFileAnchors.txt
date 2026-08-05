@@ -1,0 +1,5 @@
+anchors:
+    my-anchor: my-value
+commands:
+    my-command:
+        description: my-value
