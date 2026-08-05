@@ -701,7 +701,6 @@ func TestOrbPack_YAML11Booleans(t *testing.T) {
 	_, env := setupOrbFake(t)
 
 	dir := t.TempDir()
-	assert.NilError(t, os.MkdirAll(filepath.Join(dir, "src", "commands"), 0o755))
 	writeOrbFile(t, filepath.Join(dir, "src", "@orb.yml"), "version: 2.1\n")
 	writeOrbFile(t, filepath.Join(dir, "src", "commands", "vpn.yml"),
 		"parameters:\n"+
@@ -723,6 +722,65 @@ func TestOrbPack_YAML11Booleans(t *testing.T) {
 	assert.Check(t, cmp.Equal(result.ExitCode, 0), "stderr: %s", result.Stderr)
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
 	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+}
+
+// TestOrbPack_NestedDirectories is the end-to-end check for
+// https://github.com/CircleCI-Public/circleci-cli/issues/755: an orb author
+// organising commands/ into subdirectories. Those files used to pack into
+// commands.<dir>.<file>, producing a "command" that was really a map of
+// commands, so the orb was invalid.
+func TestOrbPack_NestedDirectories(t *testing.T) {
+	_, env := setupOrbFake(t)
+
+	dir := t.TempDir()
+	writeOrbFile(t, filepath.Join(dir, "src", "@orb.yml"), "version: 2.1\n")
+	writeOrbFile(t, filepath.Join(dir, "src", "commands", "top.yml"), "steps:\n  - run: echo top\n")
+	writeOrbFile(t, filepath.Join(dir, "src", "commands", "aws", "login.yml"), "steps:\n  - run: echo login\n")
+	writeOrbFile(t, filepath.Join(dir, "src", "commands", "gcp", "auth.yml"), "steps:\n  - run: echo auth\n")
+	writeOrbFile(t, filepath.Join(dir, "src", "jobs", "build", "unit.yml"), "steps:\n  - run: echo unit\n")
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"orb", "pack", "src"},
+		Env:     env.Environ(),
+		WorkDir: dir,
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 0), "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+}
+
+// TestOrbPack_NestedNameCollision covers the cost of flattening: two files in
+// different subdirectories of one section would silently claim the same key, and
+// one would win. Say so instead, naming both files.
+//
+// Asserted with Contains rather than a golden file because the message carries
+// absolute, %q-quoted paths: a golden would embed this machine's temp directory,
+// and %q escapes the separator on Windows.
+func TestOrbPack_NestedNameCollision(t *testing.T) {
+	_, env := setupOrbFake(t)
+
+	dir := t.TempDir()
+	writeOrbFile(t, filepath.Join(dir, "src", "@orb.yml"), "version: 2.1\n")
+	writeOrbFile(t, filepath.Join(dir, "src", "commands", "aws", "login.yml"), "steps:\n  - run: echo a\n")
+	writeOrbFile(t, filepath.Join(dir, "src", "commands", "gcp", "login.yml"), "steps:\n  - run: echo b\n")
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"orb", "pack", "src"},
+		Env:     env.Environ(),
+		WorkDir: dir,
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 2))
+	// No half-packed document on stdout when the pack fails.
+	assert.Check(t, cmp.Equal(result.Stdout, ""))
+	assert.Check(t, cmp.Contains(result.Stderr, `both define "login"`))
+	assert.Check(t, cmp.Contains(result.Stderr, "cannot share a name"))
+	// Both source files are named, so the author knows which two to reconcile.
+	assert.Check(t, cmp.Contains(result.Stderr, "aws"))
+	assert.Check(t, cmp.Contains(result.Stderr, "gcp"))
 }
 
 // --- edge case: missing args ---

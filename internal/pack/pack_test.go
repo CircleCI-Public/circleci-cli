@@ -219,6 +219,126 @@ func TestPack_DuplicateKeysStillDetected(t *testing.T) {
 	assert.ErrorContains(t, err, `mapping key "auth" already defined at line 3`)
 }
 
+// TestPack_NestedDirectoriesFlattenIntoSection is the regression test for
+// https://github.com/CircleCI-Public/circleci-cli/issues/755: an orb author
+// wants to organise commands/ and jobs/ into subdirectories. Those files used to
+// pack into commands.<dir>.<file>, producing a "command" that was really a map
+// of commands, so the orb was invalid.
+func TestPack_NestedDirectoriesFlattenIntoSection(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, filepath.Join(dir, "@orb.yml"), "version: 2.1\n")
+	writeFile(t, filepath.Join(dir, "commands", "top.yml"), "steps:\n  - run: echo top\n")
+	writeFile(t, filepath.Join(dir, "commands", "aws", "login.yml"), "steps:\n  - run: echo login\n")
+	writeFile(t, filepath.Join(dir, "commands", "gcp", "auth.yml"), "steps:\n  - run: echo auth\n")
+	writeFile(t, filepath.Join(dir, "jobs", "build", "unit.yml"), "steps:\n  - run: echo unit\n")
+
+	packed, err := pack.Pack(dir)
+	assert.NilError(t, err)
+
+	const want = `commands:
+    auth:
+        steps:
+            - run: echo auth
+    login:
+        steps:
+            - run: echo login
+    top:
+        steps:
+            - run: echo top
+jobs:
+    unit:
+        steps:
+            - run: echo unit
+version: 2.1
+`
+	assert.Equal(t, packed, want)
+}
+
+// TestPack_DeeplyNestedDirectoriesFlatten checks that flattening is not limited
+// to one level below a section.
+func TestPack_DeeplyNestedDirectoriesFlatten(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, filepath.Join(dir, "@orb.yml"), "version: 2.1\n")
+	writeFile(t, filepath.Join(dir, "commands", "a", "b", "c", "deep.yml"), "steps:\n  - run: echo deep\n")
+
+	packed, err := pack.Pack(dir)
+	assert.NilError(t, err)
+
+	const want = `commands:
+    deep:
+        steps:
+            - run: echo deep
+version: 2.1
+`
+	assert.Equal(t, packed, want)
+}
+
+// TestPack_NestedNameCollision covers the cost of flattening: two files in
+// different subdirectories of one section would silently claim the same key, and
+// one would win. Say so instead, naming both files. Checked in both directory
+// orders, because os.ReadDir returns entries sorted and a plain merge would only
+// catch one of them.
+func TestPack_NestedNameCollision(t *testing.T) {
+	tests := []struct {
+		name  string
+		files map[string]string
+	}{
+		{
+			// "login.yml" sorts before the "zzz" directory.
+			name: "file before directory",
+			files: map[string]string{
+				filepath.Join("commands", "login.yml"):        "steps:\n  - run: echo a\n",
+				filepath.Join("commands", "zzz", "login.yml"): "steps:\n  - run: echo b\n",
+			},
+		},
+		{
+			// The "aaa" directory sorts before "login.yml".
+			name: "directory before file",
+			files: map[string]string{
+				filepath.Join("commands", "aaa", "login.yml"): "steps:\n  - run: echo b\n",
+				filepath.Join("commands", "login.yml"):        "steps:\n  - run: echo a\n",
+			},
+		},
+		{
+			name: "two sibling directories",
+			files: map[string]string{
+				filepath.Join("commands", "aws", "login.yml"): "steps:\n  - run: echo a\n",
+				filepath.Join("commands", "gcp", "login.yml"): "steps:\n  - run: echo b\n",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dir := t.TempDir()
+			writeFile(t, filepath.Join(dir, "@orb.yml"), "version: 2.1\n")
+			for path, content := range tt.files {
+				writeFile(t, filepath.Join(dir, path), content)
+			}
+
+			_, err := pack.Pack(dir)
+			assert.ErrorContains(t, err, `both define "login"`)
+			assert.ErrorContains(t, err, "cannot share a name")
+		})
+	}
+}
+
+// TestPack_TopLevelDirectoriesStillBecomeSections guards the boundary: only
+// directories *below* a section flatten. A directory at the pack root still
+// opens a section, which is the whole existing layout convention.
+func TestPack_TopLevelDirectoriesStillBecomeSections(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, filepath.Join(dir, "@orb.yml"), "version: 2.1\n")
+	writeFile(t, filepath.Join(dir, "commands", "c.yml"), "steps:\n  - run: echo c\n")
+	writeFile(t, filepath.Join(dir, "executors", "e.yml"), "docker:\n  - image: alpine\n")
+
+	packed, err := pack.Pack(dir)
+	assert.NilError(t, err)
+
+	assert.Check(t, strings.Contains(packed, "commands:\n    c:"), "got:\n%s", packed)
+	assert.Check(t, strings.Contains(packed, "executors:\n    e:"), "got:\n%s", packed)
+}
+
 func writeFile(t *testing.T, path, content string) {
 	t.Helper()
 	assert.NilError(t, os.MkdirAll(filepath.Dir(path), 0o750))
