@@ -1,9 +1,5 @@
 # circleci-cli
 
-> **Preview release** — this branch (`main`) tracks the new CLI rewrite. It is under
-> active development and not yet stable. For the current stable CLI, see
-> [stable installation](#previous-stable-version).
-
 This is CircleCI's command-line application.
 
 [Documentation](https://cli.circleci.com/reference/) |
@@ -27,53 +23,25 @@ configuration, and other CircleCI features to the terminal right where you're al
 The CLI is supported for users on [circleci.com](https://circleci.com) and CircleCI server; with support for macOS,
 Windows, and Linux.
 
----
-
-## Preview: CLI v1.x now available
-
-A ground-up rewrite of the agent-friendly CircleCI CLI is available for preview.
-
-### What's new
-
-- **`circleci run`** — Full pipeline run management: list, get, trigger, cancel, and watch runs from the terminal. `run watch` blocks until a run completes and exits with a status code that reflects the result, making it easy to script CI gating.
-- **`circleci deploy`** — View deployed components and versions across environments, and initialize CircleCI Deploys for a project.
-- **`circleci dlc purge`** — Invalidate Docker layer caching for a project to force a fresh image build on the next run.
-- **`circleci workflow`** — List, inspect, cancel, and rerun individual workflows.
-- **`circleci pipeline`** — List and inspect pipelines.
-- **`circleci envvar`** — Manage project environment variables.
-- **`--json` on every command** — Every data-returning command supports `--json` for machine-readable, scriptable output.
-- **MCP server** — First-class [Model Context Protocol](https://modelcontextprotocol.io) support: register the CLI as an MCP server in Claude, Cursor, or VS Code with a single command.
-- **Shell completions** — Bash and Zsh completions via `circleci completion`.
-
-> **Note:** This is a preview release. Commands and flags may change before stable. Please [open an issue](https://github.com/CircleCI-Public/circleci-cli/issues) with any feedback.
-
----
-
 ## Installation
 
-Install the preview (v1.x) CLI via one of the following package managers:
+Install the CLI via one of the following package managers:
 
 #### Homebrew
 
-*If you have the stable CLI installed:*
 ```shell
-brew uninstall circleci
+brew install circleci
 ```
-Then:
-```shell
-brew install circleci-public/circleci/circleci@next
-```
-
 
 #### WinGet
 ```shell
-winget install --id CircleCI.CLI.Preview
+winget install --id CircleCI.CLI
 ```
 
-#### Snap (edge channel)
+#### Snap
 
 ```shell
-sudo snap install circleci --channel=edge
+sudo snap install circleci
 sudo snap connect circleci:password-manager-service
 ```
 
@@ -162,25 +130,6 @@ dnf install circleci
 or:
 ```shell
 yum install circleci
-```
-
-### Previous stable version
-
-If you need the previous stable version, install via HomeBrew, Snap, WinGet, or Chocolatey:
-
-#### Homebrew
-```shell
-brew install circleci
-```
-
-#### Snap
-```shell
-sudo snap install circleci
-```
-
-#### WinGet
-```shell
-winget install --id CircleCI.CLI
 ```
 
 ## Setup
