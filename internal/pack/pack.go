@@ -37,15 +37,21 @@
 //     formatting) and returns the result.
 //   - Unquoted yes/no/on/off are booleans, as the CircleCI config compiler reads
 //     them, not strings as YAML 1.2 would.
+//   - A YAML anchor defined in one file may be aliased from any other file in the
+//     tree; the alias is replaced by the anchored value in the output.
 //   - Output is indented with four spaces, matching the 0.1.x CLI byte for byte.
 package pack
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
+	"strconv"
 	"strings"
 
 	"gopkg.in/yaml.v3"
@@ -78,9 +84,12 @@ func Pack(rootPath string) (string, error) {
 
 	var result map[string]any
 	if info.IsDir() {
-		result, err = packDir(absRoot, 0)
+		// Anchors are collected up front so a file may alias an anchor defined
+		// in any other file of the tree, not just its own.
+		result, err = packDir(absRoot, 0, collectAnchors(absRoot))
 	} else {
-		result, err = packFile(absRoot)
+		// A single file has nothing else to draw anchors from.
+		result, err = packFile(absRoot, nil)
 	}
 	if err != nil {
 		return "", err
@@ -108,7 +117,9 @@ func Pack(rootPath string) (string, error) {
 //     src/commands/aws/login.yml becomes commands.login rather than
 //     commands.aws.login — which was not a command at all, just a map that
 //     happened to sit where one belonged.
-func packDir(dirPath string, depth int) (map[string]any, error) {
+//
+// anchors holds the anchors defined anywhere in the tree; see collectAnchors.
+func packDir(dirPath string, depth int, anchors map[string]*yaml.Node) (map[string]any, error) {
 	entries, err := os.ReadDir(dirPath)
 	if err != nil {
 		return nil, fmt.Errorf("reading directory %q: %w", dirPath, err)
@@ -140,7 +151,7 @@ func packDir(dirPath string, depth int) (map[string]any, error) {
 		}
 
 		if entry.IsDir() {
-			childMap, err := packDir(fullPath, depth+1)
+			childMap, err := packDir(fullPath, depth+1, anchors)
 			if err != nil {
 				return nil, err
 			}
@@ -157,7 +168,7 @@ func packDir(dirPath string, depth int) (map[string]any, error) {
 			continue
 		}
 
-		content, err := packFile(fullPath)
+		content, err := packFile(fullPath, anchors)
 		if err != nil {
 			return nil, err
 		}
@@ -197,33 +208,22 @@ func packDir(dirPath string, depth int) (map[string]any, error) {
 
 // packFile reads and parses a single YAML file, returning its root map.
 //
-// Parsing goes through a yaml.Node rather than straight into `any` so that
-// plain YAML 1.1 booleans can be retagged before the value is materialised —
-// see resolveYAML11Bools for why that matters.
-func packFile(path string) (map[string]any, error) {
+// anchors supplies the anchors defined elsewhere in the tree. A file that aliases
+// one of them fails to parse on its own — anchors are a property of a single YAML
+// document — so on that specific failure the parse is retried with those
+// definitions prepended. Pass nil to parse the file in isolation.
+func packFile(path string, anchors map[string]*yaml.Node) (map[string]any, error) {
 	b, err := os.ReadFile(path) //#nosec:G304 // path is a resolved filesystem path under the user-supplied pack root directory
 	if err != nil {
 		return nil, fmt.Errorf("reading %q: %w", path, err)
 	}
 
-	var node yaml.Node
-	if err := yaml.Unmarshal(b, &node); err != nil {
-		return nil, parseError(path, err)
-	}
-	// A file that is empty, or holds only comments, produces a zero node.
-	if node.Kind == 0 {
-		return make(map[string]any), nil
-	}
-
-	resolveYAML11Bools(&node, false)
-
-	var v any
-	// Decoding is what surfaces duplicate mapping keys: yaml.Unmarshal into a
-	// yaml.Node accepts them, and only the decode into a Go value reports them.
-	// Both stages report through parseError, so a problem found at either one
-	// still leads with its file and line.
-	if err := node.Decode(&v); err != nil {
-		return nil, parseError(path, err)
+	v, err := decodeYAML(b)
+	if err != nil {
+		v, err = retryWithAnchors(b, anchors, err)
+		if err != nil {
+			return nil, parseError(path, err)
+		}
 	}
 	if v == nil {
 		return make(map[string]any), nil
@@ -233,6 +233,34 @@ func packFile(path string) (map[string]any, error) {
 		return nil, fmt.Errorf("%q must have a YAML map at the root, got %T", path, v)
 	}
 	return m, nil
+}
+
+// decodeYAML parses one YAML document into a Go value.
+//
+// It goes through a yaml.Node rather than straight into `any` so that plain
+// YAML 1.1 booleans can be retagged before the value is materialised — see
+// resolveYAML11Bools for why that matters. A file that is empty, or holds only
+// comments, yields a nil value and no error.
+//
+// The separate Decode step is also what surfaces duplicate mapping keys:
+// yaml.Unmarshal into a yaml.Node accepts them, and only the decode into a Go
+// value reports them.
+func decodeYAML(b []byte) (any, error) {
+	var node yaml.Node
+	if err := yaml.Unmarshal(b, &node); err != nil {
+		return nil, err
+	}
+	if node.Kind == 0 {
+		return nil, nil
+	}
+
+	resolveYAML11Bools(&node, false)
+
+	var v any
+	if err := node.Decode(&v); err != nil {
+		return nil, err
+	}
+	return v, nil
 }
 
 // yaml11Bools maps the plain scalars that YAML 1.1 resolves as booleans, but
@@ -294,6 +322,235 @@ func resolveYAML11Bools(n *yaml.Node, isKey bool) {
 	for _, child := range n.Content {
 		resolveYAML11Bools(child, false)
 	}
+}
+
+// anchorsKey is the throwaway top-level key the anchor definitions are hung
+// from when a file is re-parsed. It is deleted before the file's content is
+// merged. The name is not valid anywhere in a CircleCI config or orb, so it
+// cannot shadow something real.
+const anchorsKey = "__circleci_pack_anchors__"
+
+// collectAnchors records every anchor defined by every YAML file under root.
+//
+// A decomposed orb naturally wants to define shared values once — conventionally
+// in an anchors/@anchors.yml — and alias them from the files that need them. YAML
+// will not do that on its own: an anchor is scoped to the document that defines
+// it, so each file parsed alone fails with "unknown anchor".
+//
+// Files that fail to parse are skipped rather than reported. A file with an
+// unresolved alias is exactly the case this exists to fix, and any genuine syntax
+// error in it surfaces from the main pack pass with its own message.
+//
+// filepath.WalkDir visits lexically, so when two files define the same anchor
+// name the later path wins, deterministically.
+func collectAnchors(root string) map[string]*yaml.Node {
+	anchors := make(map[string]*yaml.Node)
+
+	// Reads go through an os.Root so they cannot follow a symlink out of the
+	// pack directory between the walk seeing an entry and this opening it.
+	dirRoot, err := os.OpenRoot(root)
+	if err != nil {
+		return anchors
+	}
+	// Close errors are immaterial here: this whole function is best-effort, and
+	// every real problem with a file is reported by the main pack pass.
+	defer func() { _ = dirRoot.Close() }()
+
+	_ = filepath.WalkDir(root, func(path string, d fs.DirEntry, walkErr error) error {
+		if walkErr != nil {
+			return nil //nolint:nilerr // unreadable entries are reported by the main pass
+		}
+		if strings.HasPrefix(d.Name(), ".") && path != root {
+			if d.IsDir() {
+				return fs.SkipDir
+			}
+			return nil
+		}
+		if d.IsDir() || !isYAMLName(d.Name()) {
+			return nil
+		}
+
+		rel, relErr := filepath.Rel(root, path)
+		if relErr != nil {
+			return nil
+		}
+		b, readErr := dirRoot.ReadFile(rel)
+		if readErr != nil {
+			return nil
+		}
+		var node yaml.Node
+		if yaml.Unmarshal(b, &node) != nil {
+			return nil
+		}
+		collectNodeAnchors(&node, anchors)
+		return nil
+	})
+
+	return anchors
+}
+
+// collectNodeAnchors walks a parsed document recording anchor definitions.
+//
+// An anchor whose own subtree contains an alias is skipped: re-serialising it in
+// isolation would emit that alias with nothing to resolve it against, and one
+// such anchor would break the definitions block for every file. Chaining an
+// anchor to another anchor therefore only works within a single file.
+func collectNodeAnchors(n *yaml.Node, into map[string]*yaml.Node) {
+	if n == nil {
+		return
+	}
+	if n.Anchor != "" && !containsAlias(n) {
+		into[n.Anchor] = n
+	}
+	for _, child := range n.Content {
+		collectNodeAnchors(child, into)
+	}
+}
+
+func containsAlias(n *yaml.Node) bool {
+	if n.Kind == yaml.AliasNode {
+		return true
+	}
+	for _, child := range n.Content {
+		if containsAlias(child) {
+			return true
+		}
+	}
+	return false
+}
+
+// retryWithAnchors re-parses src with anchors defined ahead of it, for a file
+// whose only problem is an alias to an anchor defined in a sibling file.
+//
+// firstErr is the failure from parsing src alone. Anything other than an unknown
+// anchor is returned untouched — this is not a general-purpose second chance.
+//
+// Which error to report when the retry also fails needs care, because the retry
+// parses a synthesised document rather than the user's file:
+//
+//   - A *yaml.TypeError means the document parsed and only the decode into a Go
+//     value objected — so the anchors did resolve, and the remaining problem
+//     (a duplicate key, say) is real. Report it, with its line numbers shifted
+//     back onto the user's file. Reporting firstErr here would claim the anchor
+//     was unknown when it was not.
+//   - Anything else is a parse failure that src alone did not have, so it is an
+//     artifact of prepending the definitions — a file whose root is a sequence,
+//     or one that opens its own document with ---. Report firstErr, which is at
+//     least a true statement about the real file.
+//
+// The retry parses through decodeYAML rather than yaml.Unmarshal so that a file
+// which needed a sibling's anchor is treated identically to every other file.
+func retryWithAnchors(src []byte, anchors map[string]*yaml.Node, firstErr error) (any, error) {
+	if len(anchors) == 0 || !isUnknownAnchorErr(firstErr) {
+		return nil, firstErr
+	}
+
+	prefix, err := anchorDefinitions(anchors)
+	if err != nil {
+		return nil, firstErr
+	}
+
+	// decodeYAML, not a bare Unmarshal: a file that needed a sibling's anchor
+	// must still get YAML 1.1 boolean retagging and duplicate-key detection.
+	v, err := decodeYAML(append(prefix, src...))
+	if err != nil {
+		var typeErr *yaml.TypeError
+		if errors.As(err, &typeErr) {
+			return nil, shiftLines(typeErr, bytes.Count(prefix, []byte("\n")))
+		}
+		return nil, firstErr
+	}
+	// The definitions block did its job during parsing; the aliases in the file
+	// are resolved values now, so drop it before the content is merged.
+	if m, ok := v.(map[string]any); ok {
+		delete(m, anchorsKey)
+	}
+	return v, nil
+}
+
+// lineRefRe matches every line reference in a yaml.v3 decode message. A single
+// message can carry more than one, as duplicate-key reports do:
+// `line 3: mapping key "dupe" already defined at line 2`.
+var lineRefRe = regexp.MustCompile(`line (\d+)`)
+
+// shiftLines moves every line number in a decode error back by offset, undoing
+// the lines that anchorDefinitions prepended, so the reported positions point at
+// the file the user actually wrote.
+func shiftLines(typeErr *yaml.TypeError, offset int) error {
+	if offset == 0 {
+		return typeErr
+	}
+	shifted := make([]string, 0, len(typeErr.Errors))
+	for _, e := range typeErr.Errors {
+		shifted = append(shifted, lineRefRe.ReplaceAllStringFunc(e, func(match string) string {
+			n, convErr := strconv.Atoi(lineRefRe.FindStringSubmatch(match)[1])
+			if convErr != nil || n-offset < 1 {
+				return match
+			}
+			return fmt.Sprintf("line %d", n-offset)
+		}))
+	}
+	return &yaml.TypeError{Errors: shifted}
+}
+
+// anchorDefinitions renders the collected anchors as a single-line mapping entry
+// that can be prepended to a file, e.g.
+//
+//	__circleci_pack_anchors__: [&my-anchor my-value, &other {a: 1}]
+//
+// Flow style keeps it to one line and self-contained, so prepending it cannot
+// disturb the indentation of what follows.
+func anchorDefinitions(anchors map[string]*yaml.Node) ([]byte, error) {
+	names := make([]string, 0, len(anchors))
+	for name := range anchors {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+
+	seq := &yaml.Node{Kind: yaml.SequenceNode, Style: yaml.FlowStyle}
+	for _, name := range names {
+		def := flowCopy(anchors[name])
+		seq.Content = append(seq.Content, def)
+	}
+
+	doc := &yaml.Node{Kind: yaml.MappingNode, Content: []*yaml.Node{
+		{Kind: yaml.ScalarNode, Tag: "!!str", Value: anchorsKey},
+		seq,
+	}}
+
+	out, err := yaml.Marshal(doc)
+	if err != nil {
+		return nil, err
+	}
+	if !strings.HasSuffix(string(out), "\n") {
+		out = append(out, '\n')
+	}
+	return out, nil
+}
+
+// flowCopy deep-copies a node with every collection forced to flow style, so it
+// serialises on one line. Copying matters because the source nodes are shared
+// across every file that needs them.
+func flowCopy(n *yaml.Node) *yaml.Node {
+	if n == nil {
+		return nil
+	}
+	cp := *n
+	cp.HeadComment, cp.LineComment, cp.FootComment = "", "", ""
+	if cp.Kind == yaml.MappingNode || cp.Kind == yaml.SequenceNode {
+		cp.Style = yaml.FlowStyle
+	}
+	cp.Content = nil
+	for _, child := range n.Content {
+		cp.Content = append(cp.Content, flowCopy(child))
+	}
+	return &cp
+}
+
+// isUnknownAnchorErr reports whether err is yaml.v3's undefined-alias failure.
+// yaml.v3 gives it no distinct type, so the message is all there is to match on.
+func isUnknownAnchorErr(err error) bool {
+	return err != nil && strings.Contains(err.Error(), "unknown anchor")
 }
 
 // mergeMaps shallow-merges any number of maps into a new map[string]any.

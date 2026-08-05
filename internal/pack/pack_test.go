@@ -339,6 +339,148 @@ func TestPack_TopLevelDirectoriesStillBecomeSections(t *testing.T) {
 	assert.Check(t, strings.Contains(packed, "executors:\n    e:"), "got:\n%s", packed)
 }
 
+// TestPack_CrossFileAnchors is the regression test for
+// https://github.com/CircleCI-Public/circleci-cli/issues/341, using the layout
+// and expected output from the report: an anchor defined in anchors/@anchors.yml
+// aliased from commands/my-command.yml.
+func TestPack_CrossFileAnchors(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, filepath.Join(dir, "anchors", "@anchors.yml"), "my-anchor: &my-anchor my-value\n")
+	writeFile(t, filepath.Join(dir, "commands", "my-command.yml"), "description: *my-anchor\n")
+
+	packed, err := pack.Pack(dir)
+	assert.NilError(t, err)
+
+	const want = `anchors:
+    my-anchor: my-value
+commands:
+    my-command:
+        description: my-value
+`
+	assert.Equal(t, packed, want)
+}
+
+// TestPack_CrossFileAnchors_Collections checks that an anchor on a map or a
+// sequence survives the round trip, not just a scalar. Those are the ones worth
+// sharing — a common docker executor, a filter block.
+func TestPack_CrossFileAnchors_Collections(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, filepath.Join(dir, "@orb.yml"), "version: 2.1\n")
+	writeFile(t, filepath.Join(dir, "anchors", "@anchors.yml"),
+		"base: &base\n  docker:\n    - image: cimg/base:2024.01\n"+
+			"tags: &tags\n  - main\n  - release\n")
+	writeFile(t, filepath.Join(dir, "jobs", "build.yml"),
+		"executor: *base\nbranches: *tags\nsteps:\n  - checkout\n")
+
+	packed, err := pack.Pack(dir)
+	assert.NilError(t, err)
+
+	const want = `anchors:
+    base:
+        docker:
+            - image: cimg/base:2024.01
+    tags:
+        - main
+        - release
+jobs:
+    build:
+        branches:
+            - main
+            - release
+        executor:
+            docker:
+                - image: cimg/base:2024.01
+        steps:
+            - checkout
+version: 2.1
+`
+	assert.Equal(t, packed, want)
+}
+
+// TestPack_SameFileAnchorsStillWork guards the ordinary case: anchors used within
+// one file must not be disturbed by the cross-file machinery.
+func TestPack_SameFileAnchorsStillWork(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, filepath.Join(dir, "@orb.yml"), "version: 2.1\n")
+	writeFile(t, filepath.Join(dir, "commands", "c.yml"),
+		"parameters:\n  a: &shared\n    type: string\n    default: x\n  b: *shared\nsteps:\n  - run: echo hi\n")
+
+	packed, err := pack.Pack(dir)
+	assert.NilError(t, err)
+
+	assert.Check(t, strings.Count(packed, "default: x") == 2, "got:\n%s", packed)
+}
+
+// TestPack_UnknownAnchorStillReported checks that an alias with no definition
+// anywhere in the tree is still an error, and still names the anchor. Resolving
+// across files must not turn a typo into silence.
+func TestPack_UnknownAnchorStillReported(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, filepath.Join(dir, "anchors", "@anchors.yml"), "my-anchor: &my-anchor my-value\n")
+	target := filepath.Join(dir, "commands", "c.yml")
+	writeFile(t, target, "description: *my-anchr\n")
+
+	_, err := pack.Pack(dir)
+	// The location leads, in the file:line: form parseError produces (issue 519),
+	// with no line to report for an unresolved alias. Built from filepath.Join so
+	// the separator is right on every platform.
+	assert.ErrorContains(t, err, target+": unknown anchor 'my-anchr' referenced")
+}
+
+// TestPack_CrossFileAnchors_RetagsYAML11Booleans guards the seam between two
+// features that landed separately: cross-file anchors (issue 341) and reading
+// unquoted on/off as booleans (issue 691).
+//
+// A file that aliases a sibling's anchor cannot parse alone, so it is parsed a
+// second time with the definitions prepended. That retry has to go through the
+// same decode path as every other file — otherwise these files, and only these
+// files, would silently miss the YAML 1.1 boolean retagging and pack `default: on`
+// back to the string "on".
+func TestPack_CrossFileAnchors_RetagsYAML11Booleans(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, filepath.Join(dir, "@orb.yml"), "version: 2.1\n")
+	writeFile(t, filepath.Join(dir, "anchors", "@anchors.yml"), "flag: &flag on\n")
+	writeFile(t, filepath.Join(dir, "commands", "vpn.yml"),
+		"parameters:\n  killswitch:\n    type: boolean\n    default: *flag\nsteps:\n  - run: echo hi\n")
+
+	packed, err := pack.Pack(dir)
+	assert.NilError(t, err)
+
+	// true, not "on" — in the anchor definition and at the alias site alike.
+	assert.Check(t, strings.Contains(packed, "flag: true"), "got:\n%s", packed)
+	assert.Check(t, strings.Contains(packed, "default: true"), "got:\n%s", packed)
+	assert.Check(t, !strings.Contains(packed, `"on"`), "nothing should still be the string \"on\", got:\n%s", packed)
+}
+
+// TestPack_AnchorRetryReportsTheRealError checks the fallback: when a file has an
+// unresolved alias *and* another problem, the reported error describes the real
+// file. The retry parses a synthesised document whose line numbers do not line up
+// with the user's file, so its error is never the one shown.
+func TestPack_AnchorRetryReportsTheRealError(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, filepath.Join(dir, "anchors", "@anchors.yml"), "a: &shared value\n")
+	writeFile(t, filepath.Join(dir, "commands", "c.yml"),
+		"description: *shared\ndupe: 1\ndupe: 2\n")
+
+	_, err := pack.Pack(dir)
+	// The duplicate key is the surviving problem once the alias resolves, and its
+	// line numbers describe c.yml, not the synthesised document.
+	assert.ErrorContains(t, err, `mapping key "dupe" already defined at line 2`)
+}
+
+// TestPack_SingleFileAnchorsAreSelfContained checks that packing one file does
+// not reach out to a sibling for anchors — there is no tree to draw from, and the
+// error should say so plainly.
+func TestPack_SingleFileAnchorsAreSelfContained(t *testing.T) {
+	dir := t.TempDir()
+	writeFile(t, filepath.Join(dir, "@anchors.yml"), "a: &shared value\n")
+	target := filepath.Join(dir, "one.yml")
+	writeFile(t, target, "description: *shared\n")
+
+	_, err := pack.Pack(target)
+	assert.ErrorContains(t, err, "unknown anchor 'shared' referenced")
+}
+
 func writeFile(t *testing.T, path, content string) {
 	t.Helper()
 	assert.NilError(t, os.MkdirAll(filepath.Dir(path), 0o750))

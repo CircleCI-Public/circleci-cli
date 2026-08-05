@@ -596,6 +596,65 @@ func TestConfigPack_ParseErrorIsClickable(t *testing.T) {
 		filepath.Join("executors", "executorA.yml")+`:6: mapping key "auth" already defined at line 3`))
 }
 
+// TestConfigPack_CrossFileAnchors is the end-to-end check for
+// https://github.com/CircleCI-Public/circleci-cli/issues/341, using the layout
+// and expected output from the report: an anchor defined in anchors/@anchors.yml
+// aliased from commands/my-command.yml.
+func TestConfigPack_CrossFileAnchors(t *testing.T) {
+	env := testenv.New(t)
+	env.Token = testToken
+
+	dir := t.TempDir()
+	assert.NilError(t, os.MkdirAll(filepath.Join(dir, "src", "anchors"), 0o755))
+	assert.NilError(t, os.MkdirAll(filepath.Join(dir, "src", "commands"), 0o755))
+	writeFile(t, filepath.Join(dir, "src", "anchors", "@anchors.yml"), "my-anchor: &my-anchor my-value\n")
+	writeFile(t, filepath.Join(dir, "src", "commands", "my-command.yml"), "description: *my-anchor\n")
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"config", "pack", "src"},
+		Env:     env.Environ(),
+		WorkDir: dir,
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 0), "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+}
+
+// TestConfigPack_UnknownAnchor checks that resolving anchors across files does
+// not turn a mistyped alias into silence: with no definition anywhere in the
+// tree it is still an error, and still names the anchor.
+//
+// Asserted with Contains rather than a golden file because the message carries an
+// absolute path: a golden would embed this machine's temp directory, and would
+// need a second copy for Windows' separators.
+func TestConfigPack_UnknownAnchor(t *testing.T) {
+	env := testenv.New(t)
+	env.Token = testToken
+
+	dir := t.TempDir()
+	assert.NilError(t, os.MkdirAll(filepath.Join(dir, "src", "anchors"), 0o755))
+	assert.NilError(t, os.MkdirAll(filepath.Join(dir, "src", "commands"), 0o755))
+	writeFile(t, filepath.Join(dir, "src", "anchors", "@anchors.yml"), "my-anchor: &my-anchor my-value\n")
+	writeFile(t, filepath.Join(dir, "src", "commands", "c.yml"), "description: *my-anchr\n")
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"config", "pack", "src"},
+		Env:     env.Environ(),
+		WorkDir: dir,
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 2))
+	assert.Check(t, cmp.Equal(result.Stdout, ""))
+	assert.Check(t, cmp.Contains(result.Stderr, "unknown anchor 'my-anchr' referenced"))
+	// Just the filename, no directory: the path is %q-quoted in the message, and
+	// %q escapes the separator on Windows, so "commands\c.yml" would not be found
+	// in a message reading "commands\\c.yml". c.yml is unambiguous in this tree.
+	assert.Check(t, cmp.Contains(result.Stderr, "c.yml"))
+}
+
 func TestConfigPack_NotFound(t *testing.T) {
 	env := testenv.New(t)
 	env.Token = testToken
