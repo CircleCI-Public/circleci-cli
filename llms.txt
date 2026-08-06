@@ -3583,14 +3583,12 @@ Create a runner resource class
 
 Create a new CircleCI runner resource class.
 
-The resource class name must be in the format namespace/name,
-where namespace is your organization name.
-
-JSON fields: id, resource_class, description
+JSON fields: id, resource_class, description (token_id, token with --generate-token)
 
 | Flag                   | Description                                                                       |
 | ---------------------- | --------------------------------------------------------------------------------- |
 | `--description string` | Human-readable description of the resource class                                  |
+| `--generate-token`     | also create a token for the resource class, nicknamed "default"                   |
 | `--jq string`          | Process values from the response using jq syntax (see `circleci help formatting`) |
 | `--json`               | Output as JSON                                                                    |
 
@@ -3606,6 +3604,8 @@ where namespace is your organization name (for example, `my-org/my-runner`).
   `circleci runner resource-class create my-org/my-runner`
 - Create with a description: 
   `circleci runner resource-class create my-org/my-runner --description "Linux amd64 runner"`
+- Create a resource class and generate a token nicknamed "default": 
+  `circleci runner resource-class create my-org/my-runner --generate-token`
 - Output as JSON: 
   `circleci runner resource-class create my-org/my-runner --json`
 
