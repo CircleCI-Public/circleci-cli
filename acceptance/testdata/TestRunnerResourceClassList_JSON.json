@@ -1,1 +1,1 @@
-[{"id":"rc-id-1","resource_class":"my-org/linux-runner","description":"Linux amd64 runner"},{"id":"rc-id-2","resource_class":"my-org/arm-runner","description":"ARM runner"}]
+[{"id":"11111111-1111-4111-8111-111111111111","resource_class":"my-org/linux-runner","description":"Linux amd64 runner"},{"id":"22222222-2222-4222-8222-222222222222","resource_class":"my-org/arm-runner","description":"ARM runner"}]

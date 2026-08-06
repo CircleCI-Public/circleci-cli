@@ -1,5 +1,5 @@
 # Runner Instances
-| Resource Class      | Hostname             | Status  | Last Connected |
-| ------------------- | -------------------- | ------- | -------------- |
-| my-org/linux-runner | host-1.example.com   | unknown |                |
-| my-org/arm-runner   | arm-host.example.com | unknown |                |
+| Resource Class      | Hostname             | Status  | Last Connected       |
+| ------------------- | -------------------- | ------- | -------------------- |
+| my-org/linux-runner | host-1.example.com   | offline | 2026-04-18T12:00:00Z |
+| my-org/arm-runner   | arm-host.example.com | offline | 2026-04-18T12:00:00Z |

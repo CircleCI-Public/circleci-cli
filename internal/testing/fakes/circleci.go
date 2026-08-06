@@ -402,7 +402,8 @@ func NewCircleCI(t *testing.T) *CircleCI {
 	r.Get("/api/v3/runner", f.handleRunnerList)
 	r.Get("/api/v3/runner/resource", f.handleListResourceClasses)
 	r.Post("/api/v3/runner/resource", f.handleCreateResourceClass)
-	r.Delete("/api/v3/runner/resource/{namespace}/{name}", f.handleDeleteResourceClass)
+	r.Delete("/api/v3/runner/resource/{id}", f.handleDeleteResourceClass)
+	r.Delete("/api/v3/runner/resource/{id}/force", f.handleForceDeleteResourceClass)
 	r.Get("/api/v3/runner/token", f.handleListRunnerTokens)
 	r.Post("/api/v3/runner/token", f.handleCreateRunnerToken)
 	r.Delete("/api/v3/runner/token/{id}", f.handleDeleteRunnerToken)
@@ -1380,20 +1381,12 @@ func (f *CircleCI) AddRunnerInstance(instance any) {
 
 // --- Runner handlers ---
 
-// handleRunnerList dispatches GET /api/v3/runner based on query params:
-// ?resource-class= or ?org-id= → instances; ?namespace= → resource classes
-// (legacy path retained for backwards compatibility).
+// handleRunnerList serves GET /api/v3/runner, returning runner instances scoped
+// by ?resource-class=, ?org-id= or ?namespace=.
 func (f *CircleCI) handleRunnerList(w http.ResponseWriter, r *http.Request) {
-	if rc := r.URL.Query().Get("resource-class"); rc != "" {
+	q := r.URL.Query()
+	if q.Get("resource-class") != "" || q.Get("org-id") != "" || q.Get("namespace") != "" {
 		f.handleListRunnerInstances(w, r)
-		return
-	}
-	if orgID := r.URL.Query().Get("org-id"); orgID != "" {
-		f.handleListRunnerInstances(w, r)
-		return
-	}
-	if ns := r.URL.Query().Get("namespace"); ns != "" {
-		f.handleListResourceClasses(w, r)
 		return
 	}
 	render.Status(r, http.StatusBadRequest)
@@ -1452,31 +1445,50 @@ func (f *CircleCI) handleCreateResourceClass(w http.ResponseWriter, r *http.Requ
 	render.JSON(w, r, rc)
 }
 
+// handleDeleteResourceClass serves DELETE /api/v3/runner/resource/{id}, which
+// refuses with 409 while the resource class still has tokens.
 func (f *CircleCI) handleDeleteResourceClass(w http.ResponseWriter, r *http.Request) {
-	slug := chi.URLParam(r, "namespace") + "/" + chi.URLParam(r, "name")
+	f.deleteResourceClass(w, r, false)
+}
+
+// handleForceDeleteResourceClass serves DELETE /api/v3/runner/resource/{id}/force,
+// which deletes the resource class and its tokens.
+func (f *CircleCI) handleForceDeleteResourceClass(w http.ResponseWriter, r *http.Request) {
+	f.deleteResourceClass(w, r, true)
+}
+
+func (f *CircleCI) deleteResourceClass(w http.ResponseWriter, r *http.Request, force bool) {
+	id := chi.URLParam(r, "id")
 	f.mu.Lock()
-	found := false
+	found, hasTokens := false, false
 	for _, rc := range f.resourceClasses {
 		m, ok := rc.(map[string]any)
 		if !ok {
 			continue
 		}
-		if m["resource_class"] == slug {
+		if m["id"] == id {
 			found = true
+			slug, _ := m["resource_class"].(string)
+			hasTokens = len(f.runnerTokens[slug]) > 0
+			if force || !hasTokens {
+				f.deletedRCs[slug] = true
+				delete(f.runnerTokens, slug)
+			}
 			break
 		}
 	}
-	if found {
-		f.deletedRCs[slug] = true
-	}
 	f.mu.Unlock()
 
-	if !found {
+	switch {
+	case !found:
 		render.Status(r, http.StatusNotFound)
 		render.JSON(w, r, map[string]any{"message": "not found"})
-		return
+	case !force && hasTokens:
+		render.Status(r, http.StatusConflict)
+		render.JSON(w, r, map[string]any{"message": "resource class still has tokens"})
+	default:
+		render.JSON(w, r, map[string]any{"message": "Deleted."})
 	}
-	render.JSON(w, r, map[string]any{"message": "Deleted."})
 }
 
 func (f *CircleCI) handleListRunnerTokens(w http.ResponseWriter, r *http.Request) {
@@ -1585,13 +1597,14 @@ func (f *CircleCI) handleDeleteRunnerToken(w http.ResponseWriter, r *http.Reques
 
 func (f *CircleCI) handleListRunnerInstances(w http.ResponseWriter, r *http.Request) {
 	rc := r.URL.Query().Get("resource-class")
+	ns := r.URL.Query().Get("namespace")
 	f.mu.RLock()
 	all := f.runnerInstances
 	f.mu.RUnlock()
 
 	var items []any
 	for _, inst := range all {
-		if rc == "" {
+		if rc == "" && ns == "" {
 			items = append(items, inst)
 			continue
 		}
@@ -1600,9 +1613,14 @@ func (f *CircleCI) handleListRunnerInstances(w http.ResponseWriter, r *http.Requ
 			items = append(items, inst)
 			continue
 		}
-		if m["resource_class"] == rc {
-			items = append(items, inst)
+		slug, _ := m["resource_class"].(string)
+		if rc != "" && slug != rc {
+			continue
 		}
+		if ns != "" && !strings.HasPrefix(slug, ns+"/") {
+			continue
+		}
+		items = append(items, inst)
 	}
 	if items == nil {
 		items = []any{}

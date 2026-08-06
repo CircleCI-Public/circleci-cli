@@ -24,6 +24,7 @@ package runner
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -365,6 +366,13 @@ func newResourceClassDeleteCmd() *cobra.Command {
 }
 
 func runResourceClassDelete(ctx context.Context, client *apiclient.Client, resourceClass string, force bool) error {
+	if namespace, _, ok := strings.Cut(resourceClass, "/"); !ok || namespace == "" {
+		return clierrors.New("runner.malformed_resource_class", "Malformed resource class",
+			fmt.Sprintf("%q is not in namespace/name form.", resourceClass)).
+			WithSuggestions("Give the resource class as <namespace>/<name>, for example my-org/my-runner").
+			WithExitCode(clierrors.ExitBadArguments)
+	}
+
 	if err := cmdutil.ConfirmOrForce(ctx, iostream.Get(ctx), force,
 		fmt.Sprintf("Delete resource class %q? All tokens and runner connections will be removed.", resourceClass),
 		clierrors.New("runner.delete_aborted", "Deletion aborted",
@@ -377,7 +385,26 @@ func runResourceClassDelete(ctx context.Context, client *apiclient.Client, resou
 		return err
 	}
 
-	if err := client.DeleteResourceClass(ctx, resourceClass); err != nil {
+	rc, err := client.ResourceClassByName(ctx, resourceClass)
+	if err != nil {
+		if errors.Is(err, apiclient.ErrResourceClassNotFound) {
+			return clierrors.New("runner.not_found", "Not found",
+				fmt.Sprintf("No runner resource class named %q.", resourceClass)).
+				WithSuggestions("List available resource classes with: circleci runner resource-class list").
+				WithExitCode(clierrors.ExitNotFound)
+		}
+		if httpcl.HasStatusCode(err, http.StatusNotFound) {
+			return runnerNotEnabledErr()
+		}
+		return apiErr(err, resourceClass)
+	}
+
+	id, err := uuid.Parse(rc.ID)
+	if err != nil {
+		return apiErr(err, resourceClass)
+	}
+
+	if err := client.DeleteResourceClass(ctx, id); err != nil {
 		return apiErr(err, resourceClass)
 	}
 

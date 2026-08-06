@@ -24,6 +24,9 @@ package apiclient
 
 import (
 	"context"
+	"errors"
+	"fmt"
+	"strings"
 
 	"github.com/google/uuid"
 )
@@ -86,7 +89,7 @@ func (c *Client) ListResourceClassesByNamespace(ctx context.Context, namespace s
 	var resp struct {
 		Items []ResourceClass `json:"items"`
 	}
-	err := c.getV3(ctx, "/runner", &resp,
+	err := c.getV3(ctx, "/runner/resource", &resp,
 		queryParam("namespace", namespace),
 	)
 	if err != nil {
@@ -109,10 +112,35 @@ func (c *Client) CreateResourceClass(ctx context.Context, resourceClass, descrip
 	return &rc, nil
 }
 
-// DeleteResourceClass deletes a runner resource class by its namespace/name slug.
-func (c *Client) DeleteResourceClass(ctx context.Context, resourceClass string) error {
-	return c.deleteV3(ctx, "/runner/resource/%s",
-		routeParams(resourceClass),
+// ErrResourceClassNotFound is returned by ResourceClassByName when no resource
+// class matches the slug.
+var ErrResourceClassNotFound = errors.New("resource class not found")
+
+// ResourceClassByName returns the resource class with the given namespace/name
+// slug. It lists the slug's namespace to find it.
+func (c *Client) ResourceClassByName(ctx context.Context, resourceClass string) (*ResourceClass, error) {
+	namespace, _, ok := strings.Cut(resourceClass, "/")
+	if !ok || namespace == "" {
+		return nil, fmt.Errorf("%w: %q is not in namespace/name form", ErrResourceClassNotFound, resourceClass)
+	}
+
+	classes, err := c.ListResourceClassesByNamespace(ctx, namespace)
+	if err != nil {
+		return nil, err
+	}
+	for _, rc := range classes {
+		if rc.ResourceClass == resourceClass {
+			return &rc, nil
+		}
+	}
+	return nil, fmt.Errorf("%w: %q", ErrResourceClassNotFound, resourceClass)
+}
+
+// DeleteResourceClass deletes a runner resource class by its id, along with any
+// tokens issued for it.
+func (c *Client) DeleteResourceClass(ctx context.Context, id uuid.UUID) error {
+	return c.deleteV3(ctx, "/runner/resource/%s/force",
+		routeParams(id.String()),
 	)
 }
 

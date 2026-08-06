@@ -1,24 +1,24 @@
 [1;37m[[m
   [1;37m{[m
     [1;34m"resource_class"[m[1;37m:[m [32m"my-org/linux-runner"[m[1;37m,[m
-    [1;34m"hostname"[m[1;37m:[m [32m""[m[1;37m,[m
-    [1;34m"name"[m[1;37m:[m [32m""[m[1;37m,[m
-    [1;34m"version"[m[1;37m:[m [32m""[m[1;37m,[m
-    [1;34m"ip"[m[1;37m:[m [32m""[m[1;37m,[m
-    [1;34m"status"[m[1;37m:[m [32m"unknown"[m[1;37m,[m
-    [1;34m"first_connected"[m[1;37m:[m [32m""[m[1;37m,[m
-    [1;34m"last_connected"[m[1;37m:[m [32m""[m[1;37m,[m
-    [1;34m"last_used"[m[1;37m:[m [32m""[m
+    [1;34m"hostname"[m[1;37m:[m [32m"host-1.example.com"[m[1;37m,[m
+    [1;34m"name"[m[1;37m:[m [32m"runner-1"[m[1;37m,[m
+    [1;34m"version"[m[1;37m:[m [32m"1.0.0"[m[1;37m,[m
+    [1;34m"ip"[m[1;37m:[m [32m"10.0.0.1"[m[1;37m,[m
+    [1;34m"status"[m[1;37m:[m [32m"offline"[m[1;37m,[m
+    [1;34m"first_connected"[m[1;37m:[m [32m"2026-01-01T00:00:00Z"[m[1;37m,[m
+    [1;34m"last_connected"[m[1;37m:[m [32m"2026-04-18T12:00:00Z"[m[1;37m,[m
+    [1;34m"last_used"[m[1;37m:[m [32m"2026-04-18T11:00:00Z"[m
   [1;37m}[m[1;37m,[m
   [1;37m{[m
     [1;34m"resource_class"[m[1;37m:[m [32m"my-org/arm-runner"[m[1;37m,[m
-    [1;34m"hostname"[m[1;37m:[m [32m""[m[1;37m,[m
-    [1;34m"name"[m[1;37m:[m [32m""[m[1;37m,[m
-    [1;34m"version"[m[1;37m:[m [32m""[m[1;37m,[m
-    [1;34m"ip"[m[1;37m:[m [32m""[m[1;37m,[m
-    [1;34m"status"[m[1;37m:[m [32m"unknown"[m[1;37m,[m
-    [1;34m"first_connected"[m[1;37m:[m [32m""[m[1;37m,[m
-    [1;34m"last_connected"[m[1;37m:[m [32m""[m[1;37m,[m
-    [1;34m"last_used"[m[1;37m:[m [32m""[m
+    [1;34m"hostname"[m[1;37m:[m [32m"arm-host.example.com"[m[1;37m,[m
+    [1;34m"name"[m[1;37m:[m [32m"runner-2"[m[1;37m,[m
+    [1;34m"version"[m[1;37m:[m [32m"1.0.0"[m[1;37m,[m
+    [1;34m"ip"[m[1;37m:[m [32m"10.0.0.1"[m[1;37m,[m
+    [1;34m"status"[m[1;37m:[m [32m"offline"[m[1;37m,[m
+    [1;34m"first_connected"[m[1;37m:[m [32m"2026-01-01T00:00:00Z"[m[1;37m,[m
+    [1;34m"last_connected"[m[1;37m:[m [32m"2026-04-18T12:00:00Z"[m[1;37m,[m
+    [1;34m"last_used"[m[1;37m:[m [32m"2026-04-18T11:00:00Z"[m
   [1;37m}[m
 [1;37m][m

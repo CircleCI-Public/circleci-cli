@@ -3384,7 +3384,7 @@ List connected runner instances
 
 List CircleCI runner instances currently connected to your organization.
 
-STATUS is derived from last_connected_at: online within the last 2 minutes,
+STATUS is derived from last_connected: online within the last 2 minutes,
 idle 2–30 minutes ago, offline beyond that.
 
 JSON fields: resource_class, hostname, name, version, ip, status, first_connected, last_connected, last_used

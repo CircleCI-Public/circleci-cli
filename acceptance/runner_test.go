@@ -63,14 +63,14 @@ func fakeToken(id, rc, nickname string) map[string]any {
 
 func fakeInstance(rc, hostname, name, version string) map[string]any {
 	return map[string]any{
-		"resource_class":     rc,
-		"hostname":           hostname,
-		"name":               name,
-		"version":            version,
-		"ip":                 "10.0.0.1",
-		"first_connected_at": "2026-01-01T00:00:00Z",
-		"last_connected_at":  "2026-04-18T12:00:00Z",
-		"last_used_at":       "2026-04-18T11:00:00Z",
+		"resource_class":  rc,
+		"hostname":        hostname,
+		"name":            name,
+		"version":         version,
+		"ip":              "10.0.0.1",
+		"first_connected": "2026-01-01T00:00:00Z",
+		"last_connected":  "2026-04-18T12:00:00Z",
+		"last_used":       "2026-04-18T11:00:00Z",
 	}
 }
 
@@ -78,8 +78,8 @@ func setupRunnerFake(t *testing.T) (*fakes.CircleCI, *testenv.TestEnv) {
 	t.Helper()
 	fake := fakes.NewCircleCI(t)
 
-	fake.AddResourceClass(fakeRC("rc-id-1", "my-org/linux-runner", "Linux amd64 runner"))
-	fake.AddResourceClass(fakeRC("rc-id-2", "my-org/arm-runner", "ARM runner"))
+	fake.AddResourceClass(fakeRC("11111111-1111-4111-8111-111111111111", "my-org/linux-runner", "Linux amd64 runner"))
+	fake.AddResourceClass(fakeRC("22222222-2222-4222-8222-222222222222", "my-org/arm-runner", "ARM runner"))
 
 	fake.AddRunnerToken("my-org/linux-runner", fakeToken("tok-id-1", "my-org/linux-runner", "prod-server-1"))
 	fake.AddRunnerToken("my-org/linux-runner", fakeToken("tok-id-2", "my-org/linux-runner", "prod-server-2"))
@@ -138,6 +138,38 @@ func TestRunnerResourceClassList_Namespace(t *testing.T) {
 	assert.Check(t, cmp.Equal(result.ExitCode, 0))
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
 	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+}
+
+func TestRunnerResourceClassList_NamespaceIgnoresInstances(t *testing.T) {
+	fake, env := setupRunnerFake(t)
+	fake.AddResourceClass(fakeRC("33333333-3333-4333-8333-333333333333", "my-org/idle-runner", "No runners attached"))
+	// Two instances on one class must not double it up in the listing.
+	fake.AddRunnerInstance(fakeInstance("my-org/linux-runner", "host-2.example.com", "runner-3", "1.0.0"))
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"runner", "resource-class", "list", "--namespace", "my-org", "--json"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+
+	var out []map[string]any
+	err := json.Unmarshal([]byte(result.Stdout), &out)
+	assert.NilError(t, err)
+
+	slugs := make([]string, 0, len(out))
+	for _, rc := range out {
+		slug, _ := rc["resource_class"].(string)
+		slugs = append(slugs, slug)
+		assert.Check(t, rc["id"] != "", "resource class %q came back without an id", slug)
+	}
+	assert.Check(t, cmp.DeepEqual(slugs, []string{
+		"my-org/linux-runner", "my-org/arm-runner", "my-org/idle-runner",
+	}))
+
+	assert.Check(t, cmp.Equal(fake.LastRequest().URL.Path, "/api/v3/runner/resource"))
 }
 
 func TestRunnerResourceClassList_JSON(t *testing.T) {
@@ -524,10 +556,16 @@ func TestRunnerResourceClassDelete_Force(t *testing.T) {
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
 	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 
-	t.Run("check request", func(t *testing.T) {
-		assert.Check(t, cmp.DeepEqual(fake.LastRequest(), &httprecorder.Request{
+	t.Run("check requests", func(t *testing.T) {
+		reqs := fake.AllRequests()
+		assert.Assert(t, cmp.Len(reqs, 2))
+		assert.Check(t, cmp.Equal(reqs[0].Method, http.MethodGet))
+		assert.Check(t, cmp.Equal(reqs[0].URL.Path, "/api/v3/runner/resource"))
+		assert.Check(t, cmp.Equal(reqs[0].URL.Query().Get("namespace"), "my-org"))
+
+		assert.Check(t, cmp.DeepEqual(reqs[1], httprecorder.Request{
 			Method: http.MethodDelete,
-			URL:    url.URL{Path: "/api/v3/runner/resource/my-org/linux-runner"},
+			URL:    url.URL{Path: "/api/v3/runner/resource/11111111-1111-4111-8111-111111111111/force"},
 			Header: http.Header{
 				"Authorization": {"Bearer test-token"},
 				"User-Agent":    {httpcl.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
@@ -535,6 +573,27 @@ func TestRunnerResourceClassDelete_Force(t *testing.T) {
 			Body: new(""),
 		}, ignoreCommonHeaders))
 	})
+}
+
+func TestRunnerResourceClassDelete_Force_RemovesTokens(t *testing.T) {
+	_, env := setupRunnerFake(t)
+
+	del := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"runner", "resource-class", "delete", "my-org/linux-runner", "--force"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+	assert.Assert(t, cmp.Equal(del.ExitCode, 0))
+
+	list := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"runner", "token", "list", "--resource-class", "my-org/linux-runner", "--json"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+	assert.Check(t, cmp.Equal(list.ExitCode, 0), "stderr: %s", list.Stderr)
+	assert.Check(t, cmp.Equal(strings.TrimSpace(list.Stdout), "[]"))
 }
 
 func TestRunnerResourceClassDelete_NotFound(t *testing.T) {
@@ -556,6 +615,37 @@ func TestRunnerResourceClassDelete_NotFound(t *testing.T) {
 }
 
 // --- token list ---
+
+// Without --resource-class every resource class in the namespace is enumerated.
+func TestRunnerTokenList_EnumeratesEveryResourceClass(t *testing.T) {
+	fake, env := setupRunnerFake(t)
+	fake.AddResourceClass(fakeRC("33333333-3333-4333-8333-333333333333", "my-org/idle-runner", "No runners attached"))
+	fake.AddRunnerToken("my-org/idle-runner", fakeToken("tok-id-9", "my-org/idle-runner", "idle-token"))
+
+	dir := t.TempDir()
+	initGitRepoWithRemote(t, dir, "git@github.com:my-org/some-repo.git")
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"runner", "token", "list", "--json"},
+		Env:     env.Environ(),
+		WorkDir: dir,
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+
+	var out []map[string]any
+	err := json.Unmarshal([]byte(result.Stdout), &out)
+	assert.NilError(t, err)
+
+	ids := make([]string, 0, len(out))
+	for _, tok := range out {
+		id, _ := tok["id"].(string)
+		ids = append(ids, id)
+	}
+	assert.Check(t, cmp.Contains(ids, "tok-id-9"))
+	assert.Check(t, cmp.Len(ids, 3))
+}
 
 func TestRunnerTokenList(t *testing.T) {
 	_, env := setupRunnerFake(t)

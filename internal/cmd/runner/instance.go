@@ -69,7 +69,7 @@ func newInstanceListCmd() *cobra.Command {
 		Long: heredoc.Doc(`
 			List CircleCI runner instances currently connected to your organization.
 
-			STATUS is derived from last_connected_at: online within the last 2 minutes,
+			STATUS is derived from last_connected: online within the last 2 minutes,
 			idle 2–30 minutes ago, offline beyond that.
 
 			JSON fields: resource_class, hostname, name, version, ip, status, first_connected, last_connected, last_used
@@ -117,7 +117,7 @@ type instanceOutput struct {
 	LastUsed       string `json:"last_used"`
 }
 
-// instanceStatus derives a human-readable liveness status from last_connected_at.
+// instanceStatus derives a human-readable liveness status from last_connected.
 // The CircleCI runner API does not expose an explicit status field.
 func instanceStatus(lastConnectedAt string) string {
 	formats := []string{
