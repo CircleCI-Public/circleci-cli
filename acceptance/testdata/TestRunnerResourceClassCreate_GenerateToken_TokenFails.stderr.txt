@@ -1,0 +1,5 @@
+error: Resource class "my-org/new-runner" was created, but generating its token failed.
+API returned 500: {"message":"runner token creation failed"}
+
+Suggestions:
+  • Create the token separately: circleci runner token create my-org/new-runner --nickname default

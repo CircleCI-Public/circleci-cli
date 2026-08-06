@@ -104,8 +104,11 @@ type CircleCI struct {
 	resourceClasses []any            // all resource classes
 	runnerTokens    map[string][]any // resource class → tokens
 	runnerInstances []any            // all instances
-	deletedTokens   map[string]bool  // token id → deleted
-	deletedRCs      map[string]bool  // resource class → deleted
+
+	runnerTokenCreateStatus int // 0 = default success response
+	runnerTokenCreateBody   any
+	deletedTokens           map[string]bool // token id → deleted
+	deletedRCs              map[string]bool // resource class → deleted
 
 	// Project / env-var state.
 	followedProjects    []any            // list of project objects for GET /api/v1.1/projects
@@ -1501,6 +1504,17 @@ func (f *CircleCI) handleListRunnerTokens(w http.ResponseWriter, r *http.Request
 	render.JSON(w, r, map[string]any{"items": items})
 }
 
+// SetRunnerTokenCreateResponse overrides the response to POST /runner/token, which
+// otherwise answers 201 with a token whose value is "fake-runner-token-value". Use
+// it to force a failure, or a 201 whose payload omits or lengthens the token value.
+// A nil body sends a generic error message.
+func (f *CircleCI) SetRunnerTokenCreateResponse(status int, body any) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.runnerTokenCreateStatus = status
+	f.runnerTokenCreateBody = body
+}
+
 func (f *CircleCI) handleCreateRunnerToken(w http.ResponseWriter, r *http.Request) {
 	var body map[string]any
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
@@ -1508,6 +1522,19 @@ func (f *CircleCI) handleCreateRunnerToken(w http.ResponseWriter, r *http.Reques
 		render.JSON(w, r, map[string]any{"message": "invalid body"})
 		return
 	}
+
+	f.mu.RLock()
+	status, override := f.runnerTokenCreateStatus, f.runnerTokenCreateBody
+	f.mu.RUnlock()
+	if status != 0 {
+		render.Status(r, status)
+		if override == nil {
+			override = map[string]any{"message": "runner token creation failed"}
+		}
+		render.JSON(w, r, override)
+		return
+	}
+
 	rc, _ := body["resource_class"].(string)
 	nickname, _ := body["nickname"].(string)
 	tok := map[string]any{

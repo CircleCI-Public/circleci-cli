@@ -169,8 +169,13 @@ func runResourceClassList(ctx context.Context, client *apiclient.Client, org, na
 
 // --- resource-class create ---
 
+// defaultTokenNickname matches the nickname the legacy CLI used, so runner
+// install instructions referring to the "default" token stay accurate.
+const defaultTokenNickname = "default"
+
 func newResourceClassCreateCmd() *cobra.Command {
 	var description string
+	var generateToken bool
 	var jsonOut bool
 
 	cmd := &cobra.Command{
@@ -185,10 +190,7 @@ func newResourceClassCreateCmd() *cobra.Command {
 		Long: heredoc.Doc(`
 			Create a new CircleCI runner resource class.
 
-			The resource class name must be in the format namespace/name,
-			where namespace is your organization name.
-
-			JSON fields: id, resource_class, description
+			JSON fields: id, resource_class, description (token_id, token with --generate-token)
 		`),
 		Example: heredoc.Doc(`
 			# Create a resource class
@@ -196,6 +198,9 @@ func newResourceClassCreateCmd() *cobra.Command {
 
 			# Create with a description
 			$ circleci runner resource-class create my-org/my-runner --description "Linux amd64 runner"
+
+			# Create a resource class and generate a token nicknamed "default"
+			$ circleci runner resource-class create my-org/my-runner --generate-token
 
 			# Output as JSON
 			$ circleci runner resource-class create my-org/my-runner --json
@@ -210,26 +215,50 @@ func newResourceClassCreateCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return runResourceClassCreate(ctx, client, args[0], description, jsonOut)
+			return runResourceClassCreate(ctx, client, args[0], description, generateToken, jsonOut)
 		},
 	}
 
 	cmd.Flags().StringVar(&description, "description", "", "Human-readable description of the resource class")
+	cmd.Flags().BoolVar(&generateToken, "generate-token", false,
+		`also create a token for the resource class, nicknamed "default"`)
 	cmdutil.AddJSONFlag(cmd, &jsonOut)
 	cmdutil.AddJQFlag(cmd)
 	return cmd
 }
 
-func runResourceClassCreate(ctx context.Context, client *apiclient.Client, resourceClass, description string, jsonOut bool) error {
+type resourceClassCreateOutput struct {
+	ID            string `json:"id"`
+	ResourceClass string `json:"resource_class"`
+	Description   string `json:"description"`
+	TokenID       string `json:"token_id,omitempty"`
+	Token         string `json:"token,omitempty"`
+}
+
+func runResourceClassCreate(ctx context.Context, client *apiclient.Client, resourceClass, description string, generateToken, jsonOut bool) error {
 	rc, err := client.CreateResourceClass(ctx, resourceClass, description)
 	if err != nil {
 		return apiErr(err, resourceClass)
 	}
 
-	out := resourceClassOutput{
+	out := resourceClassCreateOutput{
 		ID:            rc.ID,
 		ResourceClass: rc.ResourceClass,
 		Description:   rc.Description,
+	}
+
+	if generateToken {
+		// Use the slug the API echoed back rather than the argument, so a server-side
+		// normalisation of the name cannot send the token request somewhere else.
+		tok, err := client.CreateRunnerToken(ctx, out.ResourceClass, defaultTokenNickname)
+		if err != nil {
+			return tokenGenerationErr(err, out.ResourceClass)
+		}
+		if tok.Token == "" {
+			return tokenValueMissingErr(out.ResourceClass, tok.ID)
+		}
+		out.TokenID = tok.ID
+		out.Token = tok.Token
 	}
 
 	if jsonOut {
@@ -244,7 +273,45 @@ func runResourceClassCreate(ctx context.Context, client *apiclient.Client, resou
 	}
 	_, _ = fmt.Fprintf(&md, "- ID: `%s`\n", out.ID)
 	iostream.PrintMarkdown(ctx, md.String())
+
+	// Printed outside the markdown block because PrintMarkdown wraps to the
+	// terminal width when colour is on, which would break a long token value.
+	if out.Token != "" {
+		iostream.Printf(ctx, "\nToken (save this — it will not be shown again):\n%s\n", out.Token)
+	}
 	return nil
+}
+
+// tokenGenerationErr reports a token failure that left the resource class behind.
+// It borrows apiErr's status classification so a 401 still exits ExitAuthError and
+// the server's own explanation still reaches the user.
+func tokenGenerationErr(err error, resourceClass string) *clierrors.CLIError {
+	classified := apiErr(err, resourceClass)
+	suggestions := append([]string{
+		fmt.Sprintf("Create the token separately: circleci runner token create %s --nickname %s",
+			resourceClass, defaultTokenNickname),
+	}, classified.Suggestions...)
+
+	return clierrors.New("runner.token_generation_failed", "Token generation failed",
+		fmt.Sprintf("Resource class %q was created, but generating its token failed.\n%s",
+			resourceClass, strings.TrimSpace(classified.Message))).
+		WithSuggestions(suggestions...).
+		WithRef(classified.Ref).
+		WithExitCode(classified.ExitCode)
+}
+
+// tokenValueMissingErr covers a token created without a value in the response.
+// Exiting 0 would leave the user owning a live credential they can never see.
+func tokenValueMissingErr(resourceClass, tokenID string) *clierrors.CLIError {
+	return clierrors.New("runner.token_value_missing", "Token value not returned",
+		fmt.Sprintf("Resource class %q was created and token %s was generated, but the API "+
+			"did not return the token value. It cannot be retrieved later.", resourceClass, tokenID)).
+		WithSuggestions(
+			fmt.Sprintf("Delete the unusable token: circleci runner token delete %s --force", tokenID),
+			fmt.Sprintf("Then create a replacement: circleci runner token create %s --nickname %s",
+				resourceClass, defaultTokenNickname),
+		).
+		WithExitCode(clierrors.ExitAPIError)
 }
 
 // --- resource-class delete ---

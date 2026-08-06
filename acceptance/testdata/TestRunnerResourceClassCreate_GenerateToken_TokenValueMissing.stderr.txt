@@ -1,0 +1,5 @@
+error: Resource class "my-org/new-runner" was created and token tok-id-9 was generated, but the API did not return the token value. It cannot be retrieved later.
+
+Suggestions:
+  • Delete the unusable token: circleci runner token delete tok-id-9 --force
+  • Then create a replacement: circleci runner token create my-org/new-runner --nickname default

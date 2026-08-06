@@ -2,6 +2,7 @@ Usage:  circleci runner resource-class create <namespace>/<name> [flags]
 
 Flags:
       --description string   Human-readable description of the resource class
+      --generate-token       also create a token for the resource class, nicknamed "default"
   -h, --help                 help for create
       --jq string            Process values from the response using jq syntax
       --json                 Output as JSON

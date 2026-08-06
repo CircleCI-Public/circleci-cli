@@ -1,0 +1,6 @@
+# Created Resource Class
+- Resource Class: my-org/new-runner
+- ID: `rc-my-org/new-runner`
+
+Token (save this — it will not be shown again):
+fake-runner-token-value

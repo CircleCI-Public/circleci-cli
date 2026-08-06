@@ -1,0 +1,10 @@
+error: Resource class "my-org/new-runner" was created, but generating its token failed.
+The API token was rejected by CircleCI.
+
+Suggestions:
+  • Create the token separately: circleci runner token create my-org/new-runner --nickname default
+  • Run: circleci auth login
+  • Or set the CIRCLE_TOKEN environment variable
+  • See: circleci help getting-started
+
+Reference: https://app.circleci.com/settings/user/oauth-clients
