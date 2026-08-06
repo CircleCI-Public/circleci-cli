@@ -53,7 +53,7 @@ func newConfigCmd() *cobra.Command {
 		},
 		Long: heredoc.Doc(`
 			Generate a runner agent configuration YAML for a resource class, suitable for
-			use as the agent's launch-agent-config.yaml.
+			use as the agent's circleci-runner-config.yaml.
 
 			A new authentication token is created unless you pass an existing one with
 			--token, which generates the YAML without an API call.
@@ -63,10 +63,10 @@ func newConfigCmd() *cobra.Command {
 			$ circleci runner config my-org/my-runner
 
 			# Write config directly to a file
-			$ circleci runner config my-org/my-runner --output launch-agent-config.yaml
+			$ circleci runner config my-org/my-runner --output circleci-runner-config.yaml
 
 			# Create a nicely-labeled token and write to a file
-			$ circleci runner config my-org/my-runner --nickname "prod-server-1" --output /etc/circleci/launch-agent-config.yaml
+			$ circleci runner config my-org/my-runner --nickname "prod-server-1" --output /etc/circleci-runner/circleci-runner-config.yaml
 
 			# Generate config from an existing token value (no API token creation)
 			$ circleci runner config my-org/my-runner --token "$EXISTING_TOKEN_VALUE"
