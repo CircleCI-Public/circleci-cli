@@ -304,6 +304,195 @@ func TestRunnerResourceClassCreate_JSON_Color(t *testing.T) {
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".json"))
 }
 
+func TestRunnerResourceClassCreate_GenerateToken(t *testing.T) {
+	fake, env := setupRunnerFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"runner", "resource-class", "create", "my-org/new-runner", "--generate-token"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+
+	// The token is data, so it belongs on stdout only.
+	leaked := strings.Contains(result.Stderr, "fake-runner-token-value")
+	assert.Check(t, !leaked, "token value leaked into stderr: %s", result.Stderr)
+
+	// Both calls are asserted because LastRequest() would only see the token POST.
+	t.Run("check requests", func(t *testing.T) {
+		reqs := fake.AllRequests()
+		assert.Assert(t, cmp.Len(reqs, 2))
+
+		assert.Check(t, cmp.DeepEqual(reqs[0], httprecorder.Request{
+			Method: http.MethodPost,
+			URL:    url.URL{Path: "/api/v3/runner/resource"},
+			Header: http.Header{
+				"Authorization": {"Bearer test-token"},
+				"User-Agent":    {httpcl.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
+			},
+			Body: new(`{"description":"","resource_class":"my-org/new-runner"}`),
+		}, ignoreCommonHeaders))
+
+		assert.Check(t, cmp.DeepEqual(reqs[1], httprecorder.Request{
+			Method: http.MethodPost,
+			URL:    url.URL{Path: "/api/v3/runner/token"},
+			Header: http.Header{
+				"Authorization": {"Bearer test-token"},
+				"User-Agent":    {httpcl.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
+			},
+			Body: new(`{"nickname":"default","resource_class":"my-org/new-runner"}`),
+		}, ignoreCommonHeaders))
+	})
+}
+
+func TestRunnerResourceClassCreate_GenerateToken_Color(t *testing.T) {
+	_, env := setupRunnerFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"runner", "resource-class", "create", "my-org/new-runner", "--generate-token"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+		TTY:     true,
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 0))
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+}
+
+// A token wrapped across lines by the markdown renderer would not be copyable.
+func TestRunnerResourceClassCreate_GenerateToken_LongTokenNotWrapped(t *testing.T) {
+	longToken := strings.Repeat("a1b2c3d4", 15) // 120 chars, wider than the 80-column test pty
+
+	fake, env := setupRunnerFake(t)
+	fake.SetRunnerTokenCreateResponse(http.StatusCreated, map[string]any{
+		"id":             "tok-id-9",
+		"resource_class": "my-org/new-runner",
+		"nickname":       "default",
+		"created_at":     "2026-01-01T00:00:00Z",
+		"token":          longToken,
+	})
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"runner", "resource-class", "create", "my-org/new-runner", "--generate-token"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+		TTY:     true,
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 0))
+	assert.Check(t, cmp.Contains(result.Stdout, longToken))
+}
+
+func TestRunnerResourceClassCreate_GenerateToken_JSON(t *testing.T) {
+	_, env := setupRunnerFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"runner", "resource-class", "create", "my-org/new-runner", "--generate-token", "--json"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+
+	var out map[string]any
+	err := json.Unmarshal([]byte(result.Stdout), &out)
+	assert.NilError(t, err)
+	assert.Check(t, cmp.DeepEqual(out, map[string]any{
+		"id":             "rc-my-org/new-runner",
+		"resource_class": "my-org/new-runner",
+		"description":    "",
+		"token_id":       "tok-my-org/new-runner",
+		"token":          "fake-runner-token-value",
+	}))
+
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".json"))
+}
+
+// Without the flag no token exists, so both token fields are absent rather than empty.
+func TestRunnerResourceClassCreate_GenerateToken_NoTokenFields(t *testing.T) {
+	_, env := setupRunnerFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"runner", "resource-class", "create", "my-org/new-runner", "--json"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+
+	var out map[string]any
+	err := json.Unmarshal([]byte(result.Stdout), &out)
+	assert.NilError(t, err)
+	_, hasToken := out["token"]
+	assert.Check(t, !hasToken, "expected no token field: %s", result.Stdout)
+	_, hasTokenID := out["token_id"]
+	assert.Check(t, !hasTokenID, "expected no token_id field: %s", result.Stdout)
+}
+
+func TestRunnerResourceClassCreate_GenerateToken_TokenFails(t *testing.T) {
+	fake, env := setupRunnerFake(t)
+	fake.SetRunnerTokenCreateResponse(http.StatusInternalServerError, nil)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"runner", "resource-class", "create", "my-org/new-runner", "--generate-token"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 4))
+	// A half-done create must not look like a success, so stdout stays empty.
+	assert.Check(t, cmp.Equal(result.Stdout, ""))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+}
+
+// A 401 on the token call must still exit 3, not be flattened to the generic 4.
+func TestRunnerResourceClassCreate_GenerateToken_TokenUnauthorized(t *testing.T) {
+	fake, env := setupRunnerFake(t)
+	fake.SetRunnerTokenCreateResponse(http.StatusUnauthorized, nil)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"runner", "resource-class", "create", "my-org/new-runner", "--generate-token"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 3))
+	assert.Check(t, cmp.Equal(result.Stdout, ""))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+}
+
+// Exiting 0 here would leave the user owning a credential they can never see.
+func TestRunnerResourceClassCreate_GenerateToken_TokenValueMissing(t *testing.T) {
+	fake, env := setupRunnerFake(t)
+	fake.SetRunnerTokenCreateResponse(http.StatusCreated, map[string]any{
+		"id":             "tok-id-9",
+		"resource_class": "my-org/new-runner",
+		"nickname":       "default",
+		"created_at":     "2026-01-01T00:00:00Z",
+	})
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"runner", "resource-class", "create", "my-org/new-runner", "--generate-token"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 4))
+	assert.Check(t, cmp.Equal(result.Stdout, ""))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+}
+
 // --- resource-class delete ---
 
 func TestRunnerResourceClassDelete_NoForce(t *testing.T) {
