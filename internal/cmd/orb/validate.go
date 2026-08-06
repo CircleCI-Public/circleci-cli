@@ -87,6 +87,9 @@ func newValidateCmd() *cobra.Command {
 	}
 
 	cmdutil.AddOrgFlag(cmd, &org, cmdutil.OrgFlag{Purpose: "for private orb dependencies"})
+	// 0.1.x split the org into --org-id and --org-slug; --org accepts either form.
+	// The matching --host/--token shims are inherited from the orb command.
+	cmdutil.AddV0OrgCompatFlags(cmd, &org)
 
 	return cmd
 }
