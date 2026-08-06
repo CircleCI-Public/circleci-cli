@@ -86,7 +86,7 @@ func (c *Client) ListResourceClassesByNamespace(ctx context.Context, namespace s
 	var resp struct {
 		Items []ResourceClass `json:"items"`
 	}
-	err := c.getV3(ctx, "/runner", &resp,
+	err := c.getV3(ctx, "/runner/resource", &resp,
 		queryParam("namespace", namespace),
 	)
 	if err != nil {

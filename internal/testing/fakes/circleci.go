@@ -1380,20 +1380,12 @@ func (f *CircleCI) AddRunnerInstance(instance any) {
 
 // --- Runner handlers ---
 
-// handleRunnerList dispatches GET /api/v3/runner based on query params:
-// ?resource-class= or ?org-id= → instances; ?namespace= → resource classes
-// (legacy path retained for backwards compatibility).
+// handleRunnerList serves GET /api/v3/runner, returning runner instances scoped
+// by ?resource-class=, ?org-id= or ?namespace=.
 func (f *CircleCI) handleRunnerList(w http.ResponseWriter, r *http.Request) {
-	if rc := r.URL.Query().Get("resource-class"); rc != "" {
+	q := r.URL.Query()
+	if q.Get("resource-class") != "" || q.Get("org-id") != "" || q.Get("namespace") != "" {
 		f.handleListRunnerInstances(w, r)
-		return
-	}
-	if orgID := r.URL.Query().Get("org-id"); orgID != "" {
-		f.handleListRunnerInstances(w, r)
-		return
-	}
-	if ns := r.URL.Query().Get("namespace"); ns != "" {
-		f.handleListResourceClasses(w, r)
 		return
 	}
 	render.Status(r, http.StatusBadRequest)
@@ -1585,13 +1577,14 @@ func (f *CircleCI) handleDeleteRunnerToken(w http.ResponseWriter, r *http.Reques
 
 func (f *CircleCI) handleListRunnerInstances(w http.ResponseWriter, r *http.Request) {
 	rc := r.URL.Query().Get("resource-class")
+	ns := r.URL.Query().Get("namespace")
 	f.mu.RLock()
 	all := f.runnerInstances
 	f.mu.RUnlock()
 
 	var items []any
 	for _, inst := range all {
-		if rc == "" {
+		if rc == "" && ns == "" {
 			items = append(items, inst)
 			continue
 		}
@@ -1600,9 +1593,14 @@ func (f *CircleCI) handleListRunnerInstances(w http.ResponseWriter, r *http.Requ
 			items = append(items, inst)
 			continue
 		}
-		if m["resource_class"] == rc {
-			items = append(items, inst)
+		slug, _ := m["resource_class"].(string)
+		if rc != "" && slug != rc {
+			continue
 		}
+		if ns != "" && !strings.HasPrefix(slug, ns+"/") {
+			continue
+		}
+		items = append(items, inst)
 	}
 	if items == nil {
 		items = []any{}
