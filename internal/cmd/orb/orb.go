@@ -53,6 +53,11 @@ func NewOrbCmd() *cobra.Command {
 		FParseErrWhitelist: cobra.FParseErrWhitelist{UnknownFlags: true},
 	}
 
+	// Registered on the orb tree rather than the root: these shims exist for the
+	// orb authoring pipelines that circleci/orb-tools drives, so every orb
+	// subcommand inherits them without widening the surface elsewhere.
+	cmdutil.AddV0AuthCompatFlags(cmd.PersistentFlags())
+
 	cmdutil.AddGroup(cmd, "General commands",
 		newInitCmd(),
 		newCreateCmd(),

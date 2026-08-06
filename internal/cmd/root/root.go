@@ -99,6 +99,10 @@ func NewRootCmd(version string) *cobra.Command {
 			_ = os.Setenv("NO_COLOR", "1")
 		}
 
+		// Fold any 0.1.x compatibility flags into the env vars that replaced them
+		// before config.Load reads host and token below.
+		cmdutil.ApplyCompatFlags(cmd)
+
 		theme, err := cmd.Flags().GetString("theme")
 		if err == nil && !iostream.IsValidTheme(theme) {
 			return func() {}, clierrors.New("flags.invalid_theme", "Invalid theme", "Invalid value for --theme: '"+theme+"'").
