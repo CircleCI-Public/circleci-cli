@@ -1124,7 +1124,7 @@ func TestRunnerConfig_ExistingToken(t *testing.T) {
 func TestRunnerConfig_OutputFile(t *testing.T) {
 	_, env := setupRunnerFake(t)
 	dir := t.TempDir()
-	outPath := dir + "/launch-agent-config.yaml"
+	outPath := dir + "/circleci-runner-config.yaml"
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
