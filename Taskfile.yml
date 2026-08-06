@@ -343,6 +343,20 @@ tasks:
       - go tool -modfile tools/go.mod goreleaser release --clean
       - task: ci:packagecloud
       - task: ci:cloudsmith
+      - task: ci:virustotal
+
+  ci:virustotal:
+    desc: Submit the release artifacts in dist/ to VirusTotal for scanning
+    # VT_APIKEY must be set in the environment to actually upload; without it the
+    # step logs a skip and exits 0. Submission is best-effort and never gates the
+    # release — VirusTotal frequently false-flags Go binaries. Set DRY_RUN to list
+    # the artifacts without contacting VirusTotal.
+    vars:
+      DRY_RUN: '{{default "" .DRY_RUN}}'
+    cmds:
+      # Submit what users actually download: the archives and the Linux packages.
+      # VirusTotal unpacks archives and scans the contained binaries.
+      - go run ./cmd/virustotal submit {{if .DRY_RUN}}--dry-run {{end}}dist/*.tar.gz dist/*.zip dist/*.deb dist/*.rpm
 
   ci:packagecloud:
     desc: Publish the Linux nfpm packages (rpm + deb) from dist/ to packagecloud
@@ -389,5 +403,8 @@ tasks:
         vars:
           DRY_RUN: "true"
       - task: ci:cloudsmith
+        vars:
+          DRY_RUN: "true"
+      - task: ci:virustotal
         vars:
           DRY_RUN: "true"
