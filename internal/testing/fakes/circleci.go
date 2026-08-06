@@ -402,7 +402,8 @@ func NewCircleCI(t *testing.T) *CircleCI {
 	r.Get("/api/v3/runner", f.handleRunnerList)
 	r.Get("/api/v3/runner/resource", f.handleListResourceClasses)
 	r.Post("/api/v3/runner/resource", f.handleCreateResourceClass)
-	r.Delete("/api/v3/runner/resource/{namespace}/{name}", f.handleDeleteResourceClass)
+	r.Delete("/api/v3/runner/resource/{id}", f.handleDeleteResourceClass)
+	r.Delete("/api/v3/runner/resource/{id}/force", f.handleForceDeleteResourceClass)
 	r.Get("/api/v3/runner/token", f.handleListRunnerTokens)
 	r.Post("/api/v3/runner/token", f.handleCreateRunnerToken)
 	r.Delete("/api/v3/runner/token/{id}", f.handleDeleteRunnerToken)
@@ -1444,31 +1445,50 @@ func (f *CircleCI) handleCreateResourceClass(w http.ResponseWriter, r *http.Requ
 	render.JSON(w, r, rc)
 }
 
+// handleDeleteResourceClass serves DELETE /api/v3/runner/resource/{id}, which
+// refuses with 409 while the resource class still has tokens.
 func (f *CircleCI) handleDeleteResourceClass(w http.ResponseWriter, r *http.Request) {
-	slug := chi.URLParam(r, "namespace") + "/" + chi.URLParam(r, "name")
+	f.deleteResourceClass(w, r, false)
+}
+
+// handleForceDeleteResourceClass serves DELETE /api/v3/runner/resource/{id}/force,
+// which deletes the resource class and its tokens.
+func (f *CircleCI) handleForceDeleteResourceClass(w http.ResponseWriter, r *http.Request) {
+	f.deleteResourceClass(w, r, true)
+}
+
+func (f *CircleCI) deleteResourceClass(w http.ResponseWriter, r *http.Request, force bool) {
+	id := chi.URLParam(r, "id")
 	f.mu.Lock()
-	found := false
+	found, hasTokens := false, false
 	for _, rc := range f.resourceClasses {
 		m, ok := rc.(map[string]any)
 		if !ok {
 			continue
 		}
-		if m["resource_class"] == slug {
+		if m["id"] == id {
 			found = true
+			slug, _ := m["resource_class"].(string)
+			hasTokens = len(f.runnerTokens[slug]) > 0
+			if force || !hasTokens {
+				f.deletedRCs[slug] = true
+				delete(f.runnerTokens, slug)
+			}
 			break
 		}
 	}
-	if found {
-		f.deletedRCs[slug] = true
-	}
 	f.mu.Unlock()
 
-	if !found {
+	switch {
+	case !found:
 		render.Status(r, http.StatusNotFound)
 		render.JSON(w, r, map[string]any{"message": "not found"})
-		return
+	case !force && hasTokens:
+		render.Status(r, http.StatusConflict)
+		render.JSON(w, r, map[string]any{"message": "resource class still has tokens"})
+	default:
+		render.JSON(w, r, map[string]any{"message": "Deleted."})
 	}
-	render.JSON(w, r, map[string]any{"message": "Deleted."})
 }
 
 func (f *CircleCI) handleListRunnerTokens(w http.ResponseWriter, r *http.Request) {

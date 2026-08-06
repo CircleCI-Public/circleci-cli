@@ -78,8 +78,8 @@ func setupRunnerFake(t *testing.T) (*fakes.CircleCI, *testenv.TestEnv) {
 	t.Helper()
 	fake := fakes.NewCircleCI(t)
 
-	fake.AddResourceClass(fakeRC("rc-id-1", "my-org/linux-runner", "Linux amd64 runner"))
-	fake.AddResourceClass(fakeRC("rc-id-2", "my-org/arm-runner", "ARM runner"))
+	fake.AddResourceClass(fakeRC("11111111-1111-4111-8111-111111111111", "my-org/linux-runner", "Linux amd64 runner"))
+	fake.AddResourceClass(fakeRC("22222222-2222-4222-8222-222222222222", "my-org/arm-runner", "ARM runner"))
 
 	fake.AddRunnerToken("my-org/linux-runner", fakeToken("tok-id-1", "my-org/linux-runner", "prod-server-1"))
 	fake.AddRunnerToken("my-org/linux-runner", fakeToken("tok-id-2", "my-org/linux-runner", "prod-server-2"))
@@ -142,7 +142,7 @@ func TestRunnerResourceClassList_Namespace(t *testing.T) {
 
 func TestRunnerResourceClassList_NamespaceIgnoresInstances(t *testing.T) {
 	fake, env := setupRunnerFake(t)
-	fake.AddResourceClass(fakeRC("rc-id-3", "my-org/idle-runner", "No runners attached"))
+	fake.AddResourceClass(fakeRC("33333333-3333-4333-8333-333333333333", "my-org/idle-runner", "No runners attached"))
 	// Two instances on one class must not double it up in the listing.
 	fake.AddRunnerInstance(fakeInstance("my-org/linux-runner", "host-2.example.com", "runner-3", "1.0.0"))
 
@@ -556,10 +556,16 @@ func TestRunnerResourceClassDelete_Force(t *testing.T) {
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
 	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 
-	t.Run("check request", func(t *testing.T) {
-		assert.Check(t, cmp.DeepEqual(fake.LastRequest(), &httprecorder.Request{
+	t.Run("check requests", func(t *testing.T) {
+		reqs := fake.AllRequests()
+		assert.Assert(t, cmp.Len(reqs, 2))
+		assert.Check(t, cmp.Equal(reqs[0].Method, http.MethodGet))
+		assert.Check(t, cmp.Equal(reqs[0].URL.Path, "/api/v3/runner/resource"))
+		assert.Check(t, cmp.Equal(reqs[0].URL.Query().Get("namespace"), "my-org"))
+
+		assert.Check(t, cmp.DeepEqual(reqs[1], httprecorder.Request{
 			Method: http.MethodDelete,
-			URL:    url.URL{Path: "/api/v3/runner/resource/my-org/linux-runner"},
+			URL:    url.URL{Path: "/api/v3/runner/resource/11111111-1111-4111-8111-111111111111/force"},
 			Header: http.Header{
 				"Authorization": {"Bearer test-token"},
 				"User-Agent":    {httpcl.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
@@ -567,6 +573,27 @@ func TestRunnerResourceClassDelete_Force(t *testing.T) {
 			Body: new(""),
 		}, ignoreCommonHeaders))
 	})
+}
+
+func TestRunnerResourceClassDelete_Force_RemovesTokens(t *testing.T) {
+	_, env := setupRunnerFake(t)
+
+	del := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"runner", "resource-class", "delete", "my-org/linux-runner", "--force"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+	assert.Assert(t, cmp.Equal(del.ExitCode, 0))
+
+	list := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"runner", "token", "list", "--resource-class", "my-org/linux-runner", "--json"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+	assert.Check(t, cmp.Equal(list.ExitCode, 0), "stderr: %s", list.Stderr)
+	assert.Check(t, cmp.Equal(strings.TrimSpace(list.Stdout), "[]"))
 }
 
 func TestRunnerResourceClassDelete_NotFound(t *testing.T) {
@@ -592,7 +619,7 @@ func TestRunnerResourceClassDelete_NotFound(t *testing.T) {
 // Without --resource-class every resource class in the namespace is enumerated.
 func TestRunnerTokenList_EnumeratesEveryResourceClass(t *testing.T) {
 	fake, env := setupRunnerFake(t)
-	fake.AddResourceClass(fakeRC("rc-id-3", "my-org/idle-runner", "No runners attached"))
+	fake.AddResourceClass(fakeRC("33333333-3333-4333-8333-333333333333", "my-org/idle-runner", "No runners attached"))
 	fake.AddRunnerToken("my-org/idle-runner", fakeToken("tok-id-9", "my-org/idle-runner", "idle-token"))
 
 	dir := t.TempDir()
