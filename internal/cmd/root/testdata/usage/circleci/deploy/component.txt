@@ -1,0 +1,6 @@
+Usage:  circleci deploy component <command> [flags]
+
+Available commands:
+  get
+  list
+  versions

@@ -1,0 +1,30 @@
+Get a deploy environment
+
+## Usage
+
+`circleci deploy environment get <environment-id> [flags]`
+
+## Flags
+
+| Flag          | Description                                                                       |
+| ------------- | --------------------------------------------------------------------------------- |
+| `--jq string` | Process values from the response using jq syntax (see `circleci help formatting`) |
+| `--json`      | Output as JSON                                                                    |
+
+Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `circleci --help`.
+
+## Examples
+
+- Get a deploy environment by ID: 
+  `circleci deploy environment get a0000000-0000-4000-8000-000000e00001`
+- Output as JSON: 
+  `circleci deploy environment get a0000000-0000-4000-8000-000000e00001 --json`
+- Filter JSON output with jq: 
+  `circleci deploy environment get a0000000-0000-4000-8000-000000e00001 --json --jq '.name'`
+
+## Details
+
+Get details about a CircleCI deploy environment by ID.
+
+JSON fields: id, name, org_id
+

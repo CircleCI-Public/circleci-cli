@@ -1,0 +1,25 @@
+Manage deploy components
+
+## Usage
+
+`circleci deploy component <command> [flags]`
+
+## Available Commands
+
+| Command    | Description                         |
+| ---------- | ----------------------------------- |
+| `get`      | Get a deploy component              |
+| `list`     | List deploy components              |
+| `versions` | List versions of a deploy component |
+
+## Flags
+
+Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `circleci --help`.
+
+## Details
+
+List and inspect CircleCI deploy components.
+
+Deploy components represent the deployable units of a project,
+such as a service, application, or library.
+

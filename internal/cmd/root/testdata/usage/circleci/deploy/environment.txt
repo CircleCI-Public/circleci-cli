@@ -1,0 +1,5 @@
+Usage:  circleci deploy environment <command> [flags]
+
+Available commands:
+  get
+  list

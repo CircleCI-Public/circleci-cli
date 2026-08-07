@@ -20,49 +20,43 @@
 //
 // SPDX-License-Identifier: MIT
 
-package deploy
+package apiclient
 
 import (
-	"github.com/MakeNowJust/heredoc"
-	"github.com/spf13/cobra"
-
-	"github.com/CircleCI-Public/circleci-cli/internal/cmdutil"
-	clierrors "github.com/CircleCI-Public/circleci-cli/internal/errors"
+	"context"
 )
 
-// NewDeployCmd returns the "circleci deploy" command group.
-func NewDeployCmd() *cobra.Command {
-	cmd := &cobra.Command{
-		Use:     "deploy <command>",
-		GroupID: "management",
-		Short:   "Track released components and versions",
-		Long: heredoc.Doc(`
-			Work with CircleCI Deploys.
-
-			View deployed components and their versions across environments.
-		`),
-	}
-
-	cmdutil.AddGroup(cmd, "General commands",
-		newListCmd(),
-		newOpenCmd(),
-		newInitCmd(),
-		newSettingsCmd(),
-	)
-
-	cmdutil.AddGroup(cmd, "Environment commands",
-		newEnvironmentCmd(),
-	)
-
-	cmdutil.AddGroup(cmd, "Component commands",
-		newComponentCmd(),
-	)
-
-	return cmd
+// V3DeploySettings represents the deploy settings for a project.
+type V3DeploySettings struct {
+	ID         string                 `json:"id"`
+	Attributes V3DeploySettingsAttrs  `json:"attributes"`
+	References V3DeploySettingsRefs   `json:"references"`
 }
 
-func apiErr(err error, subject string) *clierrors.CLIError {
-	return cmdutil.APIErr(err, subject,
-		"deploy.not_found", "No deploys found for %q.",
-		"Check that CircleCI Deploys is configured for this project")
+// V3DeploySettingsAttrs holds the attributes of deploy settings.
+type V3DeploySettingsAttrs struct {
+	AutoCancelRedundantDeploys bool `json:"auto_cancel_redundant_deploys"`
+}
+
+// V3DeploySettingsRefs holds reference IDs for deploy settings.
+type V3DeploySettingsRefs struct {
+	Project struct {
+		ID string `json:"id"`
+	} `json:"project"`
+}
+
+// GetDeploySettings returns deploy settings for a project.
+// Returns nil, nil when no settings record exists (404).
+func (c *Client) GetDeploySettings(ctx context.Context, projectID string) (*V3DeploySettings, error) {
+	var resp v3List[V3DeploySettings]
+	err := c.getV3(ctx, "/deploy/settings", &resp,
+		queryParam("filter[project_id]", projectID),
+	)
+	if err != nil {
+		return nil, err
+	}
+	if len(resp.Data) == 0 {
+		return nil, nil
+	}
+	return &resp.Data[0], nil
 }

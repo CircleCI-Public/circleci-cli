@@ -1442,6 +1442,160 @@ Work with CircleCI Deploys.
 
 View deployed components and their versions across environments.
 
+#### `circleci deploy component <command>`
+
+Manage deploy components
+
+List and inspect CircleCI deploy components.
+
+Deploy components represent the deployable units of a project,
+such as a service, application, or library.
+
+##### `circleci deploy component get <component-id> [flags]`
+
+Get a deploy component
+
+Get details about a CircleCI deploy component by ID.
+
+JSON fields: id, name, type, project_id
+
+| Flag          | Description                                                                       |
+| ------------- | --------------------------------------------------------------------------------- |
+| `--jq string` | Process values from the response using jq syntax (see `circleci help formatting`) |
+| `--json`      | Output as JSON                                                                    |
+
+
+**Examples:**
+
+- Get a deploy component by ID: 
+  `circleci deploy component get a0000000-0000-4000-8000-000000c00001`
+- Output as JSON: 
+  `circleci deploy component get a0000000-0000-4000-8000-000000c00001 --json`
+- Filter JSON output with jq: 
+  `circleci deploy component get a0000000-0000-4000-8000-000000c00001 --json --jq '.name'`
+
+##### `circleci deploy component list [flags]`
+
+List deploy components
+
+List deploy components for a CircleCI project.
+
+The project is inferred from the current git repository's remote
+unless overridden with --project.
+
+JSON fields: id, name, type, project_id
+
+| Flag               | Description                                                                       |
+| ------------------ | --------------------------------------------------------------------------------- |
+| `--jq string`      | Process values from the response using jq syntax (see `circleci help formatting`) |
+| `--json`           | Output as JSON                                                                    |
+| `--project string` | Project slug (e.g. gh/org/repo); defaults to git remote                           |
+
+
+**Aliases:**
+
+
+`circleci deploy component ls`
+
+**Examples:**
+
+- List components for the current git remote's project: 
+  `circleci deploy component list`
+- List components for a specific project: 
+  `circleci deploy component list --project gh/myorg/myrepo`
+- Output as JSON: 
+  `circleci deploy component list --json`
+
+##### `circleci deploy component versions <component-id> [flags]`
+
+List versions of a deploy component
+
+List versions of a CircleCI deploy component.
+
+Optionally filter by deploy environment with --environment.
+
+JSON fields: id, name, component_id, created_at
+
+| Flag                   | Description                                                                       |
+| ---------------------- | --------------------------------------------------------------------------------- |
+| `--environment string` | Filter by deploy environment ID                                                   |
+| `--jq string`          | Process values from the response using jq syntax (see `circleci help formatting`) |
+| `--json`               | Output as JSON                                                                    |
+
+
+**Examples:**
+
+- List versions of a component: 
+  `circleci deploy component versions a0000000-0000-4000-8000-000000c00001`
+- Filter by environment: 
+  `circleci deploy component versions a0000000-0000-4000-8000-000000c00001 --environment a0000000-0000-4000-8000-000000e00001`
+- Output as JSON: 
+  `circleci deploy component versions a0000000-0000-4000-8000-000000c00001 --json`
+
+#### `circleci deploy environment <command>`
+
+Manage deploy environments
+
+List and inspect CircleCI deploy environments.
+
+Deploy environments represent targets such as production or staging
+where components are deployed.
+
+##### `circleci deploy environment get <environment-id> [flags]`
+
+Get a deploy environment
+
+Get details about a CircleCI deploy environment by ID.
+
+JSON fields: id, name, org_id
+
+| Flag          | Description                                                                       |
+| ------------- | --------------------------------------------------------------------------------- |
+| `--jq string` | Process values from the response using jq syntax (see `circleci help formatting`) |
+| `--json`      | Output as JSON                                                                    |
+
+
+**Examples:**
+
+- Get a deploy environment by ID: 
+  `circleci deploy environment get a0000000-0000-4000-8000-000000e00001`
+- Output as JSON: 
+  `circleci deploy environment get a0000000-0000-4000-8000-000000e00001 --json`
+- Filter JSON output with jq: 
+  `circleci deploy environment get a0000000-0000-4000-8000-000000e00001 --json --jq '.name'`
+
+##### `circleci deploy environment list [flags]`
+
+List deploy environments
+
+List deploy environments for a CircleCI organization.
+
+The organization is inferred from the current git repository's remote
+unless overridden with --org.
+
+JSON fields: id, name, org_id
+
+| Flag           | Description                                                                       |
+| -------------- | --------------------------------------------------------------------------------- |
+| `--jq string`  | Process values from the response using jq syntax (see `circleci help formatting`) |
+| `--json`       | Output as JSON                                                                    |
+| `--org string` | Organization slug (e.g. gh/myorg); defaults to git remote                         |
+
+
+**Aliases:**
+
+
+`circleci deploy environment ls`
+
+**Examples:**
+
+- List environments for the current git remote's org: 
+  `circleci deploy environment list`
+- List environments for a specific org: 
+  `circleci deploy environment list --org gh/myorg`
+- Output as JSON: 
+  `circleci deploy environment list --json`
+
 #### `circleci deploy init [flags]`
 
 Instrument your config for deploy tracking
@@ -1530,6 +1684,33 @@ GitLab remotes.
   `circleci deploy open`
 - Open the deploys page for a specific project: 
   `circleci deploy open --project gh/myorg/myrepo`
+
+#### `circleci deploy settings [flags]`
+
+Get deploy settings for a project
+
+Get deploy settings for a CircleCI project.
+
+The project is inferred from the current git repository's remote
+unless overridden with --project.
+
+JSON fields: id, project_id, auto_cancel_redundant_deploys
+
+| Flag               | Description                                                                       |
+| ------------------ | --------------------------------------------------------------------------------- |
+| `--jq string`      | Process values from the response using jq syntax (see `circleci help formatting`) |
+| `--json`           | Output as JSON                                                                    |
+| `--project string` | Project slug (e.g. gh/org/repo); defaults to git remote                           |
+
+
+**Examples:**
+
+- Get deploy settings for the current git remote's project: 
+  `circleci deploy settings`
+- Get settings for a specific project: 
+  `circleci deploy settings --project gh/myorg/myrepo`
+- Output as JSON: 
+  `circleci deploy settings --json`
 
 ### `circleci dlc <command>`
 

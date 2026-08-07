@@ -1,0 +1,7 @@
+Usage:  circleci deploy environment get <environment-id> [flags]
+
+Flags:
+  -h, --help        help for get
+      --jq string   Process values from the response using jq syntax
+      --json        Output as JSON
+  
