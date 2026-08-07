@@ -226,4 +226,3 @@ func runComponentGet(ctx context.Context, client *apiclient.Client, componentID 
 		entry.ID, entry.Name, entry.Type, entry.ProjectID))
 	return nil
 }
-
