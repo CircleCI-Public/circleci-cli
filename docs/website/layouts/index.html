@@ -36,7 +36,7 @@
             <ul class="install-menu" id="install-menu" role="listbox" aria-label="Installation method" hidden>
               <li role="option"
                   tabindex="-1"
-                  data-cmd="brew install circleci-public/circleci/circleci@next"
+                  data-cmd="brew install circleci"
                   data-platform="macos"
                   aria-selected="true">
                 macOS — Homebrew
@@ -44,7 +44,7 @@
               <li class="picker-divider" aria-hidden="true"></li>
               <li role="option"
                   tabindex="-1"
-                  data-cmd="winget install --id CircleCI.CLI.Preview"
+                  data-cmd="winget install --id CircleCI.CLI"
                   data-platform="windows"
                   aria-selected="false">
                 Windows — WinGet
@@ -72,13 +72,13 @@
               <li class="picker-divider" aria-hidden="true"></li>
               <li role="option"
                   tabindex="-1"
-                  data-cmd="brew install circleci-public/circleci/circleci@next"
+                  data-cmd="brew install circleci"
                   aria-selected="false">
                 Linux — Homebrew
               </li>
               <li role="option"
                   tabindex="-1"
-                  data-cmd="sudo snap install circleci --channel=edge"
+                  data-cmd="sudo snap install circleci"
                   data-cmd2="sudo snap connect circleci:password-manager-service"
                   aria-selected="false">
                 Linux — Snap
@@ -95,7 +95,7 @@
                  option's data-cmd2. Both are populated by the picker JS below. */}}
             <div class="hero-tip-steps">
               <div class="hero-tip-bar">
-                <span class="install-cmd-wrap"><span class="install-prompt">$ </span><span id="install-step1">brew install circleci-public/circleci/circleci@next</span></span>
+                <span class="install-cmd-wrap"><span class="install-prompt">$ </span><span id="install-step1">brew install circleci</span></span>
                 {{ partial "copy-button.html" (dict "copyTarget" "install-step1") }}
               </div>
               <div class="hero-tip-bar" id="install-step2-bar" hidden>
