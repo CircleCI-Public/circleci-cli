@@ -6,6 +6,7 @@ Available commands:
   auth
   certificate
   completion
+  component-version
   config
   context
   deploy

@@ -56,6 +56,7 @@ func NewDeployCmd() *cobra.Command {
 
 	cmdutil.AddGroup(cmd, "Component commands",
 		newComponentCmd(),
+		newVersionCmd(),
 	)
 
 	return cmd

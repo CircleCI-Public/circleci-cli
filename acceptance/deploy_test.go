@@ -355,12 +355,12 @@ func TestDeployComponentGet(t *testing.T) {
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
 }
 
-func TestDeployComponentVersions(t *testing.T) {
+func TestDeployVersionList(t *testing.T) {
 	_, env := setupDeployComponentFake(t)
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"deploy", "component", "versions", "a0000000-0000-4000-8000-000000c00001"},
+		Args:    []string{"deploy", "version", "list", "a0000000-0000-4000-8000-000000c00001"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})

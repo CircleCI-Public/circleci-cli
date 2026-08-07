@@ -1071,6 +1071,54 @@ JSON fields: id, file_name
 - Explicit org and capture the new cert id for scripting: 
   `echo "$P12_PASSWORD" | circleci certificate upload --org gh/acme --cert-file ./Certificates.p12 --password - --json --jq -r '.id'`
 
+### `circleci component-version <command>`
+
+Manage deploy component versions
+
+List and inspect CircleCI deploy component versions.
+
+Deploy component versions represent specific released versions
+of a component across environments.
+
+Also available as: circleci deploy version <command>
+
+#### `circleci component-version list <component-id> [flags]`
+
+List versions of a deploy component
+
+List versions of a CircleCI deploy component.
+
+Optionally filter by deploy environment with --environment.
+
+JSON fields: id, name, component_id, created_at
+
+| Flag                   | Description                                                                       |
+| ---------------------- | --------------------------------------------------------------------------------- |
+| `--environment string` | Filter by deploy environment ID                                                   |
+| `--jq string`          | Process values from the response using jq syntax (see `circleci help formatting`) |
+| `--json`               | Output as JSON                                                                    |
+
+
+**Arguments:**
+
+`<component-id>` is the UUID of the deploy component whose
+versions you want to list. Component IDs are shown in the output of
+`circleci deploy component list`.
+
+**Aliases:**
+
+
+`circleci component-version ls`
+
+**Examples:**
+
+- List versions of a component: 
+  `circleci component-version list a0000000-0000-4000-8000-000000c00001`
+- Filter by environment: 
+  `circleci component-version list a0000000-0000-4000-8000-000000c00001 --environment a0000000-0000-4000-8000-000000e00001`
+- Output as JSON: 
+  `circleci component-version list a0000000-0000-4000-8000-000000c00001 --json`
+
 ### `circleci context <command>`
 
 Manage secret env vars shared across pipelines
@@ -1506,32 +1554,6 @@ JSON fields: id, name, type, project_id
 - Output as JSON: 
   `circleci deploy component list --json`
 
-##### `circleci deploy component versions <component-id> [flags]`
-
-List versions of a deploy component
-
-List versions of a CircleCI deploy component.
-
-Optionally filter by deploy environment with --environment.
-
-JSON fields: id, name, component_id, created_at
-
-| Flag                   | Description                                                                       |
-| ---------------------- | --------------------------------------------------------------------------------- |
-| `--environment string` | Filter by deploy environment ID                                                   |
-| `--jq string`          | Process values from the response using jq syntax (see `circleci help formatting`) |
-| `--json`               | Output as JSON                                                                    |
-
-
-**Examples:**
-
-- List versions of a component: 
-  `circleci deploy component versions a0000000-0000-4000-8000-000000c00001`
-- Filter by environment: 
-  `circleci deploy component versions a0000000-0000-4000-8000-000000c00001 --environment a0000000-0000-4000-8000-000000e00001`
-- Output as JSON: 
-  `circleci deploy component versions a0000000-0000-4000-8000-000000c00001 --json`
-
 #### `circleci deploy environment <command>`
 
 Manage deploy environments
@@ -1711,6 +1733,48 @@ JSON fields: id, project_id, auto_cancel_redundant_deploys
   `circleci deploy settings --project gh/myorg/myrepo`
 - Output as JSON: 
   `circleci deploy settings --json`
+
+#### `circleci deploy version <command>`
+
+Manage deploy component versions
+
+List and inspect CircleCI deploy component versions.
+
+Deploy component versions represent specific released versions
+of a component across environments.
+
+##### `circleci deploy version list <component-id> [flags]`
+
+List versions of a deploy component
+
+List versions of a CircleCI deploy component.
+
+Optionally filter by deploy environment with --environment.
+
+JSON fields: id, name, component_id, created_at
+
+Primary alias: circleci component-version list <component-id>
+
+| Flag                   | Description                                                                       |
+| ---------------------- | --------------------------------------------------------------------------------- |
+| `--environment string` | Filter by deploy environment ID                                                   |
+| `--jq string`          | Process values from the response using jq syntax (see `circleci help formatting`) |
+| `--json`               | Output as JSON                                                                    |
+
+
+**Aliases:**
+
+
+`circleci deploy version ls`
+
+**Examples:**
+
+- List versions of a component: 
+  `circleci deploy version list a0000000-0000-4000-8000-000000c00001`
+- Filter by environment: 
+  `circleci deploy version list a0000000-0000-4000-8000-000000c00001 --environment a0000000-0000-4000-8000-000000e00001`
+- Output as JSON: 
+  `circleci deploy version list a0000000-0000-4000-8000-000000c00001 --json`
 
 ### `circleci dlc <command>`
 

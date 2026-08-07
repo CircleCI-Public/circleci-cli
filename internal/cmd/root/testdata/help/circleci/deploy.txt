@@ -21,9 +21,10 @@ Track released components and versions
 
 ## Component Commands
 
-| Command     | Description              |
-| ----------- | ------------------------ |
-| `component` | Manage deploy components |
+| Command     | Description                      |
+| ----------- | -------------------------------- |
+| `component` | Manage deploy components         |
+| `version`   | Manage deploy component versions |
 
 ## Flags
 

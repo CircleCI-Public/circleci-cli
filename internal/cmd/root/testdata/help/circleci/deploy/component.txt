@@ -6,11 +6,10 @@ Manage deploy components
 
 ## Available Commands
 
-| Command    | Description                         |
-| ---------- | ----------------------------------- |
-| `get`      | Get a deploy component              |
-| `list`     | List deploy components              |
-| `versions` | List versions of a deploy component |
+| Command | Description            |
+| ------- | ---------------------- |
+| `get`   | Get a deploy component |
+| `list`  | List deploy components |
 
 ## Flags
 

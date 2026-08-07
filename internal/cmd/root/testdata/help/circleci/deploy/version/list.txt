@@ -2,7 +2,9 @@ List versions of a deploy component
 
 ## Usage
 
-`circleci deploy component versions <component-id> [flags]`
+`circleci deploy version list <component-id> [flags]`
+
+Aliases: `circleci deploy version ls`
 
 ## Flags
 
@@ -17,11 +19,11 @@ Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `ci
 ## Examples
 
 - List versions of a component: 
-  `circleci deploy component versions a0000000-0000-4000-8000-000000c00001`
+  `circleci deploy version list a0000000-0000-4000-8000-000000c00001`
 - Filter by environment: 
-  `circleci deploy component versions a0000000-0000-4000-8000-000000c00001 --environment a0000000-0000-4000-8000-000000e00001`
+  `circleci deploy version list a0000000-0000-4000-8000-000000c00001 --environment a0000000-0000-4000-8000-000000e00001`
 - Output as JSON: 
-  `circleci deploy component versions a0000000-0000-4000-8000-000000c00001 --json`
+  `circleci deploy version list a0000000-0000-4000-8000-000000c00001 --json`
 
 ## Details
 
@@ -31,5 +33,5 @@ Optionally filter by deploy environment with --environment.
 
 JSON fields: id, name, component_id, created_at
 
-Primary alias: circleci component-version <component-id>
+Primary alias: circleci component-version list <component-id>
 

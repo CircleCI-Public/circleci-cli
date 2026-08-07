@@ -54,7 +54,6 @@ func newComponentCmd() *cobra.Command {
 
 	cmd.AddCommand(newComponentListCmd())
 	cmd.AddCommand(newComponentGetCmd())
-	cmd.AddCommand(newComponentVersionsCmd())
 
 	return cmd
 }
@@ -228,90 +227,3 @@ func runComponentGet(ctx context.Context, client *apiclient.Client, componentID 
 	return nil
 }
 
-// --- component versions ---
-
-type componentVersionEntry struct {
-	ID          string `json:"id"`
-	Name        string `json:"name"`
-	ComponentID string `json:"component_id"`
-	CreatedAt   string `json:"created_at"`
-}
-
-func newComponentVersionsCmd() *cobra.Command {
-	var (
-		envID   string
-		jsonOut bool
-	)
-
-	cmd := &cobra.Command{
-		Use:   "versions <component-id>",
-		Short: "List versions of a deploy component",
-		Long: heredoc.Doc(`
-			List versions of a CircleCI deploy component.
-
-			Optionally filter by deploy environment with --environment.
-
-			JSON fields: id, name, component_id, created_at
-		`),
-		Example: heredoc.Doc(`
-			# List versions of a component
-			$ circleci deploy component versions a0000000-0000-4000-8000-000000c00001
-
-			# Filter by environment
-			$ circleci deploy component versions a0000000-0000-4000-8000-000000c00001 --environment a0000000-0000-4000-8000-000000e00001
-
-			# Output as JSON
-			$ circleci deploy component versions a0000000-0000-4000-8000-000000c00001 --json
-		`),
-		Args: cobra.ExactArgs(1),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx := cmd.Context()
-			client, err := cmdutil.LoadClient(ctx)
-			if err != nil {
-				return err
-			}
-			return runComponentVersions(ctx, client, args[0], envID, jsonOut)
-		},
-	}
-
-	cmd.Flags().StringVar(&envID, "environment", "", "Filter by deploy environment ID")
-	cmdutil.AddJSONFlag(cmd, &jsonOut)
-	cmdutil.AddJQFlag(cmd)
-
-	return cmd
-}
-
-func runComponentVersions(ctx context.Context, client *apiclient.Client, componentID, envID string, jsonOut bool) error {
-	versions, err := client.ListComponentVersions(ctx, componentID, envID, 20)
-	if err != nil {
-		return cmdutil.APIErr(err, componentID,
-			"deploy.component.not_found", "No deploy component found for %q.",
-			"Check the component ID and try again")
-	}
-
-	entries := make([]componentVersionEntry, len(versions))
-	for i, v := range versions {
-		entries[i] = componentVersionEntry{
-			ID:          v.ID,
-			Name:        v.Attributes.Name,
-			ComponentID: v.References.Component.ID,
-			CreatedAt:   v.Attributes.CreatedAt.Format("2006-01-02 15:04 UTC"),
-		}
-	}
-
-	if jsonOut {
-		return iostream.PrintJSON(ctx, entries)
-	}
-
-	if len(entries) == 0 {
-		iostream.ErrPrintln(ctx, "No versions found.")
-		return nil
-	}
-
-	table := mdtable.New("ID", "Version", "Created")
-	for _, e := range entries {
-		table.Row(e.ID, e.Name, e.CreatedAt)
-	}
-	iostream.PrintMarkdown(ctx, "# Component Versions\n"+table.Render())
-	return nil
-}
