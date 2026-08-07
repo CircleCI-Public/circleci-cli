@@ -198,6 +198,12 @@ type CircleCI struct {
 	orgs        map[string]map[string]any
 	orgsByUUID  map[string]bool // org UUID → true
 	orgSettings map[string]any  // org UUID → attributes map
+
+	// Release state (GET /api/v3/tool/releases).
+	releaseTool        string    // tool name the fake answers for (default "circleci-cli")
+	releaseVersion     string    // version returned in the 200 response
+	releasePublishedAt time.Time // published_at returned in the 200 response
+	releaseStatus      int       // 0 → 200; otherwise the status to return
 }
 
 // orbFakeValidateResponse holds a preset validate/process response for testing.
@@ -390,6 +396,7 @@ func NewCircleCI(t *testing.T) *CircleCI {
 	r.Delete("/api/v3/signing/configs/{id}", f.handleDeleteIOSBundle)
 	// Config compile + org routes.
 	r.Post("/api/v2/compile-config-with-defaults", f.handleCompileConfig)
+	r.Get("/api/v3/tool/releases", f.handleGetReleases)
 	r.Get("/api/v3/orgs", f.handleResolveOrg)
 	r.Get("/api/v3/orgs/{id}/settings", f.handleGetOrgSettingsV3)
 	r.Post("/api/v3/orgs/{id}/update-settings", f.handleUpdateOrgSettingsV3)
@@ -544,6 +551,73 @@ func (f *CircleCI) handleDLCPurge(w http.ResponseWriter, r *http.Request) {
 		status = http.StatusNoContent
 	}
 	w.WriteHeader(status)
+}
+
+// SetLatestRelease registers the release returned by GET /api/v3/tool/releases
+// for the given tool. Clears any previously set non-200 status.
+func (f *CircleCI) SetLatestRelease(tool, version string, publishedAt time.Time) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.releaseTool = tool
+	f.releaseVersion = version
+	f.releasePublishedAt = publishedAt
+	f.releaseStatus = http.StatusOK
+}
+
+// SetReleaseStatus makes GET /api/v3/tool/releases answer with the given HTTP
+// status (e.g. 503 or 400) instead of a 200.
+func (f *CircleCI) SetReleaseStatus(status int) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.releaseStatus = status
+}
+
+// handleGetReleases serves GET /api/v3/tool/releases, a required-filter single
+// lookup modelled as a one-element collection. It honours filter[tool] and the
+// status override set via SetReleaseStatus.
+func (f *CircleCI) handleGetReleases(w http.ResponseWriter, r *http.Request) {
+	tool := r.URL.Query().Get("filter[tool]")
+
+	f.mu.RLock()
+	status := f.releaseStatus
+	wantTool := f.releaseTool
+	version := f.releaseVersion
+	publishedAt := f.releasePublishedAt
+	f.mu.RUnlock()
+
+	if wantTool == "" {
+		wantTool = "circleci-cli"
+	}
+
+	writeReleaseError := func(code int, title, detail string) {
+		render.Status(r, code)
+		render.JSON(w, r, map[string]any{"error": map[string]any{"title": title, "detail": detail}})
+	}
+
+	if tool == "" {
+		writeReleaseError(http.StatusBadRequest, "Missing Required Filter", "Query parameter 'filter[tool]' is required.")
+		return
+	}
+	if status != 0 && status != http.StatusOK {
+		writeReleaseError(status, http.StatusText(status), "release lookup failed")
+		return
+	}
+	if tool != wantTool {
+		writeReleaseError(http.StatusBadRequest, "Unknown Tool", "Unknown tool: "+tool)
+		return
+	}
+
+	w.Header().Set("Cache-Control", "private, max-age=3600")
+	render.JSON(w, r, map[string]any{
+		"data": []any{map[string]any{
+			"id": "b0f8c1e2-4d3a-5f6b-8c7d-9e0f1a2b3c4d",
+			"attributes": map[string]any{
+				"tool":         tool,
+				"version":      version,
+				"published_at": publishedAt.UTC().Format(time.RFC3339Nano),
+			},
+		}},
+	})
 }
 
 // AddRun registers a run response for GET /api/v2/pipeline/<id>.

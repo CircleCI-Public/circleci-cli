@@ -245,6 +245,7 @@ through `iostream.Streams`.
 | `CIRCLE_NO_INTERACTIVE` | Suppress all interactive prompts | `iostream` |
 | `CI` | Set by CI systems. Implies non-interactive (so: no prompts, no spinner) **and** disables telemetry | `iostream`, `config` |
 | `CIRCLE_SPINNER_DISABLED` | Replace the animated spinner with plain text | `iostream` |
+| `CIRCLE_NO_UPDATE_CHECK` | Disable checking for newer CLI releases. Same as `setting set update-check off` | `config.IsUpdateCheck()` |
 | `CIRCLE_NO_PAGER` | Print long output inline instead of through a pager | `iostream` |
 | `PAGER` | Pager program for long output. Unset → built-in scrollable viewer; `cat` or empty → paging off | `iostream` |
 | `CIRCLE_NO_TELEMETRY` | Disable telemetry | `config` |
@@ -259,6 +260,7 @@ through `iostream.Streams`.
 | `TERM` | `TERM=dumb` disables color — except inside CircleCI (see `CIRCLECI` above) | `iostream` |
 | `XDG_CONFIG_HOME` | Config dir base (default `~/.config`) → `<base>/circleci/config.yml` | `config` |
 | `XDG_DATA_HOME` | Data dir base (default `~/.local/share`) → `<base>/circleci/extensions` | `config` |
+| `XDG_STATE_HOME` | State dir base (default `~/.local/state`) → `<base>/circleci/state.yml` (update-check bookkeeping) | `config` |
 
 **Set by the CLI for child processes — read these, don't set them:**
 
@@ -278,6 +280,7 @@ through `iostream.Streams`.
 | `CIRCLE_ORB_TEMPLATE_URL` | Override the Orb-Template source for `orb init` |
 | `CIRCLE_LOGIN_TIMEOUT` | Duration string overriding the `auth login` browser-flow timeout |
 | `CIRCLE_SHA_WAIT_MS` | Shortens how long `run watch` waits for a SHA to appear |
+| `__CIRCLE_UPDATE_FORCE` | Bypasses the update notifier's TTY/dev-build gates and supplies the version to treat as current (`internal/update`). Double-underscore = internal, never user-set |
 
 ---
 

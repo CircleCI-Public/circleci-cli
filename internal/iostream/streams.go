@@ -156,6 +156,10 @@ func IsTerminal(ctx context.Context) bool {
 	return fromContext(ctx).IsTerminal()
 }
 
+func ErrIsTerminal(ctx context.Context) bool {
+	return fromContext(ctx).ErrIsTerminal()
+}
+
 func ColorEnabled(ctx context.Context) bool {
 	return fromContext(ctx).ColorEnabled()
 }
@@ -470,6 +474,16 @@ func terminalProperties(theme string, in io.Reader, out io.Writer) (width int, s
 // IsTerminal reports whether Out is a terminal (i.e. a human is watching).
 func (s Streams) IsTerminal() bool {
 	if f, ok := s.Out.(*os.File); ok {
+		return term.IsTerminal(f.Fd())
+	}
+	return false
+}
+
+// ErrIsTerminal reports whether Err is a terminal. The update notifier requires
+// both Out and Err to be TTYs before printing, so any pipe or redirect on
+// either stream silences it — see internal/update.ShouldCheck.
+func (s Streams) ErrIsTerminal() bool {
+	if f, ok := s.Err.(*os.File); ok {
 		return term.IsTerminal(f.Fd())
 	}
 	return false
