@@ -1,0 +1,8 @@
+Usage:  circleci component-version list <component-id> [flags]
+
+Flags:
+      --environment string   Filter by deploy environment ID
+  -h, --help                 help for list
+      --jq string            Process values from the response using jq syntax
+      --json                 Output as JSON
+  

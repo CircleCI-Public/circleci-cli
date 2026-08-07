@@ -133,7 +133,13 @@ type CircleCI struct {
 	deletedContextRestrictions map[string]bool  // "contextID/restrictionID" → deleted
 
 	// Deploy state.
-	deployments map[string][]any // project id → deployments
+	deployments     map[string][]any // project id → deployments
+	environments    []any            // all environments (filtered by org_id in handler)
+	environmentByID map[string]any   // environment UUID → environment entity
+	components      map[string][]any // org_id → components list
+	componentByID   map[string]any   // component UUID → component entity
+	compVersions    map[string][]any // component UUID → version entities
+	deploySettings  map[string]any   // project UUID → settings entity
 
 	// Policy state.
 	policyBundles   map[string]map[string]string // "ownerID/ctx" → bundle
@@ -264,6 +270,12 @@ func NewCircleCI(t *testing.T) *CircleCI {
 		projectsBySlug:                    map[string]any{},
 		projectSettings:                   map[string]any{},
 		deployments:                       map[string][]any{},
+		environments:                      []any{},
+		environmentByID:                   map[string]any{},
+		components:                        map[string][]any{},
+		componentByID:                     map[string]any{},
+		compVersions:                      map[string][]any{},
+		deploySettings:                    map[string]any{},
 		policyBundles:                     make(map[string]map[string]string),
 		decisionLogs:                      make(map[string][]any),
 		decisionResults:                   make(map[string]any),
@@ -361,8 +373,14 @@ func NewCircleCI(t *testing.T) *CircleCI {
 		r.Patch("/decision/settings", f.handleSetPolicySettings)
 		r.Get("/decision/{id}", f.handleGetDecisionLog)
 	})
-	// Deploy routes.
+	// Deploy routes. Static sub-paths must be registered before the {id} catch-alls.
 	r.Get("/api/v3/deploy/deployments", f.handleListDeployments)
+	r.Get("/api/v3/deploy/environments", f.handleListEnvironments)
+	r.Get("/api/v3/deploy/environments/{id}", f.handleGetEnvironment)
+	r.Get("/api/v3/deploy/components", f.handleListComponents)
+	r.Get("/api/v3/deploy/components/{id}/versions", f.handleListComponentVersions)
+	r.Get("/api/v3/deploy/components/{id}", f.handleGetComponent)
+	r.Get("/api/v3/deploy/settings", f.handleGetDeploySettings)
 	// iOS code signing routes (V3).
 	r.Post("/api/v3/signing/certificates", f.handleUploadIOSCert)
 	r.Get("/api/v3/signing/certificates", f.handleListIOSCerts)
@@ -2587,6 +2605,168 @@ func (f *CircleCI) handleListDeployments(w http.ResponseWriter, r *http.Request)
 		items = []any{}
 	}
 	render.JSON(w, r, map[string]any{"data": items, "page": map[string]any{}})
+}
+
+// AddEnvironment registers a deploy environment.
+// The environment must be in V3 entity format with "id", "attributes", and "references".
+// orgID is used to filter by filter[org_id] in the list handler.
+func (f *CircleCI) AddEnvironment(orgID string, environment any) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.environments = append(f.environments, map[string]any{
+		"org_id": orgID,
+		"entity": environment,
+	})
+	if m, ok := environment.(map[string]any); ok {
+		if id, ok := m["id"].(string); ok {
+			f.environmentByID[id] = environment
+		}
+	}
+}
+
+func (f *CircleCI) handleListEnvironments(w http.ResponseWriter, r *http.Request) {
+	orgID := r.URL.Query().Get("filter[org_id]")
+	f.mu.RLock()
+	all := f.environments
+	f.mu.RUnlock()
+
+	items := []any{}
+	for _, entry := range all {
+		m, ok := entry.(map[string]any)
+		if !ok {
+			continue
+		}
+		if orgID == "" || m["org_id"] == orgID {
+			items = append(items, m["entity"])
+		}
+	}
+	render.JSON(w, r, map[string]any{"data": items, "page": map[string]any{}})
+}
+
+func (f *CircleCI) handleGetEnvironment(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	f.mu.RLock()
+	env, ok := f.environmentByID[id]
+	f.mu.RUnlock()
+
+	if !ok {
+		render.Status(r, http.StatusNotFound)
+		render.JSON(w, r, map[string]any{"message": "not found"})
+		return
+	}
+	render.JSON(w, r, map[string]any{"data": env})
+}
+
+// AddComponent registers a deploy component.
+// orgID is derived from the component entity's references.project.id via projectID mapping.
+// projectID is used to filter by org. Pass the org UUID in orgID for filtering.
+func (f *CircleCI) AddComponent(orgID string, component any) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.components[orgID] = append(f.components[orgID], component)
+	if m, ok := component.(map[string]any); ok {
+		if id, ok := m["id"].(string); ok {
+			f.componentByID[id] = component
+		}
+	}
+}
+
+func (f *CircleCI) handleListComponents(w http.ResponseWriter, r *http.Request) {
+	orgID := r.URL.Query().Get("filter[org_id]")
+	projectID := r.URL.Query().Get("filter[project_id]")
+	f.mu.RLock()
+	items := f.components[orgID]
+	f.mu.RUnlock()
+
+	if items == nil {
+		items = []any{}
+	}
+
+	if projectID != "" {
+		filtered := []any{}
+		for _, item := range items {
+			m, ok := item.(map[string]any)
+			if !ok {
+				continue
+			}
+			refs, _ := m["references"].(map[string]any)
+			proj, _ := refs["project"].(map[string]any)
+			if projID, _ := proj["id"].(string); projID == projectID {
+				filtered = append(filtered, item)
+			}
+		}
+		items = filtered
+	}
+	render.JSON(w, r, map[string]any{"data": items, "page": map[string]any{}})
+}
+
+func (f *CircleCI) handleGetComponent(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	f.mu.RLock()
+	comp, ok := f.componentByID[id]
+	f.mu.RUnlock()
+
+	if !ok {
+		render.Status(r, http.StatusNotFound)
+		render.JSON(w, r, map[string]any{"message": "not found"})
+		return
+	}
+	render.JSON(w, r, map[string]any{"data": comp})
+}
+
+// AddComponentVersion registers a version for a deploy component.
+func (f *CircleCI) AddComponentVersion(componentID string, version any) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.compVersions[componentID] = append(f.compVersions[componentID], version)
+}
+
+func (f *CircleCI) handleListComponentVersions(w http.ResponseWriter, r *http.Request) {
+	componentID := chi.URLParam(r, "id")
+	envID := r.URL.Query().Get("filter[environment_id]")
+	f.mu.RLock()
+	items := f.compVersions[componentID]
+	f.mu.RUnlock()
+
+	if items == nil {
+		items = []any{}
+	}
+
+	if envID != "" {
+		filtered := []any{}
+		for _, item := range items {
+			m, ok := item.(map[string]any)
+			if !ok {
+				continue
+			}
+			refs, _ := m["references"].(map[string]any)
+			env, _ := refs["environment"].(map[string]any)
+			if eID, _ := env["id"].(string); eID == envID {
+				filtered = append(filtered, item)
+			}
+		}
+		items = filtered
+	}
+	render.JSON(w, r, map[string]any{"data": items, "page": map[string]any{}})
+}
+
+// SetDeploySettings registers deploy settings for a project.
+func (f *CircleCI) SetDeploySettings(projectID string, settings any) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.deploySettings[projectID] = settings
+}
+
+func (f *CircleCI) handleGetDeploySettings(w http.ResponseWriter, r *http.Request) {
+	projectID := r.URL.Query().Get("filter[project_id]")
+	f.mu.RLock()
+	settings, ok := f.deploySettings[projectID]
+	f.mu.RUnlock()
+
+	if !ok {
+		settings = map[string]any{"id": projectID, "attributes": map[string]any{}, "references": map[string]any{"project": map[string]any{"id": projectID}}}
+	}
+	render.JSON(w, r, map[string]any{"data": settings})
 }
 
 func (f *CircleCI) handleDeleteEnvVar(w http.ResponseWriter, r *http.Request) {

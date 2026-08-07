@@ -1,0 +1,4 @@
+Usage:  circleci component-version <command> [flags]
+
+Available commands:
+  list

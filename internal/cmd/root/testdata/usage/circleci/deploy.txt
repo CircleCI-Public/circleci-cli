@@ -1,6 +1,10 @@
 Usage:  circleci deploy <command> [flags]
 
 Available commands:
+  component
+  environment
   init
   list
   open
+  settings
+  version

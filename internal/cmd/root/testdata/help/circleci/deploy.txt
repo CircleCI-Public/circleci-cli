@@ -6,11 +6,25 @@ Track released components and versions
 
 ## General Commands
 
-| Command | Description                                |
-| ------- | ------------------------------------------ |
-| `init`  | Instrument your config for deploy tracking |
-| `list`  | List recent deploys                        |
-| `open`  | Open the deploys page in the browser       |
+| Command    | Description                                |
+| ---------- | ------------------------------------------ |
+| `init`     | Instrument your config for deploy tracking |
+| `list`     | List recent deploys                        |
+| `open`     | Open the deploys page in the browser       |
+| `settings` | Get deploy settings for a project          |
+
+## Environment Commands
+
+| Command       | Description                |
+| ------------- | -------------------------- |
+| `environment` | Manage deploy environments |
+
+## Component Commands
+
+| Command     | Description                      |
+| ----------- | -------------------------------- |
+| `component` | Manage deploy components         |
+| `version`   | Manage deploy component versions |
 
 ## Flags
 

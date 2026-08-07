@@ -1,0 +1,8 @@
+Usage:  circleci deploy environment list [flags]
+
+Flags:
+  -h, --help         help for list
+      --jq string    Process values from the response using jq syntax
+      --json         Output as JSON
+      --org string   Organization slug (e.g. gh/myorg); defaults to git remote
+  

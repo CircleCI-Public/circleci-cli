@@ -176,3 +176,269 @@ func TestDeployList_NoToken(t *testing.T) {
 
 	assert.Equal(t, result.ExitCode, 3, "stderr: %s", result.Stderr)
 }
+
+// --- deploy environment ---
+
+func setupDeployEnvironmentFake(t *testing.T) (*fakes.CircleCI, *testenv.TestEnv) {
+	t.Helper()
+	fake := fakes.NewCircleCI(t)
+
+	const orgID = "a0000000-0000-4000-8000-0000000f0002"
+	fake.AddOrg(orgID, "gh/myorg", "myorg", "github")
+
+	fake.AddEnvironment(orgID, map[string]any{
+		"id": "a0000000-0000-4000-8000-000000e00001",
+		"attributes": map[string]any{
+			"name": "production",
+		},
+		"references": map[string]any{
+			"org": map[string]any{"id": orgID},
+		},
+	})
+	fake.AddEnvironment(orgID, map[string]any{
+		"id": "a0000000-0000-4000-8000-000000e00002",
+		"attributes": map[string]any{
+			"name": "staging",
+		},
+		"references": map[string]any{
+			"org": map[string]any{"id": orgID},
+		},
+	})
+
+	env := testenv.New(t)
+	env.Token = "testtoken"
+	env.CircleCIURL = fake.URL()
+	return fake, env
+}
+
+func TestDeployEnvironmentList(t *testing.T) {
+	_, env := setupDeployEnvironmentFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"deploy", "environment", "list", "--org", "gh/myorg"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+}
+
+func TestDeployEnvironmentList_JSON(t *testing.T) {
+	_, env := setupDeployEnvironmentFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"deploy", "environment", "list", "--org", "gh/myorg", "--json"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".json"))
+}
+
+func TestDeployEnvironmentGet(t *testing.T) {
+	_, env := setupDeployEnvironmentFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"deploy", "environment", "get", "a0000000-0000-4000-8000-000000e00001"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+}
+
+// --- deploy component ---
+
+func setupDeployComponentFake(t *testing.T) (*fakes.CircleCI, *testenv.TestEnv) {
+	t.Helper()
+	fake := fakes.NewCircleCI(t)
+
+	const (
+		orgID     = "a0000000-0000-4000-8000-0000000f0002"
+		projectID = "a0000000-0000-4000-8000-0000000f0001"
+	)
+	fake.AddProjectBySlug("gh/myorg/alpha", projectID, "alpha", orgID)
+
+	fake.AddComponent(orgID, map[string]any{
+		"id": "a0000000-0000-4000-8000-000000c00001",
+		"attributes": map[string]any{
+			"name": "web-frontend",
+			"type": "service",
+		},
+		"references": map[string]any{
+			"project": map[string]any{"id": projectID},
+		},
+	})
+	fake.AddComponent(orgID, map[string]any{
+		"id": "a0000000-0000-4000-8000-000000c00002",
+		"attributes": map[string]any{
+			"name": "api-server",
+			"type": "service",
+		},
+		"references": map[string]any{
+			"project": map[string]any{"id": projectID},
+		},
+	})
+
+	fake.AddComponentVersion("a0000000-0000-4000-8000-000000c00001", map[string]any{
+		"id": "a0000000-0000-4000-8000-000000v00001",
+		"attributes": map[string]any{
+			"name":       "1.3.0",
+			"created_at": "2026-04-28T14:00:00Z",
+		},
+		"references": map[string]any{
+			"component": map[string]any{"id": "a0000000-0000-4000-8000-000000c00001"},
+		},
+	})
+	fake.AddComponentVersion("a0000000-0000-4000-8000-000000c00001", map[string]any{
+		"id": "a0000000-0000-4000-8000-000000v00002",
+		"attributes": map[string]any{
+			"name":       "1.2.0",
+			"created_at": "2026-04-20T10:00:00Z",
+		},
+		"references": map[string]any{
+			"component": map[string]any{"id": "a0000000-0000-4000-8000-000000c00001"},
+		},
+	})
+
+	env := testenv.New(t)
+	env.Token = "testtoken"
+	env.CircleCIURL = fake.URL()
+	return fake, env
+}
+
+func TestDeployComponentList(t *testing.T) {
+	_, env := setupDeployComponentFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"deploy", "component", "list", "--project", "gh/myorg/alpha"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+}
+
+func TestDeployComponentList_JSON(t *testing.T) {
+	_, env := setupDeployComponentFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"deploy", "component", "list", "--project", "gh/myorg/alpha", "--json"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".json"))
+}
+
+func TestDeployComponentGet(t *testing.T) {
+	_, env := setupDeployComponentFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"deploy", "component", "get", "a0000000-0000-4000-8000-000000c00001"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+}
+
+func TestDeployVersionList(t *testing.T) {
+	_, env := setupDeployComponentFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"deploy", "version", "list", "a0000000-0000-4000-8000-000000c00001"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+}
+
+// --- deploy settings ---
+
+func setupDeploySettingsFake(t *testing.T) (*fakes.CircleCI, *testenv.TestEnv) {
+	t.Helper()
+	fake := fakes.NewCircleCI(t)
+
+	const (
+		orgID     = "a0000000-0000-4000-8000-0000000f0002"
+		projectID = "a0000000-0000-4000-8000-0000000f0001"
+	)
+	fake.AddProjectBySlug("gh/myorg/alpha", projectID, "alpha", orgID)
+
+	fake.SetDeploySettings(projectID, map[string]any{
+		"id": "a0000000-0000-4000-8000-000000s00001",
+		"attributes": map[string]any{
+			"auto_cancel_redundant_deploys": true,
+		},
+		"references": map[string]any{
+			"project": map[string]any{"id": projectID},
+		},
+	})
+
+	env := testenv.New(t)
+	env.Token = "testtoken"
+	env.CircleCIURL = fake.URL()
+	return fake, env
+}
+
+func TestDeploySettings(t *testing.T) {
+	_, env := setupDeploySettingsFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"deploy", "settings", "--project", "gh/myorg/alpha"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+}
+
+func TestDeploySettings_JSON(t *testing.T) {
+	_, env := setupDeploySettingsFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"deploy", "settings", "--project", "gh/myorg/alpha", "--json"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".json"))
+}
+
+func TestDeploySettings_Empty(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	fake.AddProjectBySlug("gh/myorg/alpha", "a0000000-0000-4000-8000-0000000f0001", "alpha", "a0000000-0000-4000-8000-0000000f0002")
+	env := testenv.New(t)
+	env.Token = "testtoken"
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"deploy", "settings", "--project", "gh/myorg/alpha"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+}

@@ -1,0 +1,34 @@
+Get deploy settings for a project
+
+## Usage
+
+`circleci deploy settings [flags]`
+
+## Flags
+
+| Flag               | Description                                                                       |
+| ------------------ | --------------------------------------------------------------------------------- |
+| `--jq string`      | Process values from the response using jq syntax (see `circleci help formatting`) |
+| `--json`           | Output as JSON                                                                    |
+| `--project string` | Project slug (e.g. gh/org/repo); defaults to git remote                           |
+
+Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `circleci --help`.
+
+## Examples
+
+- Get deploy settings for the current git remote's project: 
+  `circleci deploy settings`
+- Get settings for a specific project: 
+  `circleci deploy settings --project gh/myorg/myrepo`
+- Output as JSON: 
+  `circleci deploy settings --json`
+
+## Details
+
+Get deploy settings for a CircleCI project.
+
+The project is inferred from the current git repository's remote
+unless overridden with --project.
+
+JSON fields: id, project_id
+

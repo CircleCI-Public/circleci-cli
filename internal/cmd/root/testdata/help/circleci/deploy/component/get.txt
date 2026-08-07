@@ -1,0 +1,30 @@
+Get a deploy component
+
+## Usage
+
+`circleci deploy component get <component-id> [flags]`
+
+## Flags
+
+| Flag          | Description                                                                       |
+| ------------- | --------------------------------------------------------------------------------- |
+| `--jq string` | Process values from the response using jq syntax (see `circleci help formatting`) |
+| `--json`      | Output as JSON                                                                    |
+
+Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `circleci --help`.
+
+## Examples
+
+- Get a deploy component by ID: 
+  `circleci deploy component get a0000000-0000-4000-8000-000000c00001`
+- Output as JSON: 
+  `circleci deploy component get a0000000-0000-4000-8000-000000c00001 --json`
+- Filter JSON output with jq: 
+  `circleci deploy component get a0000000-0000-4000-8000-000000c00001 --json --jq '.name'`
+
+## Details
+
+Get details about a CircleCI deploy component by ID.
+
+JSON fields: id, name, project_id
+

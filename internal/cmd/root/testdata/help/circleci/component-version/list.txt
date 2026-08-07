@@ -1,0 +1,41 @@
+List versions of a deploy component
+
+## Usage
+
+`circleci component-version list <component-id> [flags]`
+
+Aliases: `circleci component-version ls`
+
+## Arguments
+
+`<component-id>` is the UUID of the deploy component whose
+versions you want to list. Component IDs are shown in the output of
+`circleci deploy component list`.
+
+## Flags
+
+| Flag                   | Description                                                                       |
+| ---------------------- | --------------------------------------------------------------------------------- |
+| `--environment string` | Filter by deploy environment ID                                                   |
+| `--jq string`          | Process values from the response using jq syntax (see `circleci help formatting`) |
+| `--json`               | Output as JSON                                                                    |
+
+Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `circleci --help`.
+
+## Examples
+
+- List versions of a component: 
+  `circleci component-version list a0000000-0000-4000-8000-000000c00001`
+- Filter by environment: 
+  `circleci component-version list a0000000-0000-4000-8000-000000c00001 --environment a0000000-0000-4000-8000-000000e00001`
+- Output as JSON: 
+  `circleci component-version list a0000000-0000-4000-8000-000000c00001 --json`
+
+## Details
+
+List versions of a CircleCI deploy component.
+
+Optionally filter by deploy environment with --environment.
+
+JSON fields: name, component_id, created_at
+

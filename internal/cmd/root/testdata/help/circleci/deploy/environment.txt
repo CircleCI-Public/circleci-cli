@@ -1,0 +1,24 @@
+Manage deploy environments
+
+## Usage
+
+`circleci deploy environment <command> [flags]`
+
+## Available Commands
+
+| Command | Description              |
+| ------- | ------------------------ |
+| `get`   | Get a deploy environment |
+| `list`  | List deploy environments |
+
+## Flags
+
+Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `circleci --help`.
+
+## Details
+
+List and inspect CircleCI deploy environments.
+
+Deploy environments represent targets such as production or staging
+where components are deployed.
+

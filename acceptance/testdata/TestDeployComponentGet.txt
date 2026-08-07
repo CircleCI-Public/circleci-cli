@@ -1,0 +1,5 @@
+# Deploy Component
+
+**ID:** a0000000-0000-4000-8000-000000c00001
+**Name:** web-frontend
+**Project ID:** a0000000-0000-4000-8000-0000000f0001

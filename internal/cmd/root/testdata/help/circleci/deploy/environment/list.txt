@@ -1,0 +1,36 @@
+List deploy environments
+
+## Usage
+
+`circleci deploy environment list [flags]`
+
+Aliases: `circleci deploy environment ls`
+
+## Flags
+
+| Flag           | Description                                                                       |
+| -------------- | --------------------------------------------------------------------------------- |
+| `--jq string`  | Process values from the response using jq syntax (see `circleci help formatting`) |
+| `--json`       | Output as JSON                                                                    |
+| `--org string` | Organization slug (e.g. gh/myorg); defaults to git remote                         |
+
+Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `circleci --help`.
+
+## Examples
+
+- List environments for the current git remote's org: 
+  `circleci deploy environment list`
+- List environments for a specific org: 
+  `circleci deploy environment list --org gh/myorg`
+- Output as JSON: 
+  `circleci deploy environment list --json`
+
+## Details
+
+List deploy environments for a CircleCI organization.
+
+The organization is inferred from the current git repository's remote
+unless overridden with --org.
+
+JSON fields: id, name, org_id
+
