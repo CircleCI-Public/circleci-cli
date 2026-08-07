@@ -27,62 +27,66 @@ import (
 	"time"
 )
 
-// Deploy represents a deploy returned by the CircleCI Deploy API.
-type Deploy struct {
-	ID             string    `json:"id"`
-	ProjectID      string    `json:"project_id"`
-	ComponentID    string    `json:"component_id"`
-	ComponentName  string    `json:"component_name"`
-	Type           string    `json:"type"`
-	Status         string    `json:"status"`
-	TargetVersion  *Version  `json:"target_version"`
-	PipelineID     string    `json:"pipeline_id,omitempty"`
-	WorkflowID     string    `json:"workflow_id,omitempty"`
-	PlanIsRollback bool      `json:"plan_is_rollback"`
-	IsRedeploy     bool      `json:"is_rerelease"`
-	FailureReason  string    `json:"failure_reason,omitempty"`
-	CreatedAt      time.Time `json:"created_at"`
-	StartedAt      time.Time `json:"started_at"`
-	EndedAt        time.Time `json:"ended_at"`
+// V3Deployment represents a deployment returned by GET /api/v3/deploy/deployments.
+type V3Deployment struct {
+	ID         string             `json:"id"`
+	Attributes v3DeployAttributes `json:"attributes"`
+	References v3DeployReferences `json:"references"`
 }
 
-// Version holds a version name.
-type Version struct {
-	Name string `json:"name"`
+type v3DeployAttributes struct {
+	Type          string `json:"type"`
+	Status        string `json:"status"`
+	TargetVersion struct {
+		Name string `json:"name"`
+	} `json:"target_version"`
+	IsRollback bool       `json:"is_rollback"`
+	CreatedAt  time.Time  `json:"created_at"`
+	EndedAt    *time.Time `json:"ended_at,omitempty"`
 }
 
-// ListDeploys returns up to limit deploys for a project. It paginates the API
-// automatically until the limit is reached or all results are exhausted. Pass
-// limit <= 0 for no limit (fetches all pages).
-func (c *Client) ListDeploys(ctx context.Context, projectID, orgID string, limit int) ([]Deploy, error) {
-	var all []Deploy
-	pageToken := ""
+type v3DeployReferences struct {
+	DeployComponent struct {
+		ID         string `json:"id"`
+		Attributes struct {
+			Name string `json:"name"`
+		} `json:"attributes"`
+	} `json:"deploy_component"`
+	Pipeline *v3RefID `json:"pipeline,omitempty"`
+	Workflow *v3RefID `json:"workflow,omitempty"`
+}
+
+type v3RefID struct {
+	ID string `json:"id"`
+}
+
+// ListDeployments returns up to limit deployments for an org, optionally filtered
+// by project. Pass limit <= 0 for no limit (fetches all pages).
+func (c *Client) ListDeployments(ctx context.Context, orgID, projectID string, limit int) ([]V3Deployment, error) {
+	var all []V3Deployment
+	cursor := ""
 
 	for {
-		var resp struct {
-			Items         []Deploy `json:"items"`
-			NextPageToken string   `json:"next_page_token"`
-		}
-
-		err := c.get(ctx, "/deploy/projects/%s/releases", &resp,
-			routeParams(projectID),
-			queryParam("org-id", orgID),
-			queryParam("page-size", "10"),
-			optionalQueryParam("page-token", pageToken),
+		var resp v3List[V3Deployment]
+		err := c.getV3(ctx, "/deploy/deployments", &resp,
+			queryParam("filter[org_id]", orgID),
+			filterParam("project_id", projectID),
+			pageLimit(limit),
+			pageCursor(cursor),
 		)
 		if err != nil {
 			return nil, err
 		}
 
-		all = append(all, resp.Items...)
+		all = append(all, resp.Data...)
 
 		if limit > 0 && len(all) >= limit {
 			return all[:limit], nil
 		}
 
-		if resp.NextPageToken == "" {
+		if resp.Page.Next == nil || *resp.Page.Next == "" {
 			return all, nil
 		}
-		pageToken = resp.NextPageToken
+		cursor = *resp.Page.Next
 	}
 }

@@ -114,33 +114,34 @@ func runList(ctx context.Context, client *apiclient.Client, projectSlug string, 
 			"Use 'circleci project list' to see followed projects")
 	}
 
-	deploys, err := client.ListDeploys(ctx, proj.ID.String(), proj.OrgID.String(), 10)
+	deployments, err := client.ListDeployments(ctx, proj.OrgID.String(), proj.ID.String(), 10)
 	if err != nil {
 		return apiErr(err, projectSlug)
 	}
 
-	entries := make([]deployEntry, len(deploys))
-	for i, d := range deploys {
-		version := ""
-		if d.TargetVersion != nil {
-			version = d.TargetVersion.Name
-		}
+	entries := make([]deployEntry, len(deployments))
+	for i, d := range deployments {
 		endedAt := ""
-		if !d.EndedAt.IsZero() {
-			endedAt = d.EndedAt.Format("2006-01-02 15:04 UTC")
+		if d.Attributes.EndedAt != nil {
+			endedAt = d.Attributes.EndedAt.Format("2006-01-02 15:04 UTC")
 		}
-		entries[i] = deployEntry{
+		entry := deployEntry{
 			ID:            d.ID,
-			ComponentName: d.ComponentName,
-			Version:       version,
-			Type:          d.Type,
-			Status:        d.Status,
-			IsRollback:    d.PlanIsRollback,
-			PipelineID:    d.PipelineID,
-			WorkflowID:    d.WorkflowID,
-			CreatedAt:     d.CreatedAt.Format("2006-01-02 15:04 UTC"),
+			ComponentName: d.References.DeployComponent.Attributes.Name,
+			Version:       d.Attributes.TargetVersion.Name,
+			Type:          d.Attributes.Type,
+			Status:        d.Attributes.Status,
+			IsRollback:    d.Attributes.IsRollback,
+			CreatedAt:     d.Attributes.CreatedAt.Format("2006-01-02 15:04 UTC"),
 			EndedAt:       endedAt,
 		}
+		if d.References.Pipeline != nil {
+			entry.PipelineID = d.References.Pipeline.ID
+		}
+		if d.References.Workflow != nil {
+			entry.WorkflowID = d.References.Workflow.ID
+		}
+		entries[i] = entry
 	}
 
 	if jsonOut {
