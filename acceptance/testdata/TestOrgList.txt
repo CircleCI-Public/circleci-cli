@@ -1,4 +1,4 @@
 # Organizations
-| Slug     | Name  | VCS    | Organization ID                      |
-| -------- | ----- | ------ | ------------------------------------ |
-| gh/myorg | myorg | github | a0000000-0000-4000-8000-0000000c0002 |
+| Slug     | Name  | VCS    | Organization ID                        |
+| -------- | ----- | ------ | -------------------------------------- |
+| gh/myorg | myorg | github | `a0000000-0000-4000-8000-0000000c0002` |

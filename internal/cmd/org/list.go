@@ -116,7 +116,7 @@ func runOrgList(ctx context.Context, client *apiclient.Client, jsonOut bool) err
 				vcs = parts[0]
 			}
 		}
-		tbl.Row(o.Slug, o.Name, vcs, o.ID)
+		tbl.Row(o.Slug, o.Name, vcs, "`"+o.ID+"`")
 	}
 	iostream.PrintMarkdown(ctx, fmt.Sprintf("# Organizations\n%s", tbl.Render()))
 	return nil
