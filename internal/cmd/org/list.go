@@ -107,7 +107,7 @@ func runOrgList(ctx context.Context, client *apiclient.Client, jsonOut bool) err
 		return nil
 	}
 
-	tbl := mdtable.New("Slug", "Name", "VCS")
+	tbl := mdtable.New("Slug", "Name", "VCS", "ID")
 	for _, o := range out {
 		vcs := o.VCSType
 		if vcs == "" {
@@ -116,7 +116,7 @@ func runOrgList(ctx context.Context, client *apiclient.Client, jsonOut bool) err
 				vcs = parts[0]
 			}
 		}
-		tbl.Row(o.Slug, o.Name, vcs)
+		tbl.Row(o.Slug, o.Name, vcs, o.ID)
 	}
 	iostream.PrintMarkdown(ctx, fmt.Sprintf("# Organizations\n%s", tbl.Render()))
 	return nil
