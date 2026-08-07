@@ -507,6 +507,7 @@ const (
 	irunWfID   = "b0000000-0000-4000-8000-0000000000a1"
 	irunJob1ID = "d0000000-0000-4000-8000-0000000000a1"
 	irunJob2ID = "d0000000-0000-4000-8000-0000000000a2"
+	irunJob3ID = "d0000000-0000-4000-8000-0000000000a3"
 
 	// keyEsc is a lone Escape byte. In the interactive picker esc means "go
 	// back a step" (except on the first picker, where it quits).
@@ -547,10 +548,31 @@ func setupRunGetInteractiveFake(t *testing.T) *testenv.TestEnv {
 	wf := fakeWorkflowV3(irunWfID, "build", irunRun1ID, runTestProjectID, "ended", "succeeded")
 	fake.AddRunWorkflowsV3(irunRun1ID, wf)
 	fake.AddWorkflowV3(irunWfID, wf)
+	// A job that has not started, wired the way the API really reports one. The
+	// jobs *list* calls it "started" the moment the workflow dispatches it and
+	// simply omits started_at; the job's own detail endpoint says "queued" and
+	// carries no parallel executions. Reported verbatim the row would draw the
+	// running ● and then have no steps to drill into.
+	queuedListJob := fakeJobV3(irunJob3ID, "publish", irunWfID, runTestProjectID)
+	queuedListAttrs := queuedListJob["attributes"].(map[string]any)
+	queuedListAttrs["phase"] = "started"
+	delete(queuedListAttrs, "outcome")
+	delete(queuedListAttrs, "started_at")
+	delete(queuedListAttrs, "ended_at")
+
+	queuedDetailJob := fakeJobV3(irunJob3ID, "publish", irunWfID, runTestProjectID)
+	queuedDetailAttrs := queuedDetailJob["attributes"].(map[string]any)
+	queuedDetailAttrs["phase"] = "queued"
+	delete(queuedDetailAttrs, "outcome")
+	delete(queuedDetailAttrs, "started_at")
+	delete(queuedDetailAttrs, "ended_at")
+
 	fake.AddWorkflowJobsV3(irunWfID,
 		fakeJobV3(irunJob1ID, "run-tests", irunWfID, runTestProjectID),
 		fakeJobV3(irunJob2ID, "deploy", irunWfID, runTestProjectID),
+		queuedListJob,
 	)
+	fake.AddJobV3(irunJob3ID, map[string]any{"data": queuedDetailJob})
 
 	// The job the step picker drills into: two steps, the second failed.
 	now := time.Date(2020, 1, 1, 12, 0, 0, 0, time.UTC).Format(v3TimeFormat)
@@ -745,6 +767,47 @@ func TestRunGet_Interactive_FullOutputReport(t *testing.T) {
 	assert.NilError(t, err)
 
 	// The report is paged in-flow, so the program is still running; ctrl+c quits.
+	_, err = console.Send(keyCtrlC)
+	assert.NilError(t, err)
+}
+
+// TestRunGet_Interactive_QueuedJobReport drills into a job that has not started —
+// one the jobs list optimistically calls "started" with no started_at (see
+// setupRunGetInteractiveFake). The row must read "(queued)" rather than draw the
+// running dot, and since the job has no steps the flow pages its job report
+// in-flow: esc returns to the job picker instead of the program quitting to print
+// the report.
+func TestRunGet_Interactive_QueuedJobReport(t *testing.T) {
+	env := setupRunGetInteractiveFake(t)
+	console := startRunGetInteractive(t, env)
+
+	_, err := console.ExpectString("Select a run")
+	assert.NilError(t, err)
+	_, err = console.Send("\r")
+	assert.NilError(t, err)
+
+	_, err = console.ExpectString("build")
+	assert.NilError(t, err)
+	_, err = console.Send(keyDown + "\r") // skip "see all workflows"
+	assert.NilError(t, err)
+
+	// Pick "publish": past "all jobs in workflow", "run-tests" and "deploy".
+	_, err = console.ExpectString("publish (queued)")
+	assert.NilError(t, err)
+	_, err = console.Send(keyDown + keyDown + keyDown + "\r")
+	assert.NilError(t, err)
+
+	// The job report is paged in-flow; it carries the job's own UUID.
+	_, err = console.ExpectString(irunJob3ID)
+	assert.NilError(t, err)
+
+	// esc returns to the job picker, which rewrites its rows in full.
+	_, err = console.Send(keyEsc)
+	assert.NilError(t, err)
+	_, err = console.ExpectString("publish (queued)")
+	assert.NilError(t, err)
+
+	// The flow is still running, so ctrl+c quits.
 	_, err = console.Send(keyCtrlC)
 	assert.NilError(t, err)
 }

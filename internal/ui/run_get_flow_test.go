@@ -1086,6 +1086,100 @@ func TestRunGetFlow_JobReportPager(t *testing.T) {
 	}))
 }
 
+// newQueuedJobFlow builds a flow whose workflow holds a started job ("test") and
+// one that has not started yet ("deploy", queued). Only the started job has
+// executions: a queued job reports none, so picking it has no steps to show.
+func newQueuedJobFlow() ui.RunGetFlowModel {
+	started := ui.RunGetItem{ID: uuid.New(), Icon: "●", Label: "test"}
+	queued := ui.RunGetItem{ID: uuid.New(), Icon: "○", Label: "deploy", Pending: "queued"}
+	return ui.NewRunGetFlow(context.Background(), ui.RunGetFlowOptions{
+		Runs:          []ui.RunGetItem{runItem("aaaaaaa [main] - now")},
+		CurrentBranch: "main",
+		FetchWorkflows: func(context.Context, uuid.UUID) ([]ui.RunGetItem, error) {
+			return []ui.RunGetItem{{ID: uuid.New(), Icon: "●", Label: "build"}}, nil
+		},
+		FetchJobs: func(context.Context, uuid.UUID) ([]ui.RunGetItem, error) {
+			return []ui.RunGetItem{started, queued}, nil
+		},
+		FetchExecutions: func(_ context.Context, jobID uuid.UUID) ([]ui.RunGetExecution, error) {
+			if jobID != started.ID {
+				return nil, nil
+			}
+			return []ui.RunGetExecution{{Index: 0, Steps: []ui.RunGetStepItem{
+				{Label: "checkout", Icon: "✓", Execution: 0, StepNum: 100},
+			}}}, nil
+		},
+		RenderJobSummary: func(context.Context, uuid.UUID) (string, error) { return "QUEUED-JOB-REPORT-BODY", nil },
+		RenderMarkdown:   func(md string, _ int) string { return md },
+	})
+}
+
+// driveToQueuedJob selects the only run, then the single workflow, then moves the
+// cursor onto the queued job — two rows down from the leading "all jobs in
+// workflow" option, past the started job.
+func driveToQueuedJob(t *testing.T, tm *teatest.TestModel) {
+	t.Helper()
+	tm.Send(keyEnt) // select the only run
+	waitForOutput(t, tm, "See all workflows")
+	tm.Send(keyDown)
+	tm.Send(keyEnt) // select "build"
+	waitForOutput(t, tm, "All jobs in workflow")
+	tm.Send(keyDown) // → "test"
+	tm.Send(keyDown) // → "deploy (queued)"
+}
+
+// TestRunGetFlow_JobPickerLabelsQueuedJob confirms a job that has not started
+// carries its status in the label, so it does not read like the started job
+// beside it (whose label stays bare).
+func TestRunGetFlow_JobPickerLabelsQueuedJob(t *testing.T) {
+	tm := startFlow(t, newQueuedJobFlow())
+	driveToQueuedJob(t, tm)
+
+	v := flowSnapshot(t, tm)
+	assert.Check(t, cmp.Contains(v, "deploy (queued)"))
+	assert.Check(t, cmp.Contains(v, "test"))
+	assert.Check(t, !strings.Contains(v, "test ("))
+}
+
+// TestRunGetFlow_QueuedJobReportPagesInFlow confirms a job with no steps — a
+// queued one — opens its job report in the in-flow pager, so esc returns to the
+// job picker instead of the flow quitting and printing the report.
+func TestRunGetFlow_QueuedJobReportPagesInFlow(t *testing.T) {
+	tm := startFlow(t, newQueuedJobFlow())
+
+	assert.Assert(t, t.Run("the queued job opens its report in the pager", func(t *testing.T) {
+		driveToQueuedJob(t, tm)
+		tm.Send(keyEnt)
+		waitForOutput(t, tm, "QUEUED-JOB-REPORT-BODY")
+		assert.Check(t, cmp.Contains(flowSnapshot(t, tm), "esc back"))
+	}))
+
+	assert.Assert(t, t.Run("esc returns to the job picker", func(t *testing.T) {
+		tm.Send(keyEsc)
+		v := flowSnapshot(t, tm)
+		assert.Check(t, cmp.Contains(v, "Select a job"))
+		// Back on the row it was opened from.
+		assert.Check(t, cmp.Contains(v, "› ○ deploy (queued)"))
+	}))
+}
+
+// TestRunGetFlow_JobPickerOpensStartedJob is the counterpart: a job that has
+// started still leads to its step picker.
+func TestRunGetFlow_JobPickerOpensStartedJob(t *testing.T) {
+	tm := startFlow(t, newQueuedJobFlow())
+
+	tm.Send(keyEnt) // select the only run
+	waitForOutput(t, tm, "See all workflows")
+	tm.Send(keyDown)
+	tm.Send(keyEnt) // select "build"
+	waitForOutput(t, tm, "All jobs in workflow")
+	tm.Send(keyDown) // → "test"
+	tm.Send(keyEnt)
+	waitForOutput(t, tm, "checkout")
+
+	assert.Check(t, cmp.Contains(flowSnapshot(t, tm), "Select a step"))
+}
+
 // TestRunGetFlow_FullJobOutputPager confirms the "full job report" option opens
 // the full per-step output in an in-flow pager and esc returns to the step
 // picker.

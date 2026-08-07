@@ -80,6 +80,40 @@ func TestStepRows_UnfinishedStep(t *testing.T) {
 	assert.Check(t, strings.Contains(rows[1].Label, "~    "), "~ should be padded to the duration column width: %q", rows[1].Label)
 }
 
+// TestPendingJobStatus covers the status word the job picker appends to a job that
+// has not started, so it does not read like a running one. The phase arrives
+// already corrected for the jobs list's optimistic "started" (see
+// apiclient.effectiveJobPhase and TestGetWorkflowJobsV3_QueuedJobPhase), so
+// "queued" here is the state that actually caused the confusion. An unrecognised
+// phase is passed through verbatim rather than dropped: it has no glyph of its own,
+// so the word is all the user gets. A running or finished job gets no word — its
+// glyph already says it.
+func TestPendingJobStatus(t *testing.T) {
+	tests := []struct {
+		phase, outcome, current string
+		want                    string
+	}{
+		{phase: "queued", want: "queued"},
+		{phase: "created", want: "created"},
+		{phase: "pending", want: "pending"},    // unrecognised pre-start phase, verbatim
+		{phase: "blocked", want: "blocked"},    // ditto
+		{phase: "started", want: ""},           // running: the ● glyph is enough
+		{phase: "started", current: "failed"},  // failing
+		{phase: "ended", outcome: "succeeded"}, // finished
+		{phase: "ended", current: "not_run"},   // finished without running
+		{phase: "", want: ""},                  // no phase reported: nothing to say
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.phase+"/"+tt.outcome+tt.current, func(t *testing.T) {
+			got := pendingJobStatus(apiclient.WorkflowJobV3{
+				Phase: tt.phase, Outcome: tt.outcome, CurrentOutcome: tt.current,
+			})
+			assert.Check(t, is.Equal(got, tt.want))
+		})
+	}
+}
+
 // TestRunItemLabel covers the picker label for well-formed runs and for runs
 // that resolved no commit — an errored/not-run pipeline whose config could not
 // be fetched — where the old "%s [%s]" format left a blank "[]" row.
