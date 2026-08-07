@@ -107,7 +107,7 @@ func runOrgList(ctx context.Context, client *apiclient.Client, jsonOut bool) err
 		return nil
 	}
 
-	tbl := mdtable.New("Slug", "Name", "VCS", "ID")
+	tbl := mdtable.New("Slug", "Name", "VCS", "Organization ID")
 	for _, o := range out {
 		vcs := o.VCSType
 		if vcs == "" {
