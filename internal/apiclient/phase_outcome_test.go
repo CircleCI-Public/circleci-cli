@@ -66,6 +66,22 @@ func TestPhaseOutcome_StatusIsTextWithEmoji(t *testing.T) {
 	}
 }
 
+// TestPhaseNotStarted checks the "has this work begun?" predicate: only
+// "started" and "ended" describe work that has produced something to look at, so
+// every other phase — including one this client has no glyph or wording for —
+// counts as not started. That default matters: an unrecognised phase renders as a
+// neutral bullet, which reads like the running dot, so callers must be able to
+// tell it apart from a job that is genuinely running.
+func TestPhaseNotStarted(t *testing.T) {
+	notStarted := []string{"created", "queued", "pending", "blocked", "some_new_phase", ""}
+	for _, phase := range notStarted {
+		assert.Check(t, apiclient.PhaseNotStarted(phase), "phase %q should count as not started", phase)
+	}
+	for _, phase := range []string{"started", "ended"} {
+		assert.Check(t, !apiclient.PhaseNotStarted(phase), "phase %q should count as started", phase)
+	}
+}
+
 // TestStatusPhaseOutcome checks the pipeline.status → (phase, current_outcome)
 // reverse mapping the my-runs endpoint filters on: terminal statuses map to an
 // "ended" phase with the matching outcome, in-progress statuses to their

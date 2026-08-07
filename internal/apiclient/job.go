@@ -207,6 +207,28 @@ func (w jobWire) toJobV3() *JobV3 {
 	return j
 }
 
+// V3 lifecycle phases, as reported in the phase field of a run, workflow, job or
+// step. The API is free to report others (it has its own vocabulary for the
+// pre-start states); see PhaseNotStarted.
+const (
+	PhaseCreated = "created"
+	PhaseQueued  = "queued"
+	PhaseStarted = "started"
+	PhaseEnded   = "ended"
+)
+
+// PhaseNotStarted reports whether a phase means the work has not begun: the
+// "created" and "queued" phases, and — deliberately — any phase this client does
+// not recognise. Only "started" and "ended" describe work that has produced
+// something to look at, so an unfamiliar phase is presumed to be another
+// pre-start state rather than a synonym for one of those two. An unrecognised
+// phase has no glyph of its own (PhaseOutcomeSymbol falls back to a neutral
+// bullet, easily read as "running"), so the caller needs to be able to tell it
+// apart from a job that is genuinely running.
+func PhaseNotStarted(phase string) bool {
+	return phase != PhaseStarted && phase != PhaseEnded
+}
+
 // PhaseOutcomeStatus derives a human-readable status string from V3
 // phase, outcome, and current_outcome fields, prefixed with a status emoji.
 // The emoji is a real Unicode glyph (e.g. "✅ succeeded"), not a ":shortcode:",
@@ -238,11 +260,11 @@ func PhaseOutcomeText(phase, outcome, currentOutcome string) string {
 // and PhaseOutcomeText. An empty emoji means the word stands alone.
 func phaseOutcomeParts(phase, outcome, currentOutcome string) (emoji, text string) {
 	switch phase {
-	case "created":
+	case PhaseCreated:
 		return "⏳", "created"
-	case "queued":
+	case PhaseQueued:
 		return "⌛", "queued"
-	case "started":
+	case PhaseStarted:
 		switch currentOutcome {
 		case "failed":
 			return "🔴", "failing"
@@ -253,7 +275,7 @@ func phaseOutcomeParts(phase, outcome, currentOutcome string) (emoji, text strin
 		default:
 			return "🔵", "running"
 		}
-	case "ended":
+	case PhaseEnded:
 		// The V3 runs API reports only current_outcome, never outcome,
 		// even once a run has ended (a rerun can change it later).
 		if outcome == "" {
@@ -271,9 +293,9 @@ func phaseOutcomeParts(phase, outcome, currentOutcome string) (emoji, text strin
 // width-2 emoji from PhaseOutcomeStatus would throw off column padding.
 func PhaseOutcomeSymbol(phase, outcome, currentOutcome string) string {
 	switch phase {
-	case "created", "queued":
+	case PhaseCreated, PhaseQueued:
 		return "○"
-	case "started":
+	case PhaseStarted:
 		switch currentOutcome {
 		case "failed":
 			return "✗"
@@ -284,7 +306,7 @@ func PhaseOutcomeSymbol(phase, outcome, currentOutcome string) string {
 		default:
 			return "●"
 		}
-	case "ended":
+	case PhaseEnded:
 		// As in PhaseOutcomeStatus, the V3 runs API reports only
 		// current_outcome once a run has ended.
 		if outcome == "" {

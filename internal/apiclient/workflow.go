@@ -202,7 +202,7 @@ func (w workflowJobWire) toDomain() WorkflowJobV3 {
 	return WorkflowJobV3{
 		ID:             w.ID,
 		Name:           a.Name,
-		Phase:          a.Phase,
+		Phase:          effectiveJobPhase(a.Phase, a.StartedAt),
 		Outcome:        a.Outcome,
 		CurrentOutcome: a.CurrentOutcome,
 		Type:           a.Type,
@@ -210,6 +210,32 @@ func (w workflowJobWire) toDomain() WorkflowJobV3 {
 		StartedAt:      a.StartedAt,
 		EndedAt:        a.EndedAt,
 	}
+}
+
+// effectiveJobPhase corrects the phase the jobs *list* endpoint reports, which is
+// optimistic: it flips a job to "started" as soon as its workflow dispatches the
+// job, while the job is still waiting for an executor. Observed on one workflow's
+// list response, all six jobs at once:
+//
+//	list   GET /jobs?filter[workflow_id]=…  → phase "started", started_at null
+//	detail GET /jobs/{id}                   → phase "queued",  started_at null,
+//	                                          parallel_executions []
+//
+// started_at is stamped only when the job really begins. Taking the list's phase
+// verbatim therefore shows a queued job as running — a blue ● in the interactive
+// picker, "🔵 running" in the summary tables, "phase":"started" in --json — and
+// then finds no steps to drill into. A "started" job with no start time is
+// reported as queued instead, which is what the job's own detail says.
+//
+// The list also lags by a second or two the other way: a job that has just begun
+// can still show a null started_at, so it reads as queued until the next poll.
+// That is the lesser error — the phase and started_at it returns contradict each
+// other, and the row is only ever mislabelled, never made unreachable.
+func effectiveJobPhase(phase string, startedAt *time.Time) string {
+	if phase == PhaseStarted && startedAt == nil {
+		return PhaseQueued
+	}
+	return phase
 }
 
 // GetWorkflowJobsV3 returns all jobs for a workflow via the V3 API.

@@ -184,6 +184,15 @@ type RunGetItem struct {
 	// that produced no workflows (e.g. a config that failed to compile) explains
 	// itself rather than presenting an empty list.
 	Errors []RunGetError
+	// Pending, set only for job rows, names the status of a job that has not started
+	// yet — "queued", "created" — and is empty once the job is running or finished.
+	// Those states are the ones the glyph column conveys least well: they sit a
+	// hollow or neutral dot away from the running one, and the API's own jobs list
+	// reports a queued job as "started" until the CLI corrects it
+	// (apiclient.effectiveJobPhase). Such a job also has no steps to pick from — it
+	// opens straight into its job report — so the picker appends the status to the
+	// label, making it unmistakable beside a running job before it is picked.
+	Pending string
 }
 
 // RunGetError is a single run-level error (type + message) surfaced under the
@@ -1175,9 +1184,12 @@ func (m RunGetFlowModel) onExecutions(msg runGetExecutionsMsg) (tea.Model, tea.C
 
 	switch len(m.executions) {
 	case 0:
-		// No resolvable steps — skip straight to the job report rather than show
-		// an empty picker.
-		return m.quit(RunGetResult{Action: RunGetActionShowJob, JobID: m.jobID})
+		// No resolvable steps — a queued job has none yet — so skip the empty step
+		// picker and page the job report in-flow, esc returning to the job picker.
+		// Quitting the program to print the report instead would drop the user out of
+		// the flow with no way back, for a job that may simply not have started.
+		return m.openSummary(m.opts.RenderJobSummary, m.jobID, runGetStageJobSelect,
+			"Fetching job report", RunGetResult{Action: RunGetActionShowJob, JobID: m.jobID})
 	case 1:
 		// Single execution: no execution picker, go straight to its steps.
 		return m.enterStepSelect(m.executions[0]), nil
@@ -1835,13 +1847,41 @@ func (m RunGetFlowModel) runErrorNote() string {
 }
 
 func (m RunGetFlowModel) newJobSelect() components.SelectModel {
-	labels := append([]string{runGetAllJobsLabel}, itemLabels(m.jobs)...)
+	labels := append([]string{runGetAllJobsLabel}, m.jobLabels()...)
 	icons := append([]string{m.metaIcon()}, m.itemIcons(m.jobs)...)
 	return components.NewSelectModel("Select a job", labels).
 		WithIcons(icons).
+		WithItemStyleFunc(m.jobItemStyle).
 		WithCursor(m.jobCursor).
 		WithKeys(m.backKeys()...).
 		WithHeight(m.height)
+}
+
+// jobLabels are the job picker's rows: the job name, with the status of a job that
+// has not started appended — "deploy (queued)". The ○/● glyph difference alone is
+// easy to miss, and picking such a job leads to a job report rather than steps, so
+// the row says as much in words.
+func (m RunGetFlowModel) jobLabels() []string {
+	labels := make([]string, len(m.jobs))
+	for i, j := range m.jobs {
+		labels[i] = j.Label
+		if j.Pending != "" {
+			labels[i] += " (" + j.Pending + ")"
+		}
+	}
+	return labels
+}
+
+// jobItemStyle mutes the label of a job that has not started, so it recedes
+// beside the jobs that have work to show. Index 0 is the leading "all jobs"
+// summary option, which offsets the job rows. Every other row — and every row when
+// color is off, where the "(queued)" suffix carries the distinction on its own —
+// renders plain.
+func (m RunGetFlowModel) jobItemStyle(i int) lipgloss.Style {
+	if !m.opts.Color || i < 1 || i > len(m.jobs) || m.jobs[i-1].Pending == "" {
+		return lipgloss.Style{}
+	}
+	return theme.HelperStyle
 }
 
 func (m RunGetFlowModel) newExecutionSelect() components.SelectModel {
@@ -2006,8 +2046,11 @@ func statusIconStyle(symbol string) (lipgloss.Style, bool) {
 		return theme.WarningStyle, true // errored / timed out
 	case "●":
 		return theme.RunningStyle, true // running
-	case "○", "⊘":
-		return theme.HelperStyle, true // created/queued, canceled
+	case "○", "⊘", "•":
+		// Created/queued, canceled, and the neutral bullet PhaseOutcomeSymbol falls
+		// back to for a phase or outcome it does not know. The bullet is muted for the
+		// same reason: uncolored, it reads as a filled dot much like the running one.
+		return theme.HelperStyle, true
 	default:
 		return lipgloss.Style{}, false
 	}
