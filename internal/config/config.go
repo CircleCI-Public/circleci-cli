@@ -57,6 +57,7 @@ type state struct {
 	UserID        *uuid.UUID `yaml:"user_id,omitempty"`
 	Telemetry     *bool      `yaml:"telemetry,omitempty"`
 	Theme         string     `yaml:"theme,omitempty"`
+	UpdateCheck   *bool      `yaml:"update_check,omitempty"`
 }
 
 const (
@@ -279,6 +280,37 @@ func (c *Config) IsTelemetry() bool {
 	}
 	if c.state.Telemetry != nil {
 		return *c.state.Telemetry
+	}
+	return true
+}
+
+// SetUpdateCheck persists the update-notification opt-in/opt-out preference.
+// path follows the same convention as Load (empty → XDG default).
+func SetUpdateCheck(ctx context.Context, enabled bool, path string) error {
+	return saveTo(ctx, path, func(cfg *Config) error {
+		cfg.state.UpdateCheck = &enabled
+		return nil
+	})
+}
+
+// UnsetUpdateCheck removes any stored update-notification preference, reverting
+// to the enabled-by-default behaviour. path follows the same convention as Load.
+func UnsetUpdateCheck(ctx context.Context, path string) error {
+	return saveTo(ctx, path, func(cfg *Config) error {
+		cfg.state.UpdateCheck = nil
+		return nil
+	})
+}
+
+// IsUpdateCheck reports whether the CLI may check for a newer release.
+// The CIRCLE_NO_UPDATE_CHECK environment variable always takes precedence over
+// the stored config value. When no preference has been set, checks are enabled.
+func (c *Config) IsUpdateCheck() bool {
+	if os.Getenv("CIRCLE_NO_UPDATE_CHECK") != "" {
+		return false
+	}
+	if c.state.UpdateCheck != nil {
+		return *c.state.UpdateCheck
 	}
 	return true
 }

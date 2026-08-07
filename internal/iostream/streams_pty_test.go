@@ -31,6 +31,7 @@ package iostream
 
 import (
 	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -81,6 +82,39 @@ func TestBackgroundQueryable(t *testing.T) {
 			assert.Check(t, cmp.Equal(backgroundQueryable(tty, tty), tc.want))
 		})
 	}
+}
+
+// TestColorHelpersEmitANSI covers the Warning/Success/Muted text stylers used by
+// the update notice: on a real terminal they wrap the text in ANSI, and an
+// explicit NO_COLOR opt-out falls back to the plain string unchanged.
+func TestColorHelpersEmitANSI(t *testing.T) {
+	tty := newTTY(t)
+	s := Streams{Out: tty, Err: tty}
+
+	helpers := map[string]func(...string) string{
+		"Warning": s.Warning,
+		"Success": s.Success,
+		"Muted":   s.Muted,
+	}
+
+	t.Run("color enabled emits ANSI", func(t *testing.T) {
+		clearTerminalEnv(t)
+		assert.Assert(t, s.ColorEnabled(), "expected color enabled on a real TTY")
+		for name, fn := range helpers {
+			out := fn("hello")
+			assert.Check(t, strings.Contains(out, "\x1b["), "%s should emit an ANSI escape, got %q", name, out)
+			assert.Check(t, strings.Contains(out, "hello"), "%s should still contain the text, got %q", name, out)
+		}
+	})
+
+	t.Run("NO_COLOR falls back to plain", func(t *testing.T) {
+		clearTerminalEnv(t)
+		t.Setenv("NO_COLOR", "1")
+		assert.Assert(t, !s.ColorEnabled(), "expected color disabled under NO_COLOR")
+		for name, fn := range helpers {
+			assert.Check(t, cmp.Equal(fn("hello"), "hello"), "%s should be plain under NO_COLOR", name)
+		}
+	})
 }
 
 // TestTerminalPropertiesAutoNoQueryInCI asserts the end-to-end behavior: with a
