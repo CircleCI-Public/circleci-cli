@@ -28,9 +28,9 @@ import (
 
 // V3Environment represents a deploy environment returned by GET /api/v3/deploy/environments.
 type V3Environment struct {
-	ID         string               `json:"id"`
-	Attributes V3EnvironmentAttrs   `json:"attributes"`
-	References V3EnvironmentRefs    `json:"references"`
+	ID         string             `json:"id"`
+	Attributes V3EnvironmentAttrs `json:"attributes"`
+	References V3EnvironmentRefs  `json:"references"`
 }
 
 // V3EnvironmentAttrs holds the attributes of a deploy environment.

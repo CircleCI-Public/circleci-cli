@@ -28,9 +28,9 @@ import (
 
 // V3DeploySettings represents the deploy settings for a project.
 type V3DeploySettings struct {
-	ID         string                 `json:"id"`
-	Attributes V3DeploySettingsAttrs  `json:"attributes"`
-	References V3DeploySettingsRefs   `json:"references"`
+	ID         string                `json:"id"`
+	Attributes V3DeploySettingsAttrs `json:"attributes"`
+	References V3DeploySettingsRefs  `json:"references"`
 }
 
 // V3DeploySettingsAttrs holds the attributes of deploy settings.

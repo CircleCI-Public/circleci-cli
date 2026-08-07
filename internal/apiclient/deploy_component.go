@@ -29,9 +29,9 @@ import (
 
 // V3Component represents a deploy component returned by GET /api/v3/deploy/components.
 type V3Component struct {
-	ID         string            `json:"id"`
-	Attributes V3ComponentAttrs  `json:"attributes"`
-	References V3ComponentRefs   `json:"references"`
+	ID         string           `json:"id"`
+	Attributes V3ComponentAttrs `json:"attributes"`
+	References V3ComponentRefs  `json:"references"`
 }
 
 // V3ComponentAttrs holds the attributes of a deploy component.
@@ -49,9 +49,9 @@ type V3ComponentRefs struct {
 
 // V3ComponentVersion represents a version of a deploy component.
 type V3ComponentVersion struct {
-	ID         string                    `json:"id"`
-	Attributes V3ComponentVersionAttrs   `json:"attributes"`
-	References V3ComponentVersionRefs    `json:"references"`
+	ID         string                  `json:"id"`
+	Attributes V3ComponentVersionAttrs `json:"attributes"`
+	References V3ComponentVersionRefs  `json:"references"`
 }
 
 // V3ComponentVersionAttrs holds the attributes of a component version.
