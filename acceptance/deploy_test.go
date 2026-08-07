@@ -42,48 +42,66 @@ func setupDeployFake(t *testing.T) (*fakes.CircleCI, *testenv.TestEnv) {
 	// Register a project so --project can resolve to IDs.
 	fake.AddProjectBySlug("gh/myorg/alpha", "a0000000-0000-4000-8000-0000000f0001", "alpha", "a0000000-0000-4000-8000-0000000f0002")
 
-	fake.AddDeploy("a0000000-0000-4000-8000-0000000f0001", map[string]any{
-		"id":               "rel-uuid-0001",
-		"project_id":       "a0000000-0000-4000-8000-0000000f0001",
-		"component_id":     "comp-uuid-1111",
-		"component_name":   "web-frontend",
-		"type":             "DEPLOYMENT",
-		"status":           "SUCCESS",
-		"target_version":   map[string]any{"name": "1.3.0"},
-		"plan_is_rollback": false,
-		"pipeline_id":      "pipe-uuid-aaa1",
-		"workflow_id":      "wf-uuid-aaa1",
-		"created_at":       "2026-04-28T14:30:00Z",
-		"ended_at":         "2026-04-28T14:35:00Z",
+	fake.AddDeployment("a0000000-0000-4000-8000-0000000f0001", map[string]any{
+		"id": "a0000000-0000-4000-8000-000000000001",
+		"attributes": map[string]any{
+			"type":           "deployment",
+			"status":         "succeeded",
+			"target_version": map[string]any{"name": "1.3.0"},
+			"is_rollback":    false,
+			"created_at":     "2026-04-28T14:30:00Z",
+			"ended_at":       "2026-04-28T14:35:00Z",
+		},
+		"references": map[string]any{
+			"deploy_component": map[string]any{
+				"id":         "a0000000-0000-4000-8000-000000c00001",
+				"attributes": map[string]any{"name": "web-frontend"},
+			},
+			"deploy_environment": map[string]any{"id": "a0000000-0000-4000-8000-000000e00001"},
+			"pipeline":           map[string]any{"id": "a0000000-0000-4000-8000-000000f00001"},
+			"workflow":           map[string]any{"id": "a0000000-0000-4000-8000-000000f00002"},
+		},
 	})
-	fake.AddDeploy("a0000000-0000-4000-8000-0000000f0001", map[string]any{
-		"id":               "rel-uuid-0002",
-		"project_id":       "a0000000-0000-4000-8000-0000000f0001",
-		"component_id":     "comp-uuid-2222",
-		"component_name":   "api-server",
-		"type":             "DEPLOYMENT",
-		"status":           "FAILED",
-		"target_version":   map[string]any{"name": "2.0.1"},
-		"failure_reason":   "timeout",
-		"plan_is_rollback": false,
-		"pipeline_id":      "pipe-uuid-bbb1",
-		"workflow_id":      "wf-uuid-bbb1",
-		"created_at":       "2026-04-27T09:15:00Z",
-		"ended_at":         "2026-04-27T09:25:00Z",
+	fake.AddDeployment("a0000000-0000-4000-8000-0000000f0001", map[string]any{
+		"id": "a0000000-0000-4000-8000-000000000002",
+		"attributes": map[string]any{
+			"type":           "deployment",
+			"status":         "failed",
+			"failure_reason": "timeout",
+			"target_version": map[string]any{"name": "2.0.1"},
+			"is_rollback":    false,
+			"created_at":     "2026-04-27T09:15:00Z",
+			"ended_at":       "2026-04-27T09:25:00Z",
+		},
+		"references": map[string]any{
+			"deploy_component": map[string]any{
+				"id":         "a0000000-0000-4000-8000-000000c00002",
+				"attributes": map[string]any{"name": "api-server"},
+			},
+			"deploy_environment": map[string]any{"id": "a0000000-0000-4000-8000-000000e00001"},
+			"pipeline":           map[string]any{"id": "a0000000-0000-4000-8000-000000f00003"},
+			"workflow":           map[string]any{"id": "a0000000-0000-4000-8000-000000f00004"},
+		},
 	})
-	fake.AddDeploy("a0000000-0000-4000-8000-0000000f0001", map[string]any{
-		"id":               "rel-uuid-0003",
-		"project_id":       "a0000000-0000-4000-8000-0000000f0001",
-		"component_id":     "comp-uuid-1111",
-		"component_name":   "web-frontend",
-		"type":             "ROLLBACK",
-		"status":           "SUCCESS",
-		"target_version":   map[string]any{"name": "1.2.0"},
-		"plan_is_rollback": true,
-		"pipeline_id":      "pipe-uuid-aaa2",
-		"workflow_id":      "wf-uuid-aaa2",
-		"created_at":       "2026-04-20T10:00:00Z",
-		"ended_at":         "2026-04-20T10:05:00Z",
+	fake.AddDeployment("a0000000-0000-4000-8000-0000000f0001", map[string]any{
+		"id": "a0000000-0000-4000-8000-000000000003",
+		"attributes": map[string]any{
+			"type":           "deployment",
+			"status":         "succeeded",
+			"target_version": map[string]any{"name": "1.2.0"},
+			"is_rollback":    true,
+			"created_at":     "2026-04-20T10:00:00Z",
+			"ended_at":       "2026-04-20T10:05:00Z",
+		},
+		"references": map[string]any{
+			"deploy_component": map[string]any{
+				"id":         "a0000000-0000-4000-8000-000000c00001",
+				"attributes": map[string]any{"name": "web-frontend"},
+			},
+			"deploy_environment": map[string]any{"id": "a0000000-0000-4000-8000-000000e00001"},
+			"pipeline":           map[string]any{"id": "a0000000-0000-4000-8000-000000f00005"},
+			"workflow":           map[string]any{"id": "a0000000-0000-4000-8000-000000f00006"},
+		},
 	})
 
 	env := testenv.New(t)

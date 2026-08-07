@@ -133,7 +133,7 @@ type CircleCI struct {
 	deletedContextRestrictions map[string]bool  // "contextID/restrictionID" → deleted
 
 	// Deploy state.
-	deploys map[string][]any // project id → deploys
+	deployments map[string][]any // project id → deployments
 
 	// Policy state.
 	policyBundles   map[string]map[string]string // "ownerID/ctx" → bundle
@@ -263,7 +263,7 @@ func NewCircleCI(t *testing.T) *CircleCI {
 		projectsByID:                      map[string]any{},
 		projectsBySlug:                    map[string]any{},
 		projectSettings:                   map[string]any{},
-		deploys:                           map[string][]any{},
+		deployments:                       map[string][]any{},
 		policyBundles:                     make(map[string]map[string]string),
 		decisionLogs:                      make(map[string][]any),
 		decisionResults:                   make(map[string]any),
@@ -362,7 +362,7 @@ func NewCircleCI(t *testing.T) *CircleCI {
 		r.Get("/decision/{id}", f.handleGetDecisionLog)
 	})
 	// Deploy routes.
-	r.Get("/api/v2/deploy/projects/{project_id}/releases", f.handleListDeploys)
+	r.Get("/api/v3/deploy/deployments", f.handleListDeployments)
 	// iOS code signing routes (V3).
 	r.Post("/api/v3/signing/certificates", f.handleUploadIOSCert)
 	r.Get("/api/v3/signing/certificates", f.handleListIOSCerts)
@@ -2568,24 +2568,25 @@ func (f *CircleCI) handleGetProjectInfo(w http.ResponseWriter, r *http.Request) 
 
 // --- Deploy helpers ---
 
-// AddDeploy registers a deploy for a project, returned by
-// GET /api/v2/deploy/projects/{project_id}/releases.
-func (f *CircleCI) AddDeploy(projectID string, deploy any) {
+// AddDeployment registers a deployment for a project, returned by
+// GET /api/v3/deploy/deployments. The deployment must be in V3 format:
+// {"id": "...", "attributes": {...}, "references": {...}}.
+func (f *CircleCI) AddDeployment(projectID string, deployment any) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	f.deploys[projectID] = append(f.deploys[projectID], deploy)
+	f.deployments[projectID] = append(f.deployments[projectID], deployment)
 }
 
-func (f *CircleCI) handleListDeploys(w http.ResponseWriter, r *http.Request) {
-	id := chi.URLParam(r, "project_id")
+func (f *CircleCI) handleListDeployments(w http.ResponseWriter, r *http.Request) {
+	projectID := r.URL.Query().Get("filter[project_id]")
 	f.mu.RLock()
-	items := f.deploys[id]
+	items := f.deployments[projectID]
 	f.mu.RUnlock()
 
 	if items == nil {
 		items = []any{}
 	}
-	render.JSON(w, r, map[string]any{"items": items, "next_page_token": nil})
+	render.JSON(w, r, map[string]any{"data": items, "page": map[string]any{}})
 }
 
 func (f *CircleCI) handleDeleteEnvVar(w http.ResponseWriter, r *http.Request) {
