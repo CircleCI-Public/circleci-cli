@@ -6,7 +6,7 @@ Set a CLI setting
 
 ## Arguments
 
-- `<key>` is the setting to change. Options are: `token`, `host`, `telemetry`, or `theme`.
+- `<key>` is the setting to change. Options are: `token`, `host`, `telemetry`, `theme`, or `update-check`.
 - `<value>` is the value to store. Pass `-` to read it from stdin.
   May be omitted for `theme` to pick interactively.
 
@@ -30,11 +30,10 @@ Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `ci
   `circleci setting set theme dracula`
 - Pick the color theme interactively: 
   `circleci setting set theme`
+- Disable update notifications: 
+  `circleci setting set update-check off`
 
 ## Details
 
 Set a CLI setting by key.
-
-Run 'circleci setting set theme' with no value in an interactive terminal to
-pick a theme from a list.
 

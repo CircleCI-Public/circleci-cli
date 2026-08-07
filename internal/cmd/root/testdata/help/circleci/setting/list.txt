@@ -29,5 +29,5 @@ Display the current CLI settings.
 The token value is masked for security. Settings are read from
 $XDG_CONFIG_HOME/circleci/config.yml (default: ~/.config/circleci/config.yml).
 
-JSON fields: token_set, host, telemetry, theme
+JSON fields: token_set, host, telemetry, theme, update_check
 

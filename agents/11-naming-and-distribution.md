@@ -168,22 +168,42 @@ Most argument parsing libraries (cobra, click, clap, etc.) can generate completi
 
 ## Update Notifications
 
-Consider notifying users when a new version is available:
+`circleci` notifies users after a successful command when a newer release
+exists. The message is deliberately channel-agnostic — we ship through seven
+channels, so it links the GitHub release page for the new version rather than
+naming one package manager's upgrade command:
 
 ```
-$ myapp deploy production
+$ circleci run get
 [...]
-✓ Deployed successfully.
 
-A new version of myapp is available: v2.5.0 (you have v2.4.1)
-Update with: brew upgrade myapp
+A new version of circleci is available: 1.2.0 → 1.3.0
+https://github.com/CircleCI-Public/circleci-cli/releases/tag/v1.3.0
 ```
 
-Guidelines for update notifications:
-- Check asynchronously — don't slow down the main command
-- Show at the end of output, not the beginning
-- Respect a `MYAPP_NO_UPDATE_CHECK=1` environment variable to disable
-- Cache the check result so you're not hitting the network every invocation
+The implementation lives in `internal/update` (business logic) and is wired in
+`internal/cmd/root/root.go`. What it does and why:
+
+- **Never blocks.** The check runs in a background goroutine started in the root
+  `PersistentPreRunE`; the result is drained in `PersistentPostRunE`, which
+  cobra runs only when the command succeeded — so the notice always follows all
+  output and never lands on top of an error.
+- **stderr, after output.** stdout stays clean for pipelines. Both stdout *and*
+  stderr must be TTYs, so any pipe or redirect on either stream silences it.
+- **Own endpoint, cached twice.** The version comes from
+  `GET /api/v3/tool/releases?filter[tool]=circleci-cli` (cached server-side), behind a
+  one-method `update.Source` seam. A `state.yml` under `$XDG_STATE_HOME` caches
+  the result for 24h (matched to the ~daily release cadence) so we hit the
+  network at most once per window.
+- **Blanket 6h delay.** A release stays quiet for 6h after publication so the
+  package managers have time to catch up. No channel detection. The value is
+  kept well under our ~daily release cadence — a delay at or above the cadence
+  would leave the newest release perpetually inside the window and nobody would
+  ever be nagged — and matches the observed ~1-6h bot-moderated propagation of
+  homebrew-core and winget-pkgs.
+- **Off when it can't help.** Disabled for `version == "dev"`, in CI, for agents
+  and MCP, when no token is configured (the endpoint needs auth), and via
+  `CIRCLE_NO_UPDATE_CHECK` or `circleci setting set update-check off`.
 
 ---
 
