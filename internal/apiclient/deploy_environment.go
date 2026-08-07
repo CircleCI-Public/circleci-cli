@@ -42,7 +42,7 @@ type V3EnvironmentAttrs struct {
 type V3EnvironmentRefs struct {
 	Organization struct {
 		ID string `json:"id"`
-	} `json:"organization"`
+	} `json:"org"`
 }
 
 // ListEnvironments returns deploy environments for an org.
@@ -54,7 +54,7 @@ func (c *Client) ListEnvironments(ctx context.Context, orgID string, limit int) 
 	for {
 		var resp v3List[V3Environment]
 		err := c.getV3(ctx, "/deploy/environments", &resp,
-			queryParam("filter[org_id]", orgID),
+			filterParam("org_id", orgID),
 			pageLimit(limit),
 			pageCursor(cursor),
 		)

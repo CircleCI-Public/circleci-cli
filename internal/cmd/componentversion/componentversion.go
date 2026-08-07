@@ -36,7 +36,6 @@ import (
 )
 
 type componentVersionEntry struct {
-	ID          string `json:"id"`
 	Name        string `json:"name"`
 	ComponentID string `json:"component_id"`
 	CreatedAt   string `json:"created_at"`
@@ -89,7 +88,7 @@ func newListCmd() *cobra.Command {
 
 			Optionally filter by deploy environment with --environment.
 
-			JSON fields: id, name, component_id, created_at
+			JSON fields: name, component_id, created_at
 		`),
 		Example: heredoc.Doc(`
 			# List versions of a component
@@ -108,7 +107,7 @@ func newListCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return runList(ctx, client, args[0], envID, jsonOut)
+			return RunList(ctx, client, args[0], envID, jsonOut)
 		},
 	}
 
@@ -119,7 +118,8 @@ func newListCmd() *cobra.Command {
 	return cmd
 }
 
-func runList(ctx context.Context, client *apiclient.Client, componentID, envID string, jsonOut bool) error {
+// RunList lists versions of a deploy component. Shared by the top-level alias and the deep path.
+func RunList(ctx context.Context, client *apiclient.Client, componentID, envID string, jsonOut bool) error {
 	versions, err := client.ListComponentVersions(ctx, componentID, envID, 20)
 	if err != nil {
 		return cmdutil.APIErr(err, componentID,
@@ -130,7 +130,6 @@ func runList(ctx context.Context, client *apiclient.Client, componentID, envID s
 	entries := make([]componentVersionEntry, len(versions))
 	for i, v := range versions {
 		entries[i] = componentVersionEntry{
-			ID:          v.ID,
 			Name:        v.Attributes.Name,
 			ComponentID: v.References.Component.ID,
 			CreatedAt:   v.Attributes.CreatedAt.Format("2006-01-02 15:04 UTC"),
@@ -146,9 +145,9 @@ func runList(ctx context.Context, client *apiclient.Client, componentID, envID s
 		return nil
 	}
 
-	table := mdtable.New("ID", "Version", "Created")
+	table := mdtable.New("Version", "Created")
 	for _, e := range entries {
-		table.Row(e.ID, e.Name, e.CreatedAt)
+		table.Row(e.Name, e.CreatedAt)
 	}
 	iostream.PrintMarkdown(ctx, "# Component Versions\n"+table.Render())
 	return nil

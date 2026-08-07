@@ -37,7 +37,6 @@ type V3Component struct {
 // V3ComponentAttrs holds the attributes of a deploy component.
 type V3ComponentAttrs struct {
 	Name string `json:"name"`
-	Type string `json:"type"`
 }
 
 // V3ComponentRefs holds reference IDs for a deploy component.
@@ -49,7 +48,6 @@ type V3ComponentRefs struct {
 
 // V3ComponentVersion represents a version of a deploy component.
 type V3ComponentVersion struct {
-	ID         string                  `json:"id"`
 	Attributes V3ComponentVersionAttrs `json:"attributes"`
 	References V3ComponentVersionRefs  `json:"references"`
 }

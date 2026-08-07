@@ -36,9 +36,8 @@ import (
 )
 
 type deploySettingsEntry struct {
-	ID                         string `json:"id"`
-	ProjectID                  string `json:"project_id"`
-	AutoCancelRedundantDeploys bool   `json:"auto_cancel_redundant_deploys"`
+	ID        string `json:"id"`
+	ProjectID string `json:"project_id"`
 }
 
 func newSettingsCmd() *cobra.Command {
@@ -56,7 +55,7 @@ func newSettingsCmd() *cobra.Command {
 			The project is inferred from the current git repository's remote
 			unless overridden with --project.
 
-			JSON fields: id, project_id, auto_cancel_redundant_deploys
+			JSON fields: id, project_id
 		`),
 		Example: heredoc.Doc(`
 			# Get deploy settings for the current git remote's project
@@ -110,21 +109,15 @@ func runDeploySettings(ctx context.Context, client *apiclient.Client, projectSlu
 	}
 
 	entry := deploySettingsEntry{
-		ID:                         settings.ID,
-		ProjectID:                  settings.References.Project.ID,
-		AutoCancelRedundantDeploys: settings.Attributes.AutoCancelRedundantDeploys,
+		ID:        settings.ID,
+		ProjectID: settings.References.Project.ID,
 	}
 
 	if jsonOut {
 		return iostream.PrintJSON(ctx, entry)
 	}
 
-	autoCancelStr := "disabled"
-	if entry.AutoCancelRedundantDeploys {
-		autoCancelStr = "enabled"
-	}
-
-	iostream.PrintMarkdown(ctx, fmt.Sprintf("# Deploy Settings\n\n**Project ID:** %s\n**Auto-cancel redundant deploys:** %s\n",
-		entry.ProjectID, autoCancelStr))
+	iostream.PrintMarkdown(ctx, fmt.Sprintf("# Deploy Settings\n\n**Project ID:** %s\n",
+		entry.ProjectID))
 	return nil
 }

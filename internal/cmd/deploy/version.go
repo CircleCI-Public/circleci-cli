@@ -23,15 +23,11 @@
 package deploy
 
 import (
-	"context"
-
 	"github.com/MakeNowJust/heredoc"
 	"github.com/spf13/cobra"
 
-	"github.com/CircleCI-Public/circleci-cli/internal/apiclient"
+	"github.com/CircleCI-Public/circleci-cli/internal/cmd/componentversion"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmdutil"
-	"github.com/CircleCI-Public/circleci-cli/internal/iostream"
-	"github.com/CircleCI-Public/circleci-cli/internal/mdtable"
 )
 
 func newVersionCmd() *cobra.Command {
@@ -55,15 +51,6 @@ func newVersionCmd() *cobra.Command {
 	return cmd
 }
 
-// --- version list ---
-
-type componentVersionEntry struct {
-	ID          string `json:"id"`
-	Name        string `json:"name"`
-	ComponentID string `json:"component_id"`
-	CreatedAt   string `json:"created_at"`
-}
-
 func newVersionListCmd() *cobra.Command {
 	var (
 		envID   string
@@ -79,7 +66,7 @@ func newVersionListCmd() *cobra.Command {
 
 			Optionally filter by deploy environment with --environment.
 
-			JSON fields: id, name, component_id, created_at
+			JSON fields: name, component_id, created_at
 
 			Primary alias: circleci component-version list <component-id>
 		`),
@@ -100,7 +87,7 @@ func newVersionListCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return runVersionList(ctx, client, args[0], envID, jsonOut)
+			return componentversion.RunList(ctx, client, args[0], envID, jsonOut)
 		},
 	}
 
@@ -109,39 +96,4 @@ func newVersionListCmd() *cobra.Command {
 	cmdutil.AddJQFlag(cmd)
 
 	return cmd
-}
-
-func runVersionList(ctx context.Context, client *apiclient.Client, componentID, envID string, jsonOut bool) error {
-	versions, err := client.ListComponentVersions(ctx, componentID, envID, 20)
-	if err != nil {
-		return cmdutil.APIErr(err, componentID,
-			"deploy.component.not_found", "No deploy component found for %q.",
-			"Check the component ID and try again")
-	}
-
-	entries := make([]componentVersionEntry, len(versions))
-	for i, v := range versions {
-		entries[i] = componentVersionEntry{
-			ID:          v.ID,
-			Name:        v.Attributes.Name,
-			ComponentID: v.References.Component.ID,
-			CreatedAt:   v.Attributes.CreatedAt.Format("2006-01-02 15:04 UTC"),
-		}
-	}
-
-	if jsonOut {
-		return iostream.PrintJSON(ctx, entries)
-	}
-
-	if len(entries) == 0 {
-		iostream.ErrPrintln(ctx, "No versions found.")
-		return nil
-	}
-
-	table := mdtable.New("ID", "Version", "Created")
-	for _, e := range entries {
-		table.Row(e.ID, e.Name, e.CreatedAt)
-	}
-	iostream.PrintMarkdown(ctx, "# Component Versions\n"+table.Render())
-	return nil
 }

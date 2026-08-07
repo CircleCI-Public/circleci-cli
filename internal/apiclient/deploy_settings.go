@@ -34,9 +34,7 @@ type V3DeploySettings struct {
 }
 
 // V3DeploySettingsAttrs holds the attributes of deploy settings.
-type V3DeploySettingsAttrs struct {
-	AutoCancelRedundantDeploys bool `json:"auto_cancel_redundant_deploys"`
-}
+type V3DeploySettingsAttrs struct{}
 
 // V3DeploySettingsRefs holds reference IDs for deploy settings.
 type V3DeploySettingsRefs struct {
@@ -49,7 +47,7 @@ type V3DeploySettingsRefs struct {
 func (c *Client) GetDeploySettings(ctx context.Context, projectID string) (*V3DeploySettings, error) {
 	var resp v3Entity[V3DeploySettings]
 	err := c.getV3(ctx, "/deploy/settings", &resp,
-		queryParam("filter[project_id]", projectID),
+		filterParam("project_id", projectID),
 	)
 	if err != nil {
 		return nil, err

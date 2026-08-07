@@ -63,7 +63,6 @@ func newComponentCmd() *cobra.Command {
 type componentEntry struct {
 	ID        string `json:"id"`
 	Name      string `json:"name"`
-	Type      string `json:"type"`
 	ProjectID string `json:"project_id"`
 }
 
@@ -83,7 +82,7 @@ func newComponentListCmd() *cobra.Command {
 			The project is inferred from the current git repository's remote
 			unless overridden with --project.
 
-			JSON fields: id, name, type, project_id
+			JSON fields: id, name, project_id
 		`),
 		Example: heredoc.Doc(`
 			# List components for the current git remote's project
@@ -141,7 +140,6 @@ func runComponentList(ctx context.Context, client *apiclient.Client, projectSlug
 		entries[i] = componentEntry{
 			ID:        c.ID,
 			Name:      c.Attributes.Name,
-			Type:      c.Attributes.Type,
 			ProjectID: c.References.Project.ID,
 		}
 	}
@@ -155,9 +153,9 @@ func runComponentList(ctx context.Context, client *apiclient.Client, projectSlug
 		return nil
 	}
 
-	table := mdtable.New("ID", "Name", "Type")
+	table := mdtable.New("ID", "Name")
 	for _, e := range entries {
-		table.Row(e.ID, e.Name, e.Type)
+		table.Row(e.ID, e.Name)
 	}
 	iostream.PrintMarkdown(ctx, "# Deploy Components\n"+table.Render())
 	return nil
@@ -174,7 +172,7 @@ func newComponentGetCmd() *cobra.Command {
 		Long: heredoc.Doc(`
 			Get details about a CircleCI deploy component by ID.
 
-			JSON fields: id, name, type, project_id
+			JSON fields: id, name, project_id
 		`),
 		Example: heredoc.Doc(`
 			# Get a deploy component by ID
@@ -214,7 +212,6 @@ func runComponentGet(ctx context.Context, client *apiclient.Client, componentID 
 	entry := componentEntry{
 		ID:        component.ID,
 		Name:      component.Attributes.Name,
-		Type:      component.Attributes.Type,
 		ProjectID: component.References.Project.ID,
 	}
 
@@ -222,7 +219,7 @@ func runComponentGet(ctx context.Context, client *apiclient.Client, componentID 
 		return iostream.PrintJSON(ctx, entry)
 	}
 
-	iostream.PrintMarkdown(ctx, fmt.Sprintf("# Deploy Component\n\n**ID:** %s\n**Name:** %s\n**Type:** %s\n**Project ID:** %s\n",
-		entry.ID, entry.Name, entry.Type, entry.ProjectID))
+	iostream.PrintMarkdown(ctx, fmt.Sprintf("# Deploy Component\n\n**ID:** %s\n**Name:** %s\n**Project ID:** %s\n",
+		entry.ID, entry.Name, entry.ProjectID))
 	return nil
 }

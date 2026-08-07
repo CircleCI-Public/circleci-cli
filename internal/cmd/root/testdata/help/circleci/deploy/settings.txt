@@ -30,5 +30,5 @@ Get deploy settings for a CircleCI project.
 The project is inferred from the current git repository's remote
 unless overridden with --project.
 
-JSON fields: id, project_id, auto_cancel_redundant_deploys
+JSON fields: id, project_id
 

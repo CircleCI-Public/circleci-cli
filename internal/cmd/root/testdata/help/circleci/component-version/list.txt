@@ -37,5 +37,5 @@ List versions of a CircleCI deploy component.
 
 Optionally filter by deploy environment with --environment.
 
-JSON fields: id, name, component_id, created_at
+JSON fields: name, component_id, created_at
 

@@ -192,7 +192,7 @@ func setupDeployEnvironmentFake(t *testing.T) (*fakes.CircleCI, *testenv.TestEnv
 			"name": "production",
 		},
 		"references": map[string]any{
-			"organization": map[string]any{"id": orgID},
+			"org": map[string]any{"id": orgID},
 		},
 	})
 	fake.AddEnvironment(orgID, map[string]any{
@@ -201,7 +201,7 @@ func setupDeployEnvironmentFake(t *testing.T) (*fakes.CircleCI, *testenv.TestEnv
 			"name": "staging",
 		},
 		"references": map[string]any{
-			"organization": map[string]any{"id": orgID},
+			"org": map[string]any{"id": orgID},
 		},
 	})
 

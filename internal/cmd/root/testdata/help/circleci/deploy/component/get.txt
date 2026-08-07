@@ -26,5 +26,5 @@ Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `ci
 
 Get details about a CircleCI deploy component by ID.
 
-JSON fields: id, name, type, project_id
+JSON fields: id, name, project_id
 

@@ -32,5 +32,5 @@ List deploy components for a CircleCI project.
 The project is inferred from the current git repository's remote
 unless overridden with --project.
 
-JSON fields: id, name, type, project_id
+JSON fields: id, name, project_id
 
