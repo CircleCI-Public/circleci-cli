@@ -2763,11 +2763,10 @@ func (f *CircleCI) handleGetDeploySettings(w http.ResponseWriter, r *http.Reques
 	settings, ok := f.deploySettings[projectID]
 	f.mu.RUnlock()
 
-	items := []any{}
-	if ok {
-		items = append(items, settings)
+	if !ok {
+		settings = map[string]any{"id": projectID, "attributes": map[string]any{}, "references": map[string]any{"project": map[string]any{"id": projectID}}}
 	}
-	render.JSON(w, r, map[string]any{"data": items, "page": map[string]any{}})
+	render.JSON(w, r, map[string]any{"data": settings})
 }
 
 func (f *CircleCI) handleDeleteEnvVar(w http.ResponseWriter, r *http.Request) {

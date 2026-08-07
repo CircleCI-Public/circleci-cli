@@ -46,17 +46,13 @@ type V3DeploySettingsRefs struct {
 }
 
 // GetDeploySettings returns deploy settings for a project.
-// Returns nil, nil when no settings record exists (404).
 func (c *Client) GetDeploySettings(ctx context.Context, projectID string) (*V3DeploySettings, error) {
-	var resp v3List[V3DeploySettings]
+	var resp v3Entity[V3DeploySettings]
 	err := c.getV3(ctx, "/deploy/settings", &resp,
 		queryParam("filter[project_id]", projectID),
 	)
 	if err != nil {
 		return nil, err
 	}
-	if len(resp.Data) == 0 {
-		return nil, nil
-	}
-	return &resp.Data[0], nil
+	return &resp.Data, nil
 }

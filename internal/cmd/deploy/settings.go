@@ -109,11 +109,6 @@ func runDeploySettings(ctx context.Context, client *apiclient.Client, projectSlu
 		return apiErr(err, projectSlug)
 	}
 
-	if settings == nil {
-		iostream.ErrPrintln(ctx, "No deploy settings found for this project.")
-		return nil
-	}
-
 	entry := deploySettingsEntry{
 		ID:                         settings.ID,
 		ProjectID:                  settings.References.Project.ID,
