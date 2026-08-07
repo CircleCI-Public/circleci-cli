@@ -29,14 +29,14 @@ import (
 
 // V3Deployment represents a deployment returned by GET /api/v3/deploy/deployments.
 type V3Deployment struct {
-	ID         string                `json:"id"`
-	Attributes v3DeployAttributes    `json:"attributes"`
-	References v3DeployReferences    `json:"references"`
+	ID         string             `json:"id"`
+	Attributes v3DeployAttributes `json:"attributes"`
+	References v3DeployReferences `json:"references"`
 }
 
 type v3DeployAttributes struct {
-	Type          string     `json:"type"`
-	Status        string     `json:"status"`
+	Type          string `json:"type"`
+	Status        string `json:"status"`
 	TargetVersion struct {
 		Name string `json:"name"`
 	} `json:"target_version"`
