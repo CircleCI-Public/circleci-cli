@@ -49,7 +49,6 @@ import (
 )
 
 const (
-	statusCanceled     = "canceled"
 	maxWorkflowFetches = 8
 
 	// defaultBranchGuess is the branch assumed for latest-run lookup when
@@ -849,26 +848,23 @@ func deriveDisplayStatus(r runGetOutput) string {
 		return apiclient.PhaseOutcomeStatus(r.Phase, r.Outcome, r.CurrentOutcome)
 	}
 	for _, wf := range r.Workflows {
-		if wf.Outcome == "failed" || wf.Outcome == "errored" || wf.CurrentOutcome == "failed" {
-			return "failed"
-		}
-	}
-	for _, wf := range r.Workflows {
 		if wf.Phase != "ended" {
 			return "running"
 		}
 	}
-	for _, wf := range r.Workflows {
-		if wf.Outcome == statusCanceled {
-			return statusCanceled
-		}
+	// Run-level errors (e.g. a dynamic config continued-workflow config
+	// validation failure) are recorded on the run itself and never produce a
+	// workflow object, so checking workflow outcomes alone would miss them.
+	if len(r.Errors) > 0 {
+		return "errored"
 	}
-	for _, wf := range r.Workflows {
-		if wf.Outcome == "succeeded" {
-			return "succeeded"
-		}
-	}
-	return apiclient.PhaseOutcomeStatus(r.Phase, r.Outcome, r.CurrentOutcome)
+	// Use the last workflow's status as the run's overall status. The V3 API
+	// returns workflows in creation order, so the last entry is the most
+	// recently started one. In dynamic config that is the continued workflow —
+	// its outcome is what determines whether the full run succeeded or failed,
+	// not the setup workflow that preceded it.
+	latest := r.Workflows[len(r.Workflows)-1]
+	return apiclient.PhaseOutcomeText(latest.Phase, latest.Outcome, latest.CurrentOutcome)
 }
 
 func printRun(ctx context.Context, r runGetOutput, u string) {

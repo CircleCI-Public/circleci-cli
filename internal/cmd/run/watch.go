@@ -514,8 +514,12 @@ func watchFinalResult(ctx context.Context, state runGetOutput, runID uuid.UUID, 
 	default:
 		iostream.ErrPrintf(ctx, "%s Run %s failed (%s)\n",
 			iostream.SymbolFail(ctx), runID, formatElapsed(elapsed))
-		return clierrors.New("run.failed", "Run failed",
-			fmt.Sprintf("Run %s failed.", runID)).
+		var errParts []string
+		errParts = append(errParts, fmt.Sprintf("Run %s failed.", runID))
+		for _, e := range state.Errors {
+			errParts = append(errParts, e.Message)
+		}
+		return clierrors.New("run.failed", "Run failed", strings.Join(errParts, "\n")).
 			WithSuggestions(failedJobLogSuggestions(state)...).
 			WithExitCode(clierrors.ExitGeneralError)
 	}
