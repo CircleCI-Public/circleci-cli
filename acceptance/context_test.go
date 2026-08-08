@@ -97,6 +97,26 @@ func TestContextList(t *testing.T) {
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
 }
 
+func TestContextList_OrgFromEnv(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	fake.AddContext(testOrgSlug, fakeContext(testContextID, "my-context"))
+
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+	env.Extra["CIRCLE_ORG"] = testOrgSlug
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"context", "list"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, cmp.Contains(result.Stdout, "my-context"))
+}
+
 func TestContextList_JSON(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
 	fake.AddContext(testOrgSlug, fakeContext(testContextID, "my-context"))

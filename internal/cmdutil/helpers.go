@@ -79,8 +79,12 @@ func AddOrgFlag(cmd *cobra.Command, org *string, opts OrgFlag) {
 	case opts.DefaultsToGitRemote:
 		desc += "; defaults to git remote"
 	}
-	cmd.Flags().StringVar(org, "org", "", desc)
+	defaultOrg := ""
 	if opts.Required {
+		defaultOrg = orgFromEnv()
+	}
+	cmd.Flags().StringVar(org, "org", defaultOrg, desc)
+	if opts.Required && defaultOrg == "" {
 		_ = cmd.MarkFlagRequired("org")
 	}
 }
