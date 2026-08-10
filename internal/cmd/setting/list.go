@@ -50,7 +50,7 @@ func newListCmd() *cobra.Command {
 			The token value is masked for security. Settings are read from
 			$XDG_CONFIG_HOME/circleci/config.yml (default: ~/.config/circleci/config.yml).
 
-			JSON fields: token_set, host, telemetry, theme
+			JSON fields: token_set, host, telemetry, theme, update_check
 		`),
 		Example: heredoc.Doc(`
 			# Show current settings
@@ -83,10 +83,11 @@ func runList(ctx context.Context, secureStorage bool, jsonOut bool) error {
 
 	if jsonOut {
 		out := map[string]any{
-			"token_set": tokenSet,
-			"host":      cfg.EffectiveHost(),
-			"telemetry": cfg.IsTelemetry(),
-			"theme":     cfg.EffectiveTheme(),
+			"token_set":    tokenSet,
+			"host":         cfg.EffectiveHost(),
+			"telemetry":    cfg.IsTelemetry(),
+			"theme":        cfg.EffectiveTheme(),
+			"update_check": cfg.IsUpdateCheck(),
 		}
 		return iostream.PrintJSON(ctx, out)
 	}
@@ -100,6 +101,7 @@ func runList(ctx context.Context, secureStorage bool, jsonOut bool) error {
 	table.Row("token", maskToken(cfg.EffectiveToken()))
 	table.Row("telemetry", strconv.FormatBool(cfg.IsTelemetry()))
 	table.Row("theme", cfg.EffectiveTheme())
+	table.Row("update-check", strconv.FormatBool(cfg.IsUpdateCheck()))
 	md.WriteString(table.Render() + "\n")
 	iostream.PrintMarkdown(ctx, md.String())
 	return nil

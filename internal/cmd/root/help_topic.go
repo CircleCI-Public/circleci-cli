@@ -121,6 +121,9 @@ var helpTopics = []helpTopic{
 
 			%[1]sCIRCLE_SPINNER_DISABLED%[1]s: set to any value to replace the animated spinner with plain text.
 
+			%[1]sCIRCLE_NO_UPDATE_CHECK%[1]s: set to any value to disable checking for newer CLI releases.
+			Same effect as %[1]scircleci setting set update-check off%[1]s.
+
 			%[1]sCIRCLE_NO_PAGER%[1]s: set to any value to print long output directly instead of through a pager.
 
 			%[1]sPAGER%[1]s: names the pager program to send long output through (for example %[1]sless%[1]s or %[1]smore%[1]s).

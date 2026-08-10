@@ -156,6 +156,10 @@ func IsTerminal(ctx context.Context) bool {
 	return fromContext(ctx).IsTerminal()
 }
 
+func ErrIsTerminal(ctx context.Context) bool {
+	return fromContext(ctx).ErrIsTerminal()
+}
+
 func ColorEnabled(ctx context.Context) bool {
 	return fromContext(ctx).ColorEnabled()
 }
@@ -182,6 +186,18 @@ func SymbolFail(ctx context.Context) string {
 
 func Title(ctx context.Context, strs ...string) string {
 	return fromContext(ctx).Title(strs...)
+}
+
+func Warning(ctx context.Context, strs ...string) string {
+	return fromContext(ctx).Warning(strs...)
+}
+
+func Success(ctx context.Context, strs ...string) string {
+	return fromContext(ctx).Success(strs...)
+}
+
+func Muted(ctx context.Context, strs ...string) string {
+	return fromContext(ctx).Muted(strs...)
 }
 
 func Print(ctx context.Context, v string) {
@@ -475,6 +491,16 @@ func (s Streams) IsTerminal() bool {
 	return false
 }
 
+// ErrIsTerminal reports whether Err is a terminal. The update notifier requires
+// both Out and Err to be TTYs before printing, so any pipe or redirect on
+// either stream silences it — see internal/update.ShouldCheck.
+func (s Streams) ErrIsTerminal() bool {
+	if f, ok := s.Err.(*os.File); ok {
+		return term.IsTerminal(f.Fd())
+	}
+	return false
+}
+
 // ColorEnabled reports whether color and Unicode symbols should be used.
 // False when: not a TTY, NO_COLOR set, CIRCLE_NO_COLOR set, or TERM=dumb.
 // The --no-color flag is honored here too: root canonicalizes it into NO_COLOR
@@ -528,6 +554,36 @@ func (s Streams) Title(strs ...string) string {
 	}
 
 	return theme.TitleStyle.Render(strs...)
+}
+
+// Warning renders strs in the warning (yellow) color, or plain when color is
+// disabled.
+func (s Streams) Warning(strs ...string) string {
+	if !s.ColorEnabled() {
+		return theme.NoColorStyle.Render(strs...)
+	}
+
+	return theme.WarningStyle.Render(strs...)
+}
+
+// Success renders strs in the success (green) color, or plain when color is
+// disabled.
+func (s Streams) Success(strs ...string) string {
+	if !s.ColorEnabled() {
+		return theme.NoColorStyle.Render(strs...)
+	}
+
+	return theme.SuccessStyle.Render(strs...)
+}
+
+// Muted renders strs in the muted (gray) color, or plain when color is
+// disabled.
+func (s Streams) Muted(strs ...string) string {
+	if !s.ColorEnabled() {
+		return theme.NoColorStyle.Render(strs...)
+	}
+
+	return theme.HelperStyle.Render(strs...)
 }
 
 // Print writes a string to Out with no newline appended.
