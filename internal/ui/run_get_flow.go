@@ -2046,6 +2046,8 @@ func statusIconStyle(symbol string) (lipgloss.Style, bool) {
 		return theme.WarningStyle, true // errored / timed out
 	case "●":
 		return theme.RunningStyle, true // running
+	case "‖":
+		return theme.WarningStyle, true // approval gate on hold, waiting on a person
 	case "○", "⊘", "•":
 		// Created/queued, canceled, and the neutral bullet PhaseOutcomeSymbol falls
 		// back to for a phase or outcome it does not know. The bullet is muted for the

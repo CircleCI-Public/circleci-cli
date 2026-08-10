@@ -134,9 +134,9 @@ type JobV3 struct {
 	WorkflowID uuid.UUID        `json:"workflow_id"`
 }
 
-// Status derives a display status from phase and outcome.
+// Status derives a display status from type, phase and outcome.
 func (j JobV3) Status() string {
-	return PhaseOutcomeStatus(j.Phase, j.Outcome, "")
+	return JobPhaseOutcomeStatus(j.Type, j.Phase, j.Outcome, "")
 }
 
 // JobV3Execution groups the steps that ran on a single executor.
@@ -285,6 +285,50 @@ func phaseOutcomeParts(phase, outcome, currentOutcome string) (emoji, text strin
 	default:
 		return "", phase
 	}
+}
+
+// JobTypeApproval is the V3 job type of a manual approval gate — a job that
+// runs nothing and waits for a person to approve or cancel it.
+const JobTypeApproval = "approval"
+
+// jobOnHold reports whether a job is an approval gate still waiting on a
+// decision. The V3 API reports a pending approval job in the "started" phase
+// (and, before the workflow reaches it, one of the pre-start phases), so the
+// plain phase vocabulary renders it as "running" — which is wrong twice over:
+// nothing is executing, and it will stay that way until someone acts. Any
+// phase short of "ended" therefore reads as on hold; once ended, the job's
+// outcome (succeeded when approved, canceled when not) tells the real story.
+func jobOnHold(jobType, phase string) bool {
+	return jobType == JobTypeApproval && phase != PhaseEnded
+}
+
+// JobPhaseOutcomeStatus is PhaseOutcomeStatus for a job, whose type decides
+// whether the phase means what it says: a pending approval job is on hold, not
+// running. Use it wherever the job type is known; workflows and runs, which
+// have no type, keep using PhaseOutcomeStatus.
+func JobPhaseOutcomeStatus(jobType, phase, outcome, currentOutcome string) string {
+	if jobOnHold(jobType, phase) {
+		return "⏸️ on hold"
+	}
+	return PhaseOutcomeStatus(phase, outcome, currentOutcome)
+}
+
+// JobPhaseOutcomeText is JobPhaseOutcomeStatus without the leading emoji — the
+// plain status word, for raw fixed-width layouts.
+func JobPhaseOutcomeText(jobType, phase, outcome, currentOutcome string) string {
+	if jobOnHold(jobType, phase) {
+		return "on hold"
+	}
+	return PhaseOutcomeText(phase, outcome, currentOutcome)
+}
+
+// JobPhaseOutcomeSymbol is JobPhaseOutcomeStatus as a single plain,
+// single-width glyph, the job-aware counterpart of PhaseOutcomeSymbol.
+func JobPhaseOutcomeSymbol(jobType, phase, outcome, currentOutcome string) string {
+	if jobOnHold(jobType, phase) {
+		return "‖"
+	}
+	return PhaseOutcomeSymbol(phase, outcome, currentOutcome)
 }
 
 // PhaseOutcomeSymbol is like PhaseOutcomeStatus but returns a single plain,

@@ -106,3 +106,30 @@ func TestStatusPhaseOutcome(t *testing.T) {
 		assert.Check(t, is.Equal(outcome, c.outcome), "status %q current_outcome", c.status)
 	}
 }
+
+// TestJobPhaseOutcome_Approval pins the approval-gate correction. The V3 API
+// reports a pending approval job in the "started" phase, which the plain phase
+// vocabulary renders as "running" — wrong twice over: nothing is executing, and
+// nothing will until a person approves or cancels it. Any phase short of
+// "ended" therefore reads as on hold; once ended, the outcome stands.
+func TestJobPhaseOutcome_Approval(t *testing.T) {
+	const approval = apiclient.JobTypeApproval
+
+	// Waiting on a decision, whatever pre-ended phase the API reports.
+	for _, phase := range []string{"created", "queued", "started"} {
+		assert.Check(t, is.Equal(apiclient.JobPhaseOutcomeStatus(approval, phase, "", ""), "⏸️ on hold"), "phase %q", phase)
+		assert.Check(t, is.Equal(apiclient.JobPhaseOutcomeText(approval, phase, "", ""), "on hold"), "phase %q", phase)
+		assert.Check(t, is.Equal(apiclient.JobPhaseOutcomeSymbol(approval, phase, "", ""), "‖"), "phase %q", phase)
+	}
+
+	// Once decided, the outcome tells the story: approved is a success, an
+	// unapproved gate is canceled with the rest of the workflow.
+	assert.Check(t, is.Equal(apiclient.JobPhaseOutcomeStatus(approval, "ended", "succeeded", ""), "✅ succeeded"))
+	assert.Check(t, is.Equal(apiclient.JobPhaseOutcomeText(approval, "ended", "canceled", ""), "canceled"))
+	assert.Check(t, is.Equal(apiclient.JobPhaseOutcomeSymbol(approval, "ended", "canceled", ""), "⊘"))
+
+	// A build job is untouched — the correction keys on the job type.
+	assert.Check(t, is.Equal(apiclient.JobPhaseOutcomeStatus("build", "started", "", ""), "🔵 running"))
+	assert.Check(t, is.Equal(apiclient.JobPhaseOutcomeText("", "started", "", ""), "running"))
+	assert.Check(t, is.Equal(apiclient.JobPhaseOutcomeSymbol("build", "started", "", ""), "●"))
+}

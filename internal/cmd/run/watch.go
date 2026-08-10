@@ -431,7 +431,7 @@ func printWatchTable(ctx context.Context, state runGetOutput, elapsed time.Durat
 		}
 		lines++
 		for _, j := range wf.Jobs {
-			jSym, jWord := watchStatusParts(j.Phase, j.Outcome, j.CurrentOutcome)
+			jSym, jWord := watchJobStatusParts(j.Type, j.Phase, j.Outcome, j.CurrentOutcome)
 			iostream.ErrPrintf(ctx, "    %-30s  %s %-10s  %s\n", j.Name, jSym, jWord, j.Type)
 			lines++
 		}
@@ -454,6 +454,14 @@ func watchStatusParts(phase, outcome, currentOutcome string) (symbol, word strin
 		apiclient.PhaseOutcomeText(phase, outcome, currentOutcome)
 }
 
+// watchJobStatusParts is watchStatusParts for a job, whose type decides whether
+// the phase means what it says: an approval gate awaiting a decision is on
+// hold, not running.
+func watchJobStatusParts(jobType, phase, outcome, currentOutcome string) (symbol, word string) {
+	return apiclient.JobPhaseOutcomeSymbol(jobType, phase, outcome, currentOutcome),
+		apiclient.JobPhaseOutcomeText(jobType, phase, outcome, currentOutcome)
+}
+
 func printWatchTableFinal(ctx context.Context, state runGetOutput) {
 	for _, wf := range state.Workflows {
 		wfSym, wfWord := watchStatusParts(wf.Phase, wf.Outcome, wf.CurrentOutcome)
@@ -463,7 +471,7 @@ func printWatchTableFinal(ctx context.Context, state runGetOutput) {
 			iostream.ErrPrintf(ctx, "  %-28s  %s %s\n", wf.Name, wfSym, wfWord)
 		}
 		for _, j := range wf.Jobs {
-			jSym, jWord := watchStatusParts(j.Phase, j.Outcome, j.CurrentOutcome)
+			jSym, jWord := watchJobStatusParts(j.Type, j.Phase, j.Outcome, j.CurrentOutcome)
 			iostream.ErrPrintf(ctx, "    %-30s  %s %-10s  %s\n", j.Name, jSym, jWord, j.Type)
 		}
 	}

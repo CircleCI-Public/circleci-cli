@@ -192,9 +192,9 @@ type WorkflowJobV3 struct {
 	EndedAt        *time.Time `json:"ended_at,omitempty"`
 }
 
-// Status derives a display status from phase and outcome.
+// Status derives a display status from type, phase and outcome.
 func (w WorkflowJobV3) Status() string {
-	return PhaseOutcomeStatus(w.Phase, w.Outcome, w.CurrentOutcome)
+	return JobPhaseOutcomeStatus(w.Type, w.Phase, w.Outcome, w.CurrentOutcome)
 }
 
 func (w workflowJobWire) toDomain() WorkflowJobV3 {

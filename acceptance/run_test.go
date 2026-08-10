@@ -214,6 +214,45 @@ func TestRunGet_ByID(t *testing.T) {
 	assert.Check(t, golden.String(normalizeAppHost(result.Stdout, fake.URL()), t.Name()+".txt"))
 }
 
+// TestRunGet_ByID_ApprovalOnHold pins the display status of an approval gate
+// waiting on a decision. The V3 API reports such a job in the "started" phase,
+// which the plain phase vocabulary renders as "running" — but nothing is
+// executing, and nothing will until somebody approves or cancels it.
+func TestRunGet_ByID_ApprovalOnHold(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	runID := getRunID
+	wfID := testWfID
+	now := time.Now().UTC().Format(time.RFC3339)
+	approval := fakeJobV3("d0000000-0000-4000-8000-000000000002", "hold", wfID, runTestProjectID)
+	approval["attributes"] = map[string]any{
+		"name":       "hold",
+		"phase":      "started",
+		"type":       "approval",
+		"started_at": now,
+	}
+	fake.AddRunV3(runID, runTestProjectID, fakeRunV3(runID, runTestProjectID, "started", "", "main", "abc1234def5678"))
+	fake.AddRunWorkflowsV3(runID, fakeWorkflowV3(wfID, "build", runID, runTestProjectID, "started", ""))
+	fake.AddWorkflowJobsV3(wfID,
+		fakeJobV3("d0000000-0000-4000-8000-000000000001", "run-tests", wfID, runTestProjectID),
+		approval,
+	)
+
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"run", "get", runID},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0)
+	assert.Check(t, cmp.Contains(result.Stdout, "on hold"))
+	assert.Check(t, golden.String(normalizeAppHost(result.Stdout, fake.URL()), t.Name()+".txt"))
+}
+
 func TestRunGet_ByID_WorkflowsNotFound(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
 	runID := getRunID

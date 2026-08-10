@@ -559,7 +559,7 @@ func jobItems(client *apiclient.Client) func(context.Context, uuid.UUID) ([]ui.R
 		for i, j := range jobs {
 			items[i] = ui.RunGetItem{
 				ID:      j.ID,
-				Icon:    apiclient.PhaseOutcomeSymbol(j.Phase, j.Outcome, j.CurrentOutcome),
+				Icon:    apiclient.JobPhaseOutcomeSymbol(j.Type, j.Phase, j.Outcome, j.CurrentOutcome),
 				Label:   j.Name,
 				Pending: pendingJobStatus(j),
 			}
@@ -569,18 +569,20 @@ func jobItems(client *apiclient.Client) func(context.Context, uuid.UUID) ([]ui.R
 }
 
 // pendingJobStatus names the status of a job that has not started — "queued",
-// "created", or the phase verbatim for a pre-start state this client does not know
-// — and is empty once the job is running or finished. Such a job has no steps yet,
+// "created", "on hold" for an approval gate awaiting a decision, or the phase
+// verbatim for a pre-start state this client does not know — and is empty once
+// the job is running or finished. Such a job has no steps yet,
 // so the picker labels the row with the status rather than letting a hollow or
 // neutral dot pass for a running job (see ui.RunGetItem.Pending). The phase it
 // reads has already been corrected for the jobs list's optimistic "started" (see
 // apiclient.effectiveJobPhase), which is what made a queued job indistinguishable
 // from a running one here.
 func pendingJobStatus(j apiclient.WorkflowJobV3) string {
-	if !apiclient.PhaseNotStarted(j.Phase) {
+	onHold := j.Type == apiclient.JobTypeApproval && j.Phase != apiclient.PhaseEnded
+	if !apiclient.PhaseNotStarted(j.Phase) && !onHold {
 		return ""
 	}
-	return apiclient.PhaseOutcomeText(j.Phase, j.Outcome, j.CurrentOutcome)
+	return apiclient.JobPhaseOutcomeText(j.Type, j.Phase, j.Outcome, j.CurrentOutcome)
 }
 
 // executionItems returns a fetch closure for the run-get picker: it lists a
@@ -927,7 +929,7 @@ func runMarkdown(r runGetOutput, u string) string {
 			md.WriteString("#### Jobs\n")
 			mdTable := mdtable.New("Name", "Status", "Type", "ID")
 			for _, j := range w.Jobs {
-				mdTable.Row(j.Name, apiclient.PhaseOutcomeStatus(j.Phase, j.Outcome, j.CurrentOutcome), j.Type, "`"+j.ID.String()+"`")
+				mdTable.Row(j.Name, apiclient.JobPhaseOutcomeStatus(j.Type, j.Phase, j.Outcome, j.CurrentOutcome), j.Type, "`"+j.ID.String()+"`")
 			}
 			md.WriteString(mdTable.Render())
 		}

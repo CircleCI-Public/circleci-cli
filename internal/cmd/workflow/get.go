@@ -219,7 +219,7 @@ func workflowMarkdown(w workflowGetOutput, u string) string {
 		_, _ = fmt.Fprintf(&md, "\n## Jobs\n")
 		table := mdtable.New("Name", "Status", "Type", "ID")
 		for _, j := range w.Jobs {
-			table.Row(j.Name, apiclient.PhaseOutcomeStatus(j.Phase, j.Outcome, j.CurrentOutcome), j.Type, "`"+j.ID.String()+"`")
+			table.Row(j.Name, apiclient.JobPhaseOutcomeStatus(j.Type, j.Phase, j.Outcome, j.CurrentOutcome), j.Type, "`"+j.ID.String()+"`")
 		}
 		md.WriteString(table.Render())
 	}
