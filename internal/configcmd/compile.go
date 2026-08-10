@@ -38,33 +38,42 @@ type ValidateResult struct {
 // Validate compiles the config YAML against the CircleCI API and returns whether it
 // is valid. orgID may be empty; pass one to enable private orb resolution.
 func Validate(ctx context.Context, client *apiclient.Client, configYAML, orgID string, previewNext bool) (*ValidateResult, error) {
-	resp, err := client.CompileConfig(ctx, configYAML, orgID, previewNext, LocalPipelineValues(nil), nil)
-	if err != nil {
-		return nil, err
-	}
-	result := &ValidateResult{Valid: resp.Valid, CompiledYAML: resp.OutputYAML}
-	for _, e := range resp.Errors {
-		result.Errors = append(result.Errors, e.Message)
-	}
-	// The API can return valid:false without explicit errors — treat that as invalid.
-	if !resp.Valid && len(result.Errors) == 0 {
-		result.Errors = []string{"config compilation failed"}
-	}
-	return result, nil
+	return compile(ctx, client, apiclient.CompileInput{
+		ConfigYAML:     configYAML,
+		OrgID:          orgID,
+		PreviewNext:    previewNext,
+		PipelineValues: LocalPipelineValues(nil),
+	})
 }
 
 // Process compiles the config YAML and returns the fully expanded output YAML.
 // params are pipeline parameters injected at << pipeline.parameters.* >>.
 func Process(ctx context.Context, client *apiclient.Client, configYAML, orgID string, previewNext bool, params map[string]any) (*ValidateResult, error) {
-	resp, err := client.CompileConfig(ctx, configYAML, orgID, previewNext, LocalPipelineValues(params), params)
+	return compile(ctx, client, apiclient.CompileInput{
+		ConfigYAML:         configYAML,
+		OrgID:              orgID,
+		PreviewNext:        previewNext,
+		PipelineValues:     LocalPipelineValues(params),
+		PipelineParameters: params,
+	})
+}
+
+// compile runs a compilation and shapes it into a ValidateResult. Validation and
+// processing are the same server-side operation; they differ only in the inputs
+// they supply and the fields the caller reads.
+func compile(ctx context.Context, client *apiclient.Client, in apiclient.CompileInput) (*ValidateResult, error) {
+	res, err := client.Compile(ctx, in)
 	if err != nil {
 		return nil, err
 	}
-	result := &ValidateResult{Valid: resp.Valid, CompiledYAML: resp.OutputYAML}
-	for _, e := range resp.Errors {
-		result.Errors = append(result.Errors, e.Message)
+	result := &ValidateResult{
+		Valid:        res.Valid,
+		CompiledYAML: res.CompiledYAML,
+		Errors:       res.Errors,
 	}
-	if !resp.Valid && len(result.Errors) == 0 {
+	// The API can report an invalid config without explicit messages — say
+	// something rather than fail silently.
+	if !res.Valid && len(result.Errors) == 0 {
 		result.Errors = []string{"config compilation failed"}
 	}
 	return result, nil
