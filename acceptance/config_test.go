@@ -695,6 +695,104 @@ func TestConfigProcess_InfersOrgFromGitRemote(t *testing.T) {
 	assert.Check(t, cmp.Equal(fake.LastCompileOwnerID(), testOrgUUID))
 }
 
+// TestConfigProcess_NoToken pins that process is usable with no API token at
+// all: the compile endpoint serves anonymous callers, so expanding a config that
+// uses only public orbs must not demand `circleci auth login` first.
+//
+// It also asserts the request carried no Authorization header. Sending a
+// valueless "Bearer" instead reads as malformed credentials rather than as an
+// anonymous request, which the real API rejects.
+func TestConfigProcess_NoToken(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	fake.SetCompileResponse(true, testCompiledYAML)
+
+	env := testenv.New(t)
+	env.CircleCIURL = fake.URL()
+
+	dir := t.TempDir()
+	writeConfig(t, dir, testConfigYAML)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"config", "process", ".circleci/config.yml"},
+		Env:     env.Environ(),
+		WorkDir: dir,
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 0), "stderr: %s", result.Stderr)
+	assert.Check(t, cmp.Contains(result.Stdout, "version"))
+
+	var compiled bool
+	for _, req := range fake.AllRequests() {
+		if req.URL.Path != "/api/v2/compile-config-with-defaults" {
+			continue
+		}
+		compiled = true
+		assert.Check(t, cmp.Equal(req.Header.Get("Authorization"), ""),
+			"anonymous process must send no Authorization header")
+	}
+	assert.Check(t, compiled, "expected a compile request")
+}
+
+// TestConfigProcess_NoTokenSkipsOrgInference pins that the anonymous path
+// makes no attempt to infer the org. Every route to an org ID needs a token, so
+// inside a git checkout with no token the project lookup would only ever 401 —
+// process compiles with an empty owner_id instead of spending the round-trip.
+func TestConfigProcess_NoTokenSkipsOrgInference(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	fake.SetCompileResponse(true, testCompiledYAML)
+	fake.AddProjectBySlug("gh/myorg/myrepo", "00000000-0000-0000-0000-0000000000b6", "myrepo", testOrgUUID)
+
+	env := testenv.New(t)
+	env.CircleCIURL = fake.URL()
+
+	dir := t.TempDir()
+	initGitRepoWithRemote(t, dir, "https://github.com/myorg/myrepo")
+	writeConfig(t, dir, testConfigYAML)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"config", "process", ".circleci/config.yml"},
+		Env:     env.Environ(),
+		WorkDir: dir,
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 0), "stderr: %s", result.Stderr)
+	assert.Check(t, cmp.Equal(fake.LastCompileOwnerID(), ""))
+	for _, req := range fake.AllRequests() {
+		assert.Check(t, cmp.Equal(req.URL.Path, "/api/v2/compile-config-with-defaults"),
+			"unexpected request on the anonymous path")
+	}
+}
+
+// TestConfigProcess_NoTokenWithOrg pins the one case where the anonymous path
+// still fails: --org cannot be honoured without a token, and quietly ignoring
+// it would expand a config while skipping the private orb resolution the user
+// explicitly asked for.
+func TestConfigProcess_NoTokenWithOrg(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	fake.SetCompileResponse(true, testCompiledYAML)
+	fake.AddOrg(testOrgUUID, "gh/myorg", "myorg", "github")
+
+	env := testenv.New(t)
+	env.CircleCIURL = fake.URL()
+
+	dir := t.TempDir()
+	writeConfig(t, dir, testConfigYAML)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"config", "process", ".circleci/config.yml", "--org", "gh/myorg"},
+		Env:     env.Environ(),
+		WorkDir: dir,
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 3))
+	assert.Check(t, cmp.Contains(result.Stderr, "Resolving --org requires a CircleCI API token."))
+	assert.Check(t, cmp.Contains(result.Stderr, "Or drop --org to process against public orbs only"))
+	assert.Check(t, cmp.Len(fake.AllRequests(), 0), "must not call the API without a token")
+}
+
 // --- config pack ---
 
 func TestConfigPack(t *testing.T) {

@@ -85,11 +85,10 @@ func newValidateCmd() *cobra.Command {
 				path = args[0]
 			}
 
-			// Validation is the one config command that works without a token:
-			// the compile endpoint serves anonymous callers, and linting a config
-			// that uses only public orbs is the first thing a new user — or a
-			// pre-commit hook, or a CI job without a token — wants to do. An
-			// authenticated call is unchanged.
+			// Validate (like process) works without a token: the compile endpoint
+			// serves anonymous callers, and linting a config that uses only public
+			// orbs is the first thing a new user — or a pre-commit hook, or a CI
+			// job without a token — wants to do. An authenticated call is unchanged.
 			client := cmdutil.LoadClientOptionalAuth(ctx)
 
 			yaml, err := readConfigInput(ctx, path)
@@ -97,7 +96,8 @@ func newValidateCmd() *cobra.Command {
 				return err
 			}
 
-			orgID, err := validateOrgID(ctx, client, org)
+			orgID, err := optionalAuthOrgID(ctx, client, org, "circleci config validate",
+				"Or drop --org to validate against public orbs only")
 			if err != nil {
 				return err
 			}

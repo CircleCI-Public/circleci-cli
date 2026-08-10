@@ -115,12 +115,12 @@ mapped to YAML keys in the merged document.
 
 Compile and expand a pipeline config file
 
-Compile a CircleCI pipeline config and print the fully expanded YAML: orbs
-inlined, matrix jobs expanded, parameter expressions resolved. The output is
-what CircleCI would actually execute.
+Compile a CircleCI pipeline config and print the fully expanded YAML —
+orbs inlined, matrices expanded, parameters resolved.
 
-Private and namespaced orbs resolve against your organization: with --org
-omitted, from a 'circleci project link' binding, else the git remote.
+No API token is required; without one, only public orbs resolve.
+Private and namespaced orbs need a token and resolve against your org, taken
+from --org, a 'circleci project link' binding, or the git remote, in that order.
 
 | Flag                           | Description                                                                                  |
 | ------------------------------ | -------------------------------------------------------------------------------------------- |
