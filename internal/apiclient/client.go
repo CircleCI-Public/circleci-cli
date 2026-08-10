@@ -218,6 +218,16 @@ func (c *Client) deleteV3(ctx context.Context, route string, opts ...func(*httpc
 	return err
 }
 
+// postV3NoContent POSTs a body to a v3 route that responds 204 No Content on
+// success. Unlike postV3, no JSONDecoder is attached — decoding an empty body
+// as JSON would fail with io.EOF.
+func (c *Client) postV3NoContent(ctx context.Context, route string, body any, opts ...func(*httpcl.Request)) error {
+	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodPost, "/api/v3"+route, baseOpts(
+		httpcl.Body(body),
+	).With(opts)...))
+	return err
+}
+
 type baseOptions []func(*httpcl.Request)
 
 func baseOpts(opts ...func(*httpcl.Request)) baseOptions {

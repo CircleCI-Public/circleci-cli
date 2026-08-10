@@ -1,0 +1,1 @@
+✓ Removed profile 30000000-0000-0000-0000-000000000001 from signing config eccccccc-cccc-cccc-cccc-cccccccccccc

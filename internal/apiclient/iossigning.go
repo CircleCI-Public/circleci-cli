@@ -58,8 +58,9 @@ type IOSCertificateRef struct {
 }
 
 // IOSProvisioningProfile is a base64-encoded Apple provisioning profile. Blob
-// is populated on create; list responses only echo the file name.
+// is populated on create; list responses only echo the file name and ID
 type IOSProvisioningProfile struct {
+	ID       string `json:"id,omitempty"`
 	FileName string `json:"file_name"`
 	Blob     string `json:"blob,omitempty"`
 }
@@ -183,4 +184,26 @@ func (c *Client) ListIOSSigningConfigs(ctx context.Context, orgID uuid.UUID) ([]
 // 204 No Content on success.
 func (c *Client) DeleteIOSSigningConfig(ctx context.Context, id uuid.UUID) error {
 	return c.deleteV3(ctx, "/signing/configs/%s", routeParams(id))
+}
+
+// UpdateIOSSigningConfigProfile adds or replaces a provisioning profile on an
+// existing signing config, without recreating it. The server matches profiles
+// by the bundle identifier and profile type embedded in the provisioning
+// profile file itself, a profile with the same bundle ID and type as an
+// existing one replaces it in place; any other  pairing is added as a new
+// profile. blob must be base64-encoded. The server returns 204 No Content on success.
+func (c *Client) UpdateIOSSigningConfigProfile(ctx context.Context, configID uuid.UUID, fileName, blob string) error {
+	body := map[string]any{
+		"file_name": fileName,
+		"blob":      blob,
+	}
+	return c.postV3NoContent(ctx, "/signing/configs/%s/update-profile", body, routeParams(configID))
+}
+
+// RemoveIOSSigningConfigProfile removes a provisioning profile from an
+// existing signing config by profile ID. Removing an already-absent profile
+// is a no-op.
+func (c *Client) RemoveIOSSigningConfigProfile(ctx context.Context, configID, profileID uuid.UUID) error {
+	body := map[string]any{"profile_id": profileID}
+	return c.postV3NoContent(ctx, "/signing/configs/%s/remove-profile", body, routeParams(configID))
 }

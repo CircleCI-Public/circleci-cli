@@ -4013,6 +4013,79 @@ JSON fields: id, name, certificate, provisioning_profiles
 - Get signing config names only: 
   `circleci signing-config list --json --jq '.[].name'`
 
+#### `circleci signing-config profile <command>`
+
+Add or remove provisioning profiles on a signing config
+
+Add, replace, or remove a provisioning profile on an existing signing
+config, without recreating the whole config.
+
+A profile is matched to an existing one by the bundle identifier and
+profile type embedded in the provisioning profile file itself, not by
+file name: the same bundle ID and type replaces it in place, and
+anything else is added alongside it.
+
+Recreating a signing config (delete then create) leaves a gap where
+pipelines referencing it by name fail; these commands update it in
+place instead.
+
+##### `circleci signing-config profile add <signing-config-id> [flags]`
+
+Add or replace a provisioning profile on a signing config
+
+Add a provisioning profile to a signing config, or replace one that
+already has the same bundle identifier and profile type.
+
+The file at --profile is read and base64-encoded locally, then sent
+to CircleCI. The config's other profiles and certificate are left
+untouched.
+
+| Flag               | Description                         |
+| ------------------ | ----------------------------------- |
+| `--profile string` | Path to a provisioning profile file |
+
+
+**Arguments:**
+
+`<signing-config-id>` is the ID of the signing config to update.
+Use `circleci signing-config list` to find the ID.
+
+**Examples:**
+
+- Add a new profile: 
+  `circleci signing-config profile add <signing-config-id> --profile ./MyAppExtension.mobileprovision`
+- Replace an existing profile (same bundle ID and profile type, regardless of file name): 
+  `circleci signing-config profile add <signing-config-id> --profile ./MyApp.mobileprovision`
+- Find the signing config ID first: 
+  `circleci signing-config list --json --jq '.[].id'`
+
+##### `circleci signing-config profile remove <signing-config-id> <profile-id>`
+
+Remove a provisioning profile from a signing config
+
+Remove a single provisioning profile from a signing config, without
+recreating the whole config.
+
+Removing a profile that no longer exists is not an error.
+
+**Arguments:**
+
+`<signing-config-id>` is the ID of the signing config to update.
+`<profile-id>` is the ID of the provisioning profile to remove.
+Use `circleci signing-config list --json` to find both IDs.
+
+**Aliases:**
+
+
+`circleci signing-config profile rm`
+
+**Examples:**
+
+- Remove a profile by ID: 
+  `circleci signing-config profile remove <signing-config-id> <profile-id>`
+- Find the profile ID first: 
+  `circleci signing-config list --json --jq '.[] | select(.id=="<signing-config-id>") | .provisioning_profiles'`
+
 ## User Commands
 
 ### `circleci auth <command>`

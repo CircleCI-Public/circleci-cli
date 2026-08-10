@@ -1,0 +1,5 @@
+Usage:  circleci signing-config profile remove <signing-config-id> <profile-id> [flags]
+
+Flags:
+  -h, --help   help for remove
+  

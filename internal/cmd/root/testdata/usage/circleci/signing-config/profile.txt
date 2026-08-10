@@ -1,0 +1,5 @@
+Usage:  circleci signing-config profile <command> [flags]
+
+Available commands:
+  add
+  remove

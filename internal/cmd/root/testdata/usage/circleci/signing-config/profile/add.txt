@@ -1,0 +1,6 @@
+Usage:  circleci signing-config profile add <signing-config-id> [flags]
+
+Flags:
+  -h, --help             help for add
+      --profile string   Path to a provisioning profile file
+  
