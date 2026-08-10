@@ -65,6 +65,9 @@ notifications are all disabled automatically.
 
 `CIRCLE_SPINNER_DISABLED`: set to any value to replace the animated spinner with plain text.
 
+`CIRCLE_NO_UPDATE_CHECK`: set to any value to disable checking for newer CLI releases.
+Same effect as `circleci setting set update-check off`.
+
 `CIRCLE_NO_PAGER`: set to any value to print long output directly instead of through a pager.
 
 `PAGER`: names the pager program to send long output through (for example `less` or `more`).
@@ -4639,7 +4642,7 @@ Display the current CLI settings.
 The token value is masked for security. Settings are read from
 $XDG_CONFIG_HOME/circleci/config.yml (default: ~/.config/circleci/config.yml).
 
-JSON fields: token_set, host, telemetry, theme
+JSON fields: token_set, host, telemetry, theme, update_check
 
 | Flag          | Description                                                                       |
 | ------------- | --------------------------------------------------------------------------------- |
@@ -4665,12 +4668,9 @@ Set a CLI setting
 
 Set a CLI setting by key.
 
-Run 'circleci setting set theme' with no value in an interactive terminal to
-pick a theme from a list.
-
 **Arguments:**
 
-- `<key>` is the setting to change. Options are: `token`, `host`, `telemetry`, or `theme`.
+- `<key>` is the setting to change. Options are: `token`, `host`, `telemetry`, `theme`, or `update-check`.
 - `<value>` is the value to store. Pass `-` to read it from stdin.
   May be omitted for `theme` to pick interactively.
 
@@ -4690,6 +4690,8 @@ pick a theme from a list.
   `circleci setting set theme dracula`
 - Pick the color theme interactively: 
   `circleci setting set theme`
+- Disable update notifications: 
+  `circleci setting set update-check off`
 
 #### `circleci setting unset <key>`
 
@@ -4698,16 +4700,19 @@ Remove a stored CLI setting
 Remove a stored CLI setting by key.
 
 Supported keys:
-  token      Remove your stored CircleCI personal API token
+  token         Remove your stored CircleCI personal API token
+  update-check  Revert update notifications to the default (enabled)
 
 **Arguments:**
 
-`<key>` is the setting to remove. Currently only `token` is supported.
+`<key>` is the setting to remove. Supported keys are `token` and `update-check`.
 
 **Examples:**
 
 - Remove your stored API token: 
   `circleci setting unset token`
+- Revert update notifications to the default: 
+  `circleci setting unset update-check`
 
 ## Extension Commands
 
