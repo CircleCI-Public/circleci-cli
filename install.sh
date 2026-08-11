@@ -153,26 +153,39 @@ install_cli() {
 		|| fail "Checksum mismatch for ${ARCHIVE} (expected ${expected}, got ${actual})."
 
 	# --- unpack -------------------------------------------------------------
-	# Archives before v0.1.47632 wrap the binary in a top-level directory
-	# (circleci-cli_<ver>_<os>_<arch>/circleci) and need the leading path
-	# component stripped. From v0.1.47632 onward — and for every v1+ release —
-	# the binary sits at the archive root.
-	if version_lt "${VERSION}" "0.1.47632"; then
+	# One cutover governs the v0 line: v0.1.47860. Before it, v0 shipped a
+	# `circleci` binary wrapped in a top-level directory that must be stripped.
+	# From it, v0's binary is renamed to `circleci-v0` (so it coexists with the
+	# v1 `circleci`) and sits at the archive root. Every v1+ release is a plain
+	# `circleci` at the root — only the 0.1.x line renames.
+	BINARY=circleci
+	wrapped=false
+	case "${VERSION}" in
+		0.1.*)
+			if version_lt "${VERSION}" "0.1.47860"; then
+				wrapped=true       # legacy v0: `circleci` inside a top-level dir
+			else
+				BINARY=circleci-v0 # new-format v0: renamed, at the archive root
+			fi
+			;;
+	esac
+
+	if [ "${wrapped}" = true ]; then
 		tar -xzf "${SCRATCH}/${ARCHIVE}" -C "${SCRATCH}" --strip-components 1 \
 			|| fail "Could not extract ${ARCHIVE}."
 	else
-		tar -xzf "${SCRATCH}/${ARCHIVE}" -C "${SCRATCH}" circleci \
-			|| fail "Could not extract 'circleci' from ${ARCHIVE}."
+		tar -xzf "${SCRATCH}/${ARCHIVE}" -C "${SCRATCH}" "${BINARY}" \
+			|| fail "Could not extract '${BINARY}' from ${ARCHIVE}."
 	fi
-	[ -f "${SCRATCH}/circleci" ] || fail "'circleci' binary not found after extracting ${ARCHIVE}."
+	[ -f "${SCRATCH}/${BINARY}" ] || fail "'${BINARY}' binary not found after extracting ${ARCHIVE}."
 
 	# --- install, escalating with sudo only if needed -----------------------
 	info "Installing to ${BOLD}${DESTDIR}${RESET}"
 	if [ -w "${DESTDIR}" ] || { [ ! -e "${DESTDIR}" ] && mkdir -p "${DESTDIR}" 2>/dev/null; }; then
-		install "${SCRATCH}/circleci" "${DESTDIR}/circleci"
+		install "${SCRATCH}/${BINARY}" "${DESTDIR}/${BINARY}"
 	elif command -v sudo >/dev/null 2>&1; then
 		info "${DESTDIR} is not writable; using sudo"
-		sudo install "${SCRATCH}/circleci" "${DESTDIR}/circleci"
+		sudo install "${SCRATCH}/${BINARY}" "${DESTDIR}/${BINARY}"
 	else
 		fail "${DESTDIR} is not writable and sudo is unavailable. Re-run with DESTDIR set to a writable dir."
 	fi
@@ -180,10 +193,10 @@ install_cli() {
 	trap - ERR
 	rm -rf "${SCRATCH}"
 
-	installed="${DESTDIR}/circleci"
-	info "Installed: ${BOLD}v${VERSION}${RESET}"
+	installed="${DESTDIR}/${BINARY}"
+	info "Installed: ${BOLD}v${VERSION}${RESET} as ${BOLD}${BINARY}${RESET}"
 	case ":${PATH}:" in
-		*":${DESTDIR}:"*) command -v circleci >/dev/null 2>&1 || true ;;
+		*":${DESTDIR}:"*) command -v "${BINARY}" >/dev/null 2>&1 || true ;;
 		*) info "Note: ${DESTDIR} is not on your PATH. Add it, or run ${installed} directly." ;;
 	esac
 }
