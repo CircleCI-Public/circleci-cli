@@ -20,35 +20,32 @@
 //
 // SPDX-License-Identifier: MIT
 
-package testrunner
+package acceptance_test
 
 import (
+	"context"
+	"strings"
 	"testing"
 
 	"gotest.tools/v3/assert"
-	"gotest.tools/v3/golden"
+
+	"github.com/CircleCI-Public/circleci-cli/internal/reposcan"
 )
 
-func TestRenderPrompt(t *testing.T) {
-	got := RenderPrompt("go", "cimg/go:1.22", "go test ./...", 1, "--- FAIL: TestBroken\n    nope\n")
+// TestEnvBuilderEmitsTestStepContract pins the contract between
+// `circleci config generate` and chunk-cli's env-builder: for a .NET project,
+// env-builder must emit a setup step named "test" with a "dotnet test" command.
+// If env-builder ever renames the step or stops emitting it, the generated
+// config silently loses its test step — this test catches that regression at
+// the chunk-cli upgrade.
+func TestEnvBuilderEmitsTestStepContract(t *testing.T) {
+	dir := t.TempDir()
+	copyFixture(t, "testdata/test-run/dotnet", dir)
 
-	assert.Check(t, golden.String(got, t.Name()+".txt"))
-}
+	result, err := reposcan.NewDefaultScanner().Scan(context.Background(), dir)
+	assert.NilError(t, err)
 
-func TestRenderPrompt_NoOutputCaptured(t *testing.T) {
-	got := RenderPrompt("go", "cimg/go:1.22", "go test ./...", 1, "")
-
-	assert.Check(t, golden.String(got, t.Name()+".txt"))
-}
-
-func TestRenderNoTestsPrompt(t *testing.T) {
-	got := RenderNoTestsPrompt("go", "cimg/go:1.22")
-
-	assert.Check(t, golden.String(got, t.Name()+".txt"))
-}
-
-func TestRenderNoTestsPrompt_UnknownStack(t *testing.T) {
-	got := RenderNoTestsPrompt("unknown", "")
-
-	assert.Check(t, golden.String(got, t.Name()+".txt"))
+	cmd := result.SetupCommand("test")
+	assert.Check(t, cmd != "", "env-builder should emit a 'test' setup step for .NET projects")
+	assert.Check(t, strings.HasPrefix(cmd, "dotnet test"), "expected dotnet test command, got: %s", cmd)
 }

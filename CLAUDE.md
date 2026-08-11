@@ -202,8 +202,8 @@ internal/
 ├── projectref/           Reads/writes .circleci/info.yml — the per-checkout project record
 │                         that survives repository renames and standalone projects.
 ├── reposcan/             Detects language stack, container image, and setup commands.
-├── run/                  Run-level operations (watch, failure context).
-└── testrunner/           Runs the test command detected by reposcan.
+│                         Used by `config generate`; `onboard` does not scan.
+└── run/                  Run-level operations (watch, failure context).
 ```
 
 ### `internal/` — platform and shared infrastructure

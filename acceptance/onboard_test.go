@@ -27,7 +27,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
 	"strconv"
 	"strings"
 	"testing"
@@ -113,11 +112,13 @@ func TestOnboard_NotAGitRepo(t *testing.T) {
 	assert.Check(t, golden.String(stderr, t.Name()+".stderr.txt"))
 }
 
+// TestOnboard_NoArg pins that omitting the path argument onboards the working
+// directory: the starter config lands there, not wherever else the run looked.
 func TestOnboard_NoArg(t *testing.T) {
 	dir := t.TempDir()
 	initGitDir(t, dir)
 
-	env := testenv.New(t)
+	_, env := onboardAuthenticatedEnv(t, "testuser")
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
 		Args:    []string{"onboard"},
@@ -125,50 +126,23 @@ func TestOnboard_NoArg(t *testing.T) {
 		WorkDir: dir,
 	})
 
-	assert.Equal(t, result.ExitCode, 1, "stderr: %s", result.Stderr)
-	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
-	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
-}
-
-func TestOnboard_FailingTests_ShortCircuits(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("test runner uses sh -c")
-	}
-	dir := t.TempDir()
-	copyFixture(t, "testdata/test-run/dotnet", dir)
-	initGitDir(t, dir)
-
-	env := testenv.New(t)
-	addFakeDotnet(t, env, true)
-	result := binary.RunCLI(t, binary.RunOpts{
-		Binary:  binaryPath,
-		Args:    []string{"onboard", dir},
-		Env:     env.Environ(),
-		WorkDir: t.TempDir(),
-	})
-
-	assert.Equal(t, result.ExitCode, 1, "stderr: %s", result.Stderr)
-	assert.Check(t, os.IsNotExist(statConfig(dir)), "config should not be created after test failure")
-	assert.Check(t, !strings.Contains(result.Stderr, "Open this URL in your browser"), "signup should not start")
-
-	stdout := normalizeOnboardOutput(result.Stdout, dir)
-	assert.Check(t, golden.String(stdout, t.Name()+".txt"))
-	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	// The written path is goldened by the tests that pass an explicit path; here the
+	// config's location in the working directory is the whole assertion.
+	_, err := os.Stat(filepath.Join(dir, ".circleci", "config.yml"))
+	assert.NilError(t, err)
+	assert.Check(t, cmp.Contains(result.Stdout, "Generated"))
+	assert.Check(t, cmp.Contains(result.Stdout, "Already signed in as testuser"))
 }
 
 func TestOnboard_ConfigAlreadyExists(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("test runner uses sh -c")
-	}
 	dir := t.TempDir()
-	copyFixture(t, "testdata/test-run/dotnet", dir)
 	initGitDir(t, dir)
 	configPath := filepath.Join(dir, ".circleci", "config.yml")
 	assert.NilError(t, os.MkdirAll(filepath.Dir(configPath), 0o755))
 	assert.NilError(t, os.WriteFile(configPath, []byte("# existing config\nversion: 2.1\n"), 0o644))
 
 	_, env := onboardAuthenticatedEnv(t, "testuser")
-	addFakeDotnet(t, env, false)
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
 		Args:    []string{"onboard", dir},
@@ -183,15 +157,10 @@ func TestOnboard_ConfigAlreadyExists(t *testing.T) {
 }
 
 func TestOnboard_HappyPath_AlreadyAuthenticated(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("test runner uses sh -c")
-	}
 	dir := t.TempDir()
-	copyFixture(t, "testdata/test-run/dotnet", dir)
 	initGitDir(t, dir)
 
 	_, env := onboardAuthenticatedEnv(t, "testuser")
-	addFakeDotnet(t, env, false)
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
 		Args:    []string{"onboard", dir},
@@ -200,8 +169,13 @@ func TestOnboard_HappyPath_AlreadyAuthenticated(t *testing.T) {
 	})
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
-	_, err := os.Stat(filepath.Join(dir, ".circleci", "config.yml"))
+
+	// Onboard does not scan the repository, so the config it writes is the generic
+	// starter template regardless of what the checkout contains. `circleci config
+	// generate` is what detects a stack.
+	body, err := os.ReadFile(filepath.Join(dir, ".circleci", "config.yml"))
 	assert.NilError(t, err)
+	assert.Check(t, golden.String(string(body), t.Name()+".config.yml"))
 
 	stdout := normalizeOnboardOutput(result.Stdout, dir)
 	assert.Check(t, golden.String(stdout, t.Name()+".txt"))
@@ -271,15 +245,10 @@ func TestOnboard_ScanFlag_NotAGitRepo(t *testing.T) {
 }
 
 func TestOnboard_ScanFlag_ExplicitSameAsDefault(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("test runner uses sh -c")
-	}
 	dir := t.TempDir()
-	copyFixture(t, "testdata/test-run/dotnet", dir)
 	initGitDir(t, dir)
 
 	_, env := onboardAuthenticatedEnv(t, "testuser")
-	addFakeDotnet(t, env, false)
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
 		Args:    []string{"onboard", "--scan", dir},
@@ -294,8 +263,7 @@ func TestOnboard_ScanFlag_ExplicitSameAsDefault(t *testing.T) {
 }
 
 func TestOnboard_PostSignup_ProjectCreated(t *testing.T) {
-	dir, _, env := onboardDotnetRepo(t)
-	addFakeDotnet(t, env, false)
+	dir, _, env := onboardRepo(t)
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
 		Args:    []string{"onboard", "--scan"},
@@ -389,11 +357,7 @@ func TestOnboard_PostSignup_FreshSignup_ContinuesToProjectSetup(t *testing.T) {
 // TestOnboard_PostSignup_KeepsExistingProjectRef pins that onboard never rewrites
 // an existing .circleci/info.yml, which may be committed and may point elsewhere.
 func TestOnboard_PostSignup_KeepsExistingProjectRef(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("test runner uses sh -c")
-	}
 	dir := t.TempDir()
-	copyFixture(t, "testdata/test-run/dotnet", dir)
 	initGitRepoWithRemote(t, dir, "https://github.com/myorg/my-repo.git")
 
 	// A link to a project in a different organization, so it is ignored and onboard
@@ -407,7 +371,6 @@ func TestOnboard_PostSignup_KeepsExistingProjectRef(t *testing.T) {
 	assert.NilError(t, writeErr)
 
 	_, env := onboardStandaloneEnv(t, "testuser")
-	addFakeDotnet(t, env, false)
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
@@ -427,7 +390,7 @@ func TestOnboard_PostSignup_KeepsExistingProjectRef(t *testing.T) {
 // TestOnboard_PostSignup_AddsPushTriggerAlongsideOthers pins that only an
 // all-pushes trigger satisfies onboard, not a schedule-only definition.
 func TestOnboard_PostSignup_AddsPushTriggerAlongsideOthers(t *testing.T) {
-	dir, fake, env := onboardDotnetRepo(t)
+	dir, fake, env := onboardRepo(t)
 	fake.AddPipelineDefinition(onboardProjectID, map[string]any{
 		"id":   onboardPipelineDefID,
 		"name": "my-repo",
@@ -445,7 +408,6 @@ func TestOnboard_PostSignup_AddsPushTriggerAlongsideOthers(t *testing.T) {
 		"id":           "trig-uuid-1",
 		"event_preset": "all-pushes",
 	})
-	addFakeDotnet(t, env, false)
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
@@ -511,11 +473,7 @@ func TestOnboard_SignupFlag_WritesNoProjectRefOutsideRepo(t *testing.T) {
 // TestOnboard_PathArgument_UsesGivenDirectory pins that a path argument selects the
 // repository onboard describes, not the one the process is running from.
 func TestOnboard_PathArgument_UsesGivenDirectory(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("test runner uses sh -c")
-	}
 	dir := t.TempDir()
-	copyFixture(t, "testdata/test-run/dotnet", dir)
 	initGitRepoWithRemote(t, dir, "https://github.com/myorg/my-repo.git")
 
 	// A second, unrelated checkout to run from.
@@ -524,7 +482,6 @@ func TestOnboard_PathArgument_UsesGivenDirectory(t *testing.T) {
 
 	fake, env := onboardStandaloneEnv(t, "testuser")
 	addFirstPipelineResponses(fake)
-	addFakeDotnet(t, env, false)
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
@@ -546,7 +503,7 @@ func TestOnboard_PathArgument_UsesGivenDirectory(t *testing.T) {
 }
 
 func TestOnboard_PostSignup_FirstPipelineCreated(t *testing.T) {
-	dir, fake, env := onboardDotnetRepo(t)
+	dir, fake, env := onboardRepo(t)
 	fake.SetCreatePipelineDefinitionResponse(onboardProjectID, map[string]any{
 		"id":         onboardPipelineDefID,
 		"name":       "my-repo",
@@ -557,7 +514,6 @@ func TestOnboard_PostSignup_FirstPipelineCreated(t *testing.T) {
 		"created_at":   "2026-07-23T00:00:00Z",
 		"event_preset": "all-pushes",
 	})
-	addFakeDotnet(t, env, false)
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
 		Args:    []string{"onboard", "--scan", "--repo-id", onboardRepoExternalID},
@@ -574,7 +530,7 @@ func TestOnboard_PostSignup_FirstPipelineCreated(t *testing.T) {
 }
 
 func TestOnboard_PostSignup_FirstPipeline_GitHubAppResolvesRepo(t *testing.T) {
-	dir, fake, env := onboardDotnetRepo(t)
+	dir, fake, env := onboardRepo(t)
 	// GitHub App is installed for the org and can access the repo, so the repo's
 	// external ID is resolved automatically — no --repo-id needed.
 	fake.SetGitHubAppInstalled(onboardOrgID, true)
@@ -586,7 +542,6 @@ func TestOnboard_PostSignup_FirstPipeline_GitHubAppResolvesRepo(t *testing.T) {
 		DefaultBranch: "main",
 	})
 	addFirstPipelineResponses(fake)
-	addFakeDotnet(t, env, false)
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
 		Args:    []string{"onboard", "--scan"},
@@ -610,7 +565,7 @@ func TestOnboard_PostSignup_FirstPipeline_GitHubAppResolvesRepo(t *testing.T) {
 // project slug is circleci/<orgID>/<projectID> — opaque IDs, not the repository
 // name — and no API maps a project name to its ID within an org.
 func TestOnboard_PostSignup_Rerun_Idempotent(t *testing.T) {
-	dir, fake, env := onboardDotnetRepo(t)
+	dir, fake, env := onboardRepo(t)
 	fake.SetGitHubAppInstalled(onboardOrgID, true)
 	fake.AddGitHubAppRepository(onboardOrgID, fakes.GitHubAppRepo{
 		ID:           987654321,
@@ -630,7 +585,6 @@ func TestOnboard_PostSignup_Rerun_Idempotent(t *testing.T) {
 		OrganizationSlug: "circleci/Org1234ShortId",
 		OrganizationID:   onboardOrgID,
 	})
-	addFakeDotnet(t, env, false)
 
 	first := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
@@ -686,11 +640,7 @@ func TestOnboard_PostSignup_Rerun_Idempotent(t *testing.T) {
 // collision that follows points at `project link --force`, since plain
 // `project link` refuses while .circleci/info.yml exists.
 func TestOnboard_PostSignup_LinkedProjectInAnotherOrg(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("test runner uses sh -c")
-	}
 	dir := t.TempDir()
-	copyFixture(t, "testdata/test-run/dotnet", dir)
 	initGitRepoWithRemote(t, dir, "https://github.com/myorg/my-repo.git")
 
 	// A resolvable link, but to a project owned by a different org. Both IDs are
@@ -712,7 +662,6 @@ func TestOnboard_PostSignup_LinkedProjectInAnotherOrg(t *testing.T) {
 		OrganizationID:   "other-org-uuid",
 	})
 	fake.SetCreateProjectConflict()
-	addFakeDotnet(t, env, false)
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
@@ -738,9 +687,8 @@ func TestOnboard_PostSignup_LinkedProjectInAnotherOrg(t *testing.T) {
 // by name, onboard points at `circleci project link` rather than reporting a raw
 // HTTP conflict.
 func TestOnboard_PostSignup_ProjectNameConflict(t *testing.T) {
-	dir, fake, env := onboardDotnetRepo(t)
+	dir, fake, env := onboardRepo(t)
 	fake.SetCreateProjectConflict()
-	addFakeDotnet(t, env, false)
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
@@ -759,7 +707,7 @@ func TestOnboard_PostSignup_ProjectNameConflict(t *testing.T) {
 }
 
 func TestOnboard_PostSignup_FirstPipeline_RepoNotAccessible(t *testing.T) {
-	dir, fake, env := onboardDotnetRepo(t)
+	dir, fake, env := onboardRepo(t)
 	// App is installed, but the repo the user is in was not granted to it.
 	fake.SetGitHubAppInstalled(onboardOrgID, true)
 	fake.AddGitHubAppRepository(onboardOrgID, fakes.GitHubAppRepo{
@@ -768,7 +716,6 @@ func TestOnboard_PostSignup_FirstPipeline_RepoNotAccessible(t *testing.T) {
 		RepoName:     "some-other-repo",
 		Owner:        "myorg",
 	})
-	addFakeDotnet(t, env, false)
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
 		Args:    []string{"onboard", "--scan"},
@@ -785,13 +732,12 @@ func TestOnboard_PostSignup_FirstPipeline_RepoNotAccessible(t *testing.T) {
 // TestOnboard_PostSignup_FirstPipeline_TriggerFails pins that a rejected request
 // exits non-zero: a definition with no trigger will never build.
 func TestOnboard_PostSignup_FirstPipeline_TriggerFails(t *testing.T) {
-	dir, fake, env := onboardDotnetRepo(t)
+	dir, fake, env := onboardRepo(t)
 	fake.SetCreatePipelineDefinitionResponse(onboardProjectID, map[string]any{
 		"id":   onboardPipelineDefID,
 		"name": "my-repo",
 	})
 	// No trigger response registered → the trigger create fails.
-	addFakeDotnet(t, env, false)
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
 		Args:    []string{"onboard", "--scan", "--repo-id", onboardRepoExternalID},
@@ -811,11 +757,10 @@ func TestOnboard_PostSignup_FirstPipeline_TriggerFails(t *testing.T) {
 // TestOnboard_PostSignup_FirstPipeline_MissingPrerequisiteSucceeds is the other half
 // of the exit-code rule: nothing was attempted, so onboard succeeds with guidance.
 func TestOnboard_PostSignup_FirstPipeline_MissingPrerequisiteSucceeds(t *testing.T) {
-	dir, fake, env := onboardDotnetRepo(t)
+	dir, fake, env := onboardRepo(t)
 	// The GitHub App is installed but has not been granted this repository, so the
 	// external ID cannot be resolved and no pipeline request is ever made.
 	fake.SetGitHubAppInstalled(onboardOrgID, true)
-	addFakeDotnet(t, env, false)
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
 		Args:    []string{"onboard", "--scan"},
@@ -833,11 +778,10 @@ func TestOnboard_PostSignup_FirstPipeline_MissingPrerequisiteSucceeds(t *testing
 // once the install finishes. The project's own page would report success in the
 // browser while the rest of setup sits waiting in the terminal.
 func TestOnboard_PostSignup_GitHubAppInstall_ReturnURL(t *testing.T) {
-	dir, fake, env := onboardDotnetRepo(t)
+	dir, fake, env := onboardRepo(t)
 	// The app is left uninstalled, so onboard initiates an install and has to hand
 	// over a return URL. Every other test here starts from an installed app, which
 	// never reaches this request.
-	addFakeDotnet(t, env, false)
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
 		Args:    []string{"onboard", "--scan"},
@@ -867,15 +811,10 @@ func TestOnboard_PostSignup_GitHubAppInstall_ReturnURL(t *testing.T) {
 }
 
 func TestOnboard_PostSignup_ClassicOrg_FollowsProject(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("test runner uses sh -c")
-	}
 	dir := t.TempDir()
-	copyFixture(t, "testdata/test-run/dotnet", dir)
 	initGitRepoWithRemote(t, dir, "https://github.com/myorg/my-repo.git")
 
 	_, env := onboardAuthenticatedEnv(t, "testuser")
-	addFakeDotnet(t, env, false)
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
 		Args:    []string{"onboard", "--scan"},
@@ -890,16 +829,11 @@ func TestOnboard_PostSignup_ClassicOrg_FollowsProject(t *testing.T) {
 }
 
 func TestOnboard_PostSignup_NoOrgs(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("test runner uses sh -c")
-	}
 	dir := t.TempDir()
-	copyFixture(t, "testdata/test-run/dotnet", dir)
 	initGitDir(t, dir)
 
 	fake, env := onboardAuthenticatedEnv(t, "testuser")
 	fake.SetCollaborations()
-	addFakeDotnet(t, env, false)
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
 		Args:    []string{"onboard", "--scan", dir},
@@ -912,9 +846,8 @@ func TestOnboard_PostSignup_NoOrgs(t *testing.T) {
 }
 
 func TestOnboard_PostSignup_CreateFails(t *testing.T) {
-	dir, fake, env := onboardDotnetRepo(t)
+	dir, fake, env := onboardRepo(t)
 	fake.SetCreateProjectResponse(nil)
-	addFakeDotnet(t, env, false)
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
 		Args:    []string{"onboard", "--scan"},
@@ -927,19 +860,12 @@ func TestOnboard_PostSignup_CreateFails(t *testing.T) {
 	assert.Check(t, cmp.Contains(result.Stdout, "circleci project create"))
 }
 
-// onboardDotnetRepo builds the fixture shared by the post-signup tests: a dotnet
-// checkout with a GitHub remote, a fake CircleCI serving a CircleCI-native
-// organization, and an isolated environment pointed at it.
-//
-// Callers still wire their own fake dotnet binary, since whether the tests pass or
-// fail is the variable under test in some of them.
-func onboardDotnetRepo(t *testing.T) (string, *fakes.CircleCI, *testenv.TestEnv) {
+// onboardRepo builds the fixture shared by the post-signup tests: a checkout with
+// a GitHub remote, a fake CircleCI serving a CircleCI-native organization, and an
+// isolated environment pointed at it.
+func onboardRepo(t *testing.T) (string, *fakes.CircleCI, *testenv.TestEnv) {
 	t.Helper()
-	if runtime.GOOS == "windows" {
-		t.Skip("test runner uses sh -c")
-	}
 	dir := t.TempDir()
-	copyFixture(t, "testdata/test-run/dotnet", dir)
 	initGitRepoWithRemote(t, dir, "https://github.com/myorg/my-repo.git")
 	fake, env := onboardStandaloneEnv(t, "testuser")
 	return dir, fake, env
@@ -1019,11 +945,6 @@ func onboardAuthenticatedEnv(t *testing.T, login string) (*fakes.CircleCI, *test
 	env.CircleCIURL = fake.URL()
 	env.Token = "test-token"
 	return fake, env
-}
-
-func statConfig(dir string) error {
-	_, err := os.Stat(filepath.Join(dir, ".circleci", "config.yml"))
-	return err
 }
 
 func initGitDir(t *testing.T, dir string) {
