@@ -503,7 +503,7 @@ func TestConfigValidate_NoToken(t *testing.T) {
 
 	var compiled bool
 	for _, req := range fake.AllRequests() {
-		if req.URL.Path != "/api/v2/compile-config-with-defaults" {
+		if req.URL.Path != "/api/v3/configs/compile" {
 			continue
 		}
 		compiled = true
@@ -539,9 +539,83 @@ func TestConfigValidate_NoTokenSkipsOrgInference(t *testing.T) {
 	assert.Check(t, cmp.Equal(result.ExitCode, 0), "stderr: %s", result.Stderr)
 	assert.Check(t, cmp.Equal(fake.LastCompileOwnerID(), ""))
 	for _, req := range fake.AllRequests() {
-		assert.Check(t, cmp.Equal(req.URL.Path, "/api/v2/compile-config-with-defaults"),
+		assert.Check(t, cmp.Equal(req.URL.Path, "/api/v3/configs/compile"),
 			"unexpected request on the anonymous path")
 	}
+}
+
+// TestConfigValidate_UsesV3Compile pins the request the CLI sends to the v3
+// compile endpoint. The endpoint rejects unknown members, so the body shape —
+// config under data.attributes, the org as a data.references entry — is part of
+// the contract, not an implementation detail.
+func TestConfigValidate_UsesV3Compile(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	fake.SetCompileResponse(true, testCompiledYAML)
+	fake.AddOrg(testOrgUUID, "gh/myorg", "myorg", "github")
+
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+
+	dir := t.TempDir()
+	writeConfig(t, dir, testConfigYAML)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"config", "validate", "--config", ".circleci/config.yml", "--org", "gh/myorg", "--next"},
+		Env:     env.Environ(),
+		WorkDir: dir,
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 0), "stderr: %s", result.Stderr)
+	assert.Check(t, cmp.Equal(fake.LastCompileAPIVersion(), "v3"))
+	assert.Check(t, cmp.Equal(fake.LastCompileOwnerID(), testOrgUUID))
+
+	var body map[string]any
+	for _, req := range fake.AllRequests() {
+		if req.URL.Path == "/api/v3/configs/compile" {
+			assert.NilError(t, req.Decode(&body))
+		}
+	}
+	assert.Assert(t, body != nil, "expected a v3 compile request")
+
+	data, _ := body["data"].(map[string]any)
+	assert.Assert(t, data != nil)
+	attrs, _ := data["attributes"].(map[string]any)
+	assert.Assert(t, attrs != nil)
+	assert.Check(t, cmp.Equal(attrs["config"], testConfigYAML))
+	assert.Check(t, cmp.Equal(attrs["enable_next_preview"], true))
+	_, hasValues := attrs["pipeline_values"]
+	assert.Check(t, hasValues, "expected locally fabricated pipeline_values")
+	assert.Check(t, cmp.DeepEqual(data["references"], map[string]any{
+		"org": map[string]any{"id": testOrgUUID},
+	}))
+}
+
+// TestConfigValidate_InvalidOnV3 pins that a config the v3 endpoint reports as
+// outcome "failed" — HTTP 200, reasons in meta.messages — still exits 7 with the
+// messages bulleted on stderr, exactly as the v2 errors array did.
+func TestConfigValidate_InvalidOnV3(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	fake.SetCompileResponse(false, "", "unknown key 'foo'")
+
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+
+	dir := t.TempDir()
+	writeConfig(t, dir, testConfigYAML)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"config", "validate", "--config", ".circleci/config.yml"},
+		Env:     env.Environ(),
+		WorkDir: dir,
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 7))
+	assert.Check(t, cmp.Equal(fake.LastCompileAPIVersion(), "v3"))
+	assert.Check(t, cmp.Contains(result.Stderr, "• unknown key 'foo'"))
 }
 
 // TestConfigValidate_NoTokenWithOrg pins the one case where the anonymous path
@@ -724,7 +798,7 @@ func TestConfigProcess_NoToken(t *testing.T) {
 
 	var compiled bool
 	for _, req := range fake.AllRequests() {
-		if req.URL.Path != "/api/v2/compile-config-with-defaults" {
+		if req.URL.Path != "/api/v3/configs/compile" {
 			continue
 		}
 		compiled = true
@@ -760,7 +834,7 @@ func TestConfigProcess_NoTokenSkipsOrgInference(t *testing.T) {
 	assert.Check(t, cmp.Equal(result.ExitCode, 0), "stderr: %s", result.Stderr)
 	assert.Check(t, cmp.Equal(fake.LastCompileOwnerID(), ""))
 	for _, req := range fake.AllRequests() {
-		assert.Check(t, cmp.Equal(req.URL.Path, "/api/v2/compile-config-with-defaults"),
+		assert.Check(t, cmp.Equal(req.URL.Path, "/api/v3/configs/compile"),
 			"unexpected request on the anonymous path")
 	}
 }
