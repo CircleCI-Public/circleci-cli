@@ -131,7 +131,7 @@ func setupJobGetFake(t *testing.T) (*fakes.CircleCI, *testenv.TestEnv) {
 	})
 
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 	env.CircleCIURL = fake.URL()
 
 	return fake, env
@@ -168,7 +168,7 @@ func TestJobGet_JSON(t *testing.T) {
 func TestJobGet_NotFound(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
@@ -185,7 +185,7 @@ func TestJobGet_NotFound(t *testing.T) {
 func TestJobGet_MissingArg(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{

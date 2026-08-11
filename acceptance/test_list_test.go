@@ -61,7 +61,7 @@ func setupTestListFake(t *testing.T) (*fakes.CircleCI, *testenv.TestEnv) {
 	)
 
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 	env.CircleCIURL = fake.URL()
 
 	return fake, env
@@ -254,7 +254,7 @@ func TestTestList_NoMatches(t *testing.T) {
 		testResult("pkg/foo", "TestAlpha", "success", 0.10, ""),
 	)
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 	env.CircleCIURL = fake.URL()
 
 	result := runTestList(t, env)
@@ -284,7 +284,7 @@ func TestTestList_InvalidSort(t *testing.T) {
 func TestTestList_MissingArg(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{

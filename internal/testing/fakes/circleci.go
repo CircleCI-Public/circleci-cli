@@ -132,14 +132,13 @@ type CircleCI struct {
 	deletedContextVars         map[string]bool  // "contextID/name" → deleted
 	deletedContextRestrictions map[string]bool  // "contextID/restrictionID" → deleted
 
-	// Deploy state.
-	deployments     map[string][]any // project id → deployments
-	environments    []any            // all environments (filtered by org_id in handler)
-	environmentByID map[string]any   // environment UUID → environment entity
-	components      map[string][]any // org_id → components list
-	componentByID   map[string]any   // component UUID → component entity
-	compVersions    map[string][]any // component UUID → version entities
-	deploySettings  map[string]any   // project UUID → settings entity
+	// Deploy state. Each slice holds every stored entity; the list handlers
+	// filter it by the org/project/component the request names.
+	deployments    []Deployment              // filtered by project_id
+	environments   []DeployEnvironment       // filtered by org_id
+	components     []DeployComponent         // filtered by org_id and (optionally) project_id
+	compVersions   []DeployComponentVersion  // filtered by component id and (optionally) environment_id
+	deploySettings map[string]DeploySettings // project id → settings entity
 
 	// Policy state.
 	policyBundles   map[string]map[string]string // "ownerID/ctx" → bundle
@@ -156,12 +155,13 @@ type CircleCI struct {
 	iosBundleCounter  int              // monotonic ID generator for created bundles
 
 	// Auth state.
-	me                 any          // response for GET /api/v3/users?filter[user_id]=me
-	collaborations     []any        // response for GET /api/v2/me/collaborations
-	oauthTokenResponse any          // response body for POST /oauth/token
-	oauthTokenStatus   int          // HTTP status for POST /oauth/token (0 → 200 OK)
-	parRequests        []url.Values // recorded POST /oauth/par request bodies, in order
-	parCounter         int          // monotonic ID generator for request_uri values
+	tokens             map[string]bool // accepted bearer tokens; a request whose Authorization: Bearer <token> is absent from this set is rejected 401 on every non-exempt route
+	me                 any             // response for GET /api/v3/users?filter[user_id]=me
+	collaborations     []any           // response for GET /api/v2/me/collaborations
+	oauthTokenResponse any             // response body for POST /oauth/token
+	oauthTokenStatus   int             // HTTP status for POST /oauth/token (0 → 200 OK)
+	parRequests        []url.Values    // recorded POST /oauth/par request bodies, in order
+	parCounter         int             // monotonic ID generator for request_uri values
 
 	// Orb state (v3).
 	orbPackages        map[string]map[string]any // id → package object
@@ -214,11 +214,32 @@ type orbFakeValidateResponse struct {
 	outputYAML string
 }
 
+// DefaultToken is the bearer token the fake accepts when NewCircleCI is called
+// without an explicit token list. It matches the token acceptance tests inject
+// via env.Token, so the common case needs no wiring.
+const DefaultToken = "test-token"
+
 // NewCircleCI starts a fake CircleCI API server and registers t.Cleanup to close it.
-func NewCircleCI(t *testing.T) *CircleCI {
+//
+// The fake enforces authentication: every request to a non-exempt route must
+// carry Authorization: Bearer <token> with a token in the accepted set, or it is
+// rejected with 401. The accepted set defaults to DefaultToken; pass one or more
+// tokens to override it, or adjust it later with RequireTokens/AllowToken. The
+// login/pre-auth routes (/oauth/*, /artifacts/*, config compile, tool releases)
+// are exempt — see authExempt.
+func NewCircleCI(t *testing.T, tokens ...string) *CircleCI {
 	t.Helper()
+	if len(tokens) == 0 {
+		tokens = []string{DefaultToken}
+	}
+	tokenSet := make(map[string]bool, len(tokens))
+	for _, tok := range tokens {
+		tokenSet[tok] = true
+	}
 	f := &CircleCI{
 		RequestRecorder: httprecorder.New(),
+
+		tokens: tokenSet,
 
 		pipelines:                         map[string]any{},
 		projects:                          map[string][]any{},
@@ -275,13 +296,7 @@ func NewCircleCI(t *testing.T) *CircleCI {
 		projectsByID:                      map[string]any{},
 		projectsBySlug:                    map[string]any{},
 		projectSettings:                   map[string]any{},
-		deployments:                       map[string][]any{},
-		environments:                      []any{},
-		environmentByID:                   map[string]any{},
-		components:                        map[string][]any{},
-		componentByID:                     map[string]any{},
-		compVersions:                      map[string][]any{},
-		deploySettings:                    map[string]any{},
+		deploySettings:                    map[string]DeploySettings{},
 		policyBundles:                     make(map[string]map[string]string),
 		decisionLogs:                      make(map[string][]any),
 		decisionResults:                   make(map[string]any),
@@ -324,6 +339,7 @@ func NewCircleCI(t *testing.T) *CircleCI {
 			next.ServeHTTP(w, req)
 		})
 	})
+	r.Use(f.authMiddleware)
 	r.Get("/api/v2/pipeline/{id}", f.handleGetPipeline)
 	r.Post("/api/v2/pipeline/{id}/cancel", f.handleCancelPipeline)
 	r.Post("/api/v3/workflows/{id}/rerun", f.handleRerunWorkflow)
@@ -470,6 +486,66 @@ func NewCircleCI(t *testing.T) *CircleCI {
 // URL returns the base URL of the fake server.
 func (f *CircleCI) URL() string {
 	return f.server.URL
+}
+
+// RequireTokens replaces the accepted-token set, so a request must carry one of
+// these as its Bearer token to reach any non-exempt route. Use it to pin the
+// exact token a test expects, or to exercise the 401 path with a token the fake
+// will reject.
+func (f *CircleCI) RequireTokens(tokens ...string) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.tokens = make(map[string]bool, len(tokens))
+	for _, tok := range tokens {
+		f.tokens[tok] = true
+	}
+}
+
+// AllowToken adds a token to the accepted-token set without disturbing the
+// tokens already there. The OAuth token endpoint calls this for every token it
+// mints, so a login flow's follow-up authenticated calls are accepted.
+func (f *CircleCI) AllowToken(token string) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.tokens[token] = true
+}
+
+// authMiddleware rejects any request to a non-exempt route that does not carry
+// Authorization: Bearer <token> with an accepted token, mirroring how the real
+// API refuses unauthenticated calls.
+func (f *CircleCI) authMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if authExempt(r.URL.Path) {
+			next.ServeHTTP(w, r)
+			return
+		}
+		if tok, ok := strings.CutPrefix(r.Header.Get("Authorization"), "Bearer "); ok {
+			f.mu.RLock()
+			accepted := f.tokens[tok]
+			f.mu.RUnlock()
+			if accepted {
+				next.ServeHTTP(w, r)
+				return
+			}
+		}
+		render.Status(r, http.StatusUnauthorized)
+		render.JSON(w, r, map[string]any{"message": "Unauthorized"})
+	})
+}
+
+// authExempt reports whether a path is reachable without authentication. These
+// are the routes the CLI legitimately calls with no (or not-yet-issued) token:
+// the OAuth login flow, signed artifact downloads, the optional-auth config
+// compile endpoint, and the public tool-releases feed.
+func authExempt(path string) bool {
+	if strings.HasPrefix(path, "/oauth/") || strings.HasPrefix(path, "/artifacts/") {
+		return true
+	}
+	switch path {
+	case "/api/v2/compile-config-with-defaults", "/api/v3/tool/releases":
+		return true
+	}
+	return false
 }
 
 // SetPipelineCancelResponse sets the HTTP status code returned for POST /api/v2/pipeline/<id>/cancel.
@@ -1830,6 +1906,16 @@ func (f *CircleCI) handleOAuthToken(w http.ResponseWriter, r *http.Request) {
 			"refresh_token": "fake-refresh-token",
 		}
 	}
+	// A successful exchange issues a token the CLI then uses to validate itself
+	// against /api/v3/users. Accept that minted token so the login flow's
+	// follow-up authenticated call is not rejected by authMiddleware.
+	if status == 0 || status < http.StatusBadRequest {
+		if m, ok := resp.(map[string]any); ok {
+			if at, ok := m["access_token"].(string); ok && at != "" {
+				f.AllowToken(at)
+			}
+		}
+	}
 	if status != 0 {
 		render.Status(r, status)
 	}
@@ -2660,175 +2746,254 @@ func (f *CircleCI) handleGetProjectInfo(w http.ResponseWriter, r *http.Request) 
 
 // --- Deploy helpers ---
 
-// AddDeployment registers a deployment for a project, returned by
-// GET /api/v3/deploy/deployments. The deployment must be in V3 format:
-// {"id": "...", "attributes": {...}, "references": {...}}.
-func (f *CircleCI) AddDeployment(projectID string, deployment any) {
+// Deployment is a stored deploy served by GET /api/v3/deploy/deployments,
+// filtered by ProjectID. Add deployments newest-first — the endpoint returns
+// them in insertion order. Optional string fields (FailureReason, EndedAt,
+// PipelineID, WorkflowID) are omitted from the wire entity when empty, matching
+// the real API.
+type Deployment struct {
+	ID            string
+	ProjectID     string // list filter key; not rendered
+	ComponentID   string
+	ComponentName string
+	EnvironmentID string
+	PipelineID    string
+	WorkflowID    string
+	Type          string
+	Status        string
+	FailureReason string
+	Version       string // rendered as target_version.name
+	IsRollback    bool
+	CreatedAt     string
+	EndedAt       string
+}
+
+// DeployEnvironment is a stored deploy environment served by the environment
+// list/get endpoints. OrgID is the list filter key.
+type DeployEnvironment struct {
+	ID    string
+	OrgID string
+	Name  string
+}
+
+// DeployComponent is a stored deploy component served by the component list/get
+// endpoints. OrgID is the list filter key; ProjectID narrows the list.
+type DeployComponent struct {
+	ID        string
+	OrgID     string
+	ProjectID string
+	Name      string
+	Type      string
+}
+
+// DeployComponentVersion is a stored version served by the component-versions
+// endpoint. ComponentID is the list key; EnvironmentID optionally narrows it.
+type DeployComponentVersion struct {
+	ID            string
+	ComponentID   string
+	EnvironmentID string
+	Name          string
+	CreatedAt     string
+}
+
+// DeploySettings is a stored deploy settings entity for a project.
+type DeploySettings struct {
+	ID                         string
+	ProjectID                  string
+	AutoCancelRedundantDeploys bool
+}
+
+// AddDeployment registers a deployment, returned by GET /api/v3/deploy/deployments
+// for requests whose filter[project_id] matches its ProjectID.
+func (f *CircleCI) AddDeployment(deployment Deployment) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	f.deployments[projectID] = append(f.deployments[projectID], deployment)
+	f.deployments = append(f.deployments, deployment)
 }
 
 func (f *CircleCI) handleListDeployments(w http.ResponseWriter, r *http.Request) {
 	projectID := r.URL.Query().Get("filter[project_id]")
 	f.mu.RLock()
-	items := f.deployments[projectID]
+	items := []any{}
+	for _, d := range f.deployments {
+		if projectID == "" || d.ProjectID == projectID {
+			items = append(items, deploymentEntity(d))
+		}
+	}
 	f.mu.RUnlock()
 
-	if items == nil {
-		items = []any{}
-	}
 	render.JSON(w, r, map[string]any{"data": items, "page": map[string]any{}})
 }
 
-// AddEnvironment registers a deploy environment.
-// The environment must be in V3 entity format with "id", "attributes", and "references".
-// orgID is used to filter by filter[org_id] in the list handler.
-func (f *CircleCI) AddEnvironment(orgID string, environment any) {
+// deploymentEntity renders a stored Deployment as the V3 entity the deploy
+// client decodes, omitting the optional fields that are empty.
+func deploymentEntity(d Deployment) map[string]any {
+	attrs := map[string]any{
+		"type":           d.Type,
+		"status":         d.Status,
+		"target_version": map[string]any{"name": d.Version},
+		"is_rollback":    d.IsRollback,
+		"created_at":     d.CreatedAt,
+	}
+	if d.EndedAt != "" {
+		attrs["ended_at"] = d.EndedAt
+	}
+	if d.FailureReason != "" {
+		attrs["failure_reason"] = d.FailureReason
+	}
+	refs := map[string]any{
+		"deploy_component": map[string]any{
+			"id":         d.ComponentID,
+			"attributes": map[string]any{"name": d.ComponentName},
+		},
+		"deploy_environment": map[string]any{"id": d.EnvironmentID},
+	}
+	if d.PipelineID != "" {
+		refs["pipeline"] = map[string]any{"id": d.PipelineID}
+	}
+	if d.WorkflowID != "" {
+		refs["workflow"] = map[string]any{"id": d.WorkflowID}
+	}
+	return map[string]any{"id": d.ID, "attributes": attrs, "references": refs}
+}
+
+// AddEnvironment registers a deploy environment, listed for requests whose
+// filter[org_id] matches its OrgID and fetched by its ID.
+func (f *CircleCI) AddEnvironment(environment DeployEnvironment) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	f.environments = append(f.environments, map[string]any{
-		"org_id": orgID,
-		"entity": environment,
-	})
-	if m, ok := environment.(map[string]any); ok {
-		if id, ok := m["id"].(string); ok {
-			f.environmentByID[id] = environment
-		}
-	}
+	f.environments = append(f.environments, environment)
 }
 
 func (f *CircleCI) handleListEnvironments(w http.ResponseWriter, r *http.Request) {
 	orgID := r.URL.Query().Get("filter[org_id]")
 	f.mu.RLock()
-	all := f.environments
-	f.mu.RUnlock()
-
 	items := []any{}
-	for _, entry := range all {
-		m, ok := entry.(map[string]any)
-		if !ok {
-			continue
-		}
-		if orgID == "" || m["org_id"] == orgID {
-			items = append(items, m["entity"])
+	for _, e := range f.environments {
+		if orgID == "" || e.OrgID == orgID {
+			items = append(items, environmentEntity(e))
 		}
 	}
+	f.mu.RUnlock()
+
 	render.JSON(w, r, map[string]any{"data": items, "page": map[string]any{}})
 }
 
 func (f *CircleCI) handleGetEnvironment(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	f.mu.RLock()
-	env, ok := f.environmentByID[id]
-	f.mu.RUnlock()
-
-	if !ok {
-		render.Status(r, http.StatusNotFound)
-		render.JSON(w, r, map[string]any{"message": "not found"})
-		return
-	}
-	render.JSON(w, r, map[string]any{"data": env})
-}
-
-// AddComponent registers a deploy component.
-// orgID is derived from the component entity's references.project.id via projectID mapping.
-// projectID is used to filter by org. Pass the org UUID in orgID for filtering.
-func (f *CircleCI) AddComponent(orgID string, component any) {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	f.components[orgID] = append(f.components[orgID], component)
-	if m, ok := component.(map[string]any); ok {
-		if id, ok := m["id"].(string); ok {
-			f.componentByID[id] = component
+	defer f.mu.RUnlock()
+	for _, e := range f.environments {
+		if e.ID == id {
+			render.JSON(w, r, map[string]any{"data": environmentEntity(e)})
+			return
 		}
 	}
+	render.Status(r, http.StatusNotFound)
+	render.JSON(w, r, map[string]any{"message": "not found"})
+}
+
+// environmentEntity renders a stored DeployEnvironment as its V3 entity.
+func environmentEntity(e DeployEnvironment) map[string]any {
+	return map[string]any{
+		"id":         e.ID,
+		"attributes": map[string]any{"name": e.Name},
+		"references": map[string]any{"org": map[string]any{"id": e.OrgID}},
+	}
+}
+
+// AddComponent registers a deploy component, listed for requests whose
+// filter[org_id] matches its OrgID (and filter[project_id] its ProjectID) and
+// fetched by its ID.
+func (f *CircleCI) AddComponent(component DeployComponent) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.components = append(f.components, component)
 }
 
 func (f *CircleCI) handleListComponents(w http.ResponseWriter, r *http.Request) {
 	orgID := r.URL.Query().Get("filter[org_id]")
 	projectID := r.URL.Query().Get("filter[project_id]")
 	f.mu.RLock()
-	items := f.components[orgID]
+	items := []any{}
+	for _, c := range f.components {
+		if orgID != "" && c.OrgID != orgID {
+			continue
+		}
+		if projectID != "" && c.ProjectID != projectID {
+			continue
+		}
+		items = append(items, componentEntity(c))
+	}
 	f.mu.RUnlock()
 
-	if items == nil {
-		items = []any{}
-	}
-
-	if projectID != "" {
-		filtered := []any{}
-		for _, item := range items {
-			m, ok := item.(map[string]any)
-			if !ok {
-				continue
-			}
-			refs, _ := m["references"].(map[string]any)
-			proj, _ := refs["project"].(map[string]any)
-			if projID, _ := proj["id"].(string); projID == projectID {
-				filtered = append(filtered, item)
-			}
-		}
-		items = filtered
-	}
 	render.JSON(w, r, map[string]any{"data": items, "page": map[string]any{}})
 }
 
 func (f *CircleCI) handleGetComponent(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	f.mu.RLock()
-	comp, ok := f.componentByID[id]
-	f.mu.RUnlock()
-
-	if !ok {
-		render.Status(r, http.StatusNotFound)
-		render.JSON(w, r, map[string]any{"message": "not found"})
-		return
+	defer f.mu.RUnlock()
+	for _, c := range f.components {
+		if c.ID == id {
+			render.JSON(w, r, map[string]any{"data": componentEntity(c)})
+			return
+		}
 	}
-	render.JSON(w, r, map[string]any{"data": comp})
+	render.Status(r, http.StatusNotFound)
+	render.JSON(w, r, map[string]any{"message": "not found"})
 }
 
-// AddComponentVersion registers a version for a deploy component.
-func (f *CircleCI) AddComponentVersion(componentID string, version any) {
+// componentEntity renders a stored DeployComponent as its V3 entity.
+func componentEntity(c DeployComponent) map[string]any {
+	return map[string]any{
+		"id":         c.ID,
+		"attributes": map[string]any{"name": c.Name, "type": c.Type},
+		"references": map[string]any{"project": map[string]any{"id": c.ProjectID}},
+	}
+}
+
+// AddComponentVersion registers a version for a deploy component, listed under
+// its ComponentID and (optionally) narrowed by filter[environment_id].
+func (f *CircleCI) AddComponentVersion(version DeployComponentVersion) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	f.compVersions[componentID] = append(f.compVersions[componentID], version)
+	f.compVersions = append(f.compVersions, version)
 }
 
 func (f *CircleCI) handleListComponentVersions(w http.ResponseWriter, r *http.Request) {
 	componentID := chi.URLParam(r, "id")
 	envID := r.URL.Query().Get("filter[environment_id]")
 	f.mu.RLock()
-	items := f.compVersions[componentID]
+	items := []any{}
+	for _, v := range f.compVersions {
+		if v.ComponentID != componentID {
+			continue
+		}
+		if envID != "" && v.EnvironmentID != envID {
+			continue
+		}
+		items = append(items, componentVersionEntity(v))
+	}
 	f.mu.RUnlock()
 
-	if items == nil {
-		items = []any{}
-	}
-
-	if envID != "" {
-		filtered := []any{}
-		for _, item := range items {
-			m, ok := item.(map[string]any)
-			if !ok {
-				continue
-			}
-			refs, _ := m["references"].(map[string]any)
-			env, _ := refs["environment"].(map[string]any)
-			if eID, _ := env["id"].(string); eID == envID {
-				filtered = append(filtered, item)
-			}
-		}
-		items = filtered
-	}
 	render.JSON(w, r, map[string]any{"data": items, "page": map[string]any{}})
 }
 
+// componentVersionEntity renders a stored DeployComponentVersion as its V3 entity.
+func componentVersionEntity(v DeployComponentVersion) map[string]any {
+	return map[string]any{
+		"id":         v.ID,
+		"attributes": map[string]any{"name": v.Name, "created_at": v.CreatedAt},
+		"references": map[string]any{"component": map[string]any{"id": v.ComponentID}},
+	}
+}
+
 // SetDeploySettings registers deploy settings for a project.
-func (f *CircleCI) SetDeploySettings(projectID string, settings any) {
+func (f *CircleCI) SetDeploySettings(settings DeploySettings) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	f.deploySettings[projectID] = settings
+	f.deploySettings[settings.ProjectID] = settings
 }
 
 func (f *CircleCI) handleGetDeploySettings(w http.ResponseWriter, r *http.Request) {
@@ -2838,9 +3003,20 @@ func (f *CircleCI) handleGetDeploySettings(w http.ResponseWriter, r *http.Reques
 	f.mu.RUnlock()
 
 	if !ok {
-		settings = map[string]any{"id": projectID, "attributes": map[string]any{}, "references": map[string]any{"project": map[string]any{"id": projectID}}}
+		// No settings registered: an entity with empty attributes, which the CLI
+		// treats as "not configured".
+		render.JSON(w, r, map[string]any{"data": map[string]any{
+			"id":         projectID,
+			"attributes": map[string]any{},
+			"references": map[string]any{"project": map[string]any{"id": projectID}},
+		}})
+		return
 	}
-	render.JSON(w, r, map[string]any{"data": settings})
+	render.JSON(w, r, map[string]any{"data": map[string]any{
+		"id":         settings.ID,
+		"attributes": map[string]any{"auto_cancel_redundant_deploys": settings.AutoCancelRedundantDeploys},
+		"references": map[string]any{"project": map[string]any{"id": settings.ProjectID}},
+	}})
 }
 
 func (f *CircleCI) handleDeleteEnvVar(w http.ResponseWriter, r *http.Request) {
