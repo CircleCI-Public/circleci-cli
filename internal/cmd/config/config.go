@@ -123,17 +123,20 @@ func resolveOrgID(ctx context.Context, client *apiclient.Client, org, cmdName st
 	return id.String(), nil
 }
 
-// validateOrgID is resolveOrgID for `config validate`, which accepts an
-// unauthenticated client (see cmdutil.LoadClientOptionalAuth).
+// optionalAuthOrgID is resolveOrgID for config commands that accept an
+// unauthenticated client (validate and process; see cmdutil.LoadClientOptionalAuth).
 //
 // Every path to an org ID needs a token: inference looks the project up through
 // the API, and an org only owns orbs the caller is authorized to read. So when
 // there is no token we skip resolution entirely and compile with no owner —
 // public orbs still resolve — rather than spending a round-trip on a request
 // that can only 401. An explicit --org is a hard error instead: silently
-// ignoring it would report a config as valid while skipping the private orb
-// resolution the user asked for.
-func validateOrgID(ctx context.Context, client *apiclient.Client, org string) (string, error) {
+// ignoring it would compile without the private orb resolution the user asked
+// for.
+//
+// dropOrgHint is the last suggestion when --org is set without a token (e.g.
+// "Or drop --org to validate against public orbs only").
+func optionalAuthOrgID(ctx context.Context, client *apiclient.Client, org, cmdName, dropOrgHint string) (string, error) {
 	if !client.Authenticated() {
 		if org != "" {
 			return "", clierrors.New("auth.token_missing", "Authentication required",
@@ -141,13 +144,13 @@ func validateOrgID(ctx context.Context, client *apiclient.Client, org string) (s
 				WithSuggestions(
 					"Run: circleci auth login",
 					"Or set the CIRCLE_TOKEN environment variable",
-					"Or drop --org to validate against public orbs only",
+					dropOrgHint,
 				).
 				WithExitCode(clierrors.ExitAuthError)
 		}
 		return "", nil
 	}
-	return resolveOrgID(ctx, client, org, "circleci config validate")
+	return resolveOrgID(ctx, client, org, cmdName)
 }
 
 // printValidationErrors writes each compilation error as a bulleted line to
