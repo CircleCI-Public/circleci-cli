@@ -192,7 +192,9 @@ func TestAuthLogin_Token(t *testing.T) {
 	assert.Assert(t, t.Run("enter token", func(t *testing.T) {
 		_, err := console.ExpectString("Enter CircleCI personal access token")
 		assert.NilError(t, err)
-		_, err = console.Send("fake-token\r")
+		// The fake validates the pasted token against /api/v3/users, so it must
+		// be one the fake accepts (see fakes.DefaultToken).
+		_, err = console.Send(fakes.DefaultToken + "\r")
 		assert.NilError(t, err)
 	}))
 

@@ -42,7 +42,7 @@ func TestJobOutputGet(t *testing.T) {
 	fake.AddJobStderr(testJobID, 0, 103, []byte("hello from stderr\n"))
 
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
@@ -63,7 +63,7 @@ func TestJobOutputGet_Execution(t *testing.T) {
 	fake.AddJobStderr(testJobID, 1, 103, []byte("execution 1 stderr\n"))
 
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
@@ -84,7 +84,7 @@ func TestJobOutputGet_StripsANSIWhenNotTerminal(t *testing.T) {
 	fake.AddJobStderr(testJobID, 0, 103, []byte(""))
 
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
@@ -105,7 +105,7 @@ func TestJobOutputGet_StripANSIFalseKeepsRawWhenNotTerminal(t *testing.T) {
 	fake.AddJobStderr(testJobID, 0, 103, []byte(""))
 
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
@@ -125,7 +125,7 @@ func TestJobOutputGet_StripANSIFalseKeepsRawWhenNotTerminal(t *testing.T) {
 func TestJobOutputGet_MissingStepNum(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
@@ -143,7 +143,7 @@ func TestJobOutputGet_MissingStepNum(t *testing.T) {
 func TestJobOutputGet_InvalidJobID(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
@@ -161,7 +161,7 @@ func TestJobOutputGet_InvalidJobID(t *testing.T) {
 func TestJobOutputGet_NotFound(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
