@@ -310,6 +310,25 @@ func TestPolicyEval_Compile(t *testing.T) {
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
 	assert.Check(t, golden.String(normalizePolicyOutput(result.Stdout, dir.Path()), t.Name()+".txt"))
 	assert.Check(t, cmp.Equal(fake.LastCompileOwnerID(), testOwnerID))
+
+	// Query the whole document to pin both halves of the merge. The source half
+	// is parsed from the local input file — the compile endpoint echoes the
+	// config it was sent rather than returning anything new — so this is the
+	// assertion that would catch the compiled output being spliced in twice.
+	merged := binary.RunCLI(t, binary.RunOpts{
+		Binary: binaryPath,
+		Args: []string{
+			"policy", "eval", dir.Join("policy.rego"),
+			"--input", dir.Join("input.yml"),
+			"--org", testOwnerID,
+			"--query", "input",
+		},
+		Env:     env.Environ(),
+		WorkDir: dir.Path(),
+	})
+
+	assert.Equal(t, merged.ExitCode, 0, "stderr: %s", merged.Stderr)
+	assert.Check(t, golden.String(normalizePolicyOutput(merged.Stdout, dir.Path()), t.Name()+"_Merged.txt"))
 }
 
 // TestPolicyEval_Errors covers the v0 eval failure cases.
