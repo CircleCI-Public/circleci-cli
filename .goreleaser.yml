@@ -39,12 +39,24 @@ before:
     # UNIX-style share/ layout the cask and archives consume. v0's `completion`
     # subcommands write the script to stdout with no --output flag, so redirect;
     # mkdir first because the redirect will not create the parent directories.
+    #
+    # The binary installs as `circleci-v0` (see builds), so the completions are
+    # named and rewritten to match: without this they would (a) collide with a
+    # v1 install's `circleci` / `_circleci` files in the shared tap, and (b)
+    # never fire, since the shell loads a completion by the command name it
+    # declares. The global sed rewrites every `circleci` token consistently
+    # (#compdef target, complete target, and internal function names).
     - sh -c 'mkdir -p share/bash-completion/completions share/zsh/site-functions'
-    - sh -c 'go run . completion bash > share/bash-completion/completions/circleci'
-    - sh -c 'go run . completion zsh > share/zsh/site-functions/_circleci'
+    - sh -c 'go run . completion bash | sed "s/circleci/circleci-v0/g" > share/bash-completion/completions/circleci-v0'
+    - sh -c 'go run . completion zsh | sed "s/circleci/circleci-v0/g" > share/zsh/site-functions/_circleci-v0'
 
 builds:
-  - binary: circleci
+  # Build as `circleci-v0` (not `circleci`) so the archive, the Homebrew cask,
+  # and the winget package all install a binary that sits beside a v1 `circleci`
+  # rather than clashing with it. GoReleaser's archive-based cask can only
+  # symlink a binary under the name it has inside the archive, so the rename has
+  # to happen here at build time — there is no cask-side `target:` rename.
+  - binary: circleci-v0
     main: .
     env:
       - CGO_ENABLED=0
@@ -76,8 +88,9 @@ winget:
     name: CircleCI CLI (v0)
     short_description: "CircleCI command line tool (legacy v0)."
     description: |
-      `circleci` is CircleCI's official command line tool. This is the legacy v0
-      build, published from the v0 branch for users who need the classic CLI.
+      The legacy v0 build of CircleCI's official command line tool, published
+      from the v0 branch for users who need the classic CLI. It installs as
+      `circleci-v0` so it runs alongside the current `circleci`.
     license: "MIT"
     license_url: "https://github.com/CircleCI-Public/circleci-cli/blob/HEAD/LICENSE"
     tags:
@@ -113,9 +126,10 @@ winget:
 
 homebrew_casks:
   # The legacy v0 CLI as a Homebrew cask, published to the same tap that carries
-  # the `circleci@next` preview cask from main. Installs a `circleci` binary, so
-  # it conflicts with the homebrew-core `circleci` formula and the `circleci@next`
-  # cask — see caveats.
+  # the `circleci@next` preview cask from main. It installs the binary as
+  # `circleci-v0`, so — unlike main's cask — it coexists with the homebrew-core
+  # `circleci` formula and the `circleci@next` cask instead of clashing with
+  # them. No `brew unlink` dance is required.
   - name: circleci@v0
     directory: Casks
     repository:
@@ -125,26 +139,22 @@ homebrew_casks:
     homepage: "https://circleci.com"
     description: "CircleCI command line tool (legacy v0)."
     binaries:
-      - circleci
+      - circleci-v0
     completions:
-      bash: share/bash-completion/completions/circleci
-      zsh: share/zsh/site-functions/_circleci
+      bash: share/bash-completion/completions/circleci-v0
+      zsh: share/zsh/site-functions/_circleci-v0
     caveats: |
-      This installs the legacy v0 `circleci` binary, which conflicts with the
-      stable `circleci` formula from homebrew-core and the `circleci@next`
-      preview cask. Homebrew cannot declare a cask/formula conflict
-      automatically, so if you have either installed, unlink it first to avoid a
-      clashing symlink:
-
-        brew unlink circleci
+      This installs the legacy v0 CLI as `circleci-v0`, so it runs alongside the
+      current `circleci` (the homebrew-core formula or the `circleci@next`
+      cask). Invoke the legacy CLI as `circleci-v0`.
 
 archives:
   - files:
       - LICENSE
-      - src: ./share/bash-completion/completions/circleci
-        dst: share/bash-completion/completions/circleci
-      - src: ./share/zsh/site-functions/_circleci
-        dst: share/zsh/site-functions/_circleci
+      - src: ./share/bash-completion/completions/circleci-v0
+        dst: share/bash-completion/completions/circleci-v0
+      - src: ./share/zsh/site-functions/_circleci-v0
+        dst: share/zsh/site-functions/_circleci-v0
     format_overrides:
       - goos: windows
         formats:
