@@ -40,15 +40,10 @@ import (
 // fakeMyRunV3 builds a V3 run payload with an origin_repository_url and an
 // explicit created_at, as returned by GET /api/v3/runs?filter[user_id]=me.
 // Output groups these by repository, most recent run first.
-func fakeMyRunV3(id, projectID, phase, outcome, repoURL, branch, revision, createdAt string) map[string]any {
+func fakeMyRunV3(id, projectID, phase, outcome, repoURL, branch, revision, createdAt string) fakes.RunV3 {
 	run := fakeRunV3(id, projectID, phase, outcome, branch, revision)
-
-	attrs := run["attributes"].(map[string]any)
-	attrs["created_at"] = createdAt
-
-	vcs := run["references"].(map[string]any)["event"].(map[string]any)["attributes"].(map[string]any)["vcs"].(map[string]any)
-	vcs["origin_repository_url"] = repoURL
-
+	run.CreatedAt = createdAt
+	run.OriginRepoURL = repoURL
 	return run
 }
 
@@ -197,7 +192,7 @@ func TestMyRuns_JSON(t *testing.T) {
 // all 25 results — not just the first page of 20.
 func TestMyRuns_PaginatesMultiPage(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
-	runs := make([]any, 25)
+	runs := make([]fakes.RunV3, 25)
 	for i := range runs {
 		id := fmt.Sprintf("e0000000-0000-4000-8000-%012x", i+1)
 		rev := fmt.Sprintf("%016x", i+1)

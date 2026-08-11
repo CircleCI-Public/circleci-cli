@@ -58,83 +58,48 @@ const (
 var v3TimeFormat = time.RFC3339
 
 // fakeRunV3 returns a V3 run payload for the fake server.
-func fakeRunV3(id, projectID, phase, outcome, branch, revision string) map[string]any {
+func fakeRunV3(id, projectID, phase, outcome, branch, revision string) fakes.RunV3 {
 	createdAt := time.Date(2020, 1, 1, 12, 0, 0, 0, time.UTC)
-	attrs := map[string]any{
-		"phase":      phase,
-		"created_at": createdAt.Format(v3TimeFormat),
-	}
-	// The real V3 runs API reports only current_outcome, never outcome,
-	// regardless of phase.
-	if outcome != "" {
-		attrs["current_outcome"] = outcome
-	}
-	// VCS (branch, revision, commit, origin_repository_url) lives on the event
-	// reference. Only runs that resolved a revision have a commit.
-	eventVCS := map[string]any{
-		"branch":   branch,
-		"revision": revision,
-	}
-	if revision != "" {
-		eventVCS["commit"] = map[string]any{
-			"subject": "Fix the widget",
-			"url":     "https://github.com/testorg/testrepo/commit/" + revision,
-			"author":  map[string]any{"name": "Ada Lovelace", "login": "ada"},
-		}
-	}
-	return map[string]any{
-		"id":         id,
-		"attributes": attrs,
-		"references": map[string]any{
-			"event": map[string]any{
-				"attributes": map[string]any{
-					"vcs": eventVCS,
-				},
-			},
-			"trigger": map[string]any{
-				"attributes": map[string]any{
-					"event_source": map[string]any{"type": "webhook"},
-				},
-			},
-			"project": map[string]any{"id": projectID},
-			"user":    map[string]any{"id": "c0000000-0000-4000-8000-000000000001"},
-		},
+	// The real V3 runs API reports only current_outcome, never outcome, and
+	// carries a commit block only for a run that resolved a revision — the
+	// fake's renderer derives both from these fields.
+	return fakes.RunV3{
+		ID:             id,
+		ProjectID:      projectID,
+		UserID:         "c0000000-0000-4000-8000-000000000001",
+		Phase:          phase,
+		CurrentOutcome: outcome,
+		CreatedAt:      createdAt.Format(v3TimeFormat),
+		Branch:         branch,
+		Revision:       revision,
 	}
 }
 
 // fakeRunV3Tag returns a V3 run payload for a tag-triggered run: no branch,
 // with the tag carried on the event reference's VCS.
-func fakeRunV3Tag(id, projectID, phase, outcome, tag, revision string) map[string]any {
+func fakeRunV3Tag(id, projectID, phase, outcome, tag, revision string) fakes.RunV3 {
 	run := fakeRunV3(id, projectID, phase, outcome, "", revision)
-	ev := run["references"].(map[string]any)["event"].(map[string]any)["attributes"].(map[string]any)
-	ev["vcs"].(map[string]any)["tag"] = tag
+	run.Tag = tag
 	return run
 }
 
 // fakeWorkflowV3 returns a V3 workflow payload for the fake server.
-func fakeWorkflowV3(id, name, runID, projectID, phase, outcome string) map[string]any {
+func fakeWorkflowV3(id, name, runID, projectID, phase, outcome string) fakes.WorkflowV3 {
 	created := time.Date(2020, 1, 1, 12, 0, 0, 0, time.UTC)
-	attrs := map[string]any{
-		"name":       name,
-		"phase":      phase,
-		"created_at": created.Format(v3TimeFormat),
+	wf := fakes.WorkflowV3{
+		ID:        id,
+		Name:      name,
+		RunID:     runID,
+		ProjectID: projectID,
+		UserID:    "c0000000-0000-4000-8000-000000000001",
+		Phase:     phase,
+		Outcome:   outcome,
+		CreatedAt: created.Format(v3TimeFormat),
 	}
 	if phase == "ended" {
-		attrs["outcome"] = outcome
-		ended := created.Add(2*time.Minute + 34*time.Second)
-		attrs["ended_at"] = ended.Format(v3TimeFormat)
-	} else {
-		attrs["current_outcome"] = outcome
+		wf.EndedAt = created.Add(2*time.Minute + 34*time.Second).Format(v3TimeFormat)
 	}
-	return map[string]any{
-		"id":         id,
-		"attributes": attrs,
-		"references": map[string]any{
-			"run":     map[string]any{"id": runID},
-			"project": map[string]any{"id": projectID},
-			"user":    map[string]any{"id": "c0000000-0000-4000-8000-000000000001"},
-		},
-	}
+	return wf
 }
 
 // fakeRun returns a V2 pipeline payload — still needed for workflows/jobs
@@ -163,22 +128,18 @@ func fakeRun(id string, number int, state, slug, branch string) map[string]any {
 	}
 }
 
-func fakeJobV3(id, name, workflowID, projectID string) map[string]any {
+func fakeJobV3(id, name, workflowID, projectID string) fakes.JobV3 {
 	now := time.Now().UTC().Format(time.RFC3339)
-	return map[string]any{
-		"id": id,
-		"attributes": map[string]any{
-			"name":       name,
-			"phase":      "ended",
-			"outcome":    "succeeded",
-			"type":       "build",
-			"started_at": now,
-			"ended_at":   now,
-		},
-		"references": map[string]any{
-			"workflow": map[string]any{"id": workflowID},
-			"project":  map[string]any{"id": projectID},
-		},
+	return fakes.JobV3{
+		ID:         id,
+		Name:       name,
+		Type:       "build",
+		Phase:      "ended",
+		Outcome:    "succeeded",
+		StartedAt:  now,
+		EndedAt:    now,
+		WorkflowID: workflowID,
+		ProjectID:  projectID,
 	}
 }
 
@@ -355,8 +316,8 @@ func TestRunGet_WithErrors(t *testing.T) {
 	runID := getRunID
 
 	run := fakeRunV3(runID, runTestProjectID, "ended", "failed", "main", "abc1234def5678")
-	run["attributes"].(map[string]any)["errors"] = []map[string]any{
-		{"type": "config", "message": "Could not find config file"},
+	run.Errors = []fakes.RunError{
+		{Type: "config", Message: "Could not find config file"},
 	}
 	fake.AddRunV3(runID, runTestProjectID, run)
 
@@ -380,8 +341,8 @@ func TestRunGet_WithErrors_JSON(t *testing.T) {
 	runID := getRunID
 
 	run := fakeRunV3(runID, runTestProjectID, "ended", "failed", "main", "abc1234def5678")
-	run["attributes"].(map[string]any)["errors"] = []map[string]any{
-		{"type": "config", "message": "Could not find config file"},
+	run.Errors = []fakes.RunError{
+		{Type: "config", Message: "Could not find config file"},
 	}
 	fake.AddRunV3(runID, runTestProjectID, run)
 
@@ -542,7 +503,7 @@ func setupRunGetInteractiveFake(t *testing.T) *testenv.TestEnv {
 	// It carries a repository URL, which the picker folds into its ref bracket as
 	// "[org/repo:branch]".
 	myRun := fakeRunV3(irunRun4ID, runTestProjectID, "ended", "succeeded", "mine", "cafed00d12345678")
-	myRun["references"].(map[string]any)["event"].(map[string]any)["attributes"].(map[string]any)["vcs"].(map[string]any)["origin_repository_url"] = "https://github.com/testorg/testrepo"
+	myRun.OriginRepoURL = "https://github.com/testorg/testrepo"
 	fake.SetUserRuns(myRun)
 
 	wf := fakeWorkflowV3(irunWfID, "build", irunRun1ID, runTestProjectID, "ended", "succeeded")
@@ -554,77 +515,59 @@ func setupRunGetInteractiveFake(t *testing.T) *testenv.TestEnv {
 	// carries no parallel executions. Reported verbatim the row would draw the
 	// running ● and then have no steps to drill into.
 	queuedListJob := fakeJobV3(irunJob3ID, "publish", irunWfID, runTestProjectID)
-	queuedListAttrs := queuedListJob["attributes"].(map[string]any)
-	queuedListAttrs["phase"] = "started"
-	delete(queuedListAttrs, "outcome")
-	delete(queuedListAttrs, "started_at")
-	delete(queuedListAttrs, "ended_at")
+	queuedListJob.Phase = "started"
+	queuedListJob.Outcome = ""
+	queuedListJob.StartedAt = ""
+	queuedListJob.EndedAt = ""
 
 	queuedDetailJob := fakeJobV3(irunJob3ID, "publish", irunWfID, runTestProjectID)
-	queuedDetailAttrs := queuedDetailJob["attributes"].(map[string]any)
-	queuedDetailAttrs["phase"] = "queued"
-	delete(queuedDetailAttrs, "outcome")
-	delete(queuedDetailAttrs, "started_at")
-	delete(queuedDetailAttrs, "ended_at")
+	queuedDetailJob.Phase = "queued"
+	queuedDetailJob.Outcome = ""
+	queuedDetailJob.StartedAt = ""
+	queuedDetailJob.EndedAt = ""
 
 	fake.AddWorkflowJobsV3(irunWfID,
 		fakeJobV3(irunJob1ID, "run-tests", irunWfID, runTestProjectID),
 		fakeJobV3(irunJob2ID, "deploy", irunWfID, runTestProjectID),
 		queuedListJob,
 	)
-	fake.AddJobV3(irunJob3ID, map[string]any{"data": queuedDetailJob})
+	fake.AddJobV3(queuedDetailJob)
 
 	// The job the step picker drills into: two steps, the second failed.
 	now := time.Date(2020, 1, 1, 12, 0, 0, 0, time.UTC).Format(v3TimeFormat)
-	fake.AddJobV3(irunJob1ID, map[string]any{"data": map[string]any{
-		"id": irunJob1ID,
-		"attributes": map[string]any{
-			"name": "run-tests", "type": "build", "phase": "ended", "outcome": "failed",
-			"started_at": now, "ended_at": now,
-			"parallel_executions": []map[string]any{{
-				"steps": []map[string]any{
-					{"name": "Spin up environment", "type": "spinup_environment", "num": 0, "phase": "ended", "outcome": "succeeded", "started_at": now, "ended_at": now},
-					{"name": "run tests", "type": "run", "num": 101, "phase": "ended", "outcome": "failed", "exit_code": 1, "started_at": now, "ended_at": now},
-				},
-			}},
-		},
-		"references": map[string]any{
-			"workflow": map[string]any{"id": irunWfID},
-			"project":  map[string]any{"id": runTestProjectID},
-		},
-	}})
+	fake.AddJobV3(fakes.JobV3{
+		ID: irunJob1ID, Name: "run-tests", Type: "build", Phase: "ended", Outcome: "failed",
+		StartedAt: now, EndedAt: now, WorkflowID: irunWfID, ProjectID: runTestProjectID,
+		Executions: [][]fakes.JobStep{{
+			{Name: "Spin up environment", Type: "spinup_environment", Num: 0, Phase: "ended", Outcome: "succeeded", StartedAt: now, EndedAt: now},
+			{Name: "run tests", Type: "run", Num: 101, Phase: "ended", Outcome: "failed", ExitCode: new(1), StartedAt: now, EndedAt: now},
+		}},
+	})
 	fake.AddJobStdout(irunJob1ID, 0, 0, []byte("environment ready\n"))
 	fake.AddJobStderr(irunJob1ID, 0, 0, []byte(""))
 	fake.AddJobStdout(irunJob1ID, 0, 101, []byte("FAILURE: 2 tests failed\n"))
 	fake.AddJobStderr(irunJob1ID, 0, 101, []byte(""))
 	// Test metadata for the "Failed tests" meta option (served as JSONL).
 	fake.AddJobTests(irunJob1ID,
-		map[string]any{"classname": "pkg/foo", "name": "TestThatFailed", "result": "failure", "run_time": 0.5, "message": "assertion failed: want 1 got 2"},
-		map[string]any{"classname": "pkg/foo", "name": "TestThatPassed", "result": "success", "run_time": 0.1, "message": ""},
+		fakes.TestResult{Classname: "pkg/foo", Name: "TestThatFailed", Result: "failure", RunTime: 0.5, Message: "assertion failed: want 1 got 2"},
+		fakes.TestResult{Classname: "pkg/foo", Name: "TestThatPassed", Result: "success", RunTime: 0.1, Message: ""},
 	)
 
 	// A parallel job (parallelism 2): execution 0 succeeded, execution 1 failed.
-	deployStep := func(outcome string, exit int) []map[string]any {
-		return []map[string]any{
-			{"name": "Spin up environment", "type": "spinup_environment", "num": 0, "phase": "ended", "outcome": "succeeded", "started_at": now, "ended_at": now},
-			{"name": "deploy", "type": "run", "num": 50, "phase": "ended", "outcome": outcome, "exit_code": exit, "started_at": now, "ended_at": now},
+	deployStep := func(outcome string, exit int) []fakes.JobStep {
+		return []fakes.JobStep{
+			{Name: "Spin up environment", Type: "spinup_environment", Num: 0, Phase: "ended", Outcome: "succeeded", StartedAt: now, EndedAt: now},
+			{Name: "deploy", Type: "run", Num: 50, Phase: "ended", Outcome: outcome, ExitCode: new(exit), StartedAt: now, EndedAt: now},
 		}
 	}
-	fake.AddJobV3(irunJob2ID, map[string]any{"data": map[string]any{
-		"id": irunJob2ID,
-		"attributes": map[string]any{
-			"name": "deploy", "type": "build", "phase": "ended", "outcome": "failed",
-			"started_at": now, "ended_at": now,
-			"parallel_executions": []map[string]any{
-				{"steps": deployStep("succeeded", 0)},
-				{"steps": deployStep("failed", 1)},
-			},
+	fake.AddJobV3(fakes.JobV3{
+		ID: irunJob2ID, Name: "deploy", Type: "build", Phase: "ended", Outcome: "failed",
+		StartedAt: now, EndedAt: now, WorkflowID: irunWfID, ProjectID: runTestProjectID,
+		Executions: [][]fakes.JobStep{
+			deployStep("succeeded", 0),
+			deployStep("failed", 1),
 		},
-		"references": map[string]any{
-			"workflow": map[string]any{"id": irunWfID},
-			"project":  map[string]any{"id": runTestProjectID},
-		},
-	}})
+	})
 	fake.AddJobStdout(irunJob2ID, 1, 50, []byte("deploy failed\n"))
 	fake.AddJobStderr(irunJob2ID, 1, 50, []byte(""))
 

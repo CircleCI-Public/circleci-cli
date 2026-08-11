@@ -60,42 +60,24 @@ func TestRunGet_FailedContext(t *testing.T) {
 	)
 
 	now := time.Date(2020, 1, 1, 12, 0, 0, 0, time.UTC).Format(v3TimeFormat)
-	fake.AddJobV3(fcJob1ID, map[string]any{"data": map[string]any{
-		"id": fcJob1ID,
-		"attributes": map[string]any{
-			"name": "run-tests", "type": "build", "phase": "ended", "outcome": "failed",
-			"started_at": now, "ended_at": now,
-			"parallel_executions": []map[string]any{{
-				"steps": []map[string]any{
-					{"name": "Spin up environment", "type": "spinup_environment", "num": 0, "phase": "ended", "outcome": "succeeded", "started_at": now, "ended_at": now},
-					{"name": "run tests", "type": "run", "num": 101, "phase": "ended", "outcome": "failed", "exit_code": 1, "started_at": now, "ended_at": now},
-				},
-			}},
-		},
-		"references": map[string]any{
-			"workflow": map[string]any{"id": fcWfID},
-			"project":  map[string]any{"id": runTestProjectID},
-		},
-	}})
+	fake.AddJobV3(fakes.JobV3{
+		ID: fcJob1ID, Name: "run-tests", Type: "build", Phase: "ended", Outcome: "failed",
+		StartedAt: now, EndedAt: now, WorkflowID: fcWfID, ProjectID: runTestProjectID,
+		Executions: [][]fakes.JobStep{{
+			{Name: "Spin up environment", Type: "spinup_environment", Num: 0, Phase: "ended", Outcome: "succeeded", StartedAt: now, EndedAt: now},
+			{Name: "run tests", Type: "run", Num: 101, Phase: "ended", Outcome: "failed", ExitCode: new(1), StartedAt: now, EndedAt: now},
+		}},
+	})
 	fake.AddJobStdoutCondensed(fcJob1ID, 0, 101, []byte("FAILURE: 2 tests failed\n"))
 
 	// A succeeded job in the same workflow contributes no output at all.
-	fake.AddJobV3(fcJob3ID, map[string]any{"data": map[string]any{
-		"id": fcJob3ID,
-		"attributes": map[string]any{
-			"name": "lint", "type": "build", "phase": "ended", "outcome": "succeeded",
-			"started_at": now, "ended_at": now,
-			"parallel_executions": []map[string]any{{
-				"steps": []map[string]any{
-					{"name": "run lint", "type": "run", "num": 100, "phase": "ended", "outcome": "succeeded", "exit_code": 0, "started_at": now, "ended_at": now},
-				},
-			}},
-		},
-		"references": map[string]any{
-			"workflow": map[string]any{"id": fcWfID},
-			"project":  map[string]any{"id": runTestProjectID},
-		},
-	}})
+	fake.AddJobV3(fakes.JobV3{
+		ID: fcJob3ID, Name: "lint", Type: "build", Phase: "ended", Outcome: "succeeded",
+		StartedAt: now, EndedAt: now, WorkflowID: fcWfID, ProjectID: runTestProjectID,
+		Executions: [][]fakes.JobStep{{
+			{Name: "run lint", Type: "run", Num: 100, Phase: "ended", Outcome: "succeeded", ExitCode: new(0), StartedAt: now, EndedAt: now},
+		}},
+	})
 
 	env := testenv.New(t)
 	env.Token = testToken
@@ -126,27 +108,20 @@ func TestRunGet_FailedContext_ParallelExecution(t *testing.T) {
 	)
 
 	now := time.Date(2020, 1, 1, 12, 0, 0, 0, time.UTC).Format(v3TimeFormat)
-	deployStep := func(outcome string, exit int) []map[string]any {
-		return []map[string]any{
-			{"name": "Spin up environment", "type": "spinup_environment", "num": 0, "phase": "ended", "outcome": "succeeded", "started_at": now, "ended_at": now},
-			{"name": "deploy", "type": "run", "num": 50, "phase": "ended", "outcome": outcome, "exit_code": exit, "started_at": now, "ended_at": now},
+	deployStep := func(outcome string, exit int) []fakes.JobStep {
+		return []fakes.JobStep{
+			{Name: "Spin up environment", Type: "spinup_environment", Num: 0, Phase: "ended", Outcome: "succeeded", StartedAt: now, EndedAt: now},
+			{Name: "deploy", Type: "run", Num: 50, Phase: "ended", Outcome: outcome, ExitCode: new(exit), StartedAt: now, EndedAt: now},
 		}
 	}
-	fake.AddJobV3(fcJob2ID, map[string]any{"data": map[string]any{
-		"id": fcJob2ID,
-		"attributes": map[string]any{
-			"name": "deploy", "type": "build", "phase": "ended", "outcome": "failed",
-			"started_at": now, "ended_at": now,
-			"parallel_executions": []map[string]any{
-				{"steps": deployStep("succeeded", 0)},
-				{"steps": deployStep("failed", 1)},
-			},
+	fake.AddJobV3(fakes.JobV3{
+		ID: fcJob2ID, Name: "deploy", Type: "build", Phase: "ended", Outcome: "failed",
+		StartedAt: now, EndedAt: now, WorkflowID: fcWfID, ProjectID: runTestProjectID,
+		Executions: [][]fakes.JobStep{
+			deployStep("succeeded", 0),
+			deployStep("failed", 1),
 		},
-		"references": map[string]any{
-			"workflow": map[string]any{"id": fcWfID},
-			"project":  map[string]any{"id": runTestProjectID},
-		},
-	}})
+	})
 	fake.AddJobStdoutCondensed(fcJob2ID, 1, 50, []byte("deploy failed\n"))
 
 	env := testenv.New(t)
@@ -176,22 +151,13 @@ func TestRunGet_FailedContext_NoFailures(t *testing.T) {
 	)
 
 	now := time.Date(2020, 1, 1, 12, 0, 0, 0, time.UTC).Format(v3TimeFormat)
-	fake.AddJobV3(fcJob3ID, map[string]any{"data": map[string]any{
-		"id": fcJob3ID,
-		"attributes": map[string]any{
-			"name": "lint", "type": "build", "phase": "ended", "outcome": "succeeded",
-			"started_at": now, "ended_at": now,
-			"parallel_executions": []map[string]any{{
-				"steps": []map[string]any{
-					{"name": "run lint", "type": "run", "num": 100, "phase": "ended", "outcome": "succeeded", "exit_code": 0, "started_at": now, "ended_at": now},
-				},
-			}},
-		},
-		"references": map[string]any{
-			"workflow": map[string]any{"id": fcWfID},
-			"project":  map[string]any{"id": runTestProjectID},
-		},
-	}})
+	fake.AddJobV3(fakes.JobV3{
+		ID: fcJob3ID, Name: "lint", Type: "build", Phase: "ended", Outcome: "succeeded",
+		StartedAt: now, EndedAt: now, WorkflowID: fcWfID, ProjectID: runTestProjectID,
+		Executions: [][]fakes.JobStep{{
+			{Name: "run lint", Type: "run", Num: 100, Phase: "ended", Outcome: "succeeded", ExitCode: new(0), StartedAt: now, EndedAt: now},
+		}},
+	})
 
 	env := testenv.New(t)
 	env.Token = testToken
@@ -244,23 +210,14 @@ func TestRunGet_FailedContext_JobNotFound(t *testing.T) {
 	)
 
 	now := time.Date(2020, 1, 1, 12, 0, 0, 0, time.UTC).Format(v3TimeFormat)
-	fake.AddJobV3(fcJob1ID, map[string]any{"data": map[string]any{
-		"id": fcJob1ID,
-		"attributes": map[string]any{
-			"name": "run-tests", "type": "build", "phase": "ended", "outcome": "failed",
-			"started_at": now, "ended_at": now,
-			"parallel_executions": []map[string]any{{
-				"steps": []map[string]any{
-					{"name": "Spin up environment", "type": "spinup_environment", "num": 0, "phase": "ended", "outcome": "succeeded", "started_at": now, "ended_at": now},
-					{"name": "run tests", "type": "run", "num": 101, "phase": "ended", "outcome": "failed", "exit_code": 1, "started_at": now, "ended_at": now},
-				},
-			}},
-		},
-		"references": map[string]any{
-			"workflow": map[string]any{"id": fcWfID},
-			"project":  map[string]any{"id": runTestProjectID},
-		},
-	}})
+	fake.AddJobV3(fakes.JobV3{
+		ID: fcJob1ID, Name: "run-tests", Type: "build", Phase: "ended", Outcome: "failed",
+		StartedAt: now, EndedAt: now, WorkflowID: fcWfID, ProjectID: runTestProjectID,
+		Executions: [][]fakes.JobStep{{
+			{Name: "Spin up environment", Type: "spinup_environment", Num: 0, Phase: "ended", Outcome: "succeeded", StartedAt: now, EndedAt: now},
+			{Name: "run tests", Type: "run", Num: 101, Phase: "ended", Outcome: "failed", ExitCode: new(1), StartedAt: now, EndedAt: now},
+		}},
+	})
 	fake.AddJobStdoutCondensed(fcJob1ID, 0, 101, []byte("FAILURE: 2 tests failed\n"))
 
 	env := testenv.New(t)

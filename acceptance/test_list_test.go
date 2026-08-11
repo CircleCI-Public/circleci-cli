@@ -36,13 +36,13 @@ import (
 const testTestsJobID = "8e50c384-0083-43d0-bc8f-93f0db589d6b"
 
 // testResult builds a fake JSONL test-result record.
-func testResult(classname, name, result string, runTime float64, message string) map[string]any {
-	return map[string]any{
-		"classname": classname,
-		"name":      name,
-		"result":    result,
-		"run_time":  runTime,
-		"message":   message,
+func testResult(classname, name, result string, runTime float64, message string) fakes.TestResult {
+	return fakes.TestResult{
+		Classname: classname,
+		Name:      name,
+		Result:    result,
+		RunTime:   runTime,
+		Message:   message,
 	}
 }
 
