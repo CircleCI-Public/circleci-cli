@@ -578,13 +578,12 @@ func TestOnboard_PostSignup_FirstPipeline_GitHubAppResolvesRepo(t *testing.T) {
 	// GitHub App is installed for the org and can access the repo, so the repo's
 	// external ID is resolved automatically — no --repo-id needed.
 	fake.SetGitHubAppInstalled(onboardOrgID, true)
-	fake.AddGitHubAppRepository(onboardOrgID, map[string]any{
-		"id":             987654321,
-		"repo_full_name": "myorg/my-repo",
-		"repo_name":      "my-repo",
-		"owner":          "myorg",
-		"default_branch": "main",
-		"private":        false,
+	fake.AddGitHubAppRepository(onboardOrgID, fakes.GitHubAppRepo{
+		ID:            987654321,
+		RepoFullName:  "myorg/my-repo",
+		RepoName:      "my-repo",
+		Owner:         "myorg",
+		DefaultBranch: "main",
 	})
 	addFirstPipelineResponses(fake)
 	addFakeDotnet(t, env, false)
@@ -613,23 +612,23 @@ func TestOnboard_PostSignup_FirstPipeline_GitHubAppResolvesRepo(t *testing.T) {
 func TestOnboard_PostSignup_Rerun_Idempotent(t *testing.T) {
 	dir, fake, env := onboardDotnetRepo(t)
 	fake.SetGitHubAppInstalled(onboardOrgID, true)
-	fake.AddGitHubAppRepository(onboardOrgID, map[string]any{
-		"id":             987654321,
-		"repo_full_name": "myorg/my-repo",
-		"repo_name":      "my-repo",
-		"owner":          "myorg",
+	fake.AddGitHubAppRepository(onboardOrgID, fakes.GitHubAppRepo{
+		ID:           987654321,
+		RepoFullName: "myorg/my-repo",
+		RepoName:     "my-repo",
+		Owner:        "myorg",
 	})
 	addFirstPipelineResponses(fake)
 	// The second run looks the project up by the slug projectref derives from the
 	// recorded UUIDs. The real API accepts that form and canonicalises it to the
 	// short-ID slug.
-	fake.AddProjectInfo("circleci/org-uuid-1234/proj-uuid-5678", map[string]any{
-		"id":                onboardProjectID,
-		"slug":              "circleci/Org1234ShortId/Proj5678ShortId",
-		"name":              "my-repo",
-		"organization_name": "myorg",
-		"organization_slug": "circleci/Org1234ShortId",
-		"organization_id":   onboardOrgID,
+	fake.AddProjectInfo("circleci/org-uuid-1234/proj-uuid-5678", fakes.ProjectInfo{
+		ID:               onboardProjectID,
+		Slug:             "circleci/Org1234ShortId/Proj5678ShortId",
+		Name:             "my-repo",
+		OrganizationName: "myorg",
+		OrganizationSlug: "circleci/Org1234ShortId",
+		OrganizationID:   onboardOrgID,
 	})
 	addFakeDotnet(t, env, false)
 
@@ -704,13 +703,13 @@ func TestOnboard_PostSignup_LinkedProjectInAnotherOrg(t *testing.T) {
 	), 0o644))
 
 	fake, env := onboardStandaloneEnv(t, "testuser")
-	fake.AddProjectInfo("gh/myorg/my-repo", map[string]any{
-		"id":                "other-proj-uuid",
-		"slug":              "gh/myorg/my-repo",
-		"name":              "my-repo",
-		"organization_name": "myorg",
-		"organization_slug": "gh/myorg",
-		"organization_id":   "other-org-uuid",
+	fake.AddProjectInfo("gh/myorg/my-repo", fakes.ProjectInfo{
+		ID:               "other-proj-uuid",
+		Slug:             "gh/myorg/my-repo",
+		Name:             "my-repo",
+		OrganizationName: "myorg",
+		OrganizationSlug: "gh/myorg",
+		OrganizationID:   "other-org-uuid",
 	})
 	fake.SetCreateProjectConflict()
 	addFakeDotnet(t, env, false)
@@ -763,11 +762,11 @@ func TestOnboard_PostSignup_FirstPipeline_RepoNotAccessible(t *testing.T) {
 	dir, fake, env := onboardDotnetRepo(t)
 	// App is installed, but the repo the user is in was not granted to it.
 	fake.SetGitHubAppInstalled(onboardOrgID, true)
-	fake.AddGitHubAppRepository(onboardOrgID, map[string]any{
-		"id":             111,
-		"repo_full_name": "myorg/some-other-repo",
-		"repo_name":      "some-other-repo",
-		"owner":          "myorg",
+	fake.AddGitHubAppRepository(onboardOrgID, fakes.GitHubAppRepo{
+		ID:           111,
+		RepoFullName: "myorg/some-other-repo",
+		RepoName:     "some-other-repo",
+		Owner:        "myorg",
 	})
 	addFakeDotnet(t, env, false)
 	result := binary.RunCLI(t, binary.RunOpts{

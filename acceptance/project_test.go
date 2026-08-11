@@ -64,17 +64,17 @@ func setupProjectFake(t *testing.T) (*fakes.CircleCI, *testenv.TestEnv) {
 		VCSType:  "github",
 		Name:     "beta",
 	})
-	fake.AddProjectInfo("gh/myorg/alpha", map[string]any{
-		"id":                "a0000000-0000-4000-8000-0000000c0001",
-		"slug":              "gh/myorg/alpha",
-		"name":              "alpha",
-		"organization_name": "myorg",
-		"organization_slug": "gh/myorg",
-		"organization_id":   "a0000000-0000-4000-8000-0000000c0002",
-		"vcs_info": map[string]any{
-			"provider":       "GitHub",
-			"default_branch": "main",
-			"vcs_url":        "https://github.com/myorg/alpha",
+	fake.AddProjectInfo("gh/myorg/alpha", fakes.ProjectInfo{
+		ID:               "a0000000-0000-4000-8000-0000000c0001",
+		Slug:             "gh/myorg/alpha",
+		Name:             "alpha",
+		OrganizationName: "myorg",
+		OrganizationSlug: "gh/myorg",
+		OrganizationID:   "a0000000-0000-4000-8000-0000000c0002",
+		VCSInfo: &fakes.VCSInfo{
+			Provider:      "GitHub",
+			DefaultBranch: "main",
+			VCSURL:        "https://github.com/myorg/alpha",
 		},
 	})
 	// v3 slug → UUID resolution, used by `project trigger`.
@@ -673,10 +673,10 @@ func TestProjectTriggerList_JSON(t *testing.T) {
 func TestProjectTriggerList_Empty(t *testing.T) {
 	fake, env := setupProjectFake(t)
 	// Register project but no triggers
-	fake.AddProjectInfo("gh/myorg/beta", map[string]any{
-		"id":   "proj-uuid-beta",
-		"slug": "gh/myorg/beta",
-		"name": "beta",
+	fake.AddProjectInfo("gh/myorg/beta", fakes.ProjectInfo{
+		ID:   "proj-uuid-beta",
+		Slug: "gh/myorg/beta",
+		Name: "beta",
 	})
 
 	result := binary.RunCLI(t, binary.RunOpts{

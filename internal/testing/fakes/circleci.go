@@ -54,33 +54,33 @@ type CircleCI struct {
 	ExtraHeaders http.Header
 
 	mu                                sync.RWMutex
-	pipelines                         map[string]any
-	projects                          map[string][]any      // project slug → ordered list of pipelines
-	workflowJobs                      map[string][]any      // workflow id → jobs
-	jobArtifacts                      map[string][]any      // "slug/jobNumber" → artifacts
-	jobArtifactsV3                    map[string][]Artifact // job UUID → V3 artifacts
-	staticFiles                       map[string]string     // path → body content, for artifact downloads
-	jobs                              map[string]any        // "slug/jobNumber" → job detail response (v2)
-	jobsV1                            map[string]any        // "vcs/org/repo/jobNumber" → job detail response (v1.1)
-	rawStepOutputs                    map[string]string     // "slug/number/taskIndex/stepID" → plain text output
-	rawStepErrors                     map[string]string     // "slug/number/taskIndex/stepID" → plain text error
-	triggerResponses                  map[string]any        // project slug → trigger response body
-	triggerPipelineRunResponses       map[string]any        // project slug → trigger run response body
-	triggerPipelineRunStatuses        map[string]int        // project slug → HTTP status (default 201)
-	pipelineDefinitions               map[string][]any      // projectID → list of pipeline definition objects
-	createPipelineDefinitionResponses map[string]any        // projectID → response body
-	createTriggerResponses            map[string]any        // "projectID/pipelineDefinitionID" → response body
-	listTriggerResponses              map[string][]any      // "projectID/pipelineDefinitionID" → list of triggers
+	pipelines                         map[string]PipelineV2
+	projects                          map[string][]PipelineV2 // project slug → ordered pipelines
+	workflowJobs                      map[string][]any        // workflow id → jobs
+	jobArtifacts                      map[string][]any        // "slug/jobNumber" → artifacts
+	jobArtifactsV3                    map[string][]Artifact   // job UUID → V3 artifacts
+	staticFiles                       map[string]string       // path → body content, for artifact downloads
+	jobs                              map[string]any          // "slug/jobNumber" → job detail response (v2)
+	jobsV1                            map[string]any          // "vcs/org/repo/jobNumber" → job detail response (v1.1)
+	rawStepOutputs                    map[string]string       // "slug/number/taskIndex/stepID" → plain text output
+	rawStepErrors                     map[string]string       // "slug/number/taskIndex/stepID" → plain text error
+	triggerResponses                  map[string]any          // project slug → trigger response body
+	triggerPipelineRunResponses       map[string]any          // project slug → trigger run response body
+	triggerPipelineRunStatuses        map[string]int          // project slug → HTTP status (default 201)
+	pipelineDefinitions               map[string][]any        // projectID → list of pipeline definition objects
+	createPipelineDefinitionResponses map[string]any          // projectID → response body
+	createTriggerResponses            map[string]any          // "projectID/pipelineDefinitionID" → response body
+	listTriggerResponses              map[string][]any        // "projectID/pipelineDefinitionID" → list of triggers
 
 	// GitHub App state.
-	githubAppInstalled      map[string]bool   // orgID → app installed (200) vs not (404)
-	githubAppRepos          map[string][]any  // orgID → repositories the app can access
-	githubAppInstallResp    any               // response body for POST /github-app/install
-	rerunResponses          map[string]int    // workflow id → HTTP status to return
-	rerunNewIDs             map[string]string // workflow id → id of the workflow its rerun creates
-	rerunFromFailed         map[string]bool   // workflow id → is_from_failed as the request actually set it
-	cancelResponses         map[string]int    // workflow id → HTTP status to return
-	pipelineCancelResponses map[string]int    // pipeline id → HTTP status to return
+	githubAppInstalled      map[string]bool            // orgID → app installed (200) vs not (404)
+	githubAppRepos          map[string][]GitHubAppRepo // orgID → repositories the app can access
+	githubAppInstallResp    any                        // response body for POST /github-app/install
+	rerunResponses          map[string]int             // workflow id → HTTP status to return
+	rerunNewIDs             map[string]string          // workflow id → id of the workflow its rerun creates
+	rerunFromFailed         map[string]bool            // workflow id → is_from_failed as the request actually set it
+	cancelResponses         map[string]int             // workflow id → HTTP status to return
+	pipelineCancelResponses map[string]int             // pipeline id → HTTP status to return
 
 	// Job (v3) state.
 	jobsV3             map[string]JobV3        // job UUID → job detail entity
@@ -111,17 +111,17 @@ type CircleCI struct {
 	deletedRCs              map[string]bool // resource class → deleted
 
 	// Project / env-var state.
-	followedProjects    []FollowedProject    // projects for GET /api/v1.1/projects
-	followedSlugs       map[string]bool      // vcs+org+repo → true (for follow idempotency)
-	envVars             map[string][]EnvVar  // project slug → env vars
-	deletedEnvVars      map[string]bool      // "slug/name" → deleted
-	projectInfos        map[string]any       // project slug → project info response
-	projectsByID        map[string]any       // project UUID → V3 project response (GET /api/v3/projects/{id})
-	projectsBySlug      map[string]ProjectV3 // project slug → resolved project (GET /api/v3/projects?filter[slug]=)
-	projectSettings     map[string]any       // project UUID → advanced settings attributes
-	createProjectResp   any                  // preset response for POST /organization/{vcs}/{org}/project
-	createProjectStatus int                  // HTTP status for that POST (0 → 201 Created)
-	createOrgResp       any                  // preset response for POST /organization
+	followedProjects    []FollowedProject      // projects for GET /api/v1.1/projects
+	followedSlugs       map[string]bool        // vcs+org+repo → true (for follow idempotency)
+	envVars             map[string][]EnvVar    // project slug → env vars
+	deletedEnvVars      map[string]bool        // "slug/name" → deleted
+	projectInfos        map[string]ProjectInfo // project slug → project info response
+	projectsByID        map[string]any         // project UUID → V3 project response (GET /api/v3/projects/{id})
+	projectsBySlug      map[string]ProjectV3   // project slug → resolved project (GET /api/v3/projects?filter[slug]=)
+	projectSettings     map[string]any         // project UUID → advanced settings attributes
+	createProjectResp   any                    // preset response for POST /organization/{vcs}/{org}/project
+	createProjectStatus int                    // HTTP status for that POST (0 → 201 Created)
+	createOrgResp       any                    // preset response for POST /organization
 
 	// Context state.
 	contexts                   map[string]Context              // context id → context
@@ -142,8 +142,8 @@ type CircleCI struct {
 
 	// Policy state.
 	policyBundles   map[string]map[string]string // "ownerID/ctx" → bundle
-	decisionLogs    map[string][]any             // "ownerID/ctx" → logs
-	decisionResults map[string]any               // "ownerID/ctx" → decision response
+	decisionLogs    map[string][]DecisionLog     // "ownerID/ctx" → logs
+	decisionResults map[string]DecisionResult    // "ownerID/ctx" → decision response
 	policySettings  map[string]bool              // "ownerID/ctx" → enabled
 
 	// iOS code signing state.
@@ -242,8 +242,8 @@ func NewCircleCI(t *testing.T, tokens ...string) *CircleCI {
 
 		tokens: tokenSet,
 
-		pipelines:                         map[string]any{},
-		projects:                          map[string][]any{},
+		pipelines:                         map[string]PipelineV2{},
+		projects:                          map[string][]PipelineV2{},
 		workflowJobs:                      map[string][]any{},
 		jobArtifacts:                      map[string][]any{},
 		jobArtifactsV3:                    map[string][]Artifact{},
@@ -260,7 +260,7 @@ func NewCircleCI(t *testing.T, tokens ...string) *CircleCI {
 		createTriggerResponses:            map[string]any{},
 		listTriggerResponses:              map[string][]any{},
 		githubAppInstalled:                map[string]bool{},
-		githubAppRepos:                    map[string][]any{},
+		githubAppRepos:                    map[string][]GitHubAppRepo{},
 		rerunResponses:                    map[string]int{},
 		rerunNewIDs:                       map[string]string{},
 		rerunFromFailed:                   map[string]bool{},
@@ -293,14 +293,14 @@ func NewCircleCI(t *testing.T, tokens ...string) *CircleCI {
 		deletedContexts:                   map[string]bool{},
 		deletedContextVars:                map[string]bool{},
 		deletedContextRestrictions:        map[string]bool{},
-		projectInfos:                      map[string]any{},
+		projectInfos:                      map[string]ProjectInfo{},
 		projectsByID:                      map[string]any{},
 		projectsBySlug:                    map[string]ProjectV3{},
 		projectSettings:                   map[string]any{},
 		deploySettings:                    map[string]DeploySettings{},
 		policyBundles:                     make(map[string]map[string]string),
-		decisionLogs:                      make(map[string][]any),
-		decisionResults:                   make(map[string]any),
+		decisionLogs:                      make(map[string][]DecisionLog),
+		decisionResults:                   make(map[string]DecisionResult),
 		policySettings:                    make(map[string]bool),
 		namespaces:                        map[string]Namespace{},
 		namespacesByName:                  map[string]string{},
@@ -386,16 +386,14 @@ func NewCircleCI(t *testing.T, tokens ...string) *CircleCI {
 	r.Post("/api/v2/github-app/install", f.handleInstallGitHubApp)
 	r.Get("/api/v2/github-app/organization/{orgID}/repositories", f.handleListGitHubAppRepositories)
 	// Policy routes.
-	r.Route("/api/v2/owner/{ownerID}/context/{policyCtx}", func(r chi.Router) {
-		r.Post("/policy-bundle", f.handleCreatePolicyBundle)
-		r.Get("/policy-bundle", f.handleFetchPolicyBundle)
-		r.Get("/policy-bundle/{name}", f.handleFetchPolicyBundleByName)
-		r.Get("/decision", f.handleGetDecisionLogs)
-		r.Post("/decision", f.handleMakeDecision)
-		r.Get("/decision/settings", f.handleGetPolicySettings)
-		r.Patch("/decision/settings", f.handleSetPolicySettings)
-		r.Get("/decision/{id}", f.handleGetDecisionLog)
-	})
+	r.Post("/api/v2/owner/{ownerID}/context/{policyCtx}/policy-bundle", f.handleCreatePolicyBundle)
+	r.Get("/api/v2/owner/{ownerID}/context/{policyCtx}/policy-bundle", f.handleFetchPolicyBundle)
+	r.Get("/api/v2/owner/{ownerID}/context/{policyCtx}/policy-bundle/{name}", f.handleFetchPolicyBundleByName)
+	r.Get("/api/v2/owner/{ownerID}/context/{policyCtx}/decision", f.handleGetDecisionLogs)
+	r.Post("/api/v2/owner/{ownerID}/context/{policyCtx}/decision", f.handleMakeDecision)
+	r.Get("/api/v2/owner/{ownerID}/context/{policyCtx}/decision/settings", f.handleGetPolicySettings)
+	r.Patch("/api/v2/owner/{ownerID}/context/{policyCtx}/decision/settings", f.handleSetPolicySettings)
+	r.Get("/api/v2/owner/{ownerID}/context/{policyCtx}/decision/{id}", f.handleGetDecisionLog)
 	// Deploy routes. Static sub-paths must be registered before the {id} catch-alls.
 	r.Get("/api/v3/deploy/deployments", f.handleListDeployments)
 	r.Get("/api/v3/deploy/environments", f.handleListEnvironments)
@@ -698,8 +696,23 @@ func (f *CircleCI) handleGetReleases(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// PipelineV2 is a stored v2 pipeline served by the pipeline get/get-by-number
+// and project pipeline-list endpoints. The structural fixture fields (trigger
+// type, actor, repository URLs) are constant across tests and supplied by the
+// renderer; only the fields below vary.
+type PipelineV2 struct {
+	ID          string
+	Number      int
+	State       string
+	ProjectSlug string
+	Branch      string
+	Revision    string
+	CreatedAt   string
+	UpdatedAt   string
+}
+
 // AddRun registers a run response for GET /api/v2/pipeline/<id>.
-func (f *CircleCI) AddRun(id string, run any) {
+func (f *CircleCI) AddRun(id string, run PipelineV2) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.pipelines[id] = run
@@ -707,10 +720,35 @@ func (f *CircleCI) AddRun(id string, run any) {
 
 // AddProjectRuns registers runs for GET /api/v2/project/<slug>/pipeline.
 // slug should be in "vcs/org/repo" form, e.g. "gh/myorg/myrepo".
-func (f *CircleCI) AddProjectRuns(slug string, runs ...any) {
+func (f *CircleCI) AddProjectRuns(slug string, runs ...PipelineV2) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.projects[slug] = runs
+}
+
+// pipelineV2Entity renders a stored PipelineV2 as its v2 wire object, filling in
+// the constant trigger/actor/vcs scaffold every fixture shares.
+func pipelineV2Entity(p PipelineV2) map[string]any {
+	return map[string]any{
+		"id":           p.ID,
+		"state":        p.State,
+		"number":       p.Number,
+		"project_slug": p.ProjectSlug,
+		"created_at":   p.CreatedAt,
+		"updated_at":   p.UpdatedAt,
+		"trigger": map[string]any{
+			"type":        "webhook",
+			"received_at": p.CreatedAt,
+			"actor":       map[string]any{"login": "testuser", "avatar_url": ""},
+		},
+		"vcs": map[string]any{
+			"provider_name":         "GitHub",
+			"origin_repository_url": "https://github.com/testorg/testrepo",
+			"target_repository_url": "https://github.com/testorg/testrepo",
+			"revision":              p.Revision,
+			"branch":                p.Branch,
+		},
+	}
 }
 
 // AddWorkflowJobs registers job responses for a workflow.
@@ -992,7 +1030,7 @@ func (f *CircleCI) handleGetPipeline(w http.ResponseWriter, r *http.Request) {
 		render.JSON(w, r, map[string]any{"message": "not found"})
 		return
 	}
-	render.JSON(w, r, p)
+	render.JSON(w, r, pipelineV2Entity(p))
 }
 
 func (f *CircleCI) handleCancelPipeline(w http.ResponseWriter, r *http.Request) {
@@ -1018,25 +1056,8 @@ func (f *CircleCI) handleGetPipelineByNumber(w http.ResponseWriter, r *http.Requ
 	f.mu.RUnlock()
 
 	for _, p := range pipelines {
-		m, ok := p.(map[string]any)
-		if !ok {
-			continue
-		}
-		num := m["number"]
-		// number may be int, int64, float64, or json.Number depending on how it was stored
-		var numStr string
-		switch v := num.(type) {
-		case int:
-			numStr = strconv.Itoa(v)
-		case int64:
-			numStr = strconv.FormatInt(v, 10)
-		case float64:
-			numStr = strconv.FormatInt(int64(v), 10)
-		case json.Number:
-			numStr = v.String()
-		}
-		if numStr == numberStr {
-			render.JSON(w, r, p)
+		if strconv.Itoa(p.Number) == numberStr {
+			render.JSON(w, r, pipelineV2Entity(p))
 			return
 		}
 	}
@@ -1084,13 +1105,13 @@ func (f *CircleCI) handleGetJobArtifactsV3(w http.ResponseWriter, r *http.Reques
 func (f *CircleCI) handleListProjectPipelines(w http.ResponseWriter, r *http.Request) {
 	slug := chi.URLParam(r, "vcs") + "/" + chi.URLParam(r, "org") + "/" + chi.URLParam(r, "repo")
 	f.mu.RLock()
-	pipelines := f.projects[slug]
+	items := make([]any, 0, len(f.projects[slug]))
+	for _, p := range f.projects[slug] {
+		items = append(items, pipelineV2Entity(p))
+	}
 	f.mu.RUnlock()
 
-	if pipelines == nil {
-		pipelines = []any{}
-	}
-	render.JSON(w, r, map[string]any{"items": pipelines, "next_page_token": nil})
+	render.JSON(w, r, map[string]any{"items": items, "next_page_token": nil})
 }
 
 func (f *CircleCI) handleGetJobV1(w http.ResponseWriter, r *http.Request) {
@@ -2191,12 +2212,56 @@ func (f *CircleCI) handleOAuthToken(w http.ResponseWriter, r *http.Request) {
 
 // --- Project / env-var helpers ---
 
+// ProjectInfo is a stored v1.1/v2 project record served by
+// GET /api/v2/project/<slug>. Only ID and Slug are always present; the org
+// fields and VCSInfo render only when set.
+type ProjectInfo struct {
+	ID               string
+	Slug             string
+	Name             string
+	OrganizationName string
+	OrganizationSlug string
+	OrganizationID   string
+	VCSInfo          *VCSInfo
+}
+
+// VCSInfo is the nested vcs_info block on a ProjectInfo.
+type VCSInfo struct {
+	Provider      string
+	DefaultBranch string
+	VCSURL        string
+}
+
 // AddProjectInfo registers a project info response for GET /api/v2/project/<slug>.
 // slug should be in "vcs/org/repo" form.
-func (f *CircleCI) AddProjectInfo(slug string, info any) {
+func (f *CircleCI) AddProjectInfo(slug string, info ProjectInfo) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.projectInfos[slug] = info
+}
+
+// projectInfoEntity renders a stored ProjectInfo, omitting the optional fields
+// that are empty.
+func projectInfoEntity(p ProjectInfo) map[string]any {
+	m := map[string]any{"id": p.ID, "slug": p.Slug}
+	for k, v := range map[string]string{
+		"name":              p.Name,
+		"organization_name": p.OrganizationName,
+		"organization_slug": p.OrganizationSlug,
+		"organization_id":   p.OrganizationID,
+	} {
+		if v != "" {
+			m[k] = v
+		}
+	}
+	if p.VCSInfo != nil {
+		m["vcs_info"] = map[string]any{
+			"provider":       p.VCSInfo.Provider,
+			"default_branch": p.VCSInfo.DefaultBranch,
+			"vcs_url":        p.VCSInfo.VCSURL,
+		}
+	}
+	return m
 }
 
 // defaultProjectSettingsAttrs returns an all-false v3 attributes payload.
@@ -2993,12 +3058,39 @@ func (f *CircleCI) SetGitHubAppInstalled(orgID string, installed bool) {
 	f.githubAppInstalled[orgID] = installed
 }
 
+// GitHubAppRepo is a stored repository the CircleCI GitHub App can access,
+// served by the org repositories endpoint. DefaultBranch renders only when set.
+type GitHubAppRepo struct {
+	ID            int
+	RepoFullName  string
+	RepoName      string
+	Owner         string
+	DefaultBranch string
+	Private       bool
+}
+
 // AddGitHubAppRepository registers a repository returned by GET
 // /api/v2/github-app/organization/{orgID}/repositories.
-func (f *CircleCI) AddGitHubAppRepository(orgID string, repo any) {
+func (f *CircleCI) AddGitHubAppRepository(orgID string, repo GitHubAppRepo) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.githubAppRepos[orgID] = append(f.githubAppRepos[orgID], repo)
+}
+
+// gitHubAppRepoEntity renders a stored GitHubAppRepo as its wire object,
+// including default_branch only when set.
+func gitHubAppRepoEntity(repo GitHubAppRepo) map[string]any {
+	m := map[string]any{
+		"id":             repo.ID,
+		"repo_full_name": repo.RepoFullName,
+		"repo_name":      repo.RepoName,
+		"owner":          repo.Owner,
+		"private":        repo.Private,
+	}
+	if repo.DefaultBranch != "" {
+		m["default_branch"] = repo.DefaultBranch
+	}
+	return m
 }
 
 // SetGitHubAppInstallResponse registers the body returned by POST
@@ -3045,10 +3137,11 @@ func (f *CircleCI) handleListGitHubAppRepositories(w http.ResponseWriter, r *htt
 	repos := f.githubAppRepos[orgID]
 	f.mu.RUnlock()
 
-	if repos == nil {
-		repos = []any{}
+	items := make([]any, 0, len(repos))
+	for _, repo := range repos {
+		items = append(items, gitHubAppRepoEntity(repo))
 	}
-	render.JSON(w, r, map[string]any{"items": repos, "total_count": len(repos)})
+	render.JSON(w, r, map[string]any{"items": items, "total_count": len(items)})
 }
 
 func (f *CircleCI) handleGetProjectInfo(w http.ResponseWriter, r *http.Request) {
@@ -3062,7 +3155,7 @@ func (f *CircleCI) handleGetProjectInfo(w http.ResponseWriter, r *http.Request) 
 		render.JSON(w, r, map[string]any{"message": "not found"})
 		return
 	}
-	render.JSON(w, r, info)
+	render.JSON(w, r, projectInfoEntity(info))
 }
 
 // --- Deploy helpers ---
@@ -4603,8 +4696,19 @@ func (f *CircleCI) AddPolicyBundle(ownerID, policyCtx string, bundle map[string]
 	f.policyBundles[key] = bundle
 }
 
-// AddDecisionLog appends a decision log entry for the given owner and context.
-func (f *CircleCI) AddDecisionLog(ownerID, policyCtx string, log any) {
+// DecisionLog is a stored policy decision-log entry served by the decision log
+// list/get endpoints.
+type DecisionLog struct {
+	ID     string
+	Status string
+}
+
+// DecisionResult is the decision returned by the make-decision endpoint.
+type DecisionResult struct {
+	Status string
+}
+
+func (f *CircleCI) AddDecisionLog(ownerID, policyCtx string, log DecisionLog) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	key := ownerID + "/" + policyCtx
@@ -4612,11 +4716,16 @@ func (f *CircleCI) AddDecisionLog(ownerID, policyCtx string, log any) {
 }
 
 // SetDecisionResult sets the response returned by MakeDecision for the given owner and context.
-func (f *CircleCI) SetDecisionResult(ownerID, policyCtx string, result any) {
+func (f *CircleCI) SetDecisionResult(ownerID, policyCtx string, result DecisionResult) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	key := ownerID + "/" + policyCtx
 	f.decisionResults[key] = result
+}
+
+// decisionLogEntity renders a stored DecisionLog as its wire object.
+func decisionLogEntity(l DecisionLog) map[string]any {
+	return map[string]any{"id": l.ID, "status": l.Status}
 }
 
 // SetPolicyEnabled sets the policy enforcement enabled flag for the given owner and context.
@@ -4691,11 +4800,12 @@ func (f *CircleCI) handleGetDecisionLogs(w http.ResponseWriter, r *http.Request)
 	f.mu.RLock()
 	all := f.decisionLogs[ownerID+"/"+policyCtx]
 	f.mu.RUnlock()
-	if offset >= len(all) {
-		render.JSON(w, r, []any{})
-		return
+	tail := all[min(offset, len(all)):]
+	items := make([]any, 0, len(tail))
+	for _, l := range tail {
+		items = append(items, decisionLogEntity(l))
 	}
-	render.JSON(w, r, all[offset:])
+	render.JSON(w, r, items)
 }
 
 func (f *CircleCI) handleGetDecisionLog(w http.ResponseWriter, r *http.Request) {
@@ -4706,11 +4816,9 @@ func (f *CircleCI) handleGetDecisionLog(w http.ResponseWriter, r *http.Request) 
 	all := f.decisionLogs[ownerID+"/"+policyCtx]
 	f.mu.RUnlock()
 	for _, l := range all {
-		if m, ok := l.(map[string]any); ok {
-			if m["id"] == id {
-				render.JSON(w, r, l)
-				return
-			}
+		if l.ID == id {
+			render.JSON(w, r, decisionLogEntity(l))
+			return
 		}
 	}
 	http.NotFound(w, r)
@@ -4720,12 +4828,12 @@ func (f *CircleCI) handleMakeDecision(w http.ResponseWriter, r *http.Request) {
 	ownerID := chi.URLParam(r, "ownerID")
 	policyCtx := chi.URLParam(r, "policyCtx")
 	f.mu.RLock()
-	result := f.decisionResults[ownerID+"/"+policyCtx]
+	result, ok := f.decisionResults[ownerID+"/"+policyCtx]
 	f.mu.RUnlock()
-	if result == nil {
-		result = map[string]any{"status": "PASS"}
+	if !ok {
+		result = DecisionResult{Status: "PASS"}
 	}
-	render.JSON(w, r, result)
+	render.JSON(w, r, map[string]any{"status": result.Status})
 }
 
 func (f *CircleCI) handleGetPolicySettings(w http.ResponseWriter, r *http.Request) {

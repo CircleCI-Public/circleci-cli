@@ -52,7 +52,7 @@ const watchProjectID = "a0000000-0000-4000-8000-00000000fff0"
 func setupWatchFake(t *testing.T, runID, wfID, wfStatus string) (*fakes.CircleCI, *testenv.TestEnv) {
 	t.Helper()
 	v2Run := fakeRun(runID, 75, "created", watchSlug, "main")
-	v2Run["vcs"].(map[string]any)["revision"] = "abc1234def5678abcdef"
+	v2Run.Revision = "abc1234def5678abcdef"
 
 	// Map V2 workflow status to V3 outcome for the run.
 	v3Outcome := wfStatus

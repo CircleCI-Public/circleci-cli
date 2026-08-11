@@ -701,14 +701,14 @@ func TestPipelineRun_InvalidParam(t *testing.T) {
 func setupPipelineRunInteractiveFake(t *testing.T) (*fakes.CircleCI, *testenv.TestEnv) {
 	t.Helper()
 	fake := fakes.NewCircleCI(t)
-	fake.AddProjectInfo("gh/myorg/myrepo", map[string]any{
-		"id":   pipelineProjectID,
-		"slug": "gh/myorg/myrepo",
-		"name": "myrepo",
-		"vcs_info": map[string]any{
-			"provider":       "GitHub",
-			"default_branch": "main",
-			"vcs_url":        "https://github.com/myorg/myrepo",
+	fake.AddProjectInfo("gh/myorg/myrepo", fakes.ProjectInfo{
+		ID:   pipelineProjectID,
+		Slug: "gh/myorg/myrepo",
+		Name: "myrepo",
+		VCSInfo: &fakes.VCSInfo{
+			Provider:      "GitHub",
+			DefaultBranch: "main",
+			VCSURL:        "https://github.com/myorg/myrepo",
 		},
 	})
 	for _, d := range pipelineListFixtures {
