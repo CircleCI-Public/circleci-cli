@@ -47,31 +47,27 @@ const testContextID2 = "c0000002-0000-4000-8000-000000000002"
 const testRestrictionID = "e0000001-0000-4000-8000-000000000001"
 const testCreatedRestrictionID = "c0000003-0000-4000-8000-000000000003"
 
-func fakeContext(id, name string) map[string]any {
-	return map[string]any{
-		"id":         id,
-		"name":       name,
-		"created_at": "2020-01-01T12:00:00Z",
+func fakeContext(id, name string) fakes.Context {
+	return fakes.Context{ID: id, Name: name, CreatedAt: "2020-01-01T12:00:00Z"}
+}
+
+func fakeContextEnvVar(contextID, variable string) fakes.ContextEnvVar {
+	return fakes.ContextEnvVar{
+		Variable:       variable,
+		TruncatedValue: "abcd",
+		ContextID:      contextID,
+		CreatedAt:      "2020-01-01T12:00:00Z",
+		UpdatedAt:      "2020-06-01T12:00:00Z",
 	}
 }
 
-func fakeContextEnvVar(contextID, variable string) map[string]any {
-	return map[string]any{
-		"variable":        variable,
-		"truncated_value": "abcd",
-		"context_id":      contextID,
-		"created_at":      "2020-01-01T12:00:00Z",
-		"updated_at":      "2020-06-01T12:00:00Z",
-	}
-}
-
-func fakeContextRestriction(contextID, id, restrictionType, restrictionValue, name string) map[string]any {
-	return map[string]any{
-		"context_id":        contextID,
-		"id":                id,
-		"restriction_type":  restrictionType,
-		"restriction_value": restrictionValue,
-		"name":              name,
+func fakeContextRestriction(contextID, id, restrictionType, restrictionValue, name string) fakes.ContextRestriction {
+	return fakes.ContextRestriction{
+		ContextID:        contextID,
+		ID:               id,
+		RestrictionType:  restrictionType,
+		RestrictionValue: restrictionValue,
+		Name:             name,
 	}
 }
 

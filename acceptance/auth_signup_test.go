@@ -46,12 +46,10 @@ var terminalURLRe = regexp.MustCompile(`https?://[^\s\x1b]+`)
 // persists the token — mirroring the login flow.
 func TestAuthSignup_NonInteractive_PrintsSignupURL(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
-	fake.SetMe(map[string]any{
-		"id": "e4a72497-7c55-400d-a72d-dadc4b92255d",
-		"attributes": map[string]any{
-			"name":  "New User",
-			"login": "newuser",
-		},
+	fake.SetMe(fakes.User{
+		ID:    "e4a72497-7c55-400d-a72d-dadc4b92255d",
+		Name:  "New User",
+		Login: "newuser",
 	})
 	fake.SetOAuthTokenResponse(map[string]any{
 		"access_token": "test-signup-token",
@@ -118,12 +116,10 @@ func TestAuthSignup_AlreadyAuthenticated(t *testing.T) {
 // selection, browser OAuth) but with signup=true on the authorize URL.
 func TestAuthSignup_HappyPath(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
-	fake.SetMe(map[string]any{
-		"id": "e4a72497-7c55-400d-a72d-dadc4b92255d",
-		"attributes": map[string]any{
-			"name":  "New User",
-			"login": "newuser",
-		},
+	fake.SetMe(fakes.User{
+		ID:    "e4a72497-7c55-400d-a72d-dadc4b92255d",
+		Name:  "New User",
+		Login: "newuser",
 	})
 	fake.SetOAuthTokenResponse(map[string]any{
 		"access_token": "test-signup-token",

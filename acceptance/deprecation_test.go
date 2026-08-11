@@ -40,10 +40,10 @@ import (
 // headers produce a warning on stderr while the command still succeeds.
 func TestDeprecationWarning_SunsetInOutput(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
-	fake.AddResourceClass(map[string]any{
-		"id":             "rc-1",
-		"resource_class": "myns/myclass",
-		"description":    "test class",
+	fake.AddResourceClass(fakes.ResourceClass{
+		ID:          "rc-1",
+		Slug:        "myns/myclass",
+		Description: "test class",
 	})
 	fake.ExtraHeaders = http.Header{
 		"Deprecation": []string{"true"},

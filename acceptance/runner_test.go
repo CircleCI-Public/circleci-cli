@@ -44,33 +44,29 @@ import (
 
 const testRunnerOrgID = "f22b6566-597d-46d5-ba74-99ef5bb3d85c"
 
-func fakeRC(id, slug, desc string) map[string]any {
-	return map[string]any{
-		"id":             id,
-		"resource_class": slug,
-		"description":    desc,
+func fakeRC(id, slug, desc string) fakes.ResourceClass {
+	return fakes.ResourceClass{ID: id, Slug: slug, Description: desc}
+}
+
+func fakeToken(id, rc, nickname string) fakes.RunnerToken {
+	return fakes.RunnerToken{
+		ID:            id,
+		ResourceClass: rc,
+		Nickname:      nickname,
+		CreatedAt:     "2026-01-01T00:00:00Z",
 	}
 }
 
-func fakeToken(id, rc, nickname string) map[string]any {
-	return map[string]any{
-		"id":             id,
-		"resource_class": rc,
-		"nickname":       nickname,
-		"created_at":     "2026-01-01T00:00:00Z",
-	}
-}
-
-func fakeInstance(rc, hostname, name, version string) map[string]any {
-	return map[string]any{
-		"resource_class":  rc,
-		"hostname":        hostname,
-		"name":            name,
-		"version":         version,
-		"ip":              "10.0.0.1",
-		"first_connected": "2026-01-01T00:00:00Z",
-		"last_connected":  "2026-04-18T12:00:00Z",
-		"last_used":       "2026-04-18T11:00:00Z",
+func fakeInstance(rc, hostname, name, version string) fakes.RunnerInstance {
+	return fakes.RunnerInstance{
+		ResourceClass:  rc,
+		Hostname:       hostname,
+		Name:           name,
+		Version:        version,
+		IP:             "10.0.0.1",
+		FirstConnected: "2026-01-01T00:00:00Z",
+		LastConnected:  "2026-04-18T12:00:00Z",
+		LastUsed:       "2026-04-18T11:00:00Z",
 	}
 }
 

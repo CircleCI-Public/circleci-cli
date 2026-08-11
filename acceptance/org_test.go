@@ -73,7 +73,7 @@ func TestOrgList_JSON(t *testing.T) {
 
 func TestOrgList_Empty(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
-	fake.SetCollaborations([]any{})
+	fake.SetCollaborations()
 
 	env := testenv.New(t)
 	env.Token = testToken

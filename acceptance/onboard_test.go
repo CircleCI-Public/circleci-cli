@@ -326,21 +326,19 @@ func TestOnboard_PostSignup_FreshSignup_ContinuesToProjectSetup(t *testing.T) {
 	initGitRepoWithRemote(t, dir, "https://github.com/myorg/my-repo.git")
 
 	fake := fakes.NewCircleCI(t)
-	fake.SetMe(map[string]any{
-		"id": "e4a72497-7c55-400d-a72d-dadc4b92255d",
-		"attributes": map[string]any{
-			"name":  "New User",
-			"login": "newuser",
-		},
+	fake.SetMe(fakes.User{
+		ID:    "e4a72497-7c55-400d-a72d-dadc4b92255d",
+		Name:  "New User",
+		Login: "newuser",
 	})
 	fake.SetOAuthTokenResponse(map[string]any{
 		"access_token": "test-signup-token",
 		"token_type":   "Bearer",
 		"expires_in":   int64(7776000),
 	})
-	fake.SetCollaborations([]any{
-		map[string]any{"id": onboardOrgID, "name": "myorg", "slug": "circleci/myorg", "vcs_type": "circleci"},
-	})
+	fake.SetCollaborations(
+		fakes.Collaboration{ID: onboardOrgID, Name: "myorg", Slug: "circleci/myorg", VCSType: "circleci"},
+	)
 	fake.SetCreateProjectResponse(map[string]any{
 		"id":                onboardProjectID,
 		"slug":              "circleci/myorg/my-repo",
@@ -901,7 +899,7 @@ func TestOnboard_PostSignup_NoOrgs(t *testing.T) {
 	initGitDir(t, dir)
 
 	fake, env := onboardAuthenticatedEnv(t, "testuser")
-	fake.SetCollaborations(nil)
+	fake.SetCollaborations()
 	addFakeDotnet(t, env, false)
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
@@ -965,16 +963,14 @@ func onboardStandaloneEnv(t *testing.T, login string) (*fakes.CircleCI, *testenv
 	t.Helper()
 
 	fake := fakes.NewCircleCI(t)
-	fake.SetMe(map[string]any{
-		"id": "e4a72497-7c55-400d-a72d-dadc4b92255d",
-		"attributes": map[string]any{
-			"name":  "Test User",
-			"login": login,
-		},
+	fake.SetMe(fakes.User{
+		ID:    "e4a72497-7c55-400d-a72d-dadc4b92255d",
+		Name:  "Test User",
+		Login: login,
 	})
-	fake.SetCollaborations([]any{
-		map[string]any{"id": onboardOrgID, "name": "myorg", "slug": "circleci/myorg", "vcs_type": "circleci"},
-	})
+	fake.SetCollaborations(
+		fakes.Collaboration{ID: onboardOrgID, Name: "myorg", Slug: "circleci/myorg", VCSType: "circleci"},
+	)
 	// A CircleCI-native project slug embeds opaque org and project short IDs, not
 	// the repository name — mirroring the real API, where a name-based slug is
 	// rejected outright. The UUIDs are separate values used by the pipeline
@@ -998,16 +994,14 @@ func onboardAuthenticatedEnv(t *testing.T, login string) (*fakes.CircleCI, *test
 	t.Helper()
 
 	fake := fakes.NewCircleCI(t)
-	fake.SetMe(map[string]any{
-		"id": "e4a72497-7c55-400d-a72d-dadc4b92255d",
-		"attributes": map[string]any{
-			"name":  "Test User",
-			"login": login,
-		},
+	fake.SetMe(fakes.User{
+		ID:    "e4a72497-7c55-400d-a72d-dadc4b92255d",
+		Name:  "Test User",
+		Login: login,
 	})
-	fake.SetCollaborations([]any{
-		map[string]any{"id": onboardOrgID, "name": "myorg", "slug": "gh/myorg", "vcs_type": "github"},
-	})
+	fake.SetCollaborations(
+		fakes.Collaboration{ID: onboardOrgID, Name: "myorg", Slug: "gh/myorg", VCSType: "github"},
+	)
 	fake.SetCreateProjectResponse(map[string]any{
 		"id":                onboardProjectID,
 		"slug":              "gh/myorg/my-repo",
