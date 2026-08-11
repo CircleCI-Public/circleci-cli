@@ -1,10 +1,11 @@
 package config
 
 import (
+	"maps"
+	"slices"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"golang.org/x/exp/maps"
 )
 
 func TestLocalPipelineValues(t *testing.T) {
@@ -202,7 +203,7 @@ func TestLocalPipelineValues(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.ElementsMatchf(t, tt.wantKeys, maps.Keys(LocalPipelineValues(tt.parameters)), "LocalPipelineValues(%v)", tt.parameters)
+			assert.ElementsMatchf(t, tt.wantKeys, slices.Collect(maps.Keys(LocalPipelineValues(tt.parameters))), "LocalPipelineValues(%v)", tt.parameters)
 		})
 	}
 }

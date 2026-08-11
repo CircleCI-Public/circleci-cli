@@ -1,20 +1,53 @@
+# Copyright (c) 2026 Circle Internet Services, Inc.
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+#
+# SPDX-License-Identifier: MIT
+
+# Release config for the LEGACY v0 CLI, published from the `v0` branch.
+#
+# This modernises v0's packaging to the goreleaser v2 homebrew-cask + winget
+# flow used on `main`, but it only publishes the two package managers that main
+# does not already own for the legacy build: a `circleci@v0` Homebrew cask and a
+# `CircleCI.CLI.V0` winget package. v0's historical nfpm/snap/chocolatey/docker
+# outputs are intentionally NOT reproduced here.
+
+version: 2
+
 project_name: circleci-cli
 
-archives:
-  - id: primary
-    wrap_in_directory: true
-    format_overrides:
-      - goos: windows
-        format: zip
-    files:
-      - api/graphql/LICENSE
-      - md_docs/LICENSE
+before:
+  hooks:
+    # v0 has no `man` command and only ships bash + zsh completions (no fish or
+    # PowerShell), so — unlike main — we generate just those two, into the same
+    # UNIX-style share/ layout the cask and archives consume. v0's `completion`
+    # subcommands write the script to stdout with no --output flag, so redirect;
+    # mkdir first because the redirect will not create the parent directories.
+    - sh -c 'mkdir -p share/bash-completion/completions share/zsh/site-functions'
+    - sh -c 'go run . completion bash > share/bash-completion/completions/circleci'
+    - sh -c 'go run . completion zsh > share/zsh/site-functions/_circleci'
 
 builds:
   - binary: circleci
+    main: .
     env:
       - CGO_ENABLED=0
-      - GO111MODULE=on
     goos:
       - windows
       - darwin
@@ -22,9 +55,105 @@ builds:
     goarch:
       - amd64
       - arm64
+    # Preserve v0's established release ldflags exactly. The SegmentEndpoint is
+    # deliberately left unset (as in v0's previous goreleaser config) so release
+    # telemetry behaviour is unchanged from what v0 has always shipped.
     ldflags:
-      # -s Omit the symbol table and debug information.
-      # -w Omit the DWARF symbol table.
-      # These are the defaults specified by goreleaser:
-      # https://github.com/goreleaser/goreleaser/blob/682c811106f56ffe06c4212de546aec62161fb9d/internal/builders/golang/build.go#L46
       - -s -w -X github.com/CircleCI-Public/circleci-cli/version.Version={{.Version}} -X github.com/CircleCI-Public/circleci-cli/version.Commit={{.ShortCommit}} -X github.com/CircleCI-Public/circleci-cli/version.packageManager=release
+
+notarize:
+  macos:
+    - enabled: '{{ isEnvSet "QUILL_SIGN_P12" }}'
+      sign:
+        certificate: '{{ envOrDefault "QUILL_SIGN_P12" ""}}'
+      notarize:
+        issuer_id: '{{ envOrDefault "QUILL_NOTARY_ISSUER" ""}}'
+        key_id: '{{ envOrDefault "QUILL_NOTARY_KEY_ID" ""}}'
+        key: '{{ envOrDefault "QUILL_NOTARY_KEY" ""}}'
+
+winget:
+  - publisher: CircleCI
+    name: CircleCI CLI (v0)
+    short_description: "CircleCI command line tool (legacy v0)."
+    description: |
+      `circleci` is CircleCI's official command line tool. This is the legacy v0
+      build, published from the v0 branch for users who need the classic CLI.
+    license: "MIT"
+    license_url: "https://github.com/CircleCI-Public/circleci-cli/blob/HEAD/LICENSE"
+    tags:
+      - circle-ci
+      - circleci
+      - cli
+      - command-line-tool
+      - continuous-delivery
+      - continuous-integration
+      - developer-tools
+      - devops
+      - golang
+      - graphql
+      - tool
+    publisher_url: "https://github.com/CircleCI-Public"
+    publisher_support_url: "https://github.com/CircleCI-Public/circleci-cli/issues/new"
+    package_identifier: CircleCI.CLI.V0
+    url_template: "https://github.com/CircleCI-Public/circleci-cli/releases/download/{{ .Tag }}/{{ .ArtifactName }}"
+    homepage: "https://circleci.com"
+    copyright: "Circle Internet Services, Inc."
+    release_notes: "{{.Changelog}}"
+    release_notes_url: "https://github.com/CircleCI-Public/circleci-cli/releases/tag/{{ .Tag }}"
+    repository:
+      owner: CircleCI-Public
+      name: winget-pkgs
+      branch: "circleci-cli-v0-{{ .Tag }}"
+      pull_request:
+        enabled: false
+        base:
+          owner: microsoft
+          name: winget-pkgs
+          branch: master
+
+homebrew_casks:
+  # The legacy v0 CLI as a Homebrew cask, published to the same tap that carries
+  # the `circleci@next` preview cask from main. Installs a `circleci` binary, so
+  # it conflicts with the homebrew-core `circleci` formula and the `circleci@next`
+  # cask — see caveats.
+  - name: circleci@v0
+    directory: Casks
+    repository:
+      owner: CircleCI-Public
+      name: homebrew-circleci
+      branch: main
+    homepage: "https://circleci.com"
+    description: "CircleCI command line tool (legacy v0)."
+    binaries:
+      - circleci
+    completions:
+      bash: share/bash-completion/completions/circleci
+      zsh: share/zsh/site-functions/_circleci
+    caveats: |
+      This installs the legacy v0 `circleci` binary, which conflicts with the
+      stable `circleci` formula from homebrew-core and the `circleci@next`
+      preview cask. Homebrew cannot declare a cask/formula conflict
+      automatically, so if you have either installed, unlink it first to avoid a
+      clashing symlink:
+
+        brew unlink circleci
+
+archives:
+  - files:
+      - LICENSE
+      - src: ./share/bash-completion/completions/circleci
+        dst: share/bash-completion/completions/circleci
+      - src: ./share/zsh/site-functions/_circleci
+        dst: share/zsh/site-functions/_circleci
+    format_overrides:
+      - goos: windows
+        formats:
+          - zip
+
+release:
+  prerelease: auto
+  name_template: "CircleCI CLI (v0) {{.Version}}"
+  # NEVER mark a v0 release as "latest": main and v0 publish to the same GitHub
+  # repo, and homebrew-core's autobump bot pulls /releases/latest — marking a v0
+  # build latest would regress the stable install to the legacy CLI.
+  make_latest: false
