@@ -40,7 +40,6 @@ require (
 	github.com/segmentio/analytics-go v3.1.0+incompatible
 	github.com/spf13/afero v1.15.0
 	github.com/stretchr/testify v1.11.1
-	golang.org/x/exp v0.0.0-20260410095643-746e56fc9e2f
 	golang.org/x/term v0.43.0
 )
 

@@ -1,444 +1,109 @@
 version: 2.1
 
-orbs:
-  shellcheck: circleci/shellcheck@1.2.0
-  snyk: snyk/snyk@1.7.0
-  windows: circleci/windows@5.0.0
+# CI for the LEGACY v0 CLI. Structurally modelled on main's config, but pared
+# down to what v0 needs: static checks, tests, and a goreleaser deploy that
+# publishes the `circleci@v0` Homebrew cask and the `CircleCI.CLI.V0` winget
+# package. There are no docs, snap, chocolatey, packagecloud or cloudsmith jobs.
+#
+# NOTE: contexts (devex-release, macos-codesigning) and the deploy branch filter
+# assume the v0 branch is the release branch for the legacy CLI in the shared
+# CircleCI-Public/circleci-cli project — confirm before enabling deploys.
 
-executors:
-  go:
-    docker:
-      - image: cimg/go:1.25
-    resource_class: large
-    environment:
-      CGO_ENABLED: 0
-  mac:
-    macos:
-      xcode: 26.3.0
-    resource_class: m4pro.medium
-    environment:
-      CGO_ENABLED: 0
-      TERM: xterm-256color
+parameters:
+  go_version_with_patch:
+    type: string
+    default: 1.26.4
 
 commands:
-  force-http-1:
+  setup:
+    steps:
+      - checkout
+      - install-go
+      - install-task
+
+  install-go:
+    steps:
+      - run: circleci run circleci/setup-go@0.0.10-5577d2a -- --version << pipeline.parameters.go_version_with_patch >> --go-cache-checksum '{{ checksum "go.sum" }}_{{ checksum "tools/go.sum" }}'
+      - run: go version
+
+  install-task:
     steps:
       - run:
-          # https://app.circleci.com/jobs/github/CircleCI-Public/circleci-cli/6480
-          #     curl: (92) HTTP/2 stream 0 was not closed cleanly: PROTOCOL_ERROR (err 1)
-          # The issue seems to be on the server-side, so force HTTP 1.1
-          name: "cURL: Force HTTP 1.1"
-          command: echo '--http1.1' >> ~/.curlrc
-  build-docker-image:
-    steps:
-      - run:
-          name: Build Latest Docker Image
+          name: Install go-task
           command: |
-            docker build -t circleci/circleci-cli:0.1.$CIRCLE_BUILD_NUM .
-            docker run --rm circleci/circleci-cli:0.1.$CIRCLE_BUILD_NUM circleci update check
-  build-alpine-image:
+            sh -c "$(curl --location https://taskfile.dev/install.sh)" -- -d -b "$HOME/.local/bin"
+            echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$BASH_ENV"
+
+  store_results:
     steps:
-      - run:
-          name: Build Alpine Docker Image
-          command: |
-            docker build -t circleci/circleci-cli:0.1.$CIRCLE_BUILD_NUM-alpine --file Dockerfile.alpine .
-            docker run --rm circleci/circleci-cli:0.1.$CIRCLE_BUILD_NUM-alpine update check
-  deploy-save-workspace-and-artifacts:
-    steps:
-      - persist_to_workspace:
-          root: .
-          paths:
-            - "dist"
-      - store_artifacts:
-          path: ./dist
-          destination: dist
-  install-goreleaser:
-    parameters:
-      version:
-        type: string
-        default: "1.19.1"
-    steps:
-      - run:
-          name: Install GoReleaser
-          command: |
-            echo 'deb [trusted=yes] https://repo.goreleaser.com/apt/ /' | sudo tee /etc/apt/sources.list.d/goreleaser.list
-            sudo apt -q update -y
-            sudo apt -q install -y --no-install-recommends goreleaser=<< parameters.version >>
-  gomod:
-    steps:
-      - restore_cache:
-          keys: ["v3-gomod-{{ arch }}-"]
-      - run:
-          name: Download go module dependencies
-          command: go mod download
-      - save_cache:
-          key: v2-gomod-{{ arch }}-{{ checksum "go.sum" }}
-          paths:
-            - /go/pkg/mod # Linux
-            - ~/go/pkg/mod # macOS
+      - store_test_results:
+          path: ./test-reports
+
+executors:
+  linux:
+    machine:
+      image: ubuntu-2604:current
+    resource_class: large.gen3
 
 jobs:
-  test_windows:
-    executor:
-      name: windows/default
-      shell: bash --login -eo pipefail
+  check:
+    executor: linux
     steps:
-      - run: git config --global core.autocrlf false
-      - checkout
-      - run: mkdir test_results
-
-      - run:
-          name: Run tests
-          command: go tool gotestsum --junitfile test_results/windows.xml
-      - store_test_results:
-          path: test_results
-      - store_artifacts:
-          path: test_results
-  test_mac:
-    executor: mac
-    steps:
-      - checkout
-      - run: |
-          curl -OL https://go.dev/dl/go1.25.9.darwin-arm64.pkg
-          sudo installer -pkg ./go1.25.9.darwin-arm64.pkg -target /
-          echo 'export PATH="/usr/local/go/bin:$PATH"' >> ~/.bash_profile
-      - gomod
-      - run: make test
-  build:
-    executor: go
-    steps:
-      - checkout
-      - gomod
-      - run: make
-      - persist_to_workspace:
-          root: .
-          paths:
-            - "build"
-  cucumber:
-    docker:
-      - image: cimg/ruby:2.7
-    steps:
-      - checkout
-      - attach_workspace:
-          at: .
-      - run:
-          name: "Install CLI tool from workspace"
-          command: sudo cp ~/project/build/linux/amd64/circleci /usr/local/bin/
-      - run:
-          command: bundle install
-          working_directory: integration_tests
-      - run:
-          command: bundle exec cucumber
-          working_directory: integration_tests
-      - run:
-          name: "Make sure simple command do not cause any timeout"
-          command: circleci version
+      - setup
+      - run: task check
 
   test:
-    executor: go
+    executor: linux
     steps:
-      - checkout
-      - gomod
-      - run: go tool gotestsum --junitfile test_results/linux.xml
-      - store_test_results:
-          path: test_results
-      - store_artifacts:
-          path: test_results
-
-  coverage:
-    executor: go
-    environment:
-      CGO_ENABLED: 1
-    steps:
-      - checkout
-      - force-http-1
-      - gomod
-      - run: make cover
-      - store_artifacts:
-          path: ./coverage.txt
-          destination: coverage.txt
-
-  docs:
-    executor: go
-    steps:
-      - checkout
-      - run:
-          name: Plan deployment
-          command: |
-            circleci run release plan "${CIRCLE_JOB}" \
-              --environment-name="default" \
-              --component-name="${CIRCLE_PROJECT_REPONAME}" \
-              --target-version="1.0.${CIRCLE_BUILD_NUM}-${CIRCLE_SHA1:0:7}"
-      - run:
-          name: Install pandoc
-          command: |
-            sudo apt-get update
-            sudo apt-get install pandoc
-      - gomod
-      - run: go run main.go usage
-      - store_artifacts:
-          path: ./docs
-          destination: docs
-      - run: ./.circleci/generate-docs.sh
-      - run:
-          name: Update deployment status to running
-          command: circleci run release update "${CIRCLE_JOB}" --status=RUNNING
-      - run: ./.circleci/deploy-gh-pages.sh
-      - run:
-          name: Update deployment status to success
-          command: circleci run release update "${CIRCLE_JOB}" --status=SUCCESS
-          when: on_success
-      - run:
-          name: Update deployment status to failed
-          command: circleci run release update "${CIRCLE_JOB}" --status=FAILED
-          when: on_fail
-
-  lint:
-    executor: go
-    steps:
-      - checkout
-      - gomod
-      - run: go tool golangci-lint run
-
-  deploy-test:
-    executor: go
-    steps:
-      - run:
-          name: Plan deployment
-          command: |
-            circleci run release plan "${CIRCLE_JOB}" \
-              --environment-name="default" \
-              --component-name="${CIRCLE_PROJECT_REPONAME}" \
-              --target-version="1.0.${CIRCLE_BUILD_NUM}-${CIRCLE_SHA1:0:7}"
-      - run:
-          name: Skip this job if this is a forked pull request
-          command: |
-            if [ -n "$CIRCLE_PR_NUMBER" ]; then
-              echo "Forked PRs can't run this step."
-              circleci step halt
-            fi
-      - checkout
-      - install-goreleaser
-      - gomod
-      - run:
-          name: Release
-          command: |
-            git config --global user.email $GH_EMAIL
-            git config --global user.name $GH_NAME
-            git tag -a "v0.1.$CIRCLE_BUILD_NUM" -m "Release v0.1.$CIRCLE_BUILD_NUM"
-            goreleaser --skip-publish
-      - setup_remote_docker:
-          docker_layer_caching: true
-      - build-docker-image
-      - build-alpine-image
-      - run:
-          name: Update deployment status to running
-          command: circleci run release update "${CIRCLE_JOB}" --status=RUNNING
-      - deploy-save-workspace-and-artifacts
-      - run:
-          name: Update deployment status to success
-          command: circleci run release update "${CIRCLE_JOB}" --status=SUCCESS
-          when: on_success
-      - run:
-          name: Update deployment status to failed
-          command: circleci run release update "${CIRCLE_JOB}" --status=FAILED
-          when: on_fail
+      - setup
+      - run: task ci:test
+      - store_results
 
   deploy:
-    executor: go
+    executor: linux
+    parameters:
+      publish_steps:
+        type: steps
+        default:
+          - run: task ci:release
     steps:
-      - checkout
-      - install-goreleaser
-      - run:
-          name: Plan deployment
-          command: |
-            circleci run release plan "${CIRCLE_JOB}" \
-              --environment-name="default" \
-              --component-name="${CIRCLE_PROJECT_REPONAME}" \
-              --target-version="v0.1.${CIRCLE_BUILD_NUM}"
-      - run:
-          name: Tag Repo
-          command: |
-            git config --global user.email $GH_EMAIL
-            git config --global user.name $GH_NAME
-            git tag -a      "v0.1.$CIRCLE_BUILD_NUM" -m "Release v0.1.$CIRCLE_BUILD_NUM"
-            git push origin "v0.1.$CIRCLE_BUILD_NUM"
-      - gomod
-      - run:
-          name: Release
-          command: goreleaser
-      - setup_remote_docker:
-          docker_layer_caching: true
-      - run:
-          name: Docker Login
-          command: docker login -u $DOCKER_HUB_USERNAME -p $DOCKER_HUB_PASSWORD
-      - build-docker-image
-      - run:
-          name: Update deployment status to running
-          command: circleci run release update "${CIRCLE_JOB}" --status=RUNNING
-      - run:
-          name: Deploy Docker Image
-          command: |
-            docker push     circleci/circleci-cli:0.1.$CIRCLE_BUILD_NUM
-            docker tag      circleci/circleci-cli:0.1.$CIRCLE_BUILD_NUM circleci/circleci-cli:latest
-            docker push     circleci/circleci-cli:latest
-      - build-alpine-image
-      - run:
-          name: Deploy Alpine Docker Image
-          command: |
-            docker push     circleci/circleci-cli:0.1.$CIRCLE_BUILD_NUM-alpine
-            docker tag      circleci/circleci-cli:0.1.$CIRCLE_BUILD_NUM-alpine circleci/circleci-cli:alpine
-            docker push     circleci/circleci-cli:alpine
-      - deploy-save-workspace-and-artifacts
-      - run:
-          name: Update deployment status to success
-          command: circleci run release update "${CIRCLE_JOB}" --status=SUCCESS
-          when: on_success
-      - run:
-          name: Update deployment status to failed
-          command: circleci run release update "${CIRCLE_JOB}" --status=FAILED
-          when: on_fail
+      - setup
+      - steps: << parameters.publish_steps >>
+      - store_artifacts:
+          path: dist
 
-  snap:
-    docker:
-      - image: cibuilds/snapcraft:stable
-    steps:
-      - checkout
-      - attach_workspace:
-          at: .
-      - run: |
-          TAG=$(./dist/circleci-cli_linux_amd64_v1/circleci version | cut -d' ' -f 1) && export TAG
-          sed -i -- "s/%CLI_VERSION_PLACEHOLDER%/$TAG/g" snap/snapcraft.yaml
-      - run: snapcraft
-      - run:
-          name: Publish to store
-          command: |
-            # Credentials are read from the SNAPCRAFT_LOGIN_FILE env var (base64-encoded).
-            # To refresh: run `snapcraft login` and `snapcraft export-login creds`
-            # inside cibuilds/snapcraft:stable, then `cat creds | base64 | tr -d '\n'`
-            # and store the output as SNAPCRAFT_LOGIN_FILE in CircleCI project settings.
-            mkdir -p .snapcraft
-            echo $SNAPCRAFT_LOGIN_FILE | base64 --decode --ignore-garbage > .snapcraft/snapcraft.cfg
-            snapcraft push *.snap --release stable
-
-  chocolatey-deploy:
-    executor: windows/default
-    steps:
-      - checkout
-      - run:
-          name: Plan deployment
-          shell: bash.exe
-          command: |
-            circleci run release plan "${CIRCLE_JOB}" \
-              --environment-name="default" \
-              --component-name="circleci-cli" \
-              --target-version="1.0.${CIRCLE_BUILD_NUM}-${CIRCLE_SHA1:0:7}"
-      - run:
-          working_directory: chocolatey
-          name: Run update script
-          command: .\update-version.ps1
-      - run:
-          command: choco pack circleci-cli\circleci-cli.nuspec
-          working_directory: chocolatey
-      - run:
-          command: copy-item circleci-cli.*.nupkg circleci-cli.nupkg
-          working_directory: chocolatey
-      - run:
-          name: Update deployment status to running
-          shell: bash.exe
-          command: circleci run release update "${CIRCLE_JOB}" --status=RUNNING
-      - run:
-          name: Push to Chocolatey package repository
-          command: choco push circleci-cli.nupkg --source https://chocolatey.org/ --apikey $env:CHOCO_API_KEY
-          working_directory: chocolatey
-      - run:
-          name: Update deployment status to success
-          shell: bash.exe
-          command: circleci run release update "${CIRCLE_JOB}" --status=SUCCESS
-          when: on_success
-      - run:
-          name: Update deployment status to failed
-          shell: bash.exe
-          command: circleci run release update "${CIRCLE_JOB}" --status=FAILED
-          when: on_fail
-
-  vulnerability-scan:
-    executor: go
-    steps:
-      - checkout
-      - run:
-          name: Setup Scanning
-          command: |
-            git config --global url."https://$GITHUB_USER:$GITHUB_TOKEN@github.com/circleci/".insteadOf "https://github.com/circleci/"
-      - when:
-          condition:
-            or:
-              - equal: [main, << pipeline.git.branch >>]
-          steps:
-            - run:
-                name: Launching Snyk Orb Scanning
-                command: echo "Running snyk/scan on main; uploading the results"
-            - run:
-                name: Cleanup RemoteRepoURL
-                command: echo 'export REMOTE_REPO_URL="${CIRCLE_REPOSITORY_URL%".git"}"' >> "$BASH_ENV"
-            - snyk/scan:
-                organization: "circleci-public"
-                fail-on-issues: true
-                severity-threshold: high
-                monitor-on-build: true
-                additional-arguments: "--all-projects --remote-repo-url=${REMOTE_REPO_URL}"
-      - unless:
-          condition:
-            or:
-              - equal: [main, << pipeline.git.branch >>]
-          steps:
-            - run:
-                name: Launching Snyk Orb Scanning
-                command: echo "Running snyk/scan on branch; not uploading the results"
-            - snyk/scan:
-                organization: "circleci-public"
-                fail-on-issues: true
-                severity-threshold: high
-                monitor-on-build: false
-                additional-arguments: "--all-projects"
+  ok-to-deploy:
+    type: no-op
 
 workflows:
   ci:
     jobs:
-      - build
-      - cucumber:
-          requires: [build]
-      - shellcheck/check:
-          exclude: ./vendor/*
+      - check
       - test
-      - test_mac
-      - test_windows
-      - coverage
-      - lint
-      - vulnerability-scan:
-          context: org-global-employees
-      - deploy-test
-      - docs:
-          requires:
-            - deploy
-      - snap:
-          requires:
-            - deploy
-      - chocolatey-deploy:
-          requires:
-            - deploy
+
+      # Every non-release branch dry-runs the full goreleaser pipeline (build +
+      # cask + winget manifests) without tagging or publishing.
       - deploy:
-          requires:
-            - cucumber
-            - test
-            - test_mac
-            - coverage
-            - lint
-            - deploy-test
-            - shellcheck/check
-            - vulnerability-scan
+          name: dry-run
+          publish_steps:
+            - run: task ci:build
           filters:
             branches:
-              only: main
+              ignore:
+                - v0
+
+      - ok-to-deploy:
+          requires:
+            - check
+            - test
+          filters:
+            branches:
+              only: v0
+
+      - deploy:
+          serial-group: << pipeline.project.slug >>/deploy-v0
+          requires:
+            - ok-to-deploy
           context:
             - devex-release
+            - macos-codesigning

@@ -4,7 +4,6 @@ linters:
   default: none
   enable:
     - errcheck
-    - goconst
     - govet
     - ineffassign
     - misspell

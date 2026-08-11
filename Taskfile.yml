@@ -1,62 +1,183 @@
-version: "3"
+# Copyright (c) 2026 Circle Internet Services, Inc.
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+#
+# SPDX-License-Identifier: MIT
+
+version: '3'
+
+vars:
+  RESULTS_DIR: test-reports
+  TEST_REPORT: test-reports/tests.xml
+  LINT_REPORT: test-reports/lint.xml
+
+  GH_NAME: 'circleci'
+  GH_EMAIL: 'ops+deploy-bot@circleci.com'
 
 tasks:
-  lint:
-    desc: Lint code
+  build:
+    desc: Build the circleci binary
+    vars:
+      DEST: '{{default "dist/circleci" .DEST}}'
+      COMMIT:
+        sh: git rev-parse --short HEAD 2>/dev/null || echo unknown
+      DIRTY:
+        sh: test -z "$(git status --porcelain 2>/dev/null)" || echo .dirty
+      VERSION: '0.1.0-dev+{{.COMMIT}}{{.DIRTY}}'
     cmds:
-      - go tool golangci-lint run -c .golangci.yml
-    summary: Lint the project with golangci-lint
+      # v0's entry point is main.go at the repo root, and its version lives in the
+      # version package (not main.version like on the v1 rewrite).
+      - go build -ldflags="-X github.com/CircleCI-Public/circleci-cli/version.Version={{.VERSION}}" -o "{{.DEST}}" .
 
-  clean:
-    desc: Cleans out the build, out, docs, and dist directories
+  release-check:
+    desc: Check if the release is ready to be published
     cmds:
-      - GO111MODULE=off go clean -i
-      - rm -rf build out docs dist
-
-  fmt:
-    desc: Run `go fmt` to format the code
-    cmds:
-      - go fmt ./...
+      - go tool -modfile tools/go.mod goreleaser check
 
   test:
-    desc: Run the tests
+    desc: Run unit tests
+    vars:
+      ARGS: '{{default "./..." .CLI_ARGS}}'
     cmds:
-      - go tool gotestsum -- -v ./...
+      - go tool -modfile tools/go.mod gotestsum -- -race -count=1 {{.ARGS}}
 
-  tidy:
-    desc: Run 'go mod tidy' to clean up module files.
+  check:
+    desc: Run all static checks
+    # v0's source predates the MIT-header convention, so — unlike main — there is
+    # no license-header check here.
     cmds:
-      - go mod tidy -v
+      - task: lint
+      - task: mod-tidy
+        vars:
+          CLI_ARGS: -diff
+      - task: release-check
 
-  doc:
-    desc: run's the godocs
+  fix:
+    desc: Auto-fix static checks
     cmds:
-      - godoc -http=:6060
+      - task: fmt
+      - task: mod-tidy
+      - task: lint
+        vars:
+          CLI_ARGS: ./... --fix
 
-  check-go-mod:
-    desc: Check go.mod is tidy
+  lint:
+    desc: Run golangci-lint
+    vars:
+      ARGS: '{{default "./..." .CLI_ARGS}}'
     cmds:
-      - go mod tidy -v
-      - git diff --exit-code -- go.mod go.sum
+      - go tool -modfile tools/go.mod golangci-lint run {{.ARGS}}
 
-  vendor:
-    desc: go mod vendor
+  fmt:
+    desc: Format the code
+    vars:
+      ARGS: '{{default "./..." .CLI_ARGS}}'
     cmds:
-      - go mod vendor
+      - go tool -modfile tools/go.mod golangci-lint fmt {{.ARGS}}
 
-  build:
-    desc: Build main
+  mod-tidy:
+    desc: Run 'go mod tidy'
+    vars:
+      ARGS: '{{default "-v" .CLI_ARGS}}'
     cmds:
-      # LDFlags sets the segment endpoint to an empty string thus letting the analytics library set the default endpoint on its own
-      # Not setting the `SegmentEndpoint` variable would let the value in the code ie "http://localhost"
-      - go build -v -o build/$(go env GOOS)/$(go env GOARCH)/circleci -ldflags='-X github.com/CircleCI-Public/circleci-cli/telemetry.SegmentEndpoint=https://api.segment.io' .
+      - go mod tidy {{.ARGS}}
+      - go -C tools mod tidy {{.ARGS}}
 
-  build-linux:
-    desc: Build main
+  mod-download:
+    desc: Run 'go mod download'
     cmds:
-      - go build -v -o build/linux/amd64/circleci .
+      - go mod download
+      - go mod download -modfile tools/go.mod
 
-  cover:
-    desc: tests and generates a cover profile
+  dev-install:
+    desc: Build from source and install to ~/.local/bin
+    vars:
+      DEST: '${HOME}/.local/bin'
     cmds:
-      - go tool gotestsum -- -race -coverprofile=coverage.txt ./...
+      - mkdir -p "{{.DEST}}"
+      - task: build
+        vars:
+          DEST: '{{.DEST}}/circleci'
+
+  generate:
+    desc: Run go generate
+    cmds:
+      - go generate ./...
+
+  # CI tasks
+
+  ci:lint:
+    desc: Lint with JUnit output
+    cmds:
+      - mkdir -p "{{.RESULTS_DIR}}"
+      - task: lint
+        vars:
+          CLI_ARGS: |
+            ./... \
+            --output.junit-xml.path "{{.LINT_REPORT}}" --output.junit-xml.extended \
+            --output.text.path=stdout --output.text.colors=true
+
+  ci:test:
+    desc: Run tests with JUnit output
+    cmds:
+      - mkdir -p {{.RESULTS_DIR}}
+      - go tool -modfile tools/go.mod gotestsum --junitfile {{.TEST_REPORT}} -- -race -count=1 ./...
+
+  ci:check:
+    desc: Check no uncommitted diffs after generate/fmt/tidy
+    cmds:
+      - task: ci:lint
+      - task: mod-tidy
+        vars:
+          CLI_ARGS: -diff
+      - task: release-check
+      - task: generate
+      - git diff --exit-code
+
+  ci:release:
+    desc: Tag, build, and publish a release (v0 Homebrew cask + winget)
+    # v0 keeps its historical tag scheme (v0.1.<build-num>). Unlike main, there
+    # are no nfpm/packagecloud/cloudsmith steps — v0 only publishes the cask and
+    # winget package, both handled inside `goreleaser release`.
+    vars:
+      VERSION: 'v0.1.{{env "CIRCLE_BUILD_NUM" | default "0"}}'
+    cmds:
+      # Only set the deploy-bot identity in CI; never clobber a local git config.
+      - |
+        if [ -n "${CI:-}" ]; then
+          git config --global user.email '{{.GH_EMAIL}}'
+          git config --global user.name '{{.GH_NAME}}'
+        fi
+      - git tag -a '{{.VERSION}}' -m 'Release {{.VERSION}}'
+      - git push origin '{{.VERSION}}'
+      - go tool -modfile tools/go.mod goreleaser release --clean
+
+  ci:build:
+    desc: Dry-run a release — build a snapshot (cask + winget) without publishing
+    vars:
+      VERSION: 'v0.1.{{env "CIRCLE_BUILD_NUM" | default "0"}}'
+    cmds:
+      # Only set the deploy-bot identity in CI; never clobber a local git config.
+      - |
+        if [ -n "${CI:-}" ]; then
+          git config --global user.email '{{.GH_EMAIL}}'
+          git config --global user.name '{{.GH_NAME}}'
+        fi
+      - git tag -a '{{.VERSION}}' -m 'Release {{.VERSION}}'
+      - go tool -modfile tools/go.mod goreleaser release --snapshot --clean
