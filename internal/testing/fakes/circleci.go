@@ -29,6 +29,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -56,14 +57,9 @@ type CircleCI struct {
 	mu                                sync.RWMutex
 	pipelines                         map[string]PipelineV2
 	projects                          map[string][]PipelineV2 // project slug → ordered pipelines
-	workflowJobs                      map[string][]any        // workflow id → jobs
 	jobArtifacts                      map[string][]any        // "slug/jobNumber" → artifacts
 	jobArtifactsV3                    map[string][]Artifact   // job UUID → V3 artifacts
 	staticFiles                       map[string]string       // path → body content, for artifact downloads
-	jobs                              map[string]any          // "slug/jobNumber" → job detail response (v2)
-	jobsV1                            map[string]any          // "vcs/org/repo/jobNumber" → job detail response (v1.1)
-	rawStepOutputs                    map[string]string       // "slug/number/taskIndex/stepID" → plain text output
-	rawStepErrors                     map[string]string       // "slug/number/taskIndex/stepID" → plain text error
 	triggerResponses                  map[string]any          // project slug → trigger response body
 	triggerPipelineRunResponses       map[string]any          // project slug → trigger run response body
 	triggerPipelineRunStatuses        map[string]int          // project slug → HTTP status (default 201)
@@ -164,20 +160,20 @@ type CircleCI struct {
 	parCounter         int             // monotonic ID generator for request_uri values
 
 	// Orb state (v3).
-	orbPackages        map[string]map[string]any // id → package object
-	orbPackagesByName  map[string]string         // "ns/name" → id
-	orbVersions        map[string]map[string]any // id → version object
-	orbVersionsByRef   map[string]string         // "ns/name@version" → id
-	orbVersionsByOrbID map[string][]string       // orbID → ordered version IDs
-	orbCategories      map[string]map[string]any // id → category object
+	orbPackages        map[string]Orb         // id → package
+	orbPackagesByName  map[string]string      // "ns/name" → id
+	orbVersions        map[string]OrbVersion  // id → version
+	orbVersionsByRef   map[string]string      // "ns/name@version" → id
+	orbVersionsByOrbID map[string][]string    // orbID → ordered version IDs (newest first)
+	orbCategories      map[string]OrbCategory // id → category
 	// orbAddCategoryStatus, when non-zero, is the HTTP status returned for every
 	// POST /api/v3/orb/packages/{id}/add-category, so a test can exercise how a
 	// caller copes with the registry refusing a category.
 	orbAddCategoryStatus int
 	orbCategoriesByName  map[string]string        // name → id
 	orbValidateResponse  *orbFakeValidateResponse // override for validate/process responses
-	orbCreatedPackages   []map[string]any         // packages created via POST
-	orbCreatedVersions   []map[string]any         // versions created via POST
+	orbCreatedPackages   []Orb                    // packages created via POST
+	orbCreatedVersions   []OrbVersion             // versions created via POST
 	orbUnlistedPackages  map[string]bool          // id → unlisted
 	orbCategoryMembers   map[string][]string      // packageID → []categoryID
 
@@ -244,14 +240,9 @@ func NewCircleCI(t *testing.T, tokens ...string) *CircleCI {
 
 		pipelines:                         map[string]PipelineV2{},
 		projects:                          map[string][]PipelineV2{},
-		workflowJobs:                      map[string][]any{},
 		jobArtifacts:                      map[string][]any{},
 		jobArtifactsV3:                    map[string][]Artifact{},
 		staticFiles:                       map[string]string{},
-		jobs:                              map[string]any{},
-		jobsV1:                            map[string]any{},
-		rawStepOutputs:                    map[string]string{},
-		rawStepErrors:                     map[string]string{},
 		triggerResponses:                  map[string]any{},
 		triggerPipelineRunResponses:       map[string]any{},
 		triggerPipelineRunStatuses:        map[string]int{},
@@ -309,12 +300,12 @@ func NewCircleCI(t *testing.T, tokens ...string) *CircleCI {
 		iosBundles:                        map[string][]IOSSigningConfig{},
 		deletedIOSCerts:                   map[string]bool{},
 		deletedIOSBundles:                 map[string]bool{},
-		orbPackages:                       map[string]map[string]any{},
+		orbPackages:                       map[string]Orb{},
 		orbPackagesByName:                 map[string]string{},
-		orbVersions:                       map[string]map[string]any{},
+		orbVersions:                       map[string]OrbVersion{},
 		orbVersionsByRef:                  map[string]string{},
 		orbVersionsByOrbID:                map[string][]string{},
-		orbCategories:                     map[string]map[string]any{},
+		orbCategories:                     map[string]OrbCategory{},
 		orbCategoriesByName:               map[string]string{},
 		orbUnlistedPackages:               map[string]bool{},
 		orbCategoryMembers:                map[string][]string{},
@@ -347,12 +338,9 @@ func NewCircleCI(t *testing.T, tokens ...string) *CircleCI {
 	r.Post("/api/v3/workflows/{id}/cancel", f.handleCancelWorkflow)
 	r.Get("/api/v2/project/{vcs}/{org}/{repo}/pipeline", f.handleListProjectPipelines)
 	r.Get("/api/v2/project/{vcs}/{org}/{repo}/pipeline/{number}", f.handleGetPipelineByNumber)
-	r.Get("/api/v2/workflow/{id}/job", f.handleGetWorkflowJobs)
 	r.Get("/api/v2/project/{vcs}/{org}/{repo}/{jobNumber}/artifacts", f.handleGetJobArtifacts)
-	r.Get("/api/v2/project/{vcs}/{org}/{repo}/job/{jobNumber}", f.handleGetJob)
 	r.Post("/api/v2/project/{vcs}/{org}/{repo}/pipeline", f.handleTriggerPipeline)
 	r.Post("/api/v2/project/{vcs}/{org}/{repo}/pipeline/run", f.handleTriggerPipelineRun)
-	r.Get("/api/v1.1/project/{vcs}/{org}/{repo}/{jobNumber}", f.handleGetJobV1)
 	// Project / env-var routes. These API calls do not URL-encode slashes in the
 	// project slug, so we match three separate path segments rather than {slug}.
 	r.Get("/api/v1.1/projects", f.handleListProjects)
@@ -472,9 +460,6 @@ func NewCircleCI(t *testing.T, tokens ...string) *CircleCI {
 	r.Delete("/api/v3/projects/{projectID}/dlc", f.handleDLCPurge)
 	// Wildcard route for artifact downloads — populated via AddStaticFile before requests.
 	r.Get("/artifacts/*", f.handleStaticFile)
-	// Raw step output/error routes for the private output API.
-	r.Get("/api/private/output/raw/{vcs}/{org}/{repo}/{number}/output/{taskIndex}/{stepID}", f.handleRawStepOutput)
-	r.Get("/api/private/output/raw/{vcs}/{org}/{repo}/{number}/error/{taskIndex}/{stepID}", f.handleRawStepError)
 	// GraphQL endpoint — dispatches by operation within the request body.
 	r.Post("/graphql-unstable", f.handleGraphQL)
 
@@ -751,13 +736,6 @@ func pipelineV2Entity(p PipelineV2) map[string]any {
 	}
 }
 
-// AddWorkflowJobs registers job responses for a workflow.
-func (f *CircleCI) AddWorkflowJobs(workflowID string, jobs ...any) {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	f.workflowJobs[workflowID] = jobs
-}
-
 // JobV3 is a stored job served by both the workflow-jobs list
 // (GET /api/v3/workflows/{id}/jobs) and the job-detail endpoint
 // (GET /api/v3/jobs/{id}). The list exposes the summary attributes and
@@ -899,16 +877,6 @@ func artifactEntity(a Artifact) map[string]any {
 	}
 }
 
-// AddJobV1 registers a v1.1 job detail response. Use this alongside AddJob
-// (with a job body that has no steps) to exercise the v2→v1.1 fallback path.
-// slug should be in the v1.1 form, e.g. "github/org/repo".
-func (f *CircleCI) AddJobV1(slug string, jobNumber int64, job any) {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	key := fmt.Sprintf("%s/%d", slug, jobNumber)
-	f.jobsV1[key] = job
-}
-
 // AddJobV3 registers a job's detail, served by GET /api/v3/jobs/<id> keyed on
 // the job's ID.
 func (f *CircleCI) AddJobV3(job JobV3) {
@@ -966,34 +934,6 @@ func (f *CircleCI) SetTriggerPipelineRunSkipped(slug, message string) {
 	defer f.mu.Unlock()
 	f.triggerPipelineRunResponses[slug] = map[string]any{"message": message}
 	f.triggerPipelineRunStatuses[slug] = http.StatusOK
-}
-
-// AddJob registers a job detail response for GET /api/v2/project/<slug>/job/<number>.
-// slug should be in "vcs/org/repo" form; jobNumber is the integer job number.
-func (f *CircleCI) AddJob(slug string, jobNumber int64, job any) {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	key := fmt.Sprintf("%s/%d", slug, jobNumber)
-	f.jobs[key] = job
-}
-
-// AddStepOutput registers plain-text output content for a step action, served
-// at GET /api/private/output/raw/{slug}/{number}/output/{taskIndex}/{stepID}.
-// taskIndex is action.Index and stepID is action.Step from the job response.
-func (f *CircleCI) AddStepOutput(slug string, jobNumber int64, taskIndex, stepID int, content string) {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	key := fmt.Sprintf("%s/%d/%d/%d", slug, jobNumber, taskIndex, stepID)
-	f.rawStepOutputs[key] = content
-}
-
-// AddStepError registers plain-text error content for a step action, served
-// at GET /api/private/output/raw/{slug}/{number}/error/{taskIndex}/{stepID}.
-func (f *CircleCI) AddStepError(slug string, jobNumber int64, taskIndex, stepID int, content string) {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	key := fmt.Sprintf("%s/%d/%d/%d", slug, jobNumber, taskIndex, stepID)
-	f.rawStepErrors[key] = content
 }
 
 // AddStaticFile registers a path that serves static content for artifact
@@ -1065,18 +1005,6 @@ func (f *CircleCI) handleGetPipelineByNumber(w http.ResponseWriter, r *http.Requ
 	render.JSON(w, r, map[string]any{"message": "not found"})
 }
 
-func (f *CircleCI) handleGetWorkflowJobs(w http.ResponseWriter, r *http.Request) {
-	id := chi.URLParam(r, "id")
-	f.mu.RLock()
-	jobs := f.workflowJobs[id]
-	f.mu.RUnlock()
-
-	if jobs == nil {
-		jobs = []any{}
-	}
-	render.JSON(w, r, map[string]any{"items": jobs, "next_page_token": nil})
-}
-
 func (f *CircleCI) handleGetJobArtifacts(w http.ResponseWriter, r *http.Request) {
 	slug := chi.URLParam(r, "vcs") + "/" + chi.URLParam(r, "org") + "/" + chi.URLParam(r, "repo")
 	key := slug + "/" + chi.URLParam(r, "jobNumber")
@@ -1114,21 +1042,6 @@ func (f *CircleCI) handleListProjectPipelines(w http.ResponseWriter, r *http.Req
 	render.JSON(w, r, map[string]any{"items": items, "next_page_token": nil})
 }
 
-func (f *CircleCI) handleGetJobV1(w http.ResponseWriter, r *http.Request) {
-	slug := chi.URLParam(r, "vcs") + "/" + chi.URLParam(r, "org") + "/" + chi.URLParam(r, "repo")
-	key := slug + "/" + chi.URLParam(r, "jobNumber")
-	f.mu.RLock()
-	job, ok := f.jobsV1[key]
-	f.mu.RUnlock()
-
-	if !ok {
-		render.Status(r, http.StatusNotFound)
-		render.JSON(w, r, map[string]any{"message": "not found"})
-		return
-	}
-	render.JSON(w, r, job)
-}
-
 func (f *CircleCI) handleTriggerPipeline(w http.ResponseWriter, r *http.Request) {
 	slug := chi.URLParam(r, "vcs") + "/" + chi.URLParam(r, "org") + "/" + chi.URLParam(r, "repo")
 	f.mu.RLock()
@@ -1158,21 +1071,6 @@ func (f *CircleCI) handleTriggerPipelineRun(w http.ResponseWriter, r *http.Reque
 	}
 	render.Status(r, status)
 	render.JSON(w, r, resp)
-}
-
-func (f *CircleCI) handleGetJob(w http.ResponseWriter, r *http.Request) {
-	slug := chi.URLParam(r, "vcs") + "/" + chi.URLParam(r, "org") + "/" + chi.URLParam(r, "repo")
-	key := slug + "/" + chi.URLParam(r, "jobNumber")
-	f.mu.RLock()
-	job, ok := f.jobs[key]
-	f.mu.RUnlock()
-
-	if !ok {
-		render.Status(r, http.StatusNotFound)
-		render.JSON(w, r, map[string]any{"message": "not found"})
-		return
-	}
-	render.JSON(w, r, job)
 }
 
 func (f *CircleCI) handleGetJobV3(w http.ResponseWriter, r *http.Request) {
@@ -1734,24 +1632,6 @@ func (f *CircleCI) handleCancelWorkflow(w http.ResponseWriter, r *http.Request) 
 	}
 	render.Status(r, status)
 	render.JSON(w, r, map[string]any{"data": map[string]any{"id": id}})
-}
-
-func (f *CircleCI) handleRawStepOutput(w http.ResponseWriter, r *http.Request) {
-	slug := chi.URLParam(r, "vcs") + "/" + chi.URLParam(r, "org") + "/" + chi.URLParam(r, "repo")
-	key := fmt.Sprintf("%s/%s/%s/%s", slug, chi.URLParam(r, "number"), chi.URLParam(r, "taskIndex"), chi.URLParam(r, "stepID"))
-	f.mu.RLock()
-	content := f.rawStepOutputs[key]
-	f.mu.RUnlock()
-	render.PlainText(w, r, content)
-}
-
-func (f *CircleCI) handleRawStepError(w http.ResponseWriter, r *http.Request) {
-	slug := chi.URLParam(r, "vcs") + "/" + chi.URLParam(r, "org") + "/" + chi.URLParam(r, "repo")
-	key := fmt.Sprintf("%s/%s/%s/%s", slug, chi.URLParam(r, "number"), chi.URLParam(r, "taskIndex"), chi.URLParam(r, "stepID"))
-	f.mu.RLock()
-	content := f.rawStepErrors[key]
-	f.mu.RUnlock()
-	render.PlainText(w, r, content)
 }
 
 // --- Runner helpers ---
@@ -3938,25 +3818,15 @@ func (f *CircleCI) AddOrbPackage(id, nsID, nsName, orbName string, isPrivate, is
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	fullName := nsName + "/" + orbName
-	pkg := map[string]any{
-		"id": id,
-		"attributes": map[string]any{
-			"name":                       fullName,
-			"is_private":                 isPrivate,
-			"is_listed":                  isListed,
-			"created_at":                 "2026-01-01T00:00:00.000Z",
-			"last_30_days_build_count":   int64(0),
-			"last_30_days_project_count": int64(0),
-			"last_30_days_org_count":     int64(0),
-		},
-		"references": map[string]any{
-			"namespace": map[string]any{
-				"id":         nsID,
-				"attributes": map[string]any{"name": nsName},
-			},
-		},
+	f.orbPackages[id] = Orb{
+		ID:        id,
+		Name:      fullName,
+		NsID:      nsID,
+		NsName:    nsName,
+		IsPrivate: isPrivate,
+		IsListed:  isListed,
+		CreatedAt: "2026-01-01T00:00:00.000Z",
 	}
-	f.orbPackages[id] = pkg
 	f.orbPackagesByName[fullName] = id
 }
 
@@ -3968,52 +3838,135 @@ func (f *CircleCI) AddOrbVersion(id, orbID, orbName, version, source, createdAt 
 	if createdAt == "" {
 		createdAt = "2026-01-15T10:30:00.000Z"
 	}
-	ver := map[string]any{
-		"id": id,
-		"attributes": map[string]any{
-			"version":    version,
-			"source":     source,
-			"created_at": createdAt,
-		},
-		"references": map[string]any{
-			"orb_package": map[string]any{
-				"id":         orbID,
-				"attributes": map[string]any{"name": orbName},
-			},
-		},
-	}
-	f.orbVersions[id] = ver
-	ref := orbName + "@" + version
-	f.orbVersionsByRef[ref] = id
-	// Also register @volatile pointing to this version (last registered wins).
-	volatileRef := orbName + "@volatile"
-	f.orbVersionsByRef[volatileRef] = id
-	// Add to orb's version list (for list by orb_id)
-	f.orbVersionsByOrbID[orbID] = append([]string{id}, f.orbVersionsByOrbID[orbID]...)
-
-	// Update the package's orb/versions reference
-	if pkg, ok := f.orbPackages[orbID]; ok {
-		if refs, ok := pkg["references"].(map[string]any); ok {
-			refs["orb_versions"] = []any{map[string]any{
-				"id": id,
-				"attributes": map[string]any{
-					"version":    version,
-					"created_at": createdAt,
-				},
-			}}
-		}
-	}
+	f.storeOrbVersionLocked(OrbVersion{
+		ID:        id,
+		OrbID:     orbID,
+		OrbName:   orbName,
+		Version:   version,
+		Source:    source,
+		CreatedAt: createdAt,
+	})
 }
 
 // AddOrbCategory registers an orb category in the fake server.
 func (f *CircleCI) AddOrbCategory(id, name string) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	f.orbCategories[id] = map[string]any{
-		"id":         id,
-		"attributes": map[string]any{"name": name},
-	}
+	f.orbCategories[id] = OrbCategory{ID: id, Name: name}
 	f.orbCategoriesByName[name] = id
+}
+
+// Orb is a stored orb package served by the orb package endpoints. is_listed,
+// orb_versions and orb_categories are derived at render time from the unlisted
+// set, version list and category membership respectively.
+type Orb struct {
+	ID        string
+	Name      string // full "namespace/orb"
+	NsID      string
+	NsName    string
+	IsPrivate bool
+	IsListed  bool
+	CreatedAt string
+}
+
+// OrbVersion is a stored orb version. Source is served only by the dedicated
+// /source endpoint and by the version list — the get/create/promote responses
+// strip it.
+type OrbVersion struct {
+	ID        string
+	OrbID     string
+	OrbName   string // full "namespace/orb"
+	Version   string
+	Source    string
+	CreatedAt string
+}
+
+// OrbCategory is a stored orb category.
+type OrbCategory struct {
+	ID   string
+	Name string
+}
+
+// storeOrbVersionLocked records a version and its ref/volatile/order indexes.
+// Callers must hold the write lock.
+func (f *CircleCI) storeOrbVersionLocked(v OrbVersion) {
+	f.orbVersions[v.ID] = v
+	f.orbVersionsByRef[v.OrbName+"@"+v.Version] = v.ID
+	f.orbVersionsByRef[v.OrbName+"@volatile"] = v.ID
+	f.orbVersionsByOrbID[v.OrbID] = append([]string{v.ID}, f.orbVersionsByOrbID[v.OrbID]...)
+}
+
+// orbEntity renders a stored Orb as its V3 entity. isListed, cats and latest
+// are the render-time derived values; orb_versions and orb_categories are
+// omitted when empty, matching the real API.
+func orbEntity(o Orb, isListed bool, cats []OrbCategory, latest *OrbVersion) map[string]any {
+	refs := map[string]any{
+		"namespace": map[string]any{"id": o.NsID, "attributes": map[string]any{"name": o.NsName}},
+	}
+	if latest != nil {
+		refs["orb_versions"] = []any{map[string]any{
+			"id":         latest.ID,
+			"attributes": map[string]any{"version": latest.Version, "created_at": latest.CreatedAt},
+		}}
+	}
+	if len(cats) > 0 {
+		catList := make([]any, 0, len(cats))
+		for _, c := range cats {
+			catList = append(catList, orbCategoryEntity(c))
+		}
+		refs["orb_categories"] = catList
+	}
+	return map[string]any{
+		"id": o.ID,
+		"attributes": map[string]any{
+			"name":                       o.Name,
+			"is_private":                 o.IsPrivate,
+			"is_listed":                  isListed,
+			"created_at":                 o.CreatedAt,
+			"last_30_days_build_count":   int64(0),
+			"last_30_days_project_count": int64(0),
+			"last_30_days_org_count":     int64(0),
+		},
+		"references": refs,
+	}
+}
+
+// orbVersionEntity renders a stored OrbVersion. Source is included only when
+// requested (the version list serves it; get/create/promote do not).
+func orbVersionEntity(v OrbVersion, includeSource bool) map[string]any {
+	attrs := map[string]any{"version": v.Version, "created_at": v.CreatedAt}
+	if includeSource {
+		attrs["source"] = v.Source
+	}
+	return map[string]any{
+		"id":         v.ID,
+		"attributes": attrs,
+		"references": map[string]any{
+			"orb_package": map[string]any{"id": v.OrbID, "attributes": map[string]any{"name": v.OrbName}},
+		},
+	}
+}
+
+// orbCategoryEntity renders a stored OrbCategory.
+func orbCategoryEntity(c OrbCategory) map[string]any {
+	return map[string]any{"id": c.ID, "attributes": map[string]any{"name": c.Name}}
+}
+
+// orbDerivedLocked gathers the render-time derived values for an orb: its listed
+// state, attached categories, and latest version. Callers must hold the lock.
+func (f *CircleCI) orbDerivedLocked(orbID string) (isListed bool, cats []OrbCategory, latest *OrbVersion) {
+	isListed = !f.orbUnlistedPackages[orbID]
+	for _, cid := range f.orbCategoryMembers[orbID] {
+		if c, ok := f.orbCategories[cid]; ok {
+			cats = append(cats, c)
+		}
+	}
+	if ids := f.orbVersionsByOrbID[orbID]; len(ids) > 0 {
+		if v, ok := f.orbVersions[ids[0]]; ok {
+			latest = &v
+		}
+	}
+	return isListed, cats, latest
 }
 
 // SetOrbValidationResponse configures the validate/process endpoints to return
@@ -4032,75 +3985,22 @@ func (f *CircleCI) SetOrbValidationResponse(yaml string, valid bool, errors []st
 
 // --- Orb handlers ---
 
-func orbPackageResponse(pkg map[string]any) map[string]any {
-	return map[string]any{"data": pkg}
-}
-
-func orbVersionResponse(ver map[string]any) map[string]any {
-	// Return a shallow copy of ver with source stripped from attributes —
-	// source is only served via the dedicated /source endpoint.
-	attrs, _ := ver["attributes"].(map[string]any)
-	filteredAttrs := make(map[string]any, len(attrs))
-	for k, v := range attrs {
-		if k != "source" {
-			filteredAttrs[k] = v
-		}
-	}
-	filtered := make(map[string]any, len(ver))
-	for k, v := range ver {
-		filtered[k] = v
-	}
-	filtered["attributes"] = filteredAttrs
-	return map[string]any{"data": filtered}
-}
-
 func (f *CircleCI) handleOrbListPackages(w http.ResponseWriter, r *http.Request) {
 	nsID := r.URL.Query().Get("namespace_id")
 	nameFilter := r.URL.Query().Get("filter[name]")
 	f.mu.RLock()
-	pkgs := f.orbPackages
-	unlisted := f.orbUnlistedPackages
-	catMembers := f.orbCategoryMembers
-	cats := f.orbCategories
-	f.mu.RUnlock()
+	defer f.mu.RUnlock()
 
-	var items []any
-	for _, pkg := range pkgs {
-		attrs, _ := pkg["attributes"].(map[string]any)
-		name, _ := attrs["name"].(string)
-
-		if nameFilter != "" && name != nameFilter {
+	items := []any{}
+	for _, o := range f.orbPackages {
+		if nameFilter != "" && o.Name != nameFilter {
 			continue
 		}
-		refs, _ := pkg["references"].(map[string]any)
-		ns, _ := refs["namespace"].(map[string]any)
-		nsIDVal, _ := ns["id"].(string)
-		if nsID != "" && nsIDVal != nsID {
+		if nsID != "" && o.NsID != nsID {
 			continue
 		}
-		id, _ := pkg["id"].(string)
-		// Build categories list for this package.
-		catIDs := catMembers[id]
-		catList := make([]any, 0, len(catIDs))
-		for _, cid := range catIDs {
-			if c, ok := cats[cid]; ok {
-				catList = append(catList, c)
-			}
-		}
-		// Clone pkg with updated listed state and categories.
-		pkgCopy := cloneMap(pkg)
-		if attrsCopy, ok := pkgCopy["attributes"].(map[string]any); ok {
-			attrsCopy["is_listed"] = !unlisted[id]
-		}
-		if refsCopy, ok := pkgCopy["references"].(map[string]any); ok {
-			if len(catList) > 0 {
-				refsCopy["orb_categories"] = catList
-			}
-		}
-		items = append(items, pkgCopy)
-	}
-	if items == nil {
-		items = []any{}
+		isListed, cats, latest := f.orbDerivedLocked(o.ID)
+		items = append(items, orbEntity(o, isListed, cats, latest))
 	}
 	render.JSON(w, r, map[string]any{
 		"data": items,
@@ -4130,75 +4030,45 @@ func (f *CircleCI) handleOrbCreatePackage(w http.ResponseWriter, r *http.Request
 
 	nsID := body.Data.References.Namespace.ID
 	f.mu.Lock()
+	defer f.mu.Unlock()
 	nsData, ok := f.namespaces[nsID]
-	f.mu.Unlock()
 	if !ok {
 		render.Status(r, http.StatusNotFound)
 		render.JSON(w, r, map[string]any{"message": "namespace not found"})
 		return
 	}
-	nsName := nsData.Name
 
 	id := uuid.New().String()
-	pkg := map[string]any{
-		"id": id,
-		"attributes": map[string]any{
-			"name":                       body.Data.Attributes.Name,
-			"is_private":                 body.Data.Attributes.IsPrivate,
-			"is_listed":                  true,
-			"created_at":                 "2026-01-01T00:00:00.000Z",
-			"last_30_days_build_count":   int64(0),
-			"last_30_days_project_count": int64(0),
-			"last_30_days_org_count":     int64(0),
-		},
-		"references": map[string]any{
-			"namespace": map[string]any{
-				"id":         nsID,
-				"attributes": map[string]any{"name": nsName},
-			},
-		},
+	o := Orb{
+		ID:        id,
+		Name:      body.Data.Attributes.Name,
+		NsID:      nsID,
+		NsName:    nsData.Name,
+		IsPrivate: body.Data.Attributes.IsPrivate,
+		IsListed:  true,
+		CreatedAt: "2026-01-01T00:00:00.000Z",
 	}
-	f.mu.Lock()
-	f.orbPackages[id] = pkg
-	f.orbPackagesByName[body.Data.Attributes.Name] = id
-	f.orbCreatedPackages = append(f.orbCreatedPackages, pkg)
-	f.mu.Unlock()
+	f.orbPackages[id] = o
+	f.orbPackagesByName[o.Name] = id
+	f.orbCreatedPackages = append(f.orbCreatedPackages, o)
 
 	render.Status(r, http.StatusCreated)
-	render.JSON(w, r, orbPackageResponse(pkg))
+	isListed, cats, latest := f.orbDerivedLocked(id)
+	render.JSON(w, r, map[string]any{"data": orbEntity(o, isListed, cats, latest)})
 }
 
 func (f *CircleCI) handleOrbGetPackage(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	f.mu.RLock()
-	pkg, ok := f.orbPackages[id]
-	catIDs := f.orbCategoryMembers[id]
-	cats := f.orbCategories
-	unlisted := f.orbUnlistedPackages[id]
-	f.mu.RUnlock()
-
+	defer f.mu.RUnlock()
+	o, ok := f.orbPackages[id]
 	if !ok {
 		render.Status(r, http.StatusNotFound)
 		render.JSON(w, r, map[string]any{"message": "not found"})
 		return
 	}
-
-	catList := make([]any, 0, len(catIDs))
-	for _, cid := range catIDs {
-		if c, ok := cats[cid]; ok {
-			catList = append(catList, c)
-		}
-	}
-	pkgCopy := cloneMap(pkg)
-	if attrsCopy, ok := pkgCopy["attributes"].(map[string]any); ok {
-		attrsCopy["is_listed"] = !unlisted
-	}
-	if refsCopy, ok := pkgCopy["references"].(map[string]any); ok {
-		if len(catList) > 0 {
-			refsCopy["orb_categories"] = catList
-		}
-	}
-	render.JSON(w, r, orbPackageResponse(pkgCopy))
+	isListed, cats, latest := f.orbDerivedLocked(id)
+	render.JSON(w, r, map[string]any{"data": orbEntity(o, isListed, cats, latest)})
 }
 
 func (f *CircleCI) handleOrbSetListed(w http.ResponseWriter, r *http.Request) {
@@ -4213,22 +4083,20 @@ func (f *CircleCI) handleOrbSetListed(w http.ResponseWriter, r *http.Request) {
 	}
 
 	f.mu.Lock()
-	pkg, ok := f.orbPackages[id]
-	if ok {
-		if !body.Listed {
-			f.orbUnlistedPackages[id] = true
-		} else {
-			delete(f.orbUnlistedPackages, id)
-		}
-	}
-	f.mu.Unlock()
-
+	defer f.mu.Unlock()
+	o, ok := f.orbPackages[id]
 	if !ok {
 		render.Status(r, http.StatusNotFound)
 		render.JSON(w, r, map[string]any{"message": "not found"})
 		return
 	}
-	render.JSON(w, r, orbPackageResponse(pkg))
+	if !body.Listed {
+		f.orbUnlistedPackages[id] = true
+	} else {
+		delete(f.orbUnlistedPackages, id)
+	}
+	isListed, cats, latest := f.orbDerivedLocked(id)
+	render.JSON(w, r, map[string]any{"data": orbEntity(o, isListed, cats, latest)})
 }
 
 func (f *CircleCI) handleOrbAddCategory(w http.ResponseWriter, r *http.Request) {
@@ -4255,28 +4123,19 @@ func (f *CircleCI) handleOrbAddCategory(w http.ResponseWriter, r *http.Request) 
 	}
 
 	f.mu.Lock()
-	pkg, ok := f.orbPackages[id]
-	if ok {
-		// Avoid duplicates
-		found := false
-		for _, cid := range f.orbCategoryMembers[id] {
-			if cid == body.CategoryID {
-				found = true
-				break
-			}
-		}
-		if !found {
-			f.orbCategoryMembers[id] = append(f.orbCategoryMembers[id], body.CategoryID)
-		}
-	}
-	f.mu.Unlock()
-
+	defer f.mu.Unlock()
+	o, ok := f.orbPackages[id]
 	if !ok {
 		render.Status(r, http.StatusNotFound)
 		render.JSON(w, r, map[string]any{"message": "not found"})
 		return
 	}
-	render.JSON(w, r, orbPackageResponse(pkg))
+	// Avoid duplicates.
+	if !slices.Contains(f.orbCategoryMembers[id], body.CategoryID) {
+		f.orbCategoryMembers[id] = append(f.orbCategoryMembers[id], body.CategoryID)
+	}
+	isListed, cats, latest := f.orbDerivedLocked(id)
+	render.JSON(w, r, map[string]any{"data": orbEntity(o, isListed, cats, latest)})
 }
 
 func (f *CircleCI) handleOrbRemoveCategory(w http.ResponseWriter, r *http.Request) {
@@ -4291,24 +4150,22 @@ func (f *CircleCI) handleOrbRemoveCategory(w http.ResponseWriter, r *http.Reques
 	}
 
 	f.mu.Lock()
-	pkg, ok := f.orbPackages[id]
-	if ok {
-		var remaining []string
-		for _, cid := range f.orbCategoryMembers[id] {
-			if cid != body.CategoryID {
-				remaining = append(remaining, cid)
-			}
-		}
-		f.orbCategoryMembers[id] = remaining
-	}
-	f.mu.Unlock()
-
+	defer f.mu.Unlock()
+	o, ok := f.orbPackages[id]
 	if !ok {
 		render.Status(r, http.StatusNotFound)
 		render.JSON(w, r, map[string]any{"message": "not found"})
 		return
 	}
-	render.JSON(w, r, orbPackageResponse(pkg))
+	var remaining []string
+	for _, cid := range f.orbCategoryMembers[id] {
+		if cid != body.CategoryID {
+			remaining = append(remaining, cid)
+		}
+	}
+	f.orbCategoryMembers[id] = remaining
+	isListed, cats, latest := f.orbDerivedLocked(id)
+	render.JSON(w, r, map[string]any{"data": orbEntity(o, isListed, cats, latest)})
 }
 
 func (f *CircleCI) handleOrbValidate(w http.ResponseWriter, r *http.Request) {
@@ -4369,11 +4226,9 @@ func (f *CircleCI) handleOrbListVersions(w http.ResponseWriter, r *http.Request)
 	pageSizeStr := r.URL.Query().Get("page[limit]")
 
 	f.mu.RLock()
+	defer f.mu.RUnlock()
 	versionIDs := f.orbVersionsByOrbID[orbID]
-	allVersions := f.orbVersions
-	f.mu.RUnlock()
 
-	var items []any
 	pageSize := len(versionIDs)
 	if pageSizeStr != "" {
 		if n, err := fmt.Sscanf(pageSizeStr, "%d", &pageSize); n != 1 || err != nil {
@@ -4381,31 +4236,23 @@ func (f *CircleCI) handleOrbListVersions(w http.ResponseWriter, r *http.Request)
 		}
 	}
 
-	count := 0
+	items := []any{}
 	for _, id := range versionIDs {
-		if count >= pageSize {
+		if len(items) >= pageSize {
 			break
 		}
-		ver, ok := allVersions[id]
+		v, ok := f.orbVersions[id]
 		if !ok {
 			continue
 		}
-		if channel != "" {
-			attrs, _ := ver["attributes"].(map[string]any)
-			version, _ := attrs["version"].(string)
-			isDev := len(version) > 4 && version[:4] == "dev:"
-			if channel == "stable" && isDev {
-				continue
-			}
-			if channel == "dev" && !isDev {
-				continue
-			}
+		isDev := strings.HasPrefix(v.Version, "dev:")
+		if channel == "stable" && isDev {
+			continue
 		}
-		items = append(items, ver)
-		count++
-	}
-	if items == nil {
-		items = []any{}
+		if channel == "dev" && !isDev {
+			continue
+		}
+		items = append(items, orbVersionEntity(v, true)) // the list serves source
 	}
 	render.JSON(w, r, map[string]any{
 		"data": items,
@@ -4430,62 +4277,34 @@ func (f *CircleCI) handleOrbCreateVersion(w http.ResponseWriter, r *http.Request
 	}
 
 	orbID := body.Data.Attributes.OrbID
-	f.mu.RLock()
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	pkg, pkgOK := f.orbPackages[orbID]
-	f.mu.RUnlock()
-
 	if !pkgOK {
 		render.Status(r, http.StatusNotFound)
 		render.JSON(w, r, map[string]any{"message": "orb not found"})
 		return
 	}
 
-	attrs, _ := pkg["attributes"].(map[string]any)
-	orbName, _ := attrs["name"].(string)
-	version := body.Data.Attributes.Version
-
-	id := uuid.New().String()
-	ver := map[string]any{
-		"id": id,
-		"attributes": map[string]any{
-			"version":    version,
-			"source":     body.Data.Attributes.YAML,
-			"created_at": "2026-01-15T10:30:00.000Z",
-		},
-		"references": map[string]any{
-			"orb_package": map[string]any{
-				"id":         orbID,
-				"attributes": map[string]any{"name": orbName},
-			},
-		},
+	v := OrbVersion{
+		ID:        uuid.New().String(),
+		OrbID:     orbID,
+		OrbName:   pkg.Name,
+		Version:   body.Data.Attributes.Version,
+		Source:    body.Data.Attributes.YAML,
+		CreatedAt: "2026-01-15T10:30:00.000Z",
 	}
-
-	f.mu.Lock()
-	f.orbVersions[id] = ver
-	ref := orbName + "@" + version
-	f.orbVersionsByRef[ref] = id
-	f.orbVersionsByRef[orbName+"@volatile"] = id
-	f.orbVersionsByOrbID[orbID] = append([]string{id}, f.orbVersionsByOrbID[orbID]...)
-	if refs, ok := pkg["references"].(map[string]any); ok {
-		refs["orb_versions"] = []any{map[string]any{
-			"id": id,
-			"attributes": map[string]any{
-				"version":    version,
-				"created_at": "2026-01-15T10:30:00.000Z",
-			},
-		}}
-	}
-	f.orbCreatedVersions = append(f.orbCreatedVersions, ver)
-	f.mu.Unlock()
+	f.storeOrbVersionLocked(v)
+	f.orbCreatedVersions = append(f.orbCreatedVersions, v)
 
 	render.Status(r, http.StatusCreated)
-	render.JSON(w, r, orbVersionResponse(ver))
+	render.JSON(w, r, map[string]any{"data": orbVersionEntity(v, false)})
 }
 
 func (f *CircleCI) handleOrbGetVersion(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	f.mu.RLock()
-	ver, ok := f.orbVersions[id]
+	v, ok := f.orbVersions[id]
 	f.mu.RUnlock()
 
 	if !ok {
@@ -4493,13 +4312,13 @@ func (f *CircleCI) handleOrbGetVersion(w http.ResponseWriter, r *http.Request) {
 		render.JSON(w, r, map[string]any{"message": "not found"})
 		return
 	}
-	render.JSON(w, r, orbVersionResponse(ver))
+	render.JSON(w, r, map[string]any{"data": orbVersionEntity(v, false)})
 }
 
 func (f *CircleCI) handleOrbGetVersionSource(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	f.mu.RLock()
-	ver, ok := f.orbVersions[id]
+	v, ok := f.orbVersions[id]
 	f.mu.RUnlock()
 
 	if !ok {
@@ -4507,10 +4326,8 @@ func (f *CircleCI) handleOrbGetVersionSource(w http.ResponseWriter, r *http.Requ
 		_, _ = w.Write([]byte("not found"))
 		return
 	}
-	attrs, _ := ver["attributes"].(map[string]any)
-	source, _ := attrs["source"].(string)
 	w.Header().Set("Content-Type", "text/plain")
-	_, _ = w.Write([]byte(source))
+	_, _ = w.Write([]byte(v.Source))
 }
 
 func (f *CircleCI) handleOrbPromoteVersion(w http.ResponseWriter, r *http.Request) {
@@ -4524,94 +4341,56 @@ func (f *CircleCI) handleOrbPromoteVersion(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	f.mu.RLock()
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	ver, ok := f.orbVersions[id]
-	f.mu.RUnlock()
-
 	if !ok {
 		render.Status(r, http.StatusNotFound)
 		render.JSON(w, r, map[string]any{"message": "not found"})
 		return
 	}
 
-	refs, _ := ver["references"].(map[string]any)
-	orb, _ := refs["orb_package"].(map[string]any)
-	orbID, _ := orb["id"].(string)
-	orbName, _ := orb["attributes"].(map[string]any)["name"].(string)
-
-	// Find the latest stable version to increment from
-	f.mu.RLock()
-	versionIDs := f.orbVersionsByOrbID[orbID]
-	allVersions := f.orbVersions
-	f.mu.RUnlock()
-
+	// Find the latest stable version to increment from.
 	latestStable := "0.0.0"
-	for _, vid := range versionIDs {
-		v, ok := allVersions[vid]
-		if !ok {
+	for _, vid := range f.orbVersionsByOrbID[ver.OrbID] {
+		v, ok := f.orbVersions[vid]
+		if !ok || strings.HasPrefix(v.Version, "dev:") {
 			continue
 		}
-		attrs, _ := v["attributes"].(map[string]any)
-		ver2, _ := attrs["version"].(string)
-		if len(ver2) > 4 && ver2[:4] == "dev:" {
-			continue
-		}
-		latestStable = ver2
+		latestStable = v.Version
 		break
 	}
 
-	// Increment version
-	newVersion := incrementFakeVersion(latestStable, body.Segment)
-
-	attrs, _ := ver["attributes"].(map[string]any)
-	newID := uuid.New().String()
-	newVer := map[string]any{
-		"id": newID,
-		"attributes": map[string]any{
-			"version":    newVersion,
-			"source":     attrs["source"],
-			"created_at": "2026-01-15T10:30:00.000Z",
-		},
-		"references": map[string]any{
-			"orb_package": map[string]any{
-				"id":         orbID,
-				"attributes": map[string]any{"name": orbName},
-			},
-		},
+	newVer := OrbVersion{
+		ID:        uuid.New().String(),
+		OrbID:     ver.OrbID,
+		OrbName:   ver.OrbName,
+		Version:   incrementFakeVersion(latestStable, body.Segment),
+		Source:    ver.Source,
+		CreatedAt: "2026-01-15T10:30:00.000Z",
 	}
-
-	f.mu.Lock()
-	f.orbVersions[newID] = newVer
-	f.orbVersionsByRef[orbName+"@"+newVersion] = newID
-	f.orbVersionsByRef[orbName+"@volatile"] = newID
-	f.orbVersionsByOrbID[orbID] = append([]string{newID}, f.orbVersionsByOrbID[orbID]...)
-	f.mu.Unlock()
+	f.storeOrbVersionLocked(newVer)
 
 	render.Status(r, http.StatusCreated)
-	render.JSON(w, r, orbVersionResponse(newVer))
+	render.JSON(w, r, map[string]any{"data": orbVersionEntity(newVer, false)})
 }
 
 func (f *CircleCI) handleOrbListCategories(w http.ResponseWriter, r *http.Request) {
 	nameFilter := r.URL.Query().Get("filter[name]")
 	f.mu.RLock()
-	cats := f.orbCategories
-	byName := f.orbCategoriesByName
-	f.mu.RUnlock()
+	defer f.mu.RUnlock()
 
-	var items []any
+	items := []any{}
 	if nameFilter != "" {
-		if id, ok := byName[nameFilter]; ok {
-			if c, ok := cats[id]; ok {
-				items = append(items, c)
+		if id, ok := f.orbCategoriesByName[nameFilter]; ok {
+			if c, ok := f.orbCategories[id]; ok {
+				items = append(items, orbCategoryEntity(c))
 			}
 		}
 	} else {
-		for _, c := range cats {
-			items = append(items, c)
+		for _, c := range f.orbCategories {
+			items = append(items, orbCategoryEntity(c))
 		}
-	}
-	if items == nil {
-		items = []any{}
 	}
 	render.JSON(w, r, map[string]any{
 		"data": items,
@@ -4624,37 +4403,17 @@ func (f *CircleCI) handleOrbListCategories(w http.ResponseWriter, r *http.Reques
 func (f *CircleCI) handleOrbListVersionsByRefInternal(w http.ResponseWriter, r *http.Request, refFilter string) {
 	f.mu.RLock()
 	verID, ok := f.orbVersionsByRef[refFilter]
-	allVersions := f.orbVersions
+	v, vOK := f.orbVersions[verID]
 	f.mu.RUnlock()
 
-	if !ok {
-		render.JSON(w, r, map[string]any{
-			"data": []any{},
-			"page": map[string]any{"next": nil, "prev": nil},
-		})
-		return
-	}
-	ver, ok := allVersions[verID]
-	if !ok {
-		render.JSON(w, r, map[string]any{
-			"data": []any{},
-			"page": map[string]any{"next": nil, "prev": nil},
-		})
-		return
+	data := []any{}
+	if ok && vOK {
+		data = append(data, orbVersionEntity(v, true)) // the list serves source
 	}
 	render.JSON(w, r, map[string]any{
-		"data": []any{ver},
+		"data": data,
 		"page": map[string]any{"next": nil, "prev": nil},
 	})
-}
-
-// cloneMap does a shallow clone of a map[string]any.
-func cloneMap(m map[string]any) map[string]any {
-	out := make(map[string]any, len(m))
-	for k, v := range m {
-		out[k] = v
-	}
-	return out
 }
 
 // incrementFakeVersion increments a semver string.
