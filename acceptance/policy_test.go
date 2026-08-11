@@ -692,10 +692,7 @@ func TestPolicyFetch_ByName(t *testing.T) {
 
 func TestPolicyLogs(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
-	fake.AddDecisionLog(testOwnerID, testPolicyCtx, map[string]any{
-		"id":     testDecisionID,
-		"status": "PASS",
-	})
+	fake.AddDecisionLog(testOwnerID, testPolicyCtx, fakes.DecisionLog{ID: testDecisionID, Status: "PASS"})
 
 	env := testenv.New(t)
 	env.Token = testToken
@@ -715,10 +712,7 @@ func TestPolicyLogs(t *testing.T) {
 
 func TestPolicyLogs_ByDecisionID(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
-	fake.AddDecisionLog(testOwnerID, testPolicyCtx, map[string]any{
-		"id":     testDecisionID,
-		"status": "SOFT_FAIL",
-	})
+	fake.AddDecisionLog(testOwnerID, testPolicyCtx, fakes.DecisionLog{ID: testDecisionID, Status: "SOFT_FAIL"})
 
 	env := testenv.New(t)
 	env.Token = testToken
@@ -739,9 +733,7 @@ func TestPolicyLogs_ByDecisionID(t *testing.T) {
 
 func TestPolicyDecide(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
-	fake.SetDecisionResult(testOwnerID, testPolicyCtx, map[string]any{
-		"status": "PASS",
-	})
+	fake.SetDecisionResult(testOwnerID, testPolicyCtx, fakes.DecisionResult{Status: "PASS"})
 
 	env := testenv.New(t)
 	env.Token = testToken
@@ -778,9 +770,7 @@ func TestPolicyDecide(t *testing.T) {
 
 func TestPolicyDecide_Strict(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
-	fake.SetDecisionResult(testOwnerID, testPolicyCtx, map[string]any{
-		"status": "HARD_FAIL",
-	})
+	fake.SetDecisionResult(testOwnerID, testPolicyCtx, fakes.DecisionResult{Status: "HARD_FAIL"})
 
 	env := testenv.New(t)
 	env.Token = testToken

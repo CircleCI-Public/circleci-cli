@@ -37,13 +37,13 @@ import (
 
 func TestProjectLink_WithFlag(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
-	fake.AddProjectInfo("gh/myorg/alpha", map[string]any{
-		"id":                "proj-uuid-1234",
-		"slug":              "gh/myorg/alpha",
-		"name":              "alpha",
-		"organization_name": "myorg",
-		"organization_slug": "gh/myorg",
-		"organization_id":   "org-uuid-5678",
+	fake.AddProjectInfo("gh/myorg/alpha", fakes.ProjectInfo{
+		ID:               "proj-uuid-1234",
+		Slug:             "gh/myorg/alpha",
+		Name:             "alpha",
+		OrganizationName: "myorg",
+		OrganizationSlug: "gh/myorg",
+		OrganizationID:   "org-uuid-5678",
 	})
 
 	env := testenv.New(t)
@@ -79,11 +79,11 @@ func TestProjectLink_WithFlag(t *testing.T) {
 // through the same code path as VCS slugs.
 func TestProjectLink_StandaloneSlug(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
-	fake.AddProjectInfo("circleci/E6i3yYZeWZhcf8UNqcKfjN/13c8F7nusayivoSxC6GMsw", map[string]any{
-		"id":              "13c8F7nusayivoSxC6GMsw",
-		"slug":            "circleci/E6i3yYZeWZhcf8UNqcKfjN/13c8F7nusayivoSxC6GMsw",
-		"name":            "standalone",
-		"organization_id": "E6i3yYZeWZhcf8UNqcKfjN",
+	fake.AddProjectInfo("circleci/E6i3yYZeWZhcf8UNqcKfjN/13c8F7nusayivoSxC6GMsw", fakes.ProjectInfo{
+		ID:             "13c8F7nusayivoSxC6GMsw",
+		Slug:           "circleci/E6i3yYZeWZhcf8UNqcKfjN/13c8F7nusayivoSxC6GMsw",
+		Name:           "standalone",
+		OrganizationID: "E6i3yYZeWZhcf8UNqcKfjN",
 	})
 
 	env := testenv.New(t)
@@ -156,18 +156,18 @@ func TestProjectGet_UsesLinkedUUIDs(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
 	// Only register the ID-form slug for the lookup under test. If `project get`
 	// used the stored slug instead, the fake would 404.
-	fake.AddProjectInfo(canonicalSlug, map[string]any{
-		"id":              "13c8F7nusayivoSxC6GMsw",
-		"slug":            canonicalSlug,
-		"name":            "linked",
-		"organization_id": "E6i3yYZeWZhcf8UNqcKfjN",
+	fake.AddProjectInfo(canonicalSlug, fakes.ProjectInfo{
+		ID:             "13c8F7nusayivoSxC6GMsw",
+		Slug:           canonicalSlug,
+		Name:           "linked",
+		OrganizationID: "E6i3yYZeWZhcf8UNqcKfjN",
 	})
 	// Register the slug passed to link, so the initial link call succeeds.
-	fake.AddProjectInfo(linkedSlug, map[string]any{
-		"id":              "13c8F7nusayivoSxC6GMsw",
-		"slug":            linkedSlug,
-		"name":            "linked",
-		"organization_id": "E6i3yYZeWZhcf8UNqcKfjN",
+	fake.AddProjectInfo(linkedSlug, fakes.ProjectInfo{
+		ID:             "13c8F7nusayivoSxC6GMsw",
+		Slug:           linkedSlug,
+		Name:           "linked",
+		OrganizationID: "E6i3yYZeWZhcf8UNqcKfjN",
 	})
 
 	env := testenv.New(t)
@@ -210,11 +210,11 @@ func TestProjectGet_ClassicLinkUsesOwnSlug(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
 	// Only the classic slug is registered, mirroring the real API: an ID-form
 	// lookup for this project 404s.
-	fake.AddProjectInfo(classicSlug, map[string]any{
-		"id":              "52404b72-02fb-482e-9bd8-846bbc048eea",
-		"slug":            classicSlug,
-		"name":            "alpha",
-		"organization_id": "c1e89d5c-d2e5-4db2-b2d7-a35cf73160ad",
+	fake.AddProjectInfo(classicSlug, fakes.ProjectInfo{
+		ID:             "52404b72-02fb-482e-9bd8-846bbc048eea",
+		Slug:           classicSlug,
+		Name:           "alpha",
+		OrganizationID: "c1e89d5c-d2e5-4db2-b2d7-a35cf73160ad",
 	})
 
 	env := testenv.New(t)
@@ -244,10 +244,10 @@ func TestProjectGet_ClassicLinkUsesOwnSlug(t *testing.T) {
 // Refuses to overwrite an existing info.yml without --force.
 func TestProjectLink_PreservesExisting(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
-	fake.AddProjectInfo("gh/myorg/alpha", map[string]any{
-		"id":              "proj-uuid-1234",
-		"slug":            "gh/myorg/alpha",
-		"organization_id": "org-uuid-5678",
+	fake.AddProjectInfo("gh/myorg/alpha", fakes.ProjectInfo{
+		ID:             "proj-uuid-1234",
+		Slug:           "gh/myorg/alpha",
+		OrganizationID: "org-uuid-5678",
 	})
 
 	env := testenv.New(t)

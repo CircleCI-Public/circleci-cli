@@ -104,27 +104,17 @@ func fakeWorkflowV3(id, name, runID, projectID, phase, outcome string) fakes.Wor
 
 // fakeRun returns a V2 pipeline payload — still needed for workflows/jobs
 // and commands that haven't migrated to V3 yet (cancel, trigger).
-func fakeRun(id string, number int, state, slug, branch string) map[string]any {
-	now := time.Date(2020, 1, 1, 12, 0, 0, 0, time.UTC)
-	return map[string]any{
-		"id":           id,
-		"state":        state,
-		"number":       number,
-		"project_slug": slug,
-		"created_at":   now.Format(time.RFC3339),
-		"updated_at":   now.Format(time.RFC3339),
-		"trigger": map[string]any{
-			"type":        "webhook",
-			"received_at": now.Format(time.RFC3339),
-			"actor":       map[string]any{"login": "testuser", "avatar_url": ""},
-		},
-		"vcs": map[string]any{
-			"provider_name":         "GitHub",
-			"origin_repository_url": "https://github.com/testorg/testrepo",
-			"target_repository_url": "https://github.com/testorg/testrepo",
-			"revision":              "abc1234def5678",
-			"branch":                branch,
-		},
+func fakeRun(id string, number int, state, slug, branch string) fakes.PipelineV2 {
+	now := time.Date(2020, 1, 1, 12, 0, 0, 0, time.UTC).Format(time.RFC3339)
+	return fakes.PipelineV2{
+		ID:          id,
+		Number:      number,
+		State:       state,
+		ProjectSlug: slug,
+		Branch:      branch,
+		Revision:    "abc1234def5678",
+		CreatedAt:   now,
+		UpdatedAt:   now,
 	}
 }
 
