@@ -101,9 +101,9 @@ type CircleCI struct {
 	workflowsV3NotFound map[string]bool         // run UUID → workflows list returns 404
 
 	// Runner (v3) state.
-	resourceClasses []any            // all resource classes
-	runnerTokens    map[string][]any // resource class → tokens
-	runnerInstances []any            // all instances
+	resourceClasses []ResourceClass          // all resource classes
+	runnerTokens    map[string][]RunnerToken // resource class slug → tokens
+	runnerInstances []RunnerInstance         // all instances
 
 	runnerTokenCreateStatus int // 0 = default success response
 	runnerTokenCreateBody   any
@@ -111,9 +111,9 @@ type CircleCI struct {
 	deletedRCs              map[string]bool // resource class → deleted
 
 	// Project / env-var state.
-	followedProjects    []any                // list of project objects for GET /api/v1.1/projects
+	followedProjects    []FollowedProject    // projects for GET /api/v1.1/projects
 	followedSlugs       map[string]bool      // vcs+org+repo → true (for follow idempotency)
-	envVars             map[string][]any     // project slug → env vars
+	envVars             map[string][]EnvVar  // project slug → env vars
 	deletedEnvVars      map[string]bool      // "slug/name" → deleted
 	projectInfos        map[string]any       // project slug → project info response
 	projectsByID        map[string]any       // project UUID → V3 project response (GET /api/v3/projects/{id})
@@ -124,13 +124,13 @@ type CircleCI struct {
 	createOrgResp       any                  // preset response for POST /organization
 
 	// Context state.
-	contexts                   map[string]any   // context id → context object
-	contextsByOrg              map[string][]any // org slug → ordered context objects
-	contextEnvVars             map[string][]any // context id → env var objects
-	contextRestrictions        map[string][]any // context id → restriction objects
-	deletedContexts            map[string]bool  // context id → deleted
-	deletedContextVars         map[string]bool  // "contextID/name" → deleted
-	deletedContextRestrictions map[string]bool  // "contextID/restrictionID" → deleted
+	contexts                   map[string]Context              // context id → context
+	contextsByOrg              map[string][]Context            // org slug → ordered contexts
+	contextEnvVars             map[string][]ContextEnvVar      // context id → env vars
+	contextRestrictions        map[string][]ContextRestriction // context id → restrictions
+	deletedContexts            map[string]bool                 // context id → deleted
+	deletedContextVars         map[string]bool                 // "contextID/name" → deleted
+	deletedContextRestrictions map[string]bool                 // "contextID/restrictionID" → deleted
 
 	// Deploy state. Each slice holds every stored entity; the list handlers
 	// filter it by the org/project/component the request names.
@@ -147,17 +147,17 @@ type CircleCI struct {
 	policySettings  map[string]bool              // "ownerID/ctx" → enabled
 
 	// iOS code signing state.
-	iosCerts          map[string][]any // org id → certificate objects
-	iosBundles        map[string][]any // org id → signing bundle objects
-	deletedIOSCerts   map[string]bool  // cert id → deleted
-	deletedIOSBundles map[string]bool  // bundle id → deleted
-	iosCertCounter    int              // monotonic ID generator for uploaded certs
-	iosBundleCounter  int              // monotonic ID generator for created bundles
+	iosCerts          map[string][]IOSCert          // org id → certificates
+	iosBundles        map[string][]IOSSigningConfig // org id → signing configs
+	deletedIOSCerts   map[string]bool               // cert id → deleted
+	deletedIOSBundles map[string]bool               // bundle id → deleted
+	iosCertCounter    int                           // monotonic ID generator for uploaded certs
+	iosBundleCounter  int                           // monotonic ID generator for created bundles
 
 	// Auth state.
 	tokens             map[string]bool // accepted bearer tokens; a request whose Authorization: Bearer <token> is absent from this set is rejected 401 on every non-exempt route
-	me                 any             // response for GET /api/v3/users?filter[user_id]=me
-	collaborations     []any           // response for GET /api/v2/me/collaborations
+	me                 *User           // authenticated user for GET /api/v3/users?filter[user_id]=me (nil → 401)
+	collaborations     []Collaboration // response for GET /api/v2/me/collaborations
 	oauthTokenResponse any             // response body for POST /oauth/token
 	oauthTokenStatus   int             // HTTP status for POST /oauth/token (0 → 200 OK)
 	parRequests        []url.Values    // recorded POST /oauth/par request bodies, in order
@@ -182,9 +182,9 @@ type CircleCI struct {
 	orbCategoryMembers   map[string][]string      // packageID → []categoryID
 
 	// Namespace state (served via /graphql-unstable).
-	namespaces        map[string]any    // namespace id → {id, name}
-	namespacesByName  map[string]string // namespace name → id
-	deletedNamespaces map[string]bool   // namespace id → deleted
+	namespaces        map[string]Namespace // namespace id → namespace
+	namespacesByName  map[string]string    // namespace name → id
+	deletedNamespaces map[string]bool      // namespace id → deleted
 
 	// DLC state.
 	dlcPurgeStatus map[string]int // projectID → HTTP status to return (default 204)
@@ -277,19 +277,19 @@ func NewCircleCI(t *testing.T, tokens ...string) *CircleCI {
 		workflowsV3:                       map[string]WorkflowV3{},
 		workflowsV3ByRun:                  map[string][]WorkflowV3{},
 		workflowsV3NotFound:               map[string]bool{},
-		resourceClasses:                   []any{},
-		runnerTokens:                      map[string][]any{},
-		runnerInstances:                   []any{},
+		resourceClasses:                   []ResourceClass{},
+		runnerTokens:                      map[string][]RunnerToken{},
+		runnerInstances:                   []RunnerInstance{},
 		deletedTokens:                     map[string]bool{},
 		deletedRCs:                        map[string]bool{},
-		followedProjects:                  []any{},
+		followedProjects:                  []FollowedProject{},
 		followedSlugs:                     map[string]bool{},
-		envVars:                           map[string][]any{},
+		envVars:                           map[string][]EnvVar{},
 		deletedEnvVars:                    map[string]bool{},
-		contexts:                          map[string]any{},
-		contextsByOrg:                     map[string][]any{},
-		contextEnvVars:                    map[string][]any{},
-		contextRestrictions:               map[string][]any{},
+		contexts:                          map[string]Context{},
+		contextsByOrg:                     map[string][]Context{},
+		contextEnvVars:                    map[string][]ContextEnvVar{},
+		contextRestrictions:               map[string][]ContextRestriction{},
 		deletedContexts:                   map[string]bool{},
 		deletedContextVars:                map[string]bool{},
 		deletedContextRestrictions:        map[string]bool{},
@@ -302,11 +302,11 @@ func NewCircleCI(t *testing.T, tokens ...string) *CircleCI {
 		decisionLogs:                      make(map[string][]any),
 		decisionResults:                   make(map[string]any),
 		policySettings:                    make(map[string]bool),
-		namespaces:                        map[string]any{},
+		namespaces:                        map[string]Namespace{},
 		namespacesByName:                  map[string]string{},
 		deletedNamespaces:                 map[string]bool{},
-		iosCerts:                          map[string][]any{},
-		iosBundles:                        map[string][]any{},
+		iosCerts:                          map[string][]IOSCert{},
+		iosBundles:                        map[string][]IOSSigningConfig{},
 		deletedIOSCerts:                   map[string]bool{},
 		deletedIOSBundles:                 map[string]bool{},
 		orbPackages:                       map[string]map[string]any{},
@@ -1735,25 +1735,96 @@ func (f *CircleCI) handleRawStepError(w http.ResponseWriter, r *http.Request) {
 
 // --- Runner helpers ---
 
-// AddResourceClass adds a resource class to the fake server's list.
-func (f *CircleCI) AddResourceClass(rc any) {
+// ResourceClass is a stored runner resource class served by the runner
+// resource-class list and create endpoints. Slug is the "resource_class" wire
+// field (e.g. "my-org/linux-runner"); the list filters on its namespace prefix.
+type ResourceClass struct {
+	ID          string
+	Slug        string
+	Description string
+}
+
+// RunnerToken is a stored runner token served by the runner token list and
+// create endpoints. Token carries the secret value, which only the create
+// response includes — it renders when set.
+type RunnerToken struct {
+	ID            string
+	ResourceClass string
+	Nickname      string
+	CreatedAt     string
+	Token         string
+}
+
+// RunnerInstance is a stored runner instance served by the runner instance
+// list, filtered by resource-class or namespace prefix.
+type RunnerInstance struct {
+	ResourceClass  string
+	Hostname       string
+	Name           string
+	Version        string
+	IP             string
+	FirstConnected string
+	LastConnected  string
+	LastUsed       string
+}
+
+// AddResourceClass registers a runner resource class.
+func (f *CircleCI) AddResourceClass(rc ResourceClass) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.resourceClasses = append(f.resourceClasses, rc)
 }
 
 // AddRunnerToken adds a token to the fake server for the given resource class.
-func (f *CircleCI) AddRunnerToken(resourceClass string, token any) {
+func (f *CircleCI) AddRunnerToken(resourceClass string, token RunnerToken) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.runnerTokens[resourceClass] = append(f.runnerTokens[resourceClass], token)
 }
 
 // AddRunnerInstance adds a runner instance to the fake server's list.
-func (f *CircleCI) AddRunnerInstance(instance any) {
+func (f *CircleCI) AddRunnerInstance(instance RunnerInstance) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.runnerInstances = append(f.runnerInstances, instance)
+}
+
+// resourceClassEntity renders a stored ResourceClass as its wire object.
+func resourceClassEntity(rc ResourceClass) map[string]any {
+	return map[string]any{
+		"id":             rc.ID,
+		"resource_class": rc.Slug,
+		"description":    rc.Description,
+	}
+}
+
+// runnerTokenEntity renders a stored RunnerToken, including the secret value
+// only when set (create responses carry it; the list does not).
+func runnerTokenEntity(t RunnerToken) map[string]any {
+	m := map[string]any{
+		"id":             t.ID,
+		"resource_class": t.ResourceClass,
+		"nickname":       t.Nickname,
+		"created_at":     t.CreatedAt,
+	}
+	if t.Token != "" {
+		m["token"] = t.Token
+	}
+	return m
+}
+
+// runnerInstanceEntity renders a stored RunnerInstance as its wire object.
+func runnerInstanceEntity(i RunnerInstance) map[string]any {
+	return map[string]any{
+		"resource_class":  i.ResourceClass,
+		"hostname":        i.Hostname,
+		"name":            i.Name,
+		"version":         i.Version,
+		"ip":              i.IP,
+		"first_connected": i.FirstConnected,
+		"last_connected":  i.LastConnected,
+		"last_used":       i.LastUsed,
+	}
 }
 
 // --- Runner handlers ---
@@ -1777,26 +1848,15 @@ func (f *CircleCI) handleListResourceClasses(w http.ResponseWriter, r *http.Requ
 	deleted := f.deletedRCs
 	f.mu.RUnlock()
 
-	var items []any
+	items := []any{}
 	for _, rc := range all {
-		m, ok := rc.(map[string]any)
-		if !ok {
-			items = append(items, rc)
+		if deleted[rc.Slug] {
 			continue
 		}
-		slug, _ := m["resource_class"].(string)
-		if deleted[slug] {
+		if ns != "" && !strings.HasPrefix(rc.Slug, ns+"/") {
 			continue
 		}
-		if ns != "" {
-			if len(slug) <= len(ns)+1 || slug[:len(ns)+1] != ns+"/" {
-				continue
-			}
-		}
-		items = append(items, rc)
-	}
-	if items == nil {
-		items = []any{}
+		items = append(items, resourceClassEntity(rc))
 	}
 	render.JSON(w, r, map[string]any{"items": items})
 }
@@ -1810,16 +1870,12 @@ func (f *CircleCI) handleCreateResourceClass(w http.ResponseWriter, r *http.Requ
 	}
 	slug, _ := body["resource_class"].(string)
 	desc, _ := body["description"].(string)
-	rc := map[string]any{
-		"id":             fmt.Sprintf("rc-%s", slug),
-		"resource_class": slug,
-		"description":    desc,
-	}
+	rc := ResourceClass{ID: fmt.Sprintf("rc-%s", slug), Slug: slug, Description: desc}
 	f.mu.Lock()
 	f.resourceClasses = append(f.resourceClasses, rc)
 	f.mu.Unlock()
 	render.Status(r, http.StatusCreated)
-	render.JSON(w, r, rc)
+	render.JSON(w, r, resourceClassEntity(rc))
 }
 
 // handleDeleteResourceClass serves DELETE /api/v3/runner/resource/{id}, which
@@ -1839,17 +1895,12 @@ func (f *CircleCI) deleteResourceClass(w http.ResponseWriter, r *http.Request, f
 	f.mu.Lock()
 	found, hasTokens := false, false
 	for _, rc := range f.resourceClasses {
-		m, ok := rc.(map[string]any)
-		if !ok {
-			continue
-		}
-		if m["id"] == id {
+		if rc.ID == id {
 			found = true
-			slug, _ := m["resource_class"].(string)
-			hasTokens = len(f.runnerTokens[slug]) > 0
+			hasTokens = len(f.runnerTokens[rc.Slug]) > 0
 			if force || !hasTokens {
-				f.deletedRCs[slug] = true
-				delete(f.runnerTokens, slug)
+				f.deletedRCs[rc.Slug] = true
+				delete(f.runnerTokens, rc.Slug)
 			}
 			break
 		}
@@ -1875,20 +1926,11 @@ func (f *CircleCI) handleListRunnerTokens(w http.ResponseWriter, r *http.Request
 	deleted := f.deletedTokens
 	f.mu.RUnlock()
 
-	var items []any
+	items := []any{}
 	for _, tok := range tokens {
-		m, ok := tok.(map[string]any)
-		if !ok {
-			items = append(items, tok)
-			continue
+		if !deleted[tok.ID] {
+			items = append(items, runnerTokenEntity(tok))
 		}
-		id, _ := m["id"].(string)
-		if !deleted[id] {
-			items = append(items, tok)
-		}
-	}
-	if items == nil {
-		items = []any{}
 	}
 	render.JSON(w, r, map[string]any{"items": items})
 }
@@ -1926,18 +1968,18 @@ func (f *CircleCI) handleCreateRunnerToken(w http.ResponseWriter, r *http.Reques
 
 	rc, _ := body["resource_class"].(string)
 	nickname, _ := body["nickname"].(string)
-	tok := map[string]any{
-		"id":             fmt.Sprintf("tok-%s", rc),
-		"resource_class": rc,
-		"nickname":       nickname,
-		"created_at":     "2026-01-01T00:00:00Z",
-		"token":          "fake-runner-token-value",
+	tok := RunnerToken{
+		ID:            fmt.Sprintf("tok-%s", rc),
+		ResourceClass: rc,
+		Nickname:      nickname,
+		CreatedAt:     "2026-01-01T00:00:00Z",
+		Token:         "fake-runner-token-value",
 	}
 	f.mu.Lock()
 	f.runnerTokens[rc] = append(f.runnerTokens[rc], tok)
 	f.mu.Unlock()
 	render.Status(r, http.StatusCreated)
-	render.JSON(w, r, tok)
+	render.JSON(w, r, runnerTokenEntity(tok))
 }
 
 func (f *CircleCI) handleDeleteRunnerToken(w http.ResponseWriter, r *http.Request) {
@@ -1946,11 +1988,7 @@ func (f *CircleCI) handleDeleteRunnerToken(w http.ResponseWriter, r *http.Reques
 	found := false
 	for _, tokens := range f.runnerTokens {
 		for _, tok := range tokens {
-			m, ok := tok.(map[string]any)
-			if !ok {
-				continue
-			}
-			if m["id"] == id {
+			if tok.ID == id {
 				found = true
 				break
 			}
@@ -1979,40 +2017,45 @@ func (f *CircleCI) handleListRunnerInstances(w http.ResponseWriter, r *http.Requ
 	all := f.runnerInstances
 	f.mu.RUnlock()
 
-	var items []any
+	items := []any{}
 	for _, inst := range all {
-		if rc == "" && ns == "" {
-			items = append(items, inst)
+		if rc != "" && inst.ResourceClass != rc {
 			continue
 		}
-		m, ok := inst.(map[string]any)
-		if !ok {
-			items = append(items, inst)
+		if ns != "" && !strings.HasPrefix(inst.ResourceClass, ns+"/") {
 			continue
 		}
-		slug, _ := m["resource_class"].(string)
-		if rc != "" && slug != rc {
-			continue
-		}
-		if ns != "" && !strings.HasPrefix(slug, ns+"/") {
-			continue
-		}
-		items = append(items, inst)
-	}
-	if items == nil {
-		items = []any{}
+		items = append(items, runnerInstanceEntity(inst))
 	}
 	render.JSON(w, r, map[string]any{"items": items})
 }
 
 // --- Auth helpers ---
 
-// SetMe sets the data element for GET /api/v3/users?filter[user_id]=me.
-// Pass a DataEntity-shaped map: {"id": "...", "attributes": {"name": "...", "login": "...", "avatar_url": "..."}}.
-func (f *CircleCI) SetMe(me any) {
+// User is the authenticated user served by GET /api/v3/users?filter[user_id]=me.
+// AvatarURL renders only when set.
+type User struct {
+	ID        string
+	Name      string
+	Login     string
+	AvatarURL string
+}
+
+// Collaboration is an org the authenticated user collaborates on, served by
+// GET /api/v2/me/collaborations.
+type Collaboration struct {
+	ID      string
+	Name    string
+	Slug    string
+	VCSType string
+}
+
+// SetMe sets the authenticated user returned by the users?filter[user_id]=me
+// endpoint. When unset, that endpoint answers 401.
+func (f *CircleCI) SetMe(me User) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	f.me = me
+	f.me = &me
 }
 
 func (f *CircleCI) handleGetMe(w http.ResponseWriter, r *http.Request) {
@@ -2026,13 +2069,23 @@ func (f *CircleCI) handleGetMe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	render.JSON(w, r, map[string]any{
-		"data": []any{me},
+		"data": []any{userEntity(*me)},
 		"page": map[string]any{"next": nil, "prev": nil},
 	})
 }
 
+// userEntity renders a stored User as its V3 entity, including avatar_url only
+// when set.
+func userEntity(u User) map[string]any {
+	attrs := map[string]any{"name": u.Name, "login": u.Login}
+	if u.AvatarURL != "" {
+		attrs["avatar_url"] = u.AvatarURL
+	}
+	return map[string]any{"id": u.ID, "attributes": attrs}
+}
+
 // SetCollaborations sets the response for GET /api/v2/me/collaborations.
-func (f *CircleCI) SetCollaborations(collabs []any) {
+func (f *CircleCI) SetCollaborations(collabs ...Collaboration) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.collaborations = collabs
@@ -2040,13 +2093,18 @@ func (f *CircleCI) SetCollaborations(collabs []any) {
 
 func (f *CircleCI) handleGetCollaborations(w http.ResponseWriter, r *http.Request) {
 	f.mu.RLock()
-	collabs := f.collaborations
+	items := make([]any, 0, len(f.collaborations))
+	for _, c := range f.collaborations {
+		items = append(items, collaborationEntity(c))
+	}
 	f.mu.RUnlock()
 
-	if collabs == nil {
-		collabs = []any{}
-	}
-	render.JSON(w, r, collabs)
+	render.JSON(w, r, items)
+}
+
+// collaborationEntity renders a stored Collaboration as its wire object.
+func collaborationEntity(c Collaboration) map[string]any {
+	return map[string]any{"id": c.ID, "name": c.Name, "slug": c.Slug, "vcs_type": c.VCSType}
 }
 
 // SetOAuthTokenResponse sets the response body for POST /oauth/token.
@@ -2332,12 +2390,31 @@ func (f *CircleCI) SetCreateTriggerResponse(projectID, pipelineDefinitionID stri
 	f.createTriggerResponses[projectID+"/"+pipelineDefinitionID] = resp
 }
 
+// FollowedProject is a stored project served by GET /api/v1.1/projects.
+type FollowedProject struct {
+	Slug     string
+	Username string
+	Reponame string
+	VCSType  string
+	Name     string
+}
+
 // AddFollowedProject registers a project returned by GET /api/v1.1/projects.
-// proj should be a map or struct with at least "slug", "username", and "reponame" fields.
-func (f *CircleCI) AddFollowedProject(proj any) {
+func (f *CircleCI) AddFollowedProject(proj FollowedProject) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.followedProjects = append(f.followedProjects, proj)
+}
+
+// followedProjectEntity renders a stored FollowedProject as its v1.1 object.
+func followedProjectEntity(p FollowedProject) map[string]any {
+	return map[string]any{
+		"slug":     p.Slug,
+		"username": p.Username,
+		"reponame": p.Reponame,
+		"vcs_type": p.VCSType,
+		"name":     p.Name,
+	}
 }
 
 // SetCreateOrgResponse registers the response body returned when
@@ -2367,28 +2444,39 @@ func (f *CircleCI) SetCreateProjectConflict() {
 	f.createProjectResp = map[string]any{"message": "A project with this name already exists"}
 }
 
+// EnvVar is a stored project environment variable served by the project env-var
+// list/set endpoints. CreatedAt is a pointer so a variable with no timestamp
+// renders created_at as null, matching the real API.
+type EnvVar struct {
+	Name      string
+	Value     string
+	CreatedAt *time.Time
+}
+
 // AddEnvVar registers an env var for a project.
 // slug should be in "vcs/org/repo" form.
 func (f *CircleCI) AddEnvVar(slug, name, value string, createdAt *time.Time) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	f.envVars[slug] = append(f.envVars[slug], map[string]any{
-		"name":       name,
-		"value":      value,
-		"created_at": createdAt,
-	})
+	f.envVars[slug] = append(f.envVars[slug], EnvVar{Name: name, Value: value, CreatedAt: createdAt})
+}
+
+// envVarEntity renders a stored EnvVar as its wire object; created_at is always
+// present (null when unset).
+func envVarEntity(v EnvVar) map[string]any {
+	return map[string]any{"name": v.Name, "value": v.Value, "created_at": v.CreatedAt}
 }
 
 // --- Project / env-var handlers ---
 
 func (f *CircleCI) handleListProjects(w http.ResponseWriter, r *http.Request) {
 	f.mu.RLock()
-	projects := f.followedProjects
+	projects := make([]any, 0, len(f.followedProjects))
+	for _, p := range f.followedProjects {
+		projects = append(projects, followedProjectEntity(p))
+	}
 	f.mu.RUnlock()
 
-	if projects == nil {
-		projects = []any{}
-	}
 	render.JSON(w, r, projects)
 }
 
@@ -2401,11 +2489,11 @@ func (f *CircleCI) handleFollowProject(w http.ResponseWriter, r *http.Request) {
 	f.mu.Lock()
 	if !f.followedSlugs[slug] {
 		f.followedSlugs[slug] = true
-		f.followedProjects = append(f.followedProjects, map[string]any{
-			"slug":     slug,
-			"username": org,
-			"reponame": repo,
-			"vcs_type": vcs,
+		f.followedProjects = append(f.followedProjects, FollowedProject{
+			Slug:     slug,
+			Username: org,
+			Reponame: repo,
+			VCSType:  vcs,
 		})
 	}
 	f.mu.Unlock()
@@ -2470,21 +2558,11 @@ func (f *CircleCI) handleListEnvVars(w http.ResponseWriter, r *http.Request) {
 	deleted := f.deletedEnvVars
 	f.mu.RUnlock()
 
-	var items []any
+	items := []any{}
 	for _, v := range vars {
-		m, ok := v.(map[string]any)
-		if !ok {
-			items = append(items, v)
-			continue
+		if !deleted[slug+"/"+v.Name] {
+			items = append(items, envVarEntity(v))
 		}
-		name, _ := m["name"].(string)
-		key := slug + "/" + name
-		if !deleted[key] {
-			items = append(items, v)
-		}
-	}
-	if items == nil {
-		items = []any{}
 	}
 	render.JSON(w, r, map[string]any{"items": items, "next_page_token": nil})
 }
@@ -2500,13 +2578,12 @@ func (f *CircleCI) handleSetEnvVar(w http.ResponseWriter, r *http.Request) {
 	name, _ := body["name"].(string)
 	value, _ := body["value"].(string)
 
-	ev := map[string]any{"name": name, "value": value}
+	ev := EnvVar{Name: name, Value: value}
 	f.mu.Lock()
 	// Remove any existing var with this name.
-	var kept []any
+	var kept []EnvVar
 	for _, v := range f.envVars[slug] {
-		m, ok := v.(map[string]any)
-		if ok && m["name"] == name {
+		if v.Name == name {
 			continue
 		}
 		kept = append(kept, v)
@@ -2516,38 +2593,97 @@ func (f *CircleCI) handleSetEnvVar(w http.ResponseWriter, r *http.Request) {
 	f.mu.Unlock()
 
 	render.Status(r, http.StatusCreated)
-	render.JSON(w, r, ev)
+	render.JSON(w, r, envVarEntity(ev))
 }
 
 // --- Context helpers ---
 
-// AddContext registers a context object for GET /api/v2/context/{id}.
-// ctx should be a map with at least "id", "name", and "created_at" fields.
-// It is also indexed by org slug for list responses.
-func (f *CircleCI) AddContext(orgSlug string, ctx any) {
+// Context is a stored context served by the context list/get/create endpoints.
+type Context struct {
+	ID        string
+	Name      string
+	CreatedAt string
+}
+
+// ContextEnvVar is a stored context environment variable. TruncatedValue is the
+// masked value the list/get surface; a freshly-set variable has none, so it
+// renders only when set.
+type ContextEnvVar struct {
+	Variable       string
+	TruncatedValue string
+	ContextID      string
+	CreatedAt      string
+	UpdatedAt      string
+}
+
+// ContextRestriction is a stored context restriction. ContextID renders only
+// when set — the create response omits it, matching the real API.
+type ContextRestriction struct {
+	ContextID        string
+	ID               string
+	RestrictionType  string
+	RestrictionValue string
+	Name             string
+}
+
+// AddContext registers a context served by GET /api/v2/context/{id} and
+// indexed by org slug for list responses.
+func (f *CircleCI) AddContext(orgSlug string, ctx Context) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	m, ok := ctx.(map[string]any)
-	if ok {
-		if id, _ := m["id"].(string); id != "" {
-			f.contexts[id] = ctx
-		}
+	if ctx.ID != "" {
+		f.contexts[ctx.ID] = ctx
 	}
 	f.contextsByOrg[orgSlug] = append(f.contextsByOrg[orgSlug], ctx)
 }
 
 // AddContextEnvVar registers an environment variable for a context.
-func (f *CircleCI) AddContextEnvVar(contextID string, envVar any) {
+func (f *CircleCI) AddContextEnvVar(contextID string, envVar ContextEnvVar) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.contextEnvVars[contextID] = append(f.contextEnvVars[contextID], envVar)
 }
 
 // AddContextRestriction registers a restriction for a context.
-func (f *CircleCI) AddContextRestriction(contextID string, restriction any) {
+func (f *CircleCI) AddContextRestriction(contextID string, restriction ContextRestriction) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.contextRestrictions[contextID] = append(f.contextRestrictions[contextID], restriction)
+}
+
+// contextEntity renders a stored Context as its wire object.
+func contextEntity(c Context) map[string]any {
+	return map[string]any{"id": c.ID, "name": c.Name, "created_at": c.CreatedAt}
+}
+
+// contextEnvVarEntity renders a stored ContextEnvVar, including the masked value
+// only when set.
+func contextEnvVarEntity(v ContextEnvVar) map[string]any {
+	m := map[string]any{
+		"variable":   v.Variable,
+		"context_id": v.ContextID,
+		"created_at": v.CreatedAt,
+		"updated_at": v.UpdatedAt,
+	}
+	if v.TruncatedValue != "" {
+		m["truncated_value"] = v.TruncatedValue
+	}
+	return m
+}
+
+// contextRestrictionEntity renders a stored ContextRestriction, including
+// context_id only when set.
+func contextRestrictionEntity(rr ContextRestriction) map[string]any {
+	m := map[string]any{
+		"id":                rr.ID,
+		"name":              rr.Name,
+		"restriction_type":  rr.RestrictionType,
+		"restriction_value": rr.RestrictionValue,
+	}
+	if rr.ContextID != "" {
+		m["context_id"] = rr.ContextID
+	}
+	return m
 }
 
 // --- Context handlers ---
@@ -2560,23 +2696,15 @@ func (f *CircleCI) handleListContexts(w http.ResponseWriter, r *http.Request) {
 	deleted := f.deletedContexts
 	f.mu.RUnlock()
 
-	var result []any
+	result := []any{}
 	for _, ctx := range items {
-		m, ok := ctx.(map[string]any)
-		if ok {
-			if id, _ := m["id"].(string); deleted[id] {
-				continue
-			}
-			if nameFilter != "" {
-				if name, _ := m["name"].(string); !strings.Contains(strings.ToLower(name), strings.ToLower(nameFilter)) {
-					continue
-				}
-			}
+		if deleted[ctx.ID] {
+			continue
 		}
-		result = append(result, ctx)
-	}
-	if result == nil {
-		result = []any{}
+		if nameFilter != "" && !strings.Contains(strings.ToLower(ctx.Name), strings.ToLower(nameFilter)) {
+			continue
+		}
+		result = append(result, contextEntity(ctx))
 	}
 	render.JSON(w, r, map[string]any{"items": result, "next_page_token": nil})
 }
@@ -2594,11 +2722,7 @@ func (f *CircleCI) handleCreateContext(w http.ResponseWriter, r *http.Request) {
 		orgSlug, _ = owner["slug"].(string)
 	}
 	id := "c0000099-0000-4000-8000-000000000099"
-	ctx := map[string]any{
-		"id":         id,
-		"name":       name,
-		"created_at": "2026-01-01T00:00:00Z",
-	}
+	ctx := Context{ID: id, Name: name, CreatedAt: "2026-01-01T00:00:00Z"}
 	f.mu.Lock()
 	f.contexts[id] = ctx
 	if orgSlug != "" {
@@ -2606,7 +2730,7 @@ func (f *CircleCI) handleCreateContext(w http.ResponseWriter, r *http.Request) {
 	}
 	f.mu.Unlock()
 	render.Status(r, http.StatusCreated)
-	render.JSON(w, r, ctx)
+	render.JSON(w, r, contextEntity(ctx))
 }
 
 func (f *CircleCI) handleGetContext(w http.ResponseWriter, r *http.Request) {
@@ -2627,40 +2751,25 @@ func (f *CircleCI) handleGetContext(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Build a ContextDetail-shaped response with env vars embedded.
-	var liveVars []any
+	liveVars := []any{}
 	for _, v := range vars {
-		m, ok := v.(map[string]any)
-		if ok {
-			name, _ := m["variable"].(string)
-			if deletedVars[id+"/"+name] {
-				continue
-			}
+		if deletedVars[id+"/"+v.Variable] {
+			continue
 		}
-		liveVars = append(liveVars, v)
+		liveVars = append(liveVars, contextEnvVarEntity(v))
 	}
-	if liveVars == nil {
-		liveVars = []any{}
-	}
-	var liveRestrictions []any
+	liveRestrictions := []any{}
 	for _, restr := range restrictions {
-		m, ok := restr.(map[string]any)
-		if ok {
-			rid, _ := m["id"].(string)
-			if deletedRestrictions[id+"/"+rid] {
-				continue
-			}
+		if deletedRestrictions[id+"/"+restr.ID] {
+			continue
 		}
-		liveRestrictions = append(liveRestrictions, restr)
-	}
-	if liveRestrictions == nil {
-		liveRestrictions = []any{}
+		liveRestrictions = append(liveRestrictions, contextRestrictionEntity(restr))
 	}
 
-	m, _ := ctx.(map[string]any)
 	detail := map[string]any{
-		"id":                    m["id"],
-		"name":                  m["name"],
-		"created_at":            m["created_at"],
+		"id":                    ctx.ID,
+		"name":                  ctx.Name,
+		"created_at":            ctx.CreatedAt,
 		"org_id":                "00000000-0000-0000-0000-000000000000",
 		"environment_variables": liveVars,
 		"restrictions":          liveRestrictions,
@@ -2692,19 +2801,12 @@ func (f *CircleCI) handleListContextEnvVars(w http.ResponseWriter, r *http.Reque
 	deleted := f.deletedContextVars
 	f.mu.RUnlock()
 
-	var items []any
+	items := []any{}
 	for _, v := range vars {
-		m, ok := v.(map[string]any)
-		if ok {
-			name, _ := m["variable"].(string)
-			if deleted[id+"/"+name] {
-				continue
-			}
+		if deleted[id+"/"+v.Variable] {
+			continue
 		}
-		items = append(items, v)
-	}
-	if items == nil {
-		items = []any{}
+		items = append(items, contextEnvVarEntity(v))
 	}
 	render.JSON(w, r, map[string]any{"items": items, "next_page_token": nil})
 }
@@ -2718,18 +2820,17 @@ func (f *CircleCI) handleSetContextEnvVar(w http.ResponseWriter, r *http.Request
 		render.JSON(w, r, map[string]any{"message": "invalid body"})
 		return
 	}
-	ev := map[string]any{
-		"variable":   name,
-		"context_id": id,
-		"created_at": "2026-01-01T00:00:00Z",
-		"updated_at": "2026-01-01T00:00:00Z",
+	ev := ContextEnvVar{
+		Variable:  name,
+		ContextID: id,
+		CreatedAt: "2026-01-01T00:00:00Z",
+		UpdatedAt: "2026-01-01T00:00:00Z",
 	}
 	f.mu.Lock()
 	// Remove existing var with same name.
-	var kept []any
+	var kept []ContextEnvVar
 	for _, v := range f.contextEnvVars[id] {
-		m, ok := v.(map[string]any)
-		if ok && m["variable"] == name {
+		if v.Variable == name {
 			continue
 		}
 		kept = append(kept, v)
@@ -2737,7 +2838,7 @@ func (f *CircleCI) handleSetContextEnvVar(w http.ResponseWriter, r *http.Request
 	f.contextEnvVars[id] = append(kept, ev)
 	delete(f.deletedContextVars, id+"/"+name)
 	f.mu.Unlock()
-	render.JSON(w, r, ev)
+	render.JSON(w, r, contextEnvVarEntity(ev))
 }
 
 func (f *CircleCI) handleDeleteContextEnvVar(w http.ResponseWriter, r *http.Request) {
@@ -2748,8 +2849,7 @@ func (f *CircleCI) handleDeleteContextEnvVar(w http.ResponseWriter, r *http.Requ
 	f.mu.Lock()
 	found := false
 	for _, v := range f.contextEnvVars[id] {
-		m, ok := v.(map[string]any)
-		if ok && m["variable"] == name {
+		if v.Variable == name {
 			found = true
 			break
 		}
@@ -2788,17 +2888,16 @@ func (f *CircleCI) handleCreateContextRestriction(w http.ResponseWriter, r *http
 	}
 	restrictionType, _ := body["restriction_type"].(string)
 	restrictionValue, _ := body["restriction_value"].(string)
-	restr := map[string]any{
-		"id":                "c0000003-0000-4000-8000-000000000003",
-		"name":              "",
-		"restriction_type":  restrictionType,
-		"restriction_value": restrictionValue,
+	restr := ContextRestriction{
+		ID:               "c0000003-0000-4000-8000-000000000003",
+		RestrictionType:  restrictionType,
+		RestrictionValue: restrictionValue,
 	}
 	f.mu.Lock()
 	f.contextRestrictions[id] = append(f.contextRestrictions[id], restr)
 	f.mu.Unlock()
 	render.Status(r, http.StatusCreated)
-	render.JSON(w, r, restr)
+	render.JSON(w, r, contextRestrictionEntity(restr))
 }
 
 func (f *CircleCI) handleDeleteContextRestriction(w http.ResponseWriter, r *http.Request) {
@@ -2809,8 +2908,7 @@ func (f *CircleCI) handleDeleteContextRestriction(w http.ResponseWriter, r *http
 	f.mu.Lock()
 	found := false
 	for _, restr := range f.contextRestrictions[contextID] {
-		m, ok := restr.(map[string]any)
-		if ok && m["id"] == restrictionID {
+		if restr.ID == restrictionID {
 			found = true
 			break
 		}
@@ -3250,8 +3348,7 @@ func (f *CircleCI) handleDeleteEnvVar(w http.ResponseWriter, r *http.Request) {
 	f.mu.Lock()
 	found := false
 	for _, v := range f.envVars[slug] {
-		m, ok := v.(map[string]any)
-		if ok && m["name"] == name {
+		if v.Name == name {
 			found = true
 			break
 		}
@@ -3269,12 +3366,18 @@ func (f *CircleCI) handleDeleteEnvVar(w http.ResponseWriter, r *http.Request) {
 	render.JSON(w, r, map[string]any{"message": "Deleted."})
 }
 
+// Namespace is a stored namespace served by the REST namespace endpoints.
+type Namespace struct {
+	ID   string
+	Name string
+}
+
 // AddNamespace registers a namespace for REST API queries.
 // id and name form the namespace record returned by the /api/v3/namespaces endpoints.
 func (f *CircleCI) AddNamespace(id, name string) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	f.namespaces[id] = map[string]any{"id": id, "name": name}
+	f.namespaces[id] = Namespace{ID: id, Name: name}
 	f.namespacesByName[name] = id
 }
 
@@ -3322,8 +3425,7 @@ func (f *CircleCI) handleRESTGetNamespaceByID(w http.ResponseWriter, r *http.Req
 		render.JSON(w, r, map[string]any{"error": map[string]any{"title": "Not Found", "detail": "namespace not found"}})
 		return
 	}
-	name, _ := ns.(map[string]any)["name"].(string)
-	render.JSON(w, r, namespaceDataResponse(id, name))
+	render.JSON(w, r, namespaceDataResponse(id, ns.Name))
 }
 
 func (f *CircleCI) handleRESTCreateNamespace(w http.ResponseWriter, r *http.Request) {
@@ -3338,7 +3440,7 @@ func (f *CircleCI) handleRESTCreateNamespace(w http.ResponseWriter, r *http.Requ
 	}
 	id := uuid.New().String()
 	f.mu.Lock()
-	f.namespaces[id] = map[string]any{"id": id, "name": body.Name}
+	f.namespaces[id] = Namespace{ID: id, Name: body.Name}
 	f.namespacesByName[body.Name] = id
 	f.mu.Unlock()
 
@@ -3360,9 +3462,8 @@ func (f *CircleCI) handleRESTRenameNamespace(w http.ResponseWriter, r *http.Requ
 	ns, ok := f.namespaces[id]
 	deleted := f.deletedNamespaces[id]
 	if ok && !deleted {
-		oldName, _ := ns.(map[string]any)["name"].(string)
-		delete(f.namespacesByName, oldName)
-		f.namespaces[id] = map[string]any{"id": id, "name": body.Name}
+		delete(f.namespacesByName, ns.Name)
+		f.namespaces[id] = Namespace{ID: id, Name: body.Name}
 		f.namespacesByName[body.Name] = id
 	}
 	f.mu.Unlock()
@@ -3411,21 +3512,70 @@ func (f *CircleCI) handleGraphQL(w http.ResponseWriter, r *http.Request) {
 
 // --- iOS code signing helpers ---
 
+// IOSCert is a stored iOS signing certificate served by the signing
+// certificate list endpoint and referenced by signing configs.
+type IOSCert struct {
+	ID       string
+	FileName string
+	CertType string
+}
+
+// IOSSigningConfig is a stored iOS signing config (bundle) served by the
+// signing config list endpoint. CertID links it to the IOSCert it uses (the
+// cert-in-use check on delete); CertFileName/CertType are the certificate
+// reference echoed on the wire.
+type IOSSigningConfig struct {
+	ID                   string
+	Name                 string
+	CertID               string
+	CertFileName         string
+	CertType             string
+	ProvisioningProfiles []string
+}
+
 // AddIOSCert registers an iOS certificate for an org, returned by
-// GET /api/v3/signing/certificates?filter[org_id]=<orgID>. The cert is stored
-// in its flat fixture shape and wrapped in the V3 entity envelope on read.
-func (f *CircleCI) AddIOSCert(orgID string, cert any) {
+// GET /api/v3/signing/certificates?filter[org_id]=<orgID>.
+func (f *CircleCI) AddIOSCert(orgID string, cert IOSCert) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.iosCerts[orgID] = append(f.iosCerts[orgID], cert)
 }
 
-// AddIOSBundle registers an iOS signing bundle for an org, returned by
+// AddIOSBundle registers an iOS signing config for an org, returned by
 // GET /api/v3/signing/configs?filter[org_id]=<orgID>.
-func (f *CircleCI) AddIOSBundle(orgID string, bundle any) {
+func (f *CircleCI) AddIOSBundle(orgID string, bundle IOSSigningConfig) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.iosBundles[orgID] = append(f.iosBundles[orgID], bundle)
+}
+
+// iosCertEntity renders a stored IOSCert as its V3 entity.
+func iosCertEntity(c IOSCert) map[string]any {
+	return map[string]any{
+		"id":         c.ID,
+		"attributes": map[string]any{"file_name": c.FileName, "cert_type": c.CertType},
+	}
+}
+
+// iosSigningConfigEntity renders a stored IOSSigningConfig as its V3 entity,
+// with the certificate carried as a reference.
+func iosSigningConfigEntity(b IOSSigningConfig) map[string]any {
+	profiles := make([]map[string]any, len(b.ProvisioningProfiles))
+	for i, p := range b.ProvisioningProfiles {
+		profiles[i] = map[string]any{"file_name": p}
+	}
+	return map[string]any{
+		"id": b.ID,
+		"attributes": map[string]any{
+			"name":                  b.Name,
+			"provisioning_profiles": profiles,
+		},
+		"references": map[string]any{
+			"signing_certificate": map[string]any{
+				"attributes": map[string]any{"file_name": b.CertFileName, "cert_type": b.CertType},
+			},
+		},
+	}
 }
 
 // DeletedIOSCert reports whether the given cert ID was deleted.
@@ -3473,10 +3623,10 @@ func (f *CircleCI) handleUploadIOSCert(w http.ResponseWriter, r *http.Request) {
 	f.mu.Lock()
 	f.iosCertCounter++
 	certID := fmt.Sprintf("00000000-0000-0000-0000-%012d", f.iosCertCounter)
-	f.iosCerts[orgID] = append(f.iosCerts[orgID], map[string]any{
-		"id":        certID,
-		"file_name": attrs.FileName,
-		"cert_type": "distribution",
+	f.iosCerts[orgID] = append(f.iosCerts[orgID], IOSCert{
+		ID:       certID,
+		FileName: attrs.FileName,
+		CertType: "distribution",
 	})
 	f.mu.Unlock()
 	render.Status(r, http.StatusCreated)
@@ -3493,24 +3643,12 @@ func (f *CircleCI) handleListIOSCerts(w http.ResponseWriter, r *http.Request) {
 	}
 	f.mu.RUnlock()
 
-	// Wrap each stored flat cert in the V3 entity envelope: {id, attributes:{...}}.
 	items := make([]any, 0, len(all))
 	for _, c := range all {
-		m, ok := c.(map[string]any)
-		if !ok {
-			items = append(items, c)
+		if c.ID != "" && deleted[c.ID] {
 			continue
 		}
-		if id, _ := m["id"].(string); id != "" && deleted[id] {
-			continue
-		}
-		items = append(items, map[string]any{
-			"id": m["id"],
-			"attributes": map[string]any{
-				"file_name": m["file_name"],
-				"cert_type": m["cert_type"],
-			},
-		})
+		items = append(items, iosCertEntity(c))
 	}
 	render.JSON(w, r, map[string]any{"data": items})
 }
@@ -3521,7 +3659,7 @@ func (f *CircleCI) handleDeleteIOSCert(w http.ResponseWriter, r *http.Request) {
 	found := false
 	for _, certs := range f.iosCerts {
 		for _, c := range certs {
-			if m, ok := c.(map[string]any); ok && m["id"] == id {
+			if c.ID == id {
 				found = true
 				break
 			}
@@ -3535,11 +3673,10 @@ func (f *CircleCI) handleDeleteIOSCert(w http.ResponseWriter, r *http.Request) {
 	if found {
 		for _, bundles := range f.iosBundles {
 			for _, b := range bundles {
-				m, ok := b.(map[string]any)
-				if !ok || m["_cert_id"] != id {
+				if b.CertID != id {
 					continue
 				}
-				if bid, _ := m["id"].(string); bid != "" && !f.deletedIOSBundles[bid] {
+				if b.ID != "" && !f.deletedIOSBundles[b.ID] {
 					inUse = true
 					break
 				}
@@ -3602,22 +3739,15 @@ func (f *CircleCI) handleCreateIOSBundle(w http.ResponseWriter, r *http.Request)
 	f.mu.Lock()
 
 	// Reject if no live cert with the given id exists in this org.
-	var certRef map[string]any
+	var cert *IOSCert
 	for _, c := range f.iosCerts[orgID] {
-		m, ok := c.(map[string]any)
-		if !ok || m["id"] != certID {
+		if c.ID != certID || f.deletedIOSCerts[c.ID] {
 			continue
 		}
-		if id, _ := m["id"].(string); f.deletedIOSCerts[id] {
-			continue
-		}
-		certRef = map[string]any{
-			"file_name": m["file_name"],
-			"cert_type": m["cert_type"],
-		}
+		cert = &c
 		break
 	}
-	if certRef == nil {
+	if cert == nil {
 		f.mu.Unlock()
 		render.Status(r, http.StatusNotFound)
 		render.JSON(w, r, map[string]any{"message": "certificate not found"})
@@ -3626,11 +3756,10 @@ func (f *CircleCI) handleCreateIOSBundle(w http.ResponseWriter, r *http.Request)
 
 	// Reject if a live signing config already uses this name in this org.
 	for _, b := range f.iosBundles[orgID] {
-		m, ok := b.(map[string]any)
-		if !ok || m["name"] != name {
+		if b.Name != name {
 			continue
 		}
-		if bid, _ := m["id"].(string); bid != "" && f.deletedIOSBundles[bid] {
+		if b.ID != "" && f.deletedIOSBundles[b.ID] {
 			continue
 		}
 		f.mu.Unlock()
@@ -3643,23 +3772,19 @@ func (f *CircleCI) handleCreateIOSBundle(w http.ResponseWriter, r *http.Request)
 	id := fmt.Sprintf("10000000-0000-0000-0000-%012d", f.iosBundleCounter)
 
 	// Provisioning-profile list response echoes only file_name, not the blob.
-	profiles := make([]map[string]any, len(body.Data.Attributes.ProvisioningProfiles))
+	profiles := make([]string, len(body.Data.Attributes.ProvisioningProfiles))
 	for i, p := range body.Data.Attributes.ProvisioningProfiles {
-		profiles[i] = map[string]any{"file_name": p["file_name"]}
+		profiles[i], _ = p["file_name"].(string)
 	}
 
-	stored := map[string]any{
-		"id":                    id,
-		"name":                  name,
-		"certificate":           certRef,
-		"provisioning_profiles": profiles,
-		// Internal-only — used by handleDeleteIOSCert's in-use check; not
-		// part of the real API response shape but harmless extras for the
-		// CLI, which only decodes documented fields.
-		"_cert_id": certID,
-		"_org_id":  orgID,
-	}
-	f.iosBundles[orgID] = append(f.iosBundles[orgID], stored)
+	f.iosBundles[orgID] = append(f.iosBundles[orgID], IOSSigningConfig{
+		ID:                   id,
+		Name:                 name,
+		CertID:               certID,
+		CertFileName:         cert.FileName,
+		CertType:             cert.CertType,
+		ProvisioningProfiles: profiles,
+	})
 	f.mu.Unlock()
 	render.Status(r, http.StatusCreated)
 	render.JSON(w, r, map[string]any{"data": map[string]any{"id": id}})
@@ -3675,30 +3800,12 @@ func (f *CircleCI) handleListIOSBundles(w http.ResponseWriter, r *http.Request) 
 	}
 	f.mu.RUnlock()
 
-	// Wrap each stored flat bundle in the V3 entity envelope: name and profiles
-	// in attributes, the certificate carried as a reference with its attributes.
 	items := make([]any, 0, len(all))
 	for _, b := range all {
-		m, ok := b.(map[string]any)
-		if !ok {
-			items = append(items, b)
+		if b.ID != "" && deleted[b.ID] {
 			continue
 		}
-		if id, _ := m["id"].(string); id != "" && deleted[id] {
-			continue
-		}
-		items = append(items, map[string]any{
-			"id": m["id"],
-			"attributes": map[string]any{
-				"name":                  m["name"],
-				"provisioning_profiles": m["provisioning_profiles"],
-			},
-			"references": map[string]any{
-				"signing_certificate": map[string]any{
-					"attributes": m["certificate"],
-				},
-			},
-		})
+		items = append(items, iosSigningConfigEntity(b))
 	}
 	render.JSON(w, r, map[string]any{"data": items})
 }
@@ -3709,7 +3816,7 @@ func (f *CircleCI) handleDeleteIOSBundle(w http.ResponseWriter, r *http.Request)
 	found := false
 	for _, bundles := range f.iosBundles {
 		for _, b := range bundles {
-			if m, ok := b.(map[string]any); ok && m["id"] == id {
+			if b.ID == id {
 				found = true
 				break
 			}
@@ -3937,7 +4044,7 @@ func (f *CircleCI) handleOrbCreatePackage(w http.ResponseWriter, r *http.Request
 		render.JSON(w, r, map[string]any{"message": "namespace not found"})
 		return
 	}
-	nsName, _ := nsData.(map[string]any)["name"].(string)
+	nsName := nsData.Name
 
 	id := uuid.New().String()
 	pkg := map[string]any{
