@@ -189,7 +189,6 @@ type CircleCI struct {
 	compileOutputYAML  string
 	compileErrors      []string
 	lastCompileOwnerID string
-	lastCompileAPIVer  string // "v3" or "v2" — which compile route served the last call
 
 	// Org state.
 	orgs        map[string]Org  // org slug → resolved org
@@ -398,8 +397,7 @@ func NewCircleCI(t *testing.T, tokens ...string) *CircleCI {
 	r.Get("/api/v3/signing/configs", f.handleListIOSBundles)
 	r.Delete("/api/v3/signing/configs/{id}", f.handleDeleteIOSBundle)
 	// Config compile + org routes.
-	r.Post("/api/v3/configs/compile", f.handleCompileConfigV3)
-	r.Post("/api/v2/compile-config-with-defaults", f.handleCompileConfig)
+	r.Post("/api/v3/configs/compile", f.handleCompileConfig)
 	r.Get("/api/v3/tool/releases", f.handleGetReleases)
 	r.Get("/api/v3/orgs", f.handleResolveOrg)
 	r.Get("/api/v3/orgs/{id}/settings", f.handleGetOrgSettingsV3)
@@ -527,7 +525,7 @@ func authExempt(path string) bool {
 		return true
 	}
 	switch path {
-	case "/api/v2/compile-config-with-defaults", "/api/v3/configs/compile", "/api/v3/tool/releases":
+	case "/api/v3/configs/compile", "/api/v3/tool/releases":
 		return true
 	}
 	return false
@@ -4619,7 +4617,7 @@ func (f *CircleCI) handleSetPolicySettings(w http.ResponseWriter, r *http.Reques
 
 // --- Config compile + org helpers ---
 
-// SetCompileResponse configures what both compile routes return. Pass
+// SetCompileResponse configures what the compile route returns. Pass
 // valid=false and one or more error messages to simulate a compilation failure.
 func (f *CircleCI) SetCompileResponse(valid bool, outputYAML string, errors ...string) {
 	f.mu.Lock()
@@ -4630,20 +4628,12 @@ func (f *CircleCI) SetCompileResponse(valid bool, outputYAML string, errors ...s
 }
 
 // LastCompileOwnerID returns the owning org UUID sent on the most recent compile
-// request, from either route (empty if none yet). Tests use it to assert that
-// --org resolved to the expected organization UUID.
+// request (empty if none yet). Tests use it to assert that --org resolved to the
+// expected organization UUID.
 func (f *CircleCI) LastCompileOwnerID() string {
 	f.mu.RLock()
 	defer f.mu.RUnlock()
 	return f.lastCompileOwnerID
-}
-
-// LastCompileAPIVersion returns "v3" or "v2" for whichever compile route served
-// the most recent request (empty if none yet).
-func (f *CircleCI) LastCompileAPIVersion() string {
-	f.mu.RLock()
-	defer f.mu.RUnlock()
-	return f.lastCompileAPIVer
 }
 
 // Org is a stored organization resolved by
@@ -4664,10 +4654,10 @@ func (f *CircleCI) AddOrg(id, slug, name, vcsType string) {
 	f.orgsByUUID[id] = true
 }
 
-// handleCompileConfigV3 serves POST /api/v3/configs/compile. A config that fails
+// handleCompileConfig serves POST /api/v3/configs/compile. A config that fails
 // to compile is still a 200: outcome is "failed" and the reasons ride in
 // meta.messages, mirroring the real endpoint.
-func (f *CircleCI) handleCompileConfigV3(w http.ResponseWriter, r *http.Request) {
+func (f *CircleCI) handleCompileConfig(w http.ResponseWriter, r *http.Request) {
 	// Capture the referenced org so tests can assert that --org (slug or UUID)
 	// resolved to the expected organization UUID before the compile call.
 	var body struct {
@@ -4683,7 +4673,6 @@ func (f *CircleCI) handleCompileConfigV3(w http.ResponseWriter, r *http.Request)
 
 	f.mu.Lock()
 	f.lastCompileOwnerID = body.Data.References.Org.ID
-	f.lastCompileAPIVer = "v3"
 	valid := f.compileValid
 	outputYAML := f.compileOutputYAML
 	errs := f.compileErrors
@@ -4709,37 +4698,6 @@ func (f *CircleCI) handleCompileConfigV3(w http.ResponseWriter, r *http.Request)
 	}
 
 	render.JSON(w, r, resp)
-}
-
-func (f *CircleCI) handleCompileConfig(w http.ResponseWriter, r *http.Request) {
-	// Capture the resolved owner_id so tests can assert that --org (slug or UUID)
-	// resolved to the expected organization UUID before the compile call.
-	var body struct {
-		Options struct {
-			OwnerID string `json:"owner_id"`
-		} `json:"options"`
-	}
-	_ = json.NewDecoder(r.Body).Decode(&body)
-
-	f.mu.Lock()
-	f.lastCompileOwnerID = body.Options.OwnerID
-	f.lastCompileAPIVer = "v2"
-	valid := f.compileValid
-	outputYAML := f.compileOutputYAML
-	errs := f.compileErrors
-	f.mu.Unlock()
-
-	apiErrors := make([]map[string]any, len(errs))
-	for i, e := range errs {
-		apiErrors[i] = map[string]any{"message": e}
-	}
-
-	render.JSON(w, r, map[string]any{
-		"valid":       valid,
-		"source-yaml": outputYAML,
-		"output-yaml": outputYAML,
-		"errors":      apiErrors,
-	})
 }
 
 // handleResolveOrg serves GET /api/v3/orgs?filter[slug]=<slug>, resolving a

@@ -568,7 +568,6 @@ func TestConfigValidate_UsesV3Compile(t *testing.T) {
 	})
 
 	assert.Check(t, cmp.Equal(result.ExitCode, 0), "stderr: %s", result.Stderr)
-	assert.Check(t, cmp.Equal(fake.LastCompileAPIVersion(), "v3"))
 	assert.Check(t, cmp.Equal(fake.LastCompileOwnerID(), testOrgUUID))
 
 	var body map[string]any
@@ -614,7 +613,6 @@ func TestConfigValidate_InvalidOnV3(t *testing.T) {
 	})
 
 	assert.Check(t, cmp.Equal(result.ExitCode, 7))
-	assert.Check(t, cmp.Equal(fake.LastCompileAPIVersion(), "v3"))
 	assert.Check(t, cmp.Contains(result.Stderr, "• unknown key 'foo'"))
 }
 
