@@ -126,21 +126,26 @@ func newTestCmd() *cobra.Command {
 				}
 
 				parameters, _ := pipelineValues["parameters"].(map[string]any)
-				resp, err := client.CompileConfig(ctx, string(data), ownerID, false, configcmd.LocalPipelineValues(parameters), parameters)
+				res, err := client.Compile(ctx, apiclient.CompileInput{
+					ConfigYAML:         string(data),
+					OrgID:              ownerID,
+					PipelineValues:     configcmd.LocalPipelineValues(parameters),
+					PipelineParameters: parameters,
+				})
 				if err != nil {
 					return nil, err
 				}
-				if len(resp.Errors) > 0 {
-					msgs := make([]error, len(resp.Errors))
-					for i, e := range resp.Errors {
-						msgs[i] = errors.New(e.Message)
+				if !res.Valid {
+					if len(res.Errors) == 0 {
+						return nil, errors.New("config compilation failed")
+					}
+					msgs := make([]error, len(res.Errors))
+					for i, e := range res.Errors {
+						msgs[i] = errors.New(e)
 					}
 					return nil, errors.Join(msgs...)
 				}
-				if !resp.Valid {
-					return nil, errors.New("config compilation failed")
-				}
-				return []byte(resp.OutputYAML), nil
+				return []byte(res.CompiledYAML), nil
 			}
 
 			runner, err := tester.NewRunner(tester.RunnerOptions{
