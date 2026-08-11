@@ -61,6 +61,24 @@ install_cli() {
 	info()  { echo "${DIM}==>${RESET} $*" >&2; }
 	fail()  { echo "${BOLD}error:${RESET} $*" >&2; exit 1; }
 
+	# version_lt A B — true when version A precedes B, comparing dot-separated
+	# numeric components (any -pre / +meta suffix is ignored). 10# forces
+	# base-10 so components with leading zeros are not read as octal.
+	version_lt() {
+		[ "$1" = "$2" ] && return 1
+		local IFS=. a b i x y
+		# Deliberate split on IFS=. into numeric components; values are digits.
+		# shellcheck disable=SC2206
+		a=(${1%%[-+]*}); b=(${2%%[-+]*})
+		for ((i = 0; i < ${#a[@]} || i < ${#b[@]}; i++)); do
+			x=${a[i]:-0}; x=${x//[!0-9]/}
+			y=${b[i]:-0}; y=${y//[!0-9]/}
+			(( 10#${x:-0} < 10#${y:-0} )) && return 0
+			(( 10#${x:-0} > 10#${y:-0} )) && return 1
+		done
+		return 1
+	}
+
 	# Backward-compat: the legacy install.sh treated DESTDIR as install(1)'s
 	# DEST argument, so DESTDIR=/usr/local/bin/circleci meant the full binary
 	# path. DESTDIR now names the install directory. If it ends in /circleci and
@@ -135,11 +153,11 @@ install_cli() {
 		|| fail "Checksum mismatch for ${ARCHIVE} (expected ${expected}, got ${actual})."
 
 	# --- unpack -------------------------------------------------------------
-	# v1+ archives place the binary at the root. Legacy v0.x archives wrap it
-	# in a top-level directory (circleci-cli_<ver>_<os>_<arch>/circleci), so
-	# those need the leading path component stripped.
-	major="${VERSION%%.*}"
-	if [ "$major" = "0" ]; then
+	# Archives before v0.1.47632 wrap the binary in a top-level directory
+	# (circleci-cli_<ver>_<os>_<arch>/circleci) and need the leading path
+	# component stripped. From v0.1.47632 onward — and for every v1+ release —
+	# the binary sits at the archive root.
+	if version_lt "${VERSION}" "0.1.47632"; then
 		tar -xzf "${SCRATCH}/${ARCHIVE}" -C "${SCRATCH}" --strip-components 1 \
 			|| fail "Could not extract ${ARCHIVE}."
 	else
