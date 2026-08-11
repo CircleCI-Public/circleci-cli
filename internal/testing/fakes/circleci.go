@@ -55,22 +55,22 @@ type CircleCI struct {
 
 	mu                                sync.RWMutex
 	pipelines                         map[string]any
-	projects                          map[string][]any  // project slug → ordered list of pipelines
-	workflowJobs                      map[string][]any  // workflow id → jobs
-	jobArtifacts                      map[string][]any  // "slug/jobNumber" → artifacts
-	jobArtifactsV3                    map[string][]any  // job UUID → V3 artifact data items
-	staticFiles                       map[string]string // path → body content, for artifact downloads
-	jobs                              map[string]any    // "slug/jobNumber" → job detail response (v2)
-	jobsV1                            map[string]any    // "vcs/org/repo/jobNumber" → job detail response (v1.1)
-	rawStepOutputs                    map[string]string // "slug/number/taskIndex/stepID" → plain text output
-	rawStepErrors                     map[string]string // "slug/number/taskIndex/stepID" → plain text error
-	triggerResponses                  map[string]any    // project slug → trigger response body
-	triggerPipelineRunResponses       map[string]any    // project slug → trigger run response body
-	triggerPipelineRunStatuses        map[string]int    // project slug → HTTP status (default 201)
-	pipelineDefinitions               map[string][]any  // projectID → list of pipeline definition objects
-	createPipelineDefinitionResponses map[string]any    // projectID → response body
-	createTriggerResponses            map[string]any    // "projectID/pipelineDefinitionID" → response body
-	listTriggerResponses              map[string][]any  // "projectID/pipelineDefinitionID" → list of triggers
+	projects                          map[string][]any      // project slug → ordered list of pipelines
+	workflowJobs                      map[string][]any      // workflow id → jobs
+	jobArtifacts                      map[string][]any      // "slug/jobNumber" → artifacts
+	jobArtifactsV3                    map[string][]Artifact // job UUID → V3 artifacts
+	staticFiles                       map[string]string     // path → body content, for artifact downloads
+	jobs                              map[string]any        // "slug/jobNumber" → job detail response (v2)
+	jobsV1                            map[string]any        // "vcs/org/repo/jobNumber" → job detail response (v1.1)
+	rawStepOutputs                    map[string]string     // "slug/number/taskIndex/stepID" → plain text output
+	rawStepErrors                     map[string]string     // "slug/number/taskIndex/stepID" → plain text error
+	triggerResponses                  map[string]any        // project slug → trigger response body
+	triggerPipelineRunResponses       map[string]any        // project slug → trigger run response body
+	triggerPipelineRunStatuses        map[string]int        // project slug → HTTP status (default 201)
+	pipelineDefinitions               map[string][]any      // projectID → list of pipeline definition objects
+	createPipelineDefinitionResponses map[string]any        // projectID → response body
+	createTriggerResponses            map[string]any        // "projectID/pipelineDefinitionID" → response body
+	listTriggerResponses              map[string][]any      // "projectID/pipelineDefinitionID" → list of triggers
 
 	// GitHub App state.
 	githubAppInstalled      map[string]bool   // orgID → app installed (200) vs not (404)
@@ -83,22 +83,22 @@ type CircleCI struct {
 	pipelineCancelResponses map[string]int    // pipeline id → HTTP status to return
 
 	// Job (v3) state.
-	jobsV3             map[string]any    // job UUID → V3 response body
-	workflowJobsV3     map[string][]any  // workflow id → V3 job list items
-	jobStdout          map[string][]byte // "jobID/index/stepNum" → plain text stdout
-	jobStderr          map[string][]byte // "jobID/index/stepNum" → plain text stderr
-	jobStdoutCondensed map[string][]byte // "jobID/index/stepNum" → raw condensed text
-	jobTests           map[string][]any  // job UUID → test result objects (served as JSONL)
+	jobsV3             map[string]JobV3        // job UUID → job detail entity
+	workflowJobsV3     map[string][]JobV3      // workflow id → job list entities
+	jobStdout          map[string][]byte       // "jobID/index/stepNum" → plain text stdout
+	jobStderr          map[string][]byte       // "jobID/index/stepNum" → plain text stderr
+	jobStdoutCondensed map[string][]byte       // "jobID/index/stepNum" → raw condensed text
+	jobTests           map[string][]TestResult // job UUID → test result objects (served as JSONL)
 
 	// Run (v3) state.
-	runsV3          map[string]any   // run UUID → V3 response data (inner, not wrapped)
-	runsV3ByProject map[string][]any // project UUID → ordered V3 run data items
-	userRunsV3      []any            // ordered V3 run data items for GET /runs?filter[user_id]=me
+	runsV3          map[string]RunV3   // run UUID → stored run
+	runsV3ByProject map[string][]RunV3 // project UUID → ordered runs (for search)
+	userRunsV3      []RunV3            // ordered runs for GET /runs?filter[user_id]=me
 
 	// Workflow (v3) state.
-	workflowsV3         map[string]any   // workflow UUID → V3 workflow data (inner, not wrapped)
-	workflowsV3ByRun    map[string][]any // run UUID → V3 workflow data items
-	workflowsV3NotFound map[string]bool  // run UUID → workflows list returns 404
+	workflowsV3         map[string]WorkflowV3   // workflow UUID → stored workflow
+	workflowsV3ByRun    map[string][]WorkflowV3 // run UUID → ordered workflows
+	workflowsV3NotFound map[string]bool         // run UUID → workflows list returns 404
 
 	// Runner (v3) state.
 	resourceClasses []any            // all resource classes
@@ -111,17 +111,17 @@ type CircleCI struct {
 	deletedRCs              map[string]bool // resource class → deleted
 
 	// Project / env-var state.
-	followedProjects    []any            // list of project objects for GET /api/v1.1/projects
-	followedSlugs       map[string]bool  // vcs+org+repo → true (for follow idempotency)
-	envVars             map[string][]any // project slug → env vars
-	deletedEnvVars      map[string]bool  // "slug/name" → deleted
-	projectInfos        map[string]any   // project slug → project info response
-	projectsByID        map[string]any   // project UUID → V3 project response (GET /api/v3/projects/{id})
-	projectsBySlug      map[string]any   // project slug → V3 project entity (GET /api/v3/projects?filter[slug]=)
-	projectSettings     map[string]any   // project UUID → advanced settings attributes
-	createProjectResp   any              // preset response for POST /organization/{vcs}/{org}/project
-	createProjectStatus int              // HTTP status for that POST (0 → 201 Created)
-	createOrgResp       any              // preset response for POST /organization
+	followedProjects    []any                // list of project objects for GET /api/v1.1/projects
+	followedSlugs       map[string]bool      // vcs+org+repo → true (for follow idempotency)
+	envVars             map[string][]any     // project slug → env vars
+	deletedEnvVars      map[string]bool      // "slug/name" → deleted
+	projectInfos        map[string]any       // project slug → project info response
+	projectsByID        map[string]any       // project UUID → V3 project response (GET /api/v3/projects/{id})
+	projectsBySlug      map[string]ProjectV3 // project slug → resolved project (GET /api/v3/projects?filter[slug]=)
+	projectSettings     map[string]any       // project UUID → advanced settings attributes
+	createProjectResp   any                  // preset response for POST /organization/{vcs}/{org}/project
+	createProjectStatus int                  // HTTP status for that POST (0 → 201 Created)
+	createOrgResp       any                  // preset response for POST /organization
 
 	// Context state.
 	contexts                   map[string]any   // context id → context object
@@ -196,7 +196,7 @@ type CircleCI struct {
 	lastCompileAPIVer  string // "v3" or "v2" — which compile route served the last call
 
 	// Org state.
-	orgs        map[string]map[string]any
+	orgs        map[string]Org  // org slug → resolved org
 	orgsByUUID  map[string]bool // org UUID → true
 	orgSettings map[string]any  // org UUID → attributes map
 
@@ -246,7 +246,7 @@ func NewCircleCI(t *testing.T, tokens ...string) *CircleCI {
 		projects:                          map[string][]any{},
 		workflowJobs:                      map[string][]any{},
 		jobArtifacts:                      map[string][]any{},
-		jobArtifactsV3:                    map[string][]any{},
+		jobArtifactsV3:                    map[string][]Artifact{},
 		staticFiles:                       map[string]string{},
 		jobs:                              map[string]any{},
 		jobsV1:                            map[string]any{},
@@ -266,16 +266,16 @@ func NewCircleCI(t *testing.T, tokens ...string) *CircleCI {
 		rerunFromFailed:                   map[string]bool{},
 		cancelResponses:                   map[string]int{},
 		pipelineCancelResponses:           map[string]int{},
-		jobsV3:                            map[string]any{},
-		workflowJobsV3:                    map[string][]any{},
+		jobsV3:                            map[string]JobV3{},
+		workflowJobsV3:                    map[string][]JobV3{},
 		jobStdout:                         map[string][]byte{},
 		jobStderr:                         map[string][]byte{},
 		jobStdoutCondensed:                map[string][]byte{},
-		jobTests:                          map[string][]any{},
-		runsV3:                            map[string]any{},
-		runsV3ByProject:                   map[string][]any{},
-		workflowsV3:                       map[string]any{},
-		workflowsV3ByRun:                  map[string][]any{},
+		jobTests:                          map[string][]TestResult{},
+		runsV3:                            map[string]RunV3{},
+		runsV3ByProject:                   map[string][]RunV3{},
+		workflowsV3:                       map[string]WorkflowV3{},
+		workflowsV3ByRun:                  map[string][]WorkflowV3{},
 		workflowsV3NotFound:               map[string]bool{},
 		resourceClasses:                   []any{},
 		runnerTokens:                      map[string][]any{},
@@ -295,7 +295,7 @@ func NewCircleCI(t *testing.T, tokens ...string) *CircleCI {
 		deletedContextRestrictions:        map[string]bool{},
 		projectInfos:                      map[string]any{},
 		projectsByID:                      map[string]any{},
-		projectsBySlug:                    map[string]any{},
+		projectsBySlug:                    map[string]ProjectV3{},
 		projectSettings:                   map[string]any{},
 		deploySettings:                    map[string]DeploySettings{},
 		policyBundles:                     make(map[string]map[string]string),
@@ -321,7 +321,7 @@ func NewCircleCI(t *testing.T, tokens ...string) *CircleCI {
 		dlcPurgeStatus:                    map[string]int{},
 		compileValid:                      true,
 		compileOutputYAML:                 "# compiled output\nversion: \"2.1\"\n",
-		orgs:                              map[string]map[string]any{},
+		orgs:                              map[string]Org{},
 		orgsByUUID:                        map[string]bool{},
 		orgSettings:                       map[string]any{},
 	}
@@ -544,7 +544,7 @@ func authExempt(path string) bool {
 		return true
 	}
 	switch path {
-	case "/api/v2/compile-config-with-defaults", "/api/v3/tool/releases":
+	case "/api/v2/compile-config-with-defaults", "/api/v3/configs/compile", "/api/v3/tool/releases":
 		return true
 	}
 	return false
@@ -720,11 +720,107 @@ func (f *CircleCI) AddWorkflowJobs(workflowID string, jobs ...any) {
 	f.workflowJobs[workflowID] = jobs
 }
 
-// AddWorkflowJobsV3 registers V3 job list items for a workflow.
-func (f *CircleCI) AddWorkflowJobsV3(workflowID string, jobs ...any) {
+// JobV3 is a stored job served by both the workflow-jobs list
+// (GET /api/v3/workflows/{id}/jobs) and the job-detail endpoint
+// (GET /api/v3/jobs/{id}). The list exposes the summary attributes and
+// references; detail adds the nested parallel executions. Optional fields
+// (Outcome, StartedAt, EndedAt, the reference ids) are omitted from the wire
+// entity when empty, and Executions is omitted when nil — matching how the real
+// API reports a queued job that has not run yet.
+type JobV3 struct {
+	ID         string
+	Name       string
+	Type       string
+	Phase      string
+	Outcome    string
+	StartedAt  string
+	EndedAt    string
+	ProjectID  string
+	WorkflowID string
+	PipelineID string
+	UserID     string
+	Executions [][]JobStep // parallel_executions, one inner slice of steps per execution
+}
+
+// JobStep is a single step within a JobV3 execution. ExitCode is a pointer so a
+// step that never ran a command (spin-up, checkout) omits it, distinct from an
+// explicit exit code of 0; Command is omitted when empty.
+type JobStep struct {
+	Name      string
+	Type      string
+	Num       int
+	Phase     string
+	Outcome   string
+	ExitCode  *int
+	Command   string
+	StartedAt string
+	EndedAt   string
+}
+
+// AddWorkflowJobsV3 registers the jobs a workflow lists.
+func (f *CircleCI) AddWorkflowJobsV3(workflowID string, jobs ...JobV3) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.workflowJobsV3[workflowID] = jobs
+}
+
+// jobV3Entity renders a stored JobV3 as its V3 entity, omitting the optional
+// attributes and references that are empty.
+func jobV3Entity(j JobV3) map[string]any {
+	attrs := map[string]any{"name": j.Name, "type": j.Type, "phase": j.Phase}
+	if j.Outcome != "" {
+		attrs["outcome"] = j.Outcome
+	}
+	if j.StartedAt != "" {
+		attrs["started_at"] = j.StartedAt
+	}
+	if j.EndedAt != "" {
+		attrs["ended_at"] = j.EndedAt
+	}
+	if len(j.Executions) > 0 {
+		execs := make([]any, 0, len(j.Executions))
+		for _, steps := range j.Executions {
+			rendered := make([]any, 0, len(steps))
+			for _, s := range steps {
+				rendered = append(rendered, jobStepEntity(s))
+			}
+			execs = append(execs, map[string]any{"steps": rendered})
+		}
+		attrs["parallel_executions"] = execs
+	}
+	refs := map[string]any{}
+	for key, id := range map[string]string{
+		"project":  j.ProjectID,
+		"workflow": j.WorkflowID,
+		"pipeline": j.PipelineID,
+		"user":     j.UserID,
+	} {
+		if id != "" {
+			refs[key] = map[string]any{"id": id}
+		}
+	}
+	return map[string]any{"id": j.ID, "attributes": attrs, "references": refs}
+}
+
+// jobStepEntity renders a single JobStep, omitting exit_code when unset and
+// command when empty.
+func jobStepEntity(s JobStep) map[string]any {
+	step := map[string]any{
+		"name":       s.Name,
+		"type":       s.Type,
+		"num":        s.Num,
+		"phase":      s.Phase,
+		"outcome":    s.Outcome,
+		"started_at": s.StartedAt,
+		"ended_at":   s.EndedAt,
+	}
+	if s.ExitCode != nil {
+		step["exit_code"] = *s.ExitCode
+	}
+	if s.Command != "" {
+		step["command"] = s.Command
+	}
+	return step
 }
 
 // AddJobArtifacts registers artifact responses for a job.
@@ -736,12 +832,33 @@ func (f *CircleCI) AddJobArtifacts(slug string, jobNumber int64, artifactItems .
 	f.jobArtifacts[key] = artifactItems
 }
 
-// AddJobArtifactsV3 registers V3 artifact data items for a job UUID.
-// Each item should be a V3 data entity with "attributes" containing path, url, execution.
-func (f *CircleCI) AddJobArtifactsV3(jobID string, items ...any) {
+// Artifact is a stored job artifact served by GET /api/v3/jobs/<id>/artifacts.
+// Execution is the parallel-run index (0-based) the artifact came from.
+type Artifact struct {
+	Path      string
+	URL       string
+	Execution int
+}
+
+// AddJobArtifactsV3 registers V3 artifacts for a job UUID.
+func (f *CircleCI) AddJobArtifactsV3(jobID string, items ...Artifact) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.jobArtifactsV3[jobID] = items
+}
+
+// artifactEntity renders a stored Artifact as its V3 entity. The id is a stable
+// UUIDv5 of the artifact's URL and execution — the CLI ignores it, but the
+// envelope requires one.
+func artifactEntity(a Artifact) map[string]any {
+	return map[string]any{
+		"id": uuid.NewSHA1(uuid.NameSpaceURL, fmt.Appendf(nil, "%s#%d", a.URL, a.Execution)).String(),
+		"attributes": map[string]any{
+			"path":      a.Path,
+			"url":       a.URL,
+			"execution": a.Execution,
+		},
+	}
 }
 
 // AddJobV1 registers a v1.1 job detail response. Use this alongside AddJob
@@ -754,11 +871,12 @@ func (f *CircleCI) AddJobV1(slug string, jobNumber int64, job any) {
 	f.jobsV1[key] = job
 }
 
-// AddJobV3 registers a V3 job detail response for GET /api/v3/jobs/<id>.
-func (f *CircleCI) AddJobV3(id string, job any) {
+// AddJobV3 registers a job's detail, served by GET /api/v3/jobs/<id> keyed on
+// the job's ID.
+func (f *CircleCI) AddJobV3(job JobV3) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	f.jobsV3[id] = job
+	f.jobsV3[job.ID] = job
 }
 
 // AddJobStdout registers plain-text stdout for a step, served at
@@ -954,12 +1072,12 @@ func (f *CircleCI) handleGetJobArtifacts(w http.ResponseWriter, r *http.Request)
 func (f *CircleCI) handleGetJobArtifactsV3(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	f.mu.RLock()
-	items := f.jobArtifactsV3[id]
+	items := make([]any, 0, len(f.jobArtifactsV3[id]))
+	for _, a := range f.jobArtifactsV3[id] {
+		items = append(items, artifactEntity(a))
+	}
 	f.mu.RUnlock()
 
-	if items == nil {
-		items = []any{}
-	}
 	render.JSON(w, r, map[string]any{"data": items})
 }
 
@@ -1047,7 +1165,7 @@ func (f *CircleCI) handleGetJobV3(w http.ResponseWriter, r *http.Request) {
 		render.JSON(w, r, map[string]any{"message": "not found"})
 		return
 	}
-	render.JSON(w, r, job)
+	render.JSON(w, r, map[string]any{"data": jobV3Entity(job)})
 }
 
 func (f *CircleCI) handleGetJobStdout(w http.ResponseWriter, r *http.Request) {
@@ -1117,10 +1235,20 @@ func (f *CircleCI) handleGetJobStderr(w http.ResponseWriter, r *http.Request) {
 	render.Data(w, r, content)
 }
 
+// TestResult is a stored test result served by the fake job-tests endpoint,
+// which streams these as newline-delimited JSON (JSONL). The JSON tags match
+// the wire fields the CLI decodes.
+type TestResult struct {
+	Classname string  `json:"classname"`
+	Name      string  `json:"name"`
+	Result    string  `json:"result"`
+	RunTime   float64 `json:"run_time"`
+	Message   string  `json:"message"`
+}
+
 // AddJobTests registers test-result records for a job UUID, served as
-// newline-delimited JSON (JSONL) at GET /api/v3/jobs/<id>/tests. Each record
-// should be a map with classname, name, result, run_time and message fields.
-func (f *CircleCI) AddJobTests(id string, tests ...any) {
+// newline-delimited JSON (JSONL) at GET /api/v3/jobs/<id>/tests.
+func (f *CircleCI) AddJobTests(id string, tests ...TestResult) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.jobTests[id] = tests
@@ -1171,27 +1299,68 @@ func (f *CircleCI) handleListWorkflowJobsV3(w http.ResponseWriter, r *http.Reque
 	}
 
 	f.mu.RLock()
-	jobs := f.workflowJobsV3[workflowID]
+	jobs := []any{}
+	for _, j := range f.workflowJobsV3[workflowID] {
+		jobs = append(jobs, jobV3Entity(j))
+	}
 	f.mu.RUnlock()
 
-	if jobs == nil {
-		jobs = []any{}
-	}
 	render.JSON(w, r, map[string]any{"data": jobs})
 }
 
-// AddWorkflowV3 registers a single V3 workflow response for GET /api/v3/workflows/<id>.
-func (f *CircleCI) AddWorkflowV3(id string, workflow any) {
+// WorkflowV3 is a stored workflow served by the workflow-detail
+// (GET /api/v3/workflows/{id}) and run-workflows list endpoints. An ended
+// workflow reports outcome + ended_at; a still-running one reports
+// current_outcome and no ended_at instead — mirroring the real API.
+type WorkflowV3 struct {
+	ID        string
+	Name      string
+	RunID     string
+	ProjectID string
+	UserID    string
+	Phase     string
+	Outcome   string
+	CreatedAt string
+	EndedAt   string
+}
+
+// AddWorkflowV3 registers a workflow served by GET /api/v3/workflows/<id>.
+func (f *CircleCI) AddWorkflowV3(id string, workflow WorkflowV3) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.workflowsV3[id] = workflow
 }
 
-// AddRunWorkflowsV3 registers V3 workflow responses for a run.
-func (f *CircleCI) AddRunWorkflowsV3(runID string, workflows ...any) {
+// AddRunWorkflowsV3 registers the workflows a run lists.
+func (f *CircleCI) AddRunWorkflowsV3(runID string, workflows ...WorkflowV3) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.workflowsV3ByRun[runID] = workflows
+}
+
+// workflowV3Entity renders a stored WorkflowV3 as its V3 entity, choosing the
+// outcome/ended_at vs current_outcome shape from the phase.
+func workflowV3Entity(wf WorkflowV3) map[string]any {
+	attrs := map[string]any{
+		"name":       wf.Name,
+		"phase":      wf.Phase,
+		"created_at": wf.CreatedAt,
+	}
+	if wf.Phase == "ended" {
+		attrs["outcome"] = wf.Outcome
+		attrs["ended_at"] = wf.EndedAt
+	} else {
+		attrs["current_outcome"] = wf.Outcome
+	}
+	return map[string]any{
+		"id":         wf.ID,
+		"attributes": attrs,
+		"references": map[string]any{
+			"run":     map[string]any{"id": wf.RunID},
+			"project": map[string]any{"id": wf.ProjectID},
+			"user":    map[string]any{"id": wf.UserID},
+		},
+	}
 }
 
 // SetRunWorkflowsV3NotFound makes GET /api/v3/workflows?filter[run_id]=<runID>
@@ -1214,7 +1383,7 @@ func (f *CircleCI) handleGetWorkflowV3ByID(w http.ResponseWriter, r *http.Reques
 		render.JSON(w, r, map[string]any{"message": "not found"})
 		return
 	}
-	render.JSON(w, r, map[string]any{"data": wf})
+	render.JSON(w, r, map[string]any{"data": workflowV3Entity(wf)})
 }
 
 func (f *CircleCI) handleGetWorkflowsV3(w http.ResponseWriter, r *http.Request) {
@@ -1231,27 +1400,99 @@ func (f *CircleCI) handleGetWorkflowsV3(w http.ResponseWriter, r *http.Request) 
 		})
 		return
 	}
-	if workflows == nil {
-		workflows = []any{}
+	items := make([]any, 0, len(workflows))
+	for _, wf := range workflows {
+		items = append(items, workflowV3Entity(wf))
 	}
-	render.JSON(w, r, map[string]any{"data": workflows})
+	render.JSON(w, r, map[string]any{"data": items})
 }
 
-// AddRunV3 registers a V3 run response and associates it with a project.
-// The run must have an "id" and "references.project.id" field.
-func (f *CircleCI) AddRunV3(id, projectID string, run any) {
+// RunV3 is a stored run served by the run-detail, run-search, and my-runs
+// endpoints. A run that resolved a revision renders a commit block; Tag,
+// OriginRepoURL and Errors render only when set. CurrentOutcome is omitted when
+// empty, matching a run that has not finished.
+type RunV3 struct {
+	ID             string
+	ProjectID      string
+	UserID         string
+	Phase          string
+	CurrentOutcome string
+	CreatedAt      string
+	Branch         string
+	Tag            string
+	Revision       string
+	OriginRepoURL  string
+	Errors         []RunError
+}
+
+// RunError is a config/setup error attached to a run, surfaced by run get.
+type RunError struct {
+	Type    string
+	Message string
+}
+
+// AddRunV3 registers a run served by GET /api/v3/runs/<id> and included in the
+// search results for its project.
+func (f *CircleCI) AddRunV3(id, projectID string, run RunV3) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.runsV3[id] = run
 	f.runsV3ByProject[projectID] = append(f.runsV3ByProject[projectID], run)
 }
 
-// SetUserRuns registers the V3 run data items returned by
+// SetUserRuns registers the runs returned by
 // GET /api/v3/runs?filter[user_id]=me (i.e. "circleci my runs").
-func (f *CircleCI) SetUserRuns(runs ...any) {
+func (f *CircleCI) SetUserRuns(runs ...RunV3) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.userRunsV3 = runs
+}
+
+// runV3Entity renders a stored RunV3 as its V3 entity. The VCS block always
+// carries branch and revision; tag, origin_repository_url and a commit
+// sub-object render only when the run has them.
+func runV3Entity(run RunV3) map[string]any {
+	attrs := map[string]any{
+		"phase":      run.Phase,
+		"created_at": run.CreatedAt,
+	}
+	if run.CurrentOutcome != "" {
+		attrs["current_outcome"] = run.CurrentOutcome
+	}
+	if len(run.Errors) > 0 {
+		errs := make([]any, 0, len(run.Errors))
+		for _, e := range run.Errors {
+			errs = append(errs, map[string]any{"type": e.Type, "message": e.Message})
+		}
+		attrs["errors"] = errs
+	}
+	vcs := map[string]any{
+		"branch":   run.Branch,
+		"revision": run.Revision,
+	}
+	if run.Tag != "" {
+		vcs["tag"] = run.Tag
+	}
+	if run.OriginRepoURL != "" {
+		vcs["origin_repository_url"] = run.OriginRepoURL
+	}
+	if run.Revision != "" {
+		vcs["commit"] = map[string]any{
+			"subject": "Fix the widget",
+			"url":     "https://github.com/testorg/testrepo/commit/" + run.Revision,
+			"author":  map[string]any{"name": "Ada Lovelace", "login": "ada"},
+		}
+	}
+	return map[string]any{
+		"id":         run.ID,
+		"attributes": attrs,
+		"references": map[string]any{
+			"event":   map[string]any{"attributes": map[string]any{"vcs": vcs}},
+			"trigger": map[string]any{"attributes": map[string]any{"event_source": map[string]any{"type": "webhook"}}},
+			"project": map[string]any{"id": run.ProjectID},
+			"user":    map[string]any{"id": run.UserID},
+		},
+	}
 }
 
 func (f *CircleCI) handleListMyRunsV3(w http.ResponseWriter, r *http.Request) {
@@ -1269,13 +1510,13 @@ func (f *CircleCI) handleListMyRunsV3(w http.ResponseWriter, r *http.Request) {
 	f.mu.RLock()
 	var results []any
 	for _, run := range f.userRunsV3 {
-		if phase != "" && runAttr(run, "phase") != phase {
+		if phase != "" && run.Phase != phase {
 			continue
 		}
-		if currentOutcome != "" && runAttr(run, "current_outcome") != currentOutcome {
+		if currentOutcome != "" && run.CurrentOutcome != currentOutcome {
 			continue
 		}
-		results = append(results, run)
+		results = append(results, runV3Entity(run))
 	}
 	f.mu.RUnlock()
 
@@ -1310,7 +1551,7 @@ func (f *CircleCI) handleGetRunV3(w http.ResponseWriter, r *http.Request) {
 		render.JSON(w, r, map[string]any{"message": "not found"})
 		return
 	}
-	render.JSON(w, r, map[string]any{"data": run})
+	render.JSON(w, r, map[string]any{"data": runV3Entity(run)})
 }
 
 func (f *CircleCI) handleSearchRunsV3(w http.ResponseWriter, r *http.Request) {
@@ -1337,13 +1578,13 @@ func (f *CircleCI) handleSearchRunsV3(w http.ResponseWriter, r *http.Request) {
 	var all []any
 	for _, pid := range body.Scope.ProjectIDs {
 		for _, run := range f.runsV3ByProject[pid] {
-			if branch != "" && runBranch(run) != branch {
+			if branch != "" && run.Branch != branch {
 				continue
 			}
 			if status != "" && runStatus(run) != status {
 				continue
 			}
-			all = append(all, run)
+			all = append(all, runV3Entity(run))
 		}
 	}
 	f.mu.RUnlock()
@@ -1386,33 +1627,6 @@ func runBranchFilter(filter string) string {
 	return rest[:j]
 }
 
-// runAttr reads a top-level attributes field (e.g. "phase", "current_outcome")
-// from a stored fake run as a string, or "" if absent.
-func runAttr(run any, key string) string {
-	m, ok := run.(map[string]any)
-	if !ok {
-		return ""
-	}
-	attrs, _ := m["attributes"].(map[string]any)
-	s, _ := attrs[key].(string)
-	return s
-}
-
-// runBranch reads references.event.attributes.vcs.branch from a stored fake
-// run, or "" if absent.
-func runBranch(run any) string {
-	m, ok := run.(map[string]any)
-	if !ok {
-		return ""
-	}
-	refs, _ := m["references"].(map[string]any)
-	event, _ := refs["event"].(map[string]any)
-	attrs, _ := event["attributes"].(map[string]any)
-	vcs, _ := attrs["vcs"].(map[string]any)
-	branch, _ := vcs["branch"].(string)
-	return branch
-}
-
 // runStatusFilterExpr extracts the pipeline status pinned by a V3 search filter
 // expression like `pipeline.status == "failed"`. It returns "" when no status is
 // pinned, meaning "match every status".
@@ -1435,21 +1649,14 @@ func runStatusFilterExpr(filter string) string {
 // from its phase and current_outcome. An ended run maps its outcome
 // ("succeeded" → "success", others pass through); a non-ended run reports its
 // phase (e.g. "running").
-func runStatus(run any) string {
-	m, ok := run.(map[string]any)
-	if !ok {
-		return ""
+func runStatus(run RunV3) string {
+	if run.Phase != "ended" {
+		return run.Phase
 	}
-	attrs, _ := m["attributes"].(map[string]any)
-	phase, _ := attrs["phase"].(string)
-	if phase != "ended" {
-		return phase
-	}
-	outcome, _ := attrs["current_outcome"].(string)
-	if outcome == "succeeded" {
+	if run.CurrentOutcome == "succeeded" {
 		return "success"
 	}
-	return outcome
+	return run.CurrentOutcome
 }
 
 // handleRerunWorkflow mirrors POST /api/v3/workflows/:id/rerun as the real service
@@ -2045,15 +2252,29 @@ func (f *CircleCI) handleGetProjectV3(w http.ResponseWriter, r *http.Request) {
 	render.JSON(w, r, map[string]any{"data": project})
 }
 
+// ProjectV3 is a stored project resolved by
+// GET /api/v3/projects?filter[slug]=<slug>. The entity carries its UUID, name,
+// and owning org UUID — enough for the CLI to map a slug to its project.
+type ProjectV3 struct {
+	ID    string
+	Name  string
+	OrgID string
+}
+
 // AddProjectBySlug registers a project resolved by GET
 // /api/v3/projects?filter[slug]=<slug>, returning its UUID, name, and org UUID.
 func (f *CircleCI) AddProjectBySlug(slug, id, name, orgID string) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	f.projectsBySlug[slug] = map[string]any{
-		"id":         id,
-		"attributes": map[string]any{"name": name},
-		"references": map[string]any{"org": map[string]any{"id": orgID}},
+	f.projectsBySlug[slug] = ProjectV3{ID: id, Name: name, OrgID: orgID}
+}
+
+// projectV3Entity renders a stored ProjectV3 as its V3 entity.
+func projectV3Entity(p ProjectV3) map[string]any {
+	return map[string]any{
+		"id":         p.ID,
+		"attributes": map[string]any{"name": p.Name},
+		"references": map[string]any{"org": map[string]any{"id": p.OrgID}},
 	}
 }
 
@@ -2071,7 +2292,7 @@ func (f *CircleCI) handleResolveProjectBySlug(w http.ResponseWriter, r *http.Req
 	// The endpoint is a collection: an unmatched slug is an empty list, not a 404.
 	data := []any{}
 	if ok {
-		data = append(data, project)
+		data = append(data, projectV3Entity(project))
 	}
 	render.JSON(w, r, map[string]any{"data": data, "page": map[string]any{"next": nil, "prev": nil}})
 }
@@ -4451,16 +4672,21 @@ func (f *CircleCI) LastCompileAPIVersion() string {
 	return f.lastCompileAPIVer
 }
 
+// Org is a stored organization resolved by
+// GET /api/v3/orgs?filter[slug]=<slug>. The resolve endpoint surfaces only the
+// id; Slug, Name and VCSType round out the record for completeness.
+type Org struct {
+	ID      string
+	Slug    string
+	Name    string
+	VCSType string
+}
+
 // AddOrg registers an org resolvable by slug via GET /api/v3/orgs.
 func (f *CircleCI) AddOrg(id, slug, name, vcsType string) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	f.orgs[slug] = map[string]any{
-		"id":       id,
-		"name":     name,
-		"slug":     slug,
-		"vcs_type": vcsType,
-	}
+	f.orgs[slug] = Org{ID: id, Slug: slug, Name: name, VCSType: vcsType}
 	f.orgsByUUID[id] = true
 }
 
@@ -4553,7 +4779,7 @@ func (f *CircleCI) handleResolveOrg(w http.ResponseWriter, r *http.Request) {
 
 	data := []map[string]any{}
 	if ok {
-		data = append(data, map[string]any{"id": org["id"]})
+		data = append(data, map[string]any{"id": org.ID})
 	}
 	render.JSON(w, r, map[string]any{
 		"data": data,

@@ -28,7 +28,6 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/google/uuid"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/golden"
@@ -40,15 +39,8 @@ import (
 
 const testArtifactJobID = "cccccccc-0000-0000-0000-000000000001"
 
-func fakeArtifactV3(path, url string, execution int) map[string]any {
-	return map[string]any{
-		"id": uuid.NewString(),
-		"attributes": map[string]any{
-			"path":      path,
-			"url":       url,
-			"execution": execution,
-		},
-	}
+func fakeArtifactV3(path, url string, execution int) fakes.Artifact {
+	return fakes.Artifact{Path: path, URL: url, Execution: execution}
 }
 
 // setupArtifactFake builds a fake server with one job → two V3 artifacts.
