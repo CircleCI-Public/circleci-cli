@@ -3790,36 +3790,6 @@ JSON fields: id, resource_class, description
 - Output as JSON: 
   `circleci runner resource-class list --org gh/my-org --json`
 
-#### `circleci runner task [flags]`
-
-Show task counts for a runner resource class
-
-Show the number of unclaimed and running tasks for a CircleCI runner
-resource class.
-
-Unclaimed tasks are queued and waiting for a runner to pick them up.
-Running tasks are actively executing on a runner instance.
-
-JSON fields: resource_class, unclaimed, running
-
-| Flag                      | Description                                                                       |
-| ------------------------- | --------------------------------------------------------------------------------- |
-| `--jq string`             | Process values from the response using jq syntax (see `circleci help formatting`) |
-| `--json`                  | Output as JSON                                                                    |
-| `--resource-class string` | Resource class to query (namespace/name)                                          |
-
-
-**Examples:**
-
-- Show task counts for a resource class: 
-  `circleci runner task --resource-class my-org/my-runner`
-- Output as JSON: 
-  `circleci runner task --resource-class my-org/my-runner --json`
-- Check for a backlog across multiple classes: 
-  `for rc in my-org/build my-org/deploy; do`
-- circleci runner task --resource-class $rc
-- done
-
 #### `circleci runner token <command>`
 
 Manage runner tokens

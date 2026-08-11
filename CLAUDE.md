@@ -129,7 +129,7 @@ internal/cmd/
 ├── project/              circleci project create/get/list/follow/link/open + env/dlc/
 │                         setting/trigger.
 ├── run/                  circleci run trigger/get/list/watch/cancel/open.
-├── runner/               circleci runner resource-class/token/instance/task/config/open.
+├── runner/               circleci runner resource-class/token/instance/config/open.
 ├── setting/              circleci setting list/set/unset — CLI tool config (see rule 4).
 ├── setup/                circleci setup — hidden, legacy v0 compatibility only.
 ├── signingconfig/        circleci signing-config create/list/delete.
