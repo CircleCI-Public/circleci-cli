@@ -53,7 +53,7 @@ type SelectModel struct {
 	chosen   bool
 
 	// itemStyleFunc, when set, supplies a per-option label style so a caller can
-	// mark a row as special (e.g. a muted "all statuses" no-filter entry). It is
+	// mark a row as special (e.g. a muted "any" no-filter entry). It is
 	// overlaid with the accent foreground on the cursor row so selection still
 	// reads. Nil means every label renders plain (accent only on the cursor).
 	itemStyleFunc func(i int) lipgloss.Style

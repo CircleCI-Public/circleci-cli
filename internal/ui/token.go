@@ -20,7 +20,7 @@
 //
 // SPDX-License-Identifier: MIT
 
-package components
+package ui
 
 import (
 	"charm.land/bubbles/v2/key"
@@ -28,9 +28,14 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 
+	"github.com/CircleCI-Public/circleci-cli/internal/ui/components"
 	"github.com/CircleCI-Public/circleci-cli/internal/ui/theme"
 )
 
+// TokenModel collects a CircleCI personal access token. It is not a reusable
+// widget — the header copy and the CCIPAT_ placeholder (which also sets the
+// input's width and char limit) are specific to CircleCI auth — so it belongs
+// with the login flow rather than in the shared components package.
 type TokenModel struct {
 	textInput textinput.Model
 	token     string
@@ -57,7 +62,7 @@ func (m TokenModel) Init() tea.Cmd {
 }
 
 func (m TokenModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	if keyMsg, ok := msg.(tea.KeyPressMsg); ok && key.Matches(keyMsg, KeyEnter) {
+	if keyMsg, ok := msg.(tea.KeyPressMsg); ok && key.Matches(keyMsg, components.KeyEnter) {
 		m.token = m.textInput.Value()
 		return m, nil
 	}
@@ -83,8 +88,8 @@ func (m TokenModel) headerView() string {
 	return theme.TitleStyle.Render("Enter CircleCI personal access token")
 }
 func (m TokenModel) footerView() string {
-	return Hints(
+	return components.Hints(
 		key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "confirm")),
-		BindBack,
+		components.BindBack,
 	)
 }

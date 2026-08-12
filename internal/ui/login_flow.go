@@ -104,7 +104,7 @@ type LoginFlowModel struct {
 	hostSelect   components.SelectModel // stage 1 — host picker
 	hostInput    textinput.Model
 	methodSelect components.SelectModel // stage 2 — auth method picker
-	tokenInput   components.TokenModel  // stage 3b — paste-a-token
+	tokenInput   TokenModel             // stage 3b — paste-a-token
 
 	flow   *oauth.Flow
 	spin   spinner.Model
@@ -151,7 +151,7 @@ func NewLoginFlow(ctx context.Context, opts LoginFlowOptions) LoginFlowModel {
 		stage:      stageHostSelect,
 		hostSelect: newHostSelect(),
 		hostInput:  ti,
-		tokenInput: components.NewTokenModel(),
+		tokenInput: NewTokenModel(),
 		spin:       s,
 	}
 }
@@ -333,7 +333,7 @@ func (m LoginFlowModel) keyHostInput(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 }
 
 // updateTokenInput intercepts navigation keys then delegates to the embedded
-// components.TokenModel. Esc goes back to the method picker; Ctrl+C cancels.
+// TokenModel. Esc goes back to the method picker; Ctrl+C cancels.
 func (m LoginFlowModel) updateTokenInput(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if keyMsg, ok := msg.(tea.KeyPressMsg); ok {
 		switch {
@@ -341,7 +341,7 @@ func (m LoginFlowModel) updateTokenInput(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.result.Cancelled = true
 			return m, tea.Quit
 		case key.Matches(keyMsg, components.KeyEsc):
-			m.tokenInput = components.NewTokenModel()
+			m.tokenInput = NewTokenModel()
 			m.methodSelect = newMethodSelect(m.result.Host)
 			m.stage = stageMethodSelect
 			return m, nil
@@ -349,7 +349,7 @@ func (m LoginFlowModel) updateTokenInput(msg tea.Msg) (tea.Model, tea.Cmd) {
 	}
 
 	updated, subCmd := m.tokenInput.Update(msg)
-	m.tokenInput = updated.(components.TokenModel)
+	m.tokenInput = updated.(TokenModel)
 
 	tok := m.tokenInput.Token()
 	if tok == "" {
@@ -481,16 +481,16 @@ func (m LoginFlowModel) cmdGetUsername(token string) tea.Cmd {
 // --- views ---
 
 func (m LoginFlowModel) View() tea.View {
-	return withWindowTitle(m.buildView(), m.windowTitle())
+	return components.WithWindowTitle(m.buildView(), m.windowTitle())
 }
 
 // windowTitle names the auth flow in the terminal tab. Signup and login share
 // this model, so the wording follows opts.Signup.
 func (m LoginFlowModel) windowTitle() string {
 	if m.opts.Signup {
-		return flowTitle("sign up")
+		return components.FlowTitle("sign up")
 	}
-	return flowTitle("log in")
+	return components.FlowTitle("log in")
 }
 
 func (m LoginFlowModel) buildView() tea.View {

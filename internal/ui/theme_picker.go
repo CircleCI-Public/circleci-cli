@@ -277,7 +277,7 @@ func (m ThemePickerModel) loadingView() string {
 }
 
 func (m ThemePickerModel) View() tea.View {
-	return withWindowTitle(m.buildView(), flowTitle("theme"))
+	return components.WithWindowTitle(m.buildView(), components.FlowTitle("theme"))
 }
 
 func (m ThemePickerModel) buildView() tea.View {

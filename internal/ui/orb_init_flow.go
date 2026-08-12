@@ -636,7 +636,7 @@ func (m *OrbInitFlowModel) enterConfirm(stage orbInitStage, prompt string) tea.C
 // --- views ---
 
 func (m OrbInitFlowModel) View() tea.View {
-	return withWindowTitle(m.buildView(), flowTitle("orb init"))
+	return components.WithWindowTitle(m.buildView(), components.FlowTitle("orb init"))
 }
 
 func (m OrbInitFlowModel) buildView() tea.View {

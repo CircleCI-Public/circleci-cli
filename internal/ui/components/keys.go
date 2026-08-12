@@ -68,10 +68,6 @@ var (
 	// Pager committed-search navigation.
 	KeySearchNext = key.NewBinding(key.WithKeys("n"))
 	KeySearchPrev = key.NewBinding(key.WithKeys("N"))
-
-	// Run picker: jump the status filter back to "all statuses". The forward
-	// cycle reuses BindStatus below (it is also a footer entry).
-	KeyStatusClear = key.NewBinding(key.WithKeys("S"))
 )
 
 // Footer bindings that also serve as dispatch bindings: single-key actions whose
@@ -80,7 +76,6 @@ var (
 	BindSelect  = key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "select"))
 	BindSearch  = key.NewBinding(key.WithKeys("/"), key.WithHelp("/", "search"))
 	BindRefresh = key.NewBinding(key.WithKeys("r"), key.WithHelp("r", "refresh"))
-	BindStatus  = key.NewBinding(key.WithKeys("s"), key.WithHelp("s", "status"))
 	BindHelp    = key.NewBinding(key.WithKeys("?"), key.WithHelp("?", "help"))
 	BindQuit    = key.NewBinding(key.WithKeys("q"), key.WithHelp("q", "quit"))
 )
@@ -125,7 +120,7 @@ func footerHelp() help.Model {
 
 // Hints renders a one-line, muted footer for the given key bindings using the
 // shared house style. Use it for standalone footers a host draws itself (a
-// theme picker, a token prompt); components that own their footer store the
+// theme picker, a secret prompt); components that own their footer store the
 // bindings and render them internally.
 func Hints(bindings ...key.Binding) string {
 	return footerHelp().ShortHelpView(bindings)

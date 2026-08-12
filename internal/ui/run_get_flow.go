@@ -897,12 +897,12 @@ func (m RunGetFlowModel) updateRunSelect(msg tea.Msg) (tea.Model, tea.Cmd) {
 				return m, m.loadingCmd(m.cmdFetchRuns(next, m.statusIdx, m.createdFilter))
 			}
 			return m, nil
-		case key.Matches(k, components.BindStatus):
+		case key.Matches(k, BindStatus):
 			if m.statusFilterEnabled() {
 				return m.fetchStatus((m.statusIdx + 1) % len(m.statusFilters))
 			}
 			return m, nil
-		case key.Matches(k, components.KeyStatusClear):
+		case key.Matches(k, KeyStatusClear):
 			// Jump straight back to "all statuses" (index 0); a no-op when already
 			// there.
 			if m.statusFilterEnabled() && m.statusIdx != 0 {
@@ -1679,7 +1679,7 @@ func (m RunGetFlowModel) updateHelp(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m RunGetFlowModel) View() tea.View {
-	return withWindowTitle(m.buildView(), flowTitle("run get"))
+	return components.WithWindowTitle(m.buildView(), components.FlowTitle("run get"))
 }
 
 func (m RunGetFlowModel) buildView() tea.View {
@@ -1783,7 +1783,7 @@ func (m RunGetFlowModel) runSelectKeys() []key.Binding {
 		keys = append(keys, switchScopeBinding)
 	}
 	if m.statusFilterEnabled() {
-		keys = append(keys, components.BindStatus)
+		keys = append(keys, BindStatus)
 	}
 	if m.filterEnabled() {
 		keys = append(keys, components.BindSearch)

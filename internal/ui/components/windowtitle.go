@@ -20,7 +20,7 @@
 //
 // SPDX-License-Identifier: MIT
 
-package ui
+package components
 
 import tea "charm.land/bubbletea/v2"
 
@@ -29,24 +29,24 @@ import tea "charm.land/bubbletea/v2"
 // mark, the way the `claude` CLI leads its title with ✳.
 const titlePrefix = "◉ circleci"
 
-// flowTitle builds a terminal window/tab title for an interactive flow. Our
+// FlowTitle builds a terminal window/tab title for an interactive flow. Our
 // full-screen flows set this so the hosting terminal's tab reflects what the
 // CLI is doing — the way the `claude` CLI does. Bubble Tea emits it as OSC 2
 // (via tea.View.WindowTitle) and clears it again when the program exits.
 //
 // An empty action yields the bare prefix, for generic flows (e.g. the pager)
 // that have no single action to name.
-func flowTitle(action string) string {
+func FlowTitle(action string) string {
 	if action == "" {
 		return titlePrefix
 	}
 	return titlePrefix + " · " + action
 }
 
-// withWindowTitle stamps title onto v and returns it. Callers set it on every
+// WithWindowTitle stamps title onto v and returns it. Callers set it on every
 // frame so the title stays put for the flow's lifetime; Bubble Tea only writes
 // the escape when the value changes, and resets the terminal title on exit.
-func withWindowTitle(v tea.View, title string) tea.View {
+func WithWindowTitle(v tea.View, title string) tea.View {
 	v.WindowTitle = title
 	return v
 }
