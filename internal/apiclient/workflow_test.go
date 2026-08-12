@@ -33,8 +33,8 @@ import (
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 
+	"github.com/CircleCI-Public/circleci-cli/clikit/iostream"
 	"github.com/CircleCI-Public/circleci-cli/internal/apiclient"
-	"github.com/CircleCI-Public/circleci-cli/internal/iostream"
 )
 
 // TestGetWorkflowJobsV3_QueuedJobPhase pins the correction applied to the jobs

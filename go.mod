@@ -7,15 +7,12 @@ require (
 	charm.land/bubbletea/v2 v2.0.8
 	charm.land/glamour/v2 v2.0.0
 	charm.land/lipgloss/v2 v2.0.4
-	charm.land/log/v2 v2.0.0
 	github.com/CircleCI-Public/chunk-cli v0.7.135
 	github.com/CircleCI-Public/circle-policy-agent v0.0.779
 	github.com/MakeNowJust/heredoc v1.0.0
 	github.com/a8m/envsubst v1.4.3
 	github.com/charmbracelet/x/ansi v0.11.7
 	github.com/charmbracelet/x/exp/teatest/v2 v2.0.0-20260629091435-9c70f75e26a4
-	github.com/charmbracelet/x/term v0.2.2
-	github.com/cli/browser v1.3.0
 	github.com/go-chi/chi/v5 v5.3.1
 	github.com/go-chi/render v1.0.3
 	github.com/go-git/go-git/v6 v6.0.0-alpha.5
@@ -26,7 +23,6 @@ require (
 	github.com/hashicorp/go-retryablehttp v0.7.8
 	github.com/hashicorp/go-version v1.9.0
 	github.com/hexops/gotextdiff v1.0.3
-	github.com/itchyny/gojq v0.12.19
 	github.com/modelcontextprotocol/go-sdk v1.7.0
 	github.com/muesli/mango-cobra v1.3.0
 	github.com/muesli/roff v0.1.0
@@ -45,7 +41,15 @@ require (
 )
 
 require (
+	charm.land/log/v2 v2.0.0 // indirect
+	github.com/charmbracelet/x/term v0.2.2 // indirect
+	github.com/cli/browser v1.3.0 // indirect
+	github.com/itchyny/gojq v0.12.19 // indirect
+)
+
+require (
 	github.com/BurntSushi/toml v1.6.0 // indirect
+	github.com/CircleCI-Public/circleci-cli/clikit v0.0.0
 	github.com/Microsoft/go-winio v0.6.2 // indirect
 	github.com/ProtonMail/go-crypto v1.4.1 // indirect
 	github.com/agnivade/levenshtein v1.2.1 // indirect
@@ -140,3 +144,5 @@ require (
 replace charm.land/lipgloss/v2 => github.com/pete-woods/lipgloss/v2 v2.0.0-20260703152313-68f644e4cf9f
 
 replace charm.land/glamour/v2 => github.com/pete-woods/glamour/v2 v2.0.0-20260703152611-0a8c8cf28d00
+
+replace github.com/CircleCI-Public/circleci-cli/clikit => ./clikit

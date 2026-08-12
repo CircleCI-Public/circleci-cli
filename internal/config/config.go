@@ -40,7 +40,7 @@ import (
 	"github.com/google/uuid"
 	"gopkg.in/yaml.v3"
 
-	"github.com/CircleCI-Public/circleci-cli/internal/closer"
+	"github.com/CircleCI-Public/circleci-cli/clikit/closer"
 	"github.com/CircleCI-Public/circleci-cli/internal/keyring"
 )
 

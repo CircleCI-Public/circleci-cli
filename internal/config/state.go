@@ -33,7 +33,7 @@ import (
 	"github.com/gofrs/flock"
 	"gopkg.in/yaml.v3"
 
-	"github.com/CircleCI-Public/circleci-cli/internal/closer"
+	"github.com/CircleCI-Public/circleci-cli/clikit/closer"
 )
 
 // StateDir returns the absolute path to the CLI state directory. Resolution

@@ -36,9 +36,9 @@ import (
 
 	goversion "github.com/hashicorp/go-version"
 
+	"github.com/CircleCI-Public/circleci-cli/clikit/iostream"
 	"github.com/CircleCI-Public/circleci-cli/internal/agent"
 	"github.com/CircleCI-Public/circleci-cli/internal/config"
-	"github.com/CircleCI-Public/circleci-cli/internal/iostream"
 )
 
 const (

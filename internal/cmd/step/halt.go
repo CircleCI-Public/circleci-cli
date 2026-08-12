@@ -30,7 +30,7 @@ import (
 	"github.com/MakeNowJust/heredoc"
 	"github.com/spf13/cobra"
 
-	clierrors "github.com/CircleCI-Public/circleci-cli/internal/errors"
+	clierrors "github.com/CircleCI-Public/circleci-cli/clikit/errors"
 )
 
 func newHaltCmd() *cobra.Command {

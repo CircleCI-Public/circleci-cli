@@ -28,10 +28,10 @@ import (
 
 	"gopkg.in/yaml.v3"
 
+	clierrors "github.com/CircleCI-Public/circleci-cli/clikit/errors"
 	"github.com/CircleCI-Public/circleci-cli/internal/apiclient"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmdutil"
 	"github.com/CircleCI-Public/circleci-cli/internal/configcmd"
-	clierrors "github.com/CircleCI-Public/circleci-cli/internal/errors"
 )
 
 // resolveOwnerID resolves the organization reference to its UUID for config

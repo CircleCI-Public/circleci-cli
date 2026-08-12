@@ -32,10 +32,10 @@ import (
 	"github.com/google/uuid"
 	"github.com/spf13/cobra"
 
+	"github.com/CircleCI-Public/circleci-cli/clikit/iostream"
+	"github.com/CircleCI-Public/circleci-cli/clikit/mdtable"
 	"github.com/CircleCI-Public/circleci-cli/internal/apiclient"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmdutil"
-	"github.com/CircleCI-Public/circleci-cli/internal/iostream"
-	"github.com/CircleCI-Public/circleci-cli/internal/mdtable"
 )
 
 func newGetCmd() *cobra.Command {

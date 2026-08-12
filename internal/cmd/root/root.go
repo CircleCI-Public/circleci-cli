@@ -26,10 +26,13 @@ import (
 	"os"
 	"strings"
 
+	"charm.land/glamour/v2"
 	"github.com/njayp/ophis"
 	"github.com/shirou/gopsutil/v4/host"
 	"github.com/spf13/cobra"
 
+	clierrors "github.com/CircleCI-Public/circleci-cli/clikit/errors"
+	"github.com/CircleCI-Public/circleci-cli/clikit/iostream"
 	"github.com/CircleCI-Public/circleci-cli/internal/agent"
 	cmdapi "github.com/CircleCI-Public/circleci-cli/internal/cmd/api"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmd/artifacts"
@@ -65,8 +68,7 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/internal/cmd/workflow"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmdutil"
 	"github.com/CircleCI-Public/circleci-cli/internal/config"
-	clierrors "github.com/CircleCI-Public/circleci-cli/internal/errors"
-	"github.com/CircleCI-Public/circleci-cli/internal/iostream"
+	"github.com/CircleCI-Public/circleci-cli/internal/iostreamcobra"
 	"github.com/CircleCI-Public/circleci-cli/internal/telemetry"
 	"github.com/CircleCI-Public/circleci-cli/internal/update"
 )
@@ -123,7 +125,7 @@ func NewRootCmd(version string) *cobra.Command {
 			return func() {}, err
 		}
 
-		ctx = iostream.FromCmd(ctx, cmd, cfg.EffectiveTheme())
+		ctx = iostreamcobra.FromCmd(ctx, cmd, cfg.EffectiveTheme(), glamour.WithTableFitContent())
 		ctx = cmdutil.WithVersion(ctx, version)
 		ctx = cmdutil.WithConfig(ctx, cfg)
 

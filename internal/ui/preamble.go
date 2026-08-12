@@ -28,7 +28,7 @@ import (
 	"charm.land/bubbles/v2/key"
 	tea "charm.land/bubbletea/v2"
 
-	"github.com/CircleCI-Public/circleci-cli/internal/ui/components"
+	"github.com/CircleCI-Public/circleci-cli/clikit/ui/components"
 )
 
 // PreambleModel is a bubbletea model for an "Enter to continue · Esc to cancel"
