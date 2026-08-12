@@ -25,7 +25,7 @@ package reposcan
 import (
 	"context"
 
-	"github.com/CircleCI-Public/circleci-cli/internal/iostream"
+	"github.com/CircleCI-Public/circleci-cli/clikit/iostream"
 )
 
 // Render writes a human-readable summary of the scan Result to the streams in

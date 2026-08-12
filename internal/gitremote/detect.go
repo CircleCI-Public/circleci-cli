@@ -36,7 +36,7 @@ import (
 	"github.com/go-git/go-git/v6"
 	"github.com/go-git/go-git/v6/plumbing"
 
-	"github.com/CircleCI-Public/circleci-cli/internal/closer"
+	"github.com/CircleCI-Public/circleci-cli/clikit/closer"
 	"github.com/CircleCI-Public/circleci-cli/internal/projectref"
 )
 

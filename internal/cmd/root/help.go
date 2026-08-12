@@ -34,8 +34,8 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 
-	"github.com/CircleCI-Public/circleci-cli/internal/iostream"
-	"github.com/CircleCI-Public/circleci-cli/internal/mdtable"
+	"github.com/CircleCI-Public/circleci-cli/clikit/iostream"
+	"github.com/CircleCI-Public/circleci-cli/clikit/mdtable"
 )
 
 func rootUsage(command *cobra.Command) error {

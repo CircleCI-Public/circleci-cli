@@ -35,9 +35,9 @@ import (
 	"charm.land/lipgloss/v2"
 	"github.com/google/uuid"
 
+	"github.com/CircleCI-Public/circleci-cli/clikit/ui/components"
+	"github.com/CircleCI-Public/circleci-cli/clikit/ui/theme"
 	"github.com/CircleCI-Public/circleci-cli/internal/termrender"
-	"github.com/CircleCI-Public/circleci-cli/internal/ui/components"
-	"github.com/CircleCI-Public/circleci-cli/internal/ui/theme"
 )
 
 // switchScopeBinding is the run picker's "switch trigger" shortcut, built from

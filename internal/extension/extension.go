@@ -30,8 +30,8 @@ import (
 	"runtime"
 	"strings"
 
+	"github.com/CircleCI-Public/circleci-cli/clikit/iostream"
 	"github.com/CircleCI-Public/circleci-cli/internal/apiclient"
-	"github.com/CircleCI-Public/circleci-cli/internal/iostream"
 )
 
 // Unmanaged represents an extension not managed by the CLI.

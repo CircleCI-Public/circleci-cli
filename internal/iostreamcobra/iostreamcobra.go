@@ -28,7 +28,7 @@ import (
 	"charm.land/glamour/v2"
 	"github.com/spf13/cobra"
 
-	"github.com/CircleCI-Public/circleci-cli/internal/iostream"
+	"github.com/CircleCI-Public/circleci-cli/clikit/iostream"
 )
 
 // FromCmd builds iostream Options from cmd and returns a context carrying the

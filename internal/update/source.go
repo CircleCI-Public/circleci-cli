@@ -26,9 +26,9 @@ import (
 	"context"
 	"net/http"
 
+	"github.com/CircleCI-Public/circleci-cli/clikit/iostream"
 	"github.com/CircleCI-Public/circleci-cli/internal/apiclient"
 	"github.com/CircleCI-Public/circleci-cli/internal/httpcl"
-	"github.com/CircleCI-Public/circleci-cli/internal/iostream"
 )
 
 // proxySource fetches the latest release from GET /api/v3/tool/releases. It is

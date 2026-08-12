@@ -24,9 +24,10 @@ package ui
 
 import "charm.land/bubbles/v2/key"
 
-// Run-picker key bindings. These are not generic TUI keys — both describe the
-// run status filter — so they live with the flow that uses them rather than in
-// the shared components keymap.
+// Run-picker key bindings. These live here rather than in clikit/ui/components
+// because they are not generic TUI keys: both describe the CircleCI run status
+// filter, so an extension has no use for them. Generic bindings (movement,
+// search, select, help, quit) stay in the shared keymap.
 var (
 	// BindStatus cycles the run picker's status filter forward. It is both a
 	// dispatch binding and a footer entry.

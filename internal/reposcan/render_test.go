@@ -31,7 +31,7 @@ import (
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/golden"
 
-	"github.com/CircleCI-Public/circleci-cli/internal/iostream"
+	"github.com/CircleCI-Public/circleci-cli/clikit/iostream"
 )
 
 func captureCtx() (context.Context, *bytes.Buffer) {

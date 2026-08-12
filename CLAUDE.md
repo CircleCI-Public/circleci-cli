@@ -17,9 +17,9 @@ current circleci CLI got them wrong, and this project exists to fix them.
 No exceptions. Consistent JSON coverage is the #1 differentiator between a scripting
 tool and an interactive-only tool. Use the output helper in `internal/output`.
 
-**2. Use the structured error type in `internal/errors`. Never `fmt.Errorf` in handlers.**
+**2. Use the structured error type in `clikit/errors`. Never `fmt.Errorf` in handlers.**
 Every error must have: `code`, `title`, `message`, `suggestions[]`, `ref` (doc URL).
-Exit code constants live in `internal/errors/exitcodes.go` — always use those, never raw integers.
+Exit code constants live in `clikit/errors/exitcodes.go` — always use those, never raw integers.
 
 **3. Never import from the existing circleci-cli.**
 This project is a clean rewrite. Importing from the old CLI would carry forward the design
@@ -85,6 +85,8 @@ cmd/circleci/main.go      Entry point. Cobra bootstrap + top-level error handlin
                           produces a binary named `circleci`, not `circleci-cli`.)
 acceptance/               Acceptance tests — exec the compiled binary against fake servers.
 agents/                   Design guidelines (normative — see above).
+clikit/                   Terminal I/O + presentation layer — its own Go module, published
+                          for extension authors (below).
 share/                    Shipped man pages + bash/zsh completions.
 skills/circleci/          Agent skill shipped with the CLI.
 packaging/                Distribution packaging assets (deb).
@@ -92,6 +94,41 @@ tools/                    Standalone build tooling — its own Go module.
 docs/                     Hugo website, blog posts, terminal demo recordings.
 internal/                 Everything else (below).
 ```
+
+### `clikit/` — the published presentation layer
+
+A **separate Go module** (`github.com/CircleCI-Public/circleci-cli/clikit`) holding what an
+extension needs to look like the CLI: `iostream`, `errors`, `ui`, `ui/components`, `ui/theme`,
+`mdtable`, `jq`, `jsoncolor`, `browser`, `closer`. It is `go get`-able, so it cannot live under
+`internal/` and must not import from it — the dependency only ever runs CLI → clikit.
+
+The root `go.mod` carries `replace github.com/CircleCI-Public/circleci-cli/clikit => ./clikit`, so
+the CLI **always** builds against the working copy, never a published version. Never remove that
+replace; the `require` line's version is a placeholder it makes unreachable.
+
+Three constraints when editing `clikit`:
+
+- **Nothing in `clikit` may import `internal/`.** If a change needs CircleCI domain knowledge
+  (API client, config, git remote), it belongs in `internal/`.
+- **No CLI framework in `clikit`** — no cobra, kong, urfave/cli or `flag`, in the code or in
+  `go.mod`; a depguard rule enforces it. `iostream.New` takes a plain `iostream.Options`, and
+  `internal/iostreamcobra` is the only place cobra and `clikit` meet.
+- **`clikit` must build against *upstream* charm libraries**, with no `replace` of its own — a
+  dependency module's replaces are ignored, so anything fork-only breaks every consumer's `go get`.
+  `glamour.WithTableFitContent()` is the live example: `iostream.Options.MarkdownOptions` carries
+  it and `internal/cmd/root` passes it in. Inject fork-only behaviour from the CLI the same way.
+
+`clikit` is not covered by `./...` from the repo root. `task test`, `task check` and `task fix`
+already run both modules; by hand, name the module path
+(`github.com/CircleCI-Public/circleci-cli/clikit/...`) or `cd clikit` first.
+
+**Releasing.** Go resolves a module in a subdirectory only from a `clikit/vX.Y.Z` tag — the CLI's
+own `vX.Y.Z` tag does nothing for it. `task ci:tag-clikit`, the last step of `ci:release`, pushes
+that tag on every release, mirroring the CLI version, so `clikit/v1.0.123` is the clikit that
+shipped in `v1.0.123`. It must stay **last**: with two tags on one commit
+`git describe --tags --abbrev=0` returns the `clikit/…` one, and that is how goreleaser picks the
+current tag — tagging any earlier would stamp `clikit/v1.0.123` into every download URL and
+package template.
 
 ### `internal/cmd/` — one package per top-level command
 
@@ -175,11 +212,8 @@ internal/
 internal/
 ├── cmdutil/              Shared command helpers: AddJSONFlag/WriteJSON, API client
 │                         construction, project resolution, app URLs, GroupRunE, telemetry.
-├── iostream/             TTY detection, color, themes, spinner, stdout/stderr wiring.
-│                         NEVER call os.Getenv("NO_COLOR") in a command — ask IOStreams.
-├── errors/               Structured error type + exit code constants.
-│                         exitcodes.go: ExitSuccess=0, ExitAuthError=3, ExitAPIError=4,
-│                         ExitNotFound=5, ExitValidationFail=7, ExitTimeout=8
+├── iostreamcobra/        Adapts a *cobra.Command to clikit/iostream.Options. The only
+│                         place cobra and clikit meet — see the clikit section above.
 ├── config/               Read/write ~/.config/circleci/config.yml (XDG standard).
 ├── keyring/              OS keychain storage for the API token.
 ├── apiclient/            CircleCI REST API client. Injected via constructor; tests pass
@@ -190,20 +224,18 @@ internal/
 ├── httpcl/               Minimal HTTP client with JSON defaults and retries.
 ├── oauth/                Client side of the CircleCI OAuth 2.0 Authorization Code + PKCE
 │                         flow, with Pushed Authorization Requests.
-├── browser/              Opens a URL in the user's browser, or prints it as a fallback.
-├── ui/                   Bubble Tea prompts, selects, and flows (login, orb init, run get,
-│                         run filter, theme picker). components/ = reusable widgets;
-│                         theme/ = colour tokens.
-├── jsoncolor/            ANSI-colorized, indented JSON writer.
-├── mdtable/              GitHub-Flavored Markdown table builder.
+├── ui/                   The CircleCI-specific full-screen Bubble Tea flows: login, orb init,
+│                         run get, run filter, onboarding preamble. The generic prompts and
+│                         widgets they compose live in clikit/ui and clikit/ui/components.
 ├── termrender/           Replays captured terminal output for docs/demos.
-├── jq/                   jq expression evaluation over JSON strings.
 ├── telemetry/            Segment event sender + background delegate + receiver/.
 ├── agent/                Detect() — identifies the calling AI agent / MCP host so telemetry
 │                         attributes tool-call subprocesses correctly.
-├── bulkhead/             Runs a slice of work with bounded parallelism.
-└── closer/               io.Closer error-handling helper for deferred Close().
+└── bulkhead/             Runs a slice of work with bounded parallelism.
 ```
+
+`iostream`, `errors`, `mdtable`, `jq`, `jsoncolor`, `browser`, `closer`, `ui/components` and
+`ui/theme` used to live here; they are now in [`clikit/`](#clikit--the-published-presentation-layer).
 
 ### `internal/testing/` — test helpers
 
@@ -286,7 +318,7 @@ through `iostream.Streams`.
 
 ## Exit codes
 
-Defined in `internal/errors/exitcodes.go`. Document new codes there before using them.
+Defined in `clikit/errors/exitcodes.go`. Document new codes there before using them.
 
 | Code | Constant | Meaning |
 |---|---|---|
@@ -320,11 +352,14 @@ commit.
 will use day to day:
 
 ```sh
-task test        # all tests (unit + acceptance) across ./..., with -race -count=1, via gotestsum
-task check       # all static checks: lint, license headers, mod-tidy, release-check
+task test        # all tests (unit + acceptance), root module + clikit, -race -count=1, gotestsum
+task check       # all static checks: lint (both modules), license headers, mod-tidy, release-check
 task fix         # auto-fix what `task check` flags: fmt, license, mod-tidy, lint --fix
 task build       # build the circleci binary to dist/circleci
 ```
+
+All three cover both Go modules. `clikit` is separate, so `./...` does not reach it — `task test`
+names it by module path and `task lint:clikit` / `task fmt:clikit` run inside its directory.
 
 `task test` passes `-count=1`, so results are never cached. This matters for acceptance tests:
 they exec a freshly-built binary as a subprocess (`internal/testing/binary` runs `go build` at
@@ -341,7 +376,12 @@ task test -- ./internal/config/...             # one package
 task test -- -run TestValidate ./...           # one test by name
 task test -- ./acceptance/... -update          # regenerate golden files (never hand-write them)
 task test -- ./internal/cmd/root/... -update   # refresh the help/usage goldens after changing any help text
+task test -- github.com/CircleCI-Public/circleci-cli/clikit/iostream   # a clikit package
 ```
+
+Note the last one: passing `CLI_ARGS` replaces the default patterns, so a relative path only ever
+selects root-module packages. `clikit` packages must be named by module path — `./clikit/...` is
+rejected as outside the main module.
 
 That last one matters here: `internal/cmd/root/testdata/help/` holds a golden `--help` capture
 for every command in the tree, so touching a `Short`/`Long`/`Example` or adding a flag updates
@@ -372,7 +412,7 @@ Dev tools (golangci-lint, gotestsum, gosimports) are pinned via the `tool` direc
    `Long`. Wire `--json` using `encoding/json` directly for now.
 4. If the command mutates state: add `--force` for destructive ops; `--dry-run` where
    preview is useful.
-5. All errors via `internal/errors` — never raw strings or `fmt.Errorf` in handlers.
+5. All errors via `clikit/errors` — never raw strings or `fmt.Errorf` in handlers.
 6. Wire the command into `internal/cmd/<group>/<group>.go` and into `internal/cmd/root/root.go`.
 7. If nesting would reach 3 levels, create a top-level alias command in `internal/cmd/<alias>/`
    that is the primary user-facing entry point. The deep path becomes a thin wrapper.

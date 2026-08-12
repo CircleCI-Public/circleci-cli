@@ -35,8 +35,8 @@ import (
 	"charm.land/lipgloss/v2"
 	"github.com/charmbracelet/x/ansi"
 
-	"github.com/CircleCI-Public/circleci-cli/internal/ui/components"
-	"github.com/CircleCI-Public/circleci-cli/internal/ui/theme"
+	"github.com/CircleCI-Public/circleci-cli/clikit/ui/components"
+	"github.com/CircleCI-Public/circleci-cli/clikit/ui/theme"
 )
 
 // orbInitStage identifies which screen of the orb-init wizard is showing. The

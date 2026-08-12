@@ -31,12 +31,12 @@ import (
 	"os/signal"
 	"syscall"
 
+	clierrors "github.com/CircleCI-Public/circleci-cli/clikit/errors"
+	"github.com/CircleCI-Public/circleci-cli/clikit/jq"
 	"github.com/CircleCI-Public/circleci-cli/internal/apiclient"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmd/root"
-	clierrors "github.com/CircleCI-Public/circleci-cli/internal/errors"
 	"github.com/CircleCI-Public/circleci-cli/internal/extension"
 	"github.com/CircleCI-Public/circleci-cli/internal/httpcl"
-	"github.com/CircleCI-Public/circleci-cli/internal/jq"
 )
 
 var version = "dev"

@@ -35,10 +35,10 @@ import (
 	"charm.land/lipgloss/v2"
 	"github.com/google/uuid"
 
-	"github.com/CircleCI-Public/circleci-cli/internal/browser"
+	"github.com/CircleCI-Public/circleci-cli/clikit/browser"
+	"github.com/CircleCI-Public/circleci-cli/clikit/ui/components"
+	"github.com/CircleCI-Public/circleci-cli/clikit/ui/theme"
 	"github.com/CircleCI-Public/circleci-cli/internal/oauth"
-	"github.com/CircleCI-Public/circleci-cli/internal/ui/components"
-	"github.com/CircleCI-Public/circleci-cli/internal/ui/theme"
 )
 
 const defaultHost = "https://circleci.com"

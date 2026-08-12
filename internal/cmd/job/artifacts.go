@@ -28,10 +28,10 @@ import (
 	"github.com/MakeNowJust/heredoc"
 	"github.com/spf13/cobra"
 
+	clierrors "github.com/CircleCI-Public/circleci-cli/clikit/errors"
+	"github.com/CircleCI-Public/circleci-cli/clikit/iostream"
 	"github.com/CircleCI-Public/circleci-cli/internal/artifacts"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmdutil"
-	clierrors "github.com/CircleCI-Public/circleci-cli/internal/errors"
-	"github.com/CircleCI-Public/circleci-cli/internal/iostream"
 )
 
 func newArtifactCmd() *cobra.Command {

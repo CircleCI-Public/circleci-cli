@@ -34,8 +34,8 @@ import (
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/assert/cmp"
 
+	"github.com/CircleCI-Public/circleci-cli/clikit/iostream"
 	"github.com/CircleCI-Public/circleci-cli/internal/apiclient"
-	"github.com/CircleCI-Public/circleci-cli/internal/iostream"
 )
 
 // Shared UUIDs for the iOS signing client tests. Real IDs are UUIDs, so the

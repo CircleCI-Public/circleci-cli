@@ -34,8 +34,8 @@ import (
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/assert/cmp"
 
-	clierrors "github.com/CircleCI-Public/circleci-cli/internal/errors"
-	"github.com/CircleCI-Public/circleci-cli/internal/iostream"
+	clierrors "github.com/CircleCI-Public/circleci-cli/clikit/errors"
+	"github.com/CircleCI-Public/circleci-cli/clikit/iostream"
 	"github.com/CircleCI-Public/circleci-cli/internal/reposcan"
 )
 

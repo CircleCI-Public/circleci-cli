@@ -34,8 +34,8 @@ import (
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/assert/cmp"
 
+	"github.com/CircleCI-Public/circleci-cli/clikit/iostream"
 	"github.com/CircleCI-Public/circleci-cli/internal/config"
-	"github.com/CircleCI-Public/circleci-cli/internal/iostream"
 )
 
 // fakeSource is a test double for Source that records how often it is called.

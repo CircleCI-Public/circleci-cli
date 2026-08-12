@@ -1,0 +1,130 @@
+// Copyright (c) 2026 Circle Internet Services, Inc.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+//
+// SPDX-License-Identifier: MIT
+
+package ui
+
+import (
+	"charm.land/bubbles/v2/key"
+	"charm.land/bubbles/v2/textinput"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
+	"github.com/charmbracelet/x/ansi"
+
+	"github.com/CircleCI-Public/circleci-cli/clikit/ui/components"
+	"github.com/CircleCI-Public/circleci-cli/clikit/ui/theme"
+)
+
+// PromptModel is a bubbletea model for prompting a single line of plain
+// (non-secret) text. Esc / Ctrl+C cancel. Enter confirms.
+type PromptModel struct {
+	textInput   textinput.Model
+	header      string
+	placeholder string
+	defaultVal  string
+	quitting    bool
+	value       string
+}
+
+// NewPromptModel creates a PromptModel with the given header, an optional
+// placeholder shown inside the empty input field, and an optional default
+// value accepted when the user presses Enter with an empty field.
+func NewPromptModel(header, placeholder, defaultVal string) PromptModel {
+	ti := textinput.New()
+	ti.SetVirtualCursor(false)
+	if placeholder != "" {
+		ti.Placeholder = placeholder
+		ti.SetWidth(len(placeholder))
+	}
+	ti.Focus()
+
+	return PromptModel{textInput: ti, header: header, placeholder: placeholder, defaultVal: defaultVal}
+}
+
+// Quitting reports whether the user pressed Esc or Ctrl+C without confirming.
+func (m PromptModel) Quitting() bool { return m.quitting }
+
+// Value returns the entered text.
+func (m PromptModel) Value() string { return m.value }
+
+func (m PromptModel) Init() tea.Cmd {
+	return textinput.Blink
+}
+
+func (m PromptModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	var cmd tea.Cmd
+
+	if keyMsg, ok := msg.(tea.KeyPressMsg); ok {
+		switch {
+		case key.Matches(keyMsg, components.KeyCtrlC, components.KeyEsc):
+			m.quitting = true
+			return m, tea.Quit
+		case key.Matches(keyMsg, components.KeyEnter):
+			m.value = m.textInput.Value()
+			if m.value == "" {
+				m.value = m.defaultVal
+			}
+			return m, tea.Quit
+		}
+	}
+
+	m.textInput, cmd = m.textInput.Update(msg)
+	return m, cmd
+}
+
+func (m PromptModel) View() tea.View {
+	if m.value != "" {
+		return tea.NewView("")
+	}
+
+	var c *tea.Cursor
+	if !m.textInput.VirtualCursor() {
+		c = m.textInput.Cursor()
+		c.Y += lipgloss.Height(m.headerView())
+	}
+
+	str := lipgloss.JoinVertical(lipgloss.Top, m.headerView(), m.textInput.View(), m.footerView())
+	if m.quitting {
+		str += "\n"
+	}
+
+	v := tea.NewView(str)
+	v.Cursor = c
+	return v
+}
+
+func (m PromptModel) headerView() string { return theme.TitleStyle.Render(m.header) }
+func (m PromptModel) footerView() string {
+	// Build the whole footer as one styled run. The default hint and the key hints
+	// are all muted, so composing them as plain text and styling once (rather than
+	// concatenating two separately-styled strings) keeps the line contiguous in the
+	// output — an SGR reset mid-line splits it on terminals that don't coalesce
+	// adjacent same-color runs (Windows ConPTY), which breaks matching on it.
+	keys := ansi.Strip(components.Hints(
+		key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "confirm")),
+		key.NewBinding(key.WithKeys("esc"), key.WithHelp("esc", "cancel")),
+	))
+	line := keys
+	if m.defaultVal != "" {
+		line = "default: " + m.defaultVal + " · " + keys
+	}
+	return theme.HelperStyle.Render(line)
+}

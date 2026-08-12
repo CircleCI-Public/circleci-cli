@@ -32,10 +32,10 @@ import (
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
 
+	clierrors "github.com/CircleCI-Public/circleci-cli/clikit/errors"
+	"github.com/CircleCI-Public/circleci-cli/clikit/iostream"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmdutil"
 	"github.com/CircleCI-Public/circleci-cli/internal/configcmd"
-	clierrors "github.com/CircleCI-Public/circleci-cli/internal/errors"
-	"github.com/CircleCI-Public/circleci-cli/internal/iostream"
 )
 
 func newEvalCmd() *cobra.Command {

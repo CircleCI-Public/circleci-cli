@@ -37,7 +37,7 @@ import (
 	"gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/poll"
 
-	"github.com/CircleCI-Public/circleci-cli/internal/iostream"
+	"github.com/CircleCI-Public/circleci-cli/clikit/iostream"
 	"github.com/CircleCI-Public/circleci-cli/internal/telemetry"
 	"github.com/CircleCI-Public/circleci-cli/internal/testing/binary"
 	"github.com/CircleCI-Public/circleci-cli/internal/testing/fakesegment"

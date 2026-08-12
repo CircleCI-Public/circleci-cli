@@ -29,9 +29,9 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/CircleCI-Public/circleci-cli/clikit/iostream"
 	"github.com/CircleCI-Public/circleci-cli/internal/apiclient"
 	"github.com/CircleCI-Public/circleci-cli/internal/httpcl"
-	"github.com/CircleCI-Public/circleci-cli/internal/iostream"
 )
 
 // runFailureReport prints condensed output for every failed step in the run,

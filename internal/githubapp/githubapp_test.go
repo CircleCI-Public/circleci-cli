@@ -34,9 +34,9 @@ import (
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/assert/cmp"
 
+	"github.com/CircleCI-Public/circleci-cli/clikit/iostream"
 	"github.com/CircleCI-Public/circleci-cli/internal/apiclient"
 	"github.com/CircleCI-Public/circleci-cli/internal/githubapp"
-	"github.com/CircleCI-Public/circleci-cli/internal/iostream"
 )
 
 // testCtx returns a context wired with test IO streams, which the API client's

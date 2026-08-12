@@ -35,7 +35,7 @@ import (
 	"github.com/go-git/go-git/v6"
 	"github.com/go-git/go-git/v6/config"
 
-	"github.com/CircleCI-Public/circleci-cli/internal/iostream"
+	"github.com/CircleCI-Public/circleci-cli/clikit/iostream"
 
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"

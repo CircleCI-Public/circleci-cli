@@ -28,14 +28,14 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 
-	"github.com/CircleCI-Public/circleci-cli/internal/ui/components"
-	"github.com/CircleCI-Public/circleci-cli/internal/ui/theme"
+	"github.com/CircleCI-Public/circleci-cli/clikit/ui/components"
+	"github.com/CircleCI-Public/circleci-cli/clikit/ui/theme"
 )
 
-// TokenModel collects a CircleCI personal access token. It is not a reusable
-// widget — the header copy and the CCIPAT_ placeholder (which also sets the
-// input's width and char limit) are specific to CircleCI auth — so it belongs
-// with the login flow rather than in the shared components package.
+// TokenModel collects a CircleCI personal access token. It lives here rather
+// than in clikit/ui/components because it is not a reusable widget: the header
+// copy and the CCIPAT_ placeholder (which also sets the input's width and char
+// limit) are specific to CircleCI auth. It is a stage of the login flow.
 type TokenModel struct {
 	textInput textinput.Model
 	token     string

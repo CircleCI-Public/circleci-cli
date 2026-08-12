@@ -27,7 +27,7 @@ import (
 
 	"github.com/segmentio/analytics-go/v3"
 
-	"github.com/CircleCI-Public/circleci-cli/internal/iostream"
+	"github.com/CircleCI-Public/circleci-cli/clikit/iostream"
 )
 
 type loggingDestination struct {
