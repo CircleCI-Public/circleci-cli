@@ -58,6 +58,7 @@ import (
 
 	"github.com/CircleCI-Public/circleci-cli/internal/httpcl"
 	"github.com/CircleCI-Public/circleci-cli/internal/iostream"
+	"github.com/CircleCI-Public/circleci-cli/internal/iostreamcobra"
 )
 
 // defaultDistribution is Cloudsmith's generic "fat" distribution: a single upload
@@ -76,7 +77,7 @@ func rootCmd() *cobra.Command {
 		Short:        "Publish packages to Cloudsmith",
 		SilenceUsage: true,
 	}
-	// --debug is read by iostream.FromCmd to enable httpcl's request logging; as a
+	// --debug is read by iostreamcobra.FromCmd to enable httpcl's request logging; as a
 	// persistent flag it's available to every subcommand.
 	cmd.PersistentFlags().Bool("debug", false, "log HTTP requests to stderr")
 	cmd.AddCommand(pushCmd())
@@ -106,7 +107,7 @@ func pushFormatCmd(format, label string, withComponent bool) *cobra.Command {
 		Short: "Upload " + label + " packages to Cloudsmith",
 		Args:  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx := iostream.FromCmd(cmd.Context(), cmd, "")
+			ctx := iostreamcobra.FromCmd(cmd.Context(), cmd, "")
 			return runPush(ctx, opts, args)
 		},
 	}

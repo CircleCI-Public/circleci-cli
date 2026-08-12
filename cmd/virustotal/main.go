@@ -60,6 +60,7 @@ import (
 
 	"github.com/CircleCI-Public/circleci-cli/internal/httpcl"
 	"github.com/CircleCI-Public/circleci-cli/internal/iostream"
+	"github.com/CircleCI-Public/circleci-cli/internal/iostreamcobra"
 )
 
 const (
@@ -85,7 +86,7 @@ func rootCmd() *cobra.Command {
 		Short:        "Submit release artifacts to VirusTotal",
 		SilenceUsage: true,
 	}
-	// --debug is read by iostream.FromCmd to enable httpcl's request logging.
+	// --debug is read by iostreamcobra.FromCmd to enable httpcl's request logging.
 	cmd.PersistentFlags().Bool("debug", false, "log HTTP requests to stderr")
 	cmd.AddCommand(submitCmd())
 	return cmd
@@ -98,7 +99,7 @@ func submitCmd() *cobra.Command {
 		Short: "Upload files to VirusTotal for scanning",
 		Args:  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx := iostream.FromCmd(cmd.Context(), cmd, "")
+			ctx := iostreamcobra.FromCmd(cmd.Context(), cmd, "")
 			return runSubmit(ctx, opts, args)
 		},
 	}

@@ -36,7 +36,7 @@ import (
 	"gotest.tools/v3/golden"
 
 	"github.com/CircleCI-Public/circleci-cli/internal/cmd/root"
-	"github.com/CircleCI-Public/circleci-cli/internal/iostream"
+	"github.com/CircleCI-Public/circleci-cli/internal/iostreamcobra"
 )
 
 // Golden subdirectories, one per rendering: `circleci <cmd> --help` and the
@@ -169,7 +169,7 @@ func testSubCommandUsage(t *testing.T, prefix string, parent *cobra.Command, bas
 		parent.SetOut(bb)
 		parent.SetErr(bb)
 
-		ctx := iostream.FromCmd(context.Background(), parent, "")
+		ctx := iostreamcobra.FromCmd(context.Background(), parent, "")
 		parent.SetContext(ctx)
 
 		err := f(parent)

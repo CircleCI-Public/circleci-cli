@@ -68,6 +68,7 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/internal/config"
 	clierrors "github.com/CircleCI-Public/circleci-cli/internal/errors"
 	"github.com/CircleCI-Public/circleci-cli/internal/iostream"
+	"github.com/CircleCI-Public/circleci-cli/internal/iostreamcobra"
 	"github.com/CircleCI-Public/circleci-cli/internal/telemetry"
 	"github.com/CircleCI-Public/circleci-cli/internal/update"
 )
@@ -124,7 +125,7 @@ func NewRootCmd(version string) *cobra.Command {
 			return func() {}, err
 		}
 
-		ctx = iostream.FromCmd(ctx, cmd, cfg.EffectiveTheme(), glamour.WithTableFitContent())
+		ctx = iostreamcobra.FromCmd(ctx, cmd, cfg.EffectiveTheme(), glamour.WithTableFitContent())
 		ctx = cmdutil.WithVersion(ctx, version)
 		ctx = cmdutil.WithConfig(ctx, cfg)
 

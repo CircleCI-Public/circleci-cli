@@ -55,6 +55,7 @@ import (
 
 	"github.com/CircleCI-Public/circleci-cli/internal/httpcl"
 	"github.com/CircleCI-Public/circleci-cli/internal/iostream"
+	"github.com/CircleCI-Public/circleci-cli/internal/iostreamcobra"
 )
 
 func main() {
@@ -69,7 +70,7 @@ func rootCmd() *cobra.Command {
 		Short:        "Publish packages to, and inspect, packagecloud.io",
 		SilenceUsage: true,
 	}
-	// --debug is read by iostream.FromCmd to enable httpcl's request logging; as a
+	// --debug is read by iostreamcobra.FromCmd to enable httpcl's request logging; as a
 	// persistent flag it's available to every subcommand.
 	cmd.PersistentFlags().Bool("debug", false, "log HTTP requests to stderr")
 	cmd.AddCommand(pkgCmd(), repoCmd())
@@ -93,7 +94,7 @@ func pushCmd() *cobra.Command {
 		Short: "Upload Linux nfpm packages (.rpm/.deb) to packagecloud.io",
 		Args:  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx := iostream.FromCmd(cmd.Context(), cmd, "")
+			ctx := iostreamcobra.FromCmd(cmd.Context(), cmd, "")
 			return runPush(ctx, repo, args, dryRun)
 		},
 	}
@@ -117,7 +118,7 @@ func repoListCmd() *cobra.Command {
 		Short: "List the repositories the API token can access",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx := iostream.FromCmd(cmd.Context(), cmd, "")
+			ctx := iostreamcobra.FromCmd(cmd.Context(), cmd, "")
 			return runRepoList(ctx)
 		},
 	}
@@ -129,7 +130,7 @@ func repoGetCmd() *cobra.Command {
 		Short: "Show a single packagecloud repository",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx := iostream.FromCmd(cmd.Context(), cmd, "")
+			ctx := iostreamcobra.FromCmd(cmd.Context(), cmd, "")
 			return runRepoGet(ctx, args[0])
 		},
 	}
@@ -145,7 +146,7 @@ func repoCreateCmd() *cobra.Command {
 		// real owner is shown in the output.
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			ctx := iostream.FromCmd(cmd.Context(), cmd, "")
+			ctx := iostreamcobra.FromCmd(cmd.Context(), cmd, "")
 			return runRepoCreate(ctx, args[0], private)
 		},
 	}

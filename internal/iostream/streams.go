@@ -43,7 +43,6 @@ import (
 	"charm.land/lipgloss/v2"
 	"charm.land/log/v2"
 	"github.com/charmbracelet/x/term"
-	"github.com/spf13/cobra"
 
 	"github.com/CircleCI-Public/circleci-cli/internal/closer"
 	"github.com/CircleCI-Public/circleci-cli/internal/jq"
@@ -369,56 +368,76 @@ func Testing(ctx context.Context, mdOpts ...glamour.TermRendererOption) context.
 	})
 }
 
-// FromCmd extracts Streams from a cobra.Command's Out/Err/In and reads the
-// --quiet persistent flag if registered on the root command.
+// Options describes the Streams that New builds.
 //
-// The color theme is resolved with the --theme flag taking precedence when it
-// was explicitly set; otherwise configTheme (the stored CLI setting, "" if
-// none) is used, falling back to the flag's "auto" default.
-//
-// mdOpts are appended to the glamour options used by every markdown render, so
-// the caller can enable renderer features this package does not itself depend
-// on.
-func FromCmd(ctx context.Context, cmd *cobra.Command, configTheme string, mdOpts ...glamour.TermRendererOption) context.Context {
+// It carries no CLI-framework types on purpose: this package must work for a
+// cobra CLI, a kong CLI or a plain flag.FlagSet. Read your framework's streams
+// and flag values and hand the results over. internal/iostreamcobra is the
+// cobra adapter.
+type Options struct {
+	// In, Out and Err are the streams to use. A nil field falls back to the
+	// corresponding process stream; pass them explicitly from your framework's
+	// command, and always in tests, where os.Stdout would escape the capture.
+	In  io.Reader
+	Out io.Writer
+	Err io.Writer
+
+	// Quiet silences ErrPrint/ErrPrintf/ErrPrintln. Data written to Out is
+	// unaffected — quiet suppresses commentary, never results.
+	Quiet bool
+
+	// Debug raises the log level of DebugContext/InfoContext to debug.
+	Debug bool
+
+	// Theme is the already-resolved color theme name; see ValidThemes. Empty
+	// means "auto", which detects the terminal background. Precedence between a
+	// --theme flag and a stored setting is the caller's policy.
+	Theme string
+
+	// MarkdownOptions are appended to the glamour options used by every markdown
+	// render, so the caller can enable renderer features this package does not
+	// itself depend on.
+	MarkdownOptions []glamour.TermRendererOption
+}
+
+// New returns a context carrying the Streams described by opts. Retrieve them
+// with Get, or use the package-level wrappers, which read the context for you.
+func New(ctx context.Context, opts Options) context.Context {
+	stdin, stdout, stderr := opts.In, opts.Out, opts.Err
+	if stdin == nil {
+		stdin = os.Stdin
+	}
+	if stdout == nil {
+		stdout = os.Stdout
+	}
+	if stderr == nil {
+		stderr = os.Stderr
+	}
+
+	theme := opts.Theme
+	if theme == "" {
+		theme = themeAuto
+	}
+
 	lvl := log.InfoLevel
-	verbose, _ := cmd.Flags().GetBool("debug")
-	if verbose {
+	if opts.Debug {
 		lvl = log.DebugLevel
 	}
-	quiet, _ := cmd.Flags().GetBool("quiet")
 
-	stdin := cmd.InOrStdin()
-	stdout := cmd.OutOrStdout()
-	stderr := cmd.ErrOrStderr()
-	width, style := terminalProperties(resolveTheme(cmd, configTheme), stdin, stdout)
+	width, style := terminalProperties(theme, stdin, stdout)
 
 	return WithStreams(ctx, Streams{
 		Out:    stdout,
 		Err:    stderr,
 		In:     stdin,
-		Quiet:  quiet,
+		Quiet:  opts.Quiet,
 		style:  style,
 		width:  width,
-		mdOpts: mdOpts,
+		mdOpts: opts.MarkdownOptions,
 		slog: slog.New(log.NewWithOptions(stderr, log.Options{
 			Level: lvl,
 		})),
 	})
-}
-
-// resolveTheme picks the color theme in precedence order:
-//  1. an explicitly-passed --theme flag (always wins over config),
-//  2. the stored config theme (configTheme; "" when none is configured),
-//  3. the --theme flag's default value ("auto").
-func resolveTheme(cmd *cobra.Command, configTheme string) string {
-	flagTheme, _ := cmd.Flags().GetString("theme")
-	if cmd.Flags().Changed("theme") {
-		return flagTheme
-	}
-	if configTheme != "" {
-		return configTheme
-	}
-	return flagTheme
 }
 
 // backgroundQueryable reports whether it is safe to probe the terminal for its
