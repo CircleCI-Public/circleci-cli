@@ -1,10 +1,11 @@
 # Settings
 - Keyring: false
 
-| Name      | Value                |
-| --------- | -------------------- |
-| host      | https://circleci.com |
-| token     | (not set)            |
-| telemetry | true                 |
-| theme     | auto                 |
+| Name         | Value                |
+| ------------ | -------------------- |
+| host         | https://circleci.com |
+| token        | (not set)            |
+| telemetry    | true                 |
+| theme        | auto                 |
+| update-check | true                 |
 

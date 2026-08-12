@@ -37,7 +37,7 @@ import (
 
 	"github.com/hashicorp/go-retryablehttp"
 
-	"github.com/CircleCI-Public/circleci-cli/internal/iostream"
+	"github.com/CircleCI-Public/circleci-cli/clikit/iostream"
 )
 
 const jsonContentType = "application/json; charset=utf-8"

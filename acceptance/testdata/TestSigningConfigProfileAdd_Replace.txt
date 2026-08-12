@@ -1,0 +1,4 @@
+# iOS Signing Configs
+| ID                                     | Name               | Certificate Name | Profiles |
+| -------------------------------------- | ------------------ | ---------------- | -------- |
+| `eccccccc-cccc-cccc-cccc-cccccccccccc` | production-signing | Distribution.p12 | 1        |

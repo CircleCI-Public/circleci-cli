@@ -42,70 +42,53 @@ func setupDeployFake(t *testing.T) (*fakes.CircleCI, *testenv.TestEnv) {
 	// Register a project so --project can resolve to IDs.
 	fake.AddProjectBySlug("gh/myorg/alpha", "a0000000-0000-4000-8000-0000000f0001", "alpha", "a0000000-0000-4000-8000-0000000f0002")
 
-	fake.AddDeployment("a0000000-0000-4000-8000-0000000f0001", map[string]any{
-		"id": "a0000000-0000-4000-8000-000000000001",
-		"attributes": map[string]any{
-			"type":           "deployment",
-			"status":         "succeeded",
-			"target_version": map[string]any{"name": "1.3.0"},
-			"is_rollback":    false,
-			"created_at":     "2026-04-28T14:30:00Z",
-			"ended_at":       "2026-04-28T14:35:00Z",
-		},
-		"references": map[string]any{
-			"deploy_component": map[string]any{
-				"id":         "a0000000-0000-4000-8000-000000c00001",
-				"attributes": map[string]any{"name": "web-frontend"},
-			},
-			"deploy_environment": map[string]any{"id": "a0000000-0000-4000-8000-000000e00001"},
-			"pipeline":           map[string]any{"id": "a0000000-0000-4000-8000-000000f00001"},
-			"workflow":           map[string]any{"id": "a0000000-0000-4000-8000-000000f00002"},
-		},
+	fake.AddDeployment(fakes.Deployment{
+		ID:            "a0000000-0000-4000-8000-000000000001",
+		ProjectID:     "a0000000-0000-4000-8000-0000000f0001",
+		ComponentID:   "a0000000-0000-4000-8000-000000c00001",
+		ComponentName: "web-frontend",
+		EnvironmentID: "a0000000-0000-4000-8000-000000e00001",
+		PipelineID:    "a0000000-0000-4000-8000-000000f00001",
+		WorkflowID:    "a0000000-0000-4000-8000-000000f00002",
+		Type:          "deployment",
+		Status:        "succeeded",
+		Version:       "1.3.0",
+		CreatedAt:     "2026-04-28T14:30:00Z",
+		EndedAt:       "2026-04-28T14:35:00Z",
 	})
-	fake.AddDeployment("a0000000-0000-4000-8000-0000000f0001", map[string]any{
-		"id": "a0000000-0000-4000-8000-000000000002",
-		"attributes": map[string]any{
-			"type":           "deployment",
-			"status":         "failed",
-			"failure_reason": "timeout",
-			"target_version": map[string]any{"name": "2.0.1"},
-			"is_rollback":    false,
-			"created_at":     "2026-04-27T09:15:00Z",
-			"ended_at":       "2026-04-27T09:25:00Z",
-		},
-		"references": map[string]any{
-			"deploy_component": map[string]any{
-				"id":         "a0000000-0000-4000-8000-000000c00002",
-				"attributes": map[string]any{"name": "api-server"},
-			},
-			"deploy_environment": map[string]any{"id": "a0000000-0000-4000-8000-000000e00001"},
-			"pipeline":           map[string]any{"id": "a0000000-0000-4000-8000-000000f00003"},
-			"workflow":           map[string]any{"id": "a0000000-0000-4000-8000-000000f00004"},
-		},
+	fake.AddDeployment(fakes.Deployment{
+		ID:            "a0000000-0000-4000-8000-000000000002",
+		ProjectID:     "a0000000-0000-4000-8000-0000000f0001",
+		ComponentID:   "a0000000-0000-4000-8000-000000c00002",
+		ComponentName: "api-server",
+		EnvironmentID: "a0000000-0000-4000-8000-000000e00001",
+		PipelineID:    "a0000000-0000-4000-8000-000000f00003",
+		WorkflowID:    "a0000000-0000-4000-8000-000000f00004",
+		Type:          "deployment",
+		Status:        "failed",
+		FailureReason: "timeout",
+		Version:       "2.0.1",
+		CreatedAt:     "2026-04-27T09:15:00Z",
+		EndedAt:       "2026-04-27T09:25:00Z",
 	})
-	fake.AddDeployment("a0000000-0000-4000-8000-0000000f0001", map[string]any{
-		"id": "a0000000-0000-4000-8000-000000000003",
-		"attributes": map[string]any{
-			"type":           "deployment",
-			"status":         "succeeded",
-			"target_version": map[string]any{"name": "1.2.0"},
-			"is_rollback":    true,
-			"created_at":     "2026-04-20T10:00:00Z",
-			"ended_at":       "2026-04-20T10:05:00Z",
-		},
-		"references": map[string]any{
-			"deploy_component": map[string]any{
-				"id":         "a0000000-0000-4000-8000-000000c00001",
-				"attributes": map[string]any{"name": "web-frontend"},
-			},
-			"deploy_environment": map[string]any{"id": "a0000000-0000-4000-8000-000000e00001"},
-			"pipeline":           map[string]any{"id": "a0000000-0000-4000-8000-000000f00005"},
-			"workflow":           map[string]any{"id": "a0000000-0000-4000-8000-000000f00006"},
-		},
+	fake.AddDeployment(fakes.Deployment{
+		ID:            "a0000000-0000-4000-8000-000000000003",
+		ProjectID:     "a0000000-0000-4000-8000-0000000f0001",
+		ComponentID:   "a0000000-0000-4000-8000-000000c00001",
+		ComponentName: "web-frontend",
+		EnvironmentID: "a0000000-0000-4000-8000-000000e00001",
+		PipelineID:    "a0000000-0000-4000-8000-000000f00005",
+		WorkflowID:    "a0000000-0000-4000-8000-000000f00006",
+		Type:          "deployment",
+		Status:        "succeeded",
+		Version:       "1.2.0",
+		IsRollback:    true,
+		CreatedAt:     "2026-04-20T10:00:00Z",
+		EndedAt:       "2026-04-20T10:05:00Z",
 	})
 
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 	env.CircleCIURL = fake.URL()
 	return fake, env
 }
@@ -150,7 +133,7 @@ func TestDeployList_Empty(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
 	fake.AddProjectBySlug("gh/myorg/empty", "a0000000-0000-4000-8000-0000000f0003", "empty", "a0000000-0000-4000-8000-0000000f0002")
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
@@ -186,27 +169,19 @@ func setupDeployEnvironmentFake(t *testing.T) (*fakes.CircleCI, *testenv.TestEnv
 	const orgID = "a0000000-0000-4000-8000-0000000f0002"
 	fake.AddOrg(orgID, "gh/myorg", "myorg", "github")
 
-	fake.AddEnvironment(orgID, map[string]any{
-		"id": "a0000000-0000-4000-8000-000000e00001",
-		"attributes": map[string]any{
-			"name": "production",
-		},
-		"references": map[string]any{
-			"org": map[string]any{"id": orgID},
-		},
+	fake.AddEnvironment(fakes.DeployEnvironment{
+		ID:    "a0000000-0000-4000-8000-000000e00001",
+		OrgID: orgID,
+		Name:  "production",
 	})
-	fake.AddEnvironment(orgID, map[string]any{
-		"id": "a0000000-0000-4000-8000-000000e00002",
-		"attributes": map[string]any{
-			"name": "staging",
-		},
-		"references": map[string]any{
-			"org": map[string]any{"id": orgID},
-		},
+	fake.AddEnvironment(fakes.DeployEnvironment{
+		ID:    "a0000000-0000-4000-8000-000000e00002",
+		OrgID: orgID,
+		Name:  "staging",
 	})
 
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 	env.CircleCIURL = fake.URL()
 	return fake, env
 }
@@ -265,50 +240,36 @@ func setupDeployComponentFake(t *testing.T) (*fakes.CircleCI, *testenv.TestEnv) 
 	)
 	fake.AddProjectBySlug("gh/myorg/alpha", projectID, "alpha", orgID)
 
-	fake.AddComponent(orgID, map[string]any{
-		"id": "a0000000-0000-4000-8000-000000c00001",
-		"attributes": map[string]any{
-			"name": "web-frontend",
-			"type": "service",
-		},
-		"references": map[string]any{
-			"project": map[string]any{"id": projectID},
-		},
+	fake.AddComponent(fakes.DeployComponent{
+		ID:        "a0000000-0000-4000-8000-000000c00001",
+		OrgID:     orgID,
+		ProjectID: projectID,
+		Name:      "web-frontend",
+		Type:      "service",
 	})
-	fake.AddComponent(orgID, map[string]any{
-		"id": "a0000000-0000-4000-8000-000000c00002",
-		"attributes": map[string]any{
-			"name": "api-server",
-			"type": "service",
-		},
-		"references": map[string]any{
-			"project": map[string]any{"id": projectID},
-		},
+	fake.AddComponent(fakes.DeployComponent{
+		ID:        "a0000000-0000-4000-8000-000000c00002",
+		OrgID:     orgID,
+		ProjectID: projectID,
+		Name:      "api-server",
+		Type:      "service",
 	})
 
-	fake.AddComponentVersion("a0000000-0000-4000-8000-000000c00001", map[string]any{
-		"id": "a0000000-0000-4000-8000-000000v00001",
-		"attributes": map[string]any{
-			"name":       "1.3.0",
-			"created_at": "2026-04-28T14:00:00Z",
-		},
-		"references": map[string]any{
-			"component": map[string]any{"id": "a0000000-0000-4000-8000-000000c00001"},
-		},
+	fake.AddComponentVersion(fakes.DeployComponentVersion{
+		ID:          "a0000000-0000-4000-8000-000000v00001",
+		ComponentID: "a0000000-0000-4000-8000-000000c00001",
+		Name:        "1.3.0",
+		CreatedAt:   "2026-04-28T14:00:00Z",
 	})
-	fake.AddComponentVersion("a0000000-0000-4000-8000-000000c00001", map[string]any{
-		"id": "a0000000-0000-4000-8000-000000v00002",
-		"attributes": map[string]any{
-			"name":       "1.2.0",
-			"created_at": "2026-04-20T10:00:00Z",
-		},
-		"references": map[string]any{
-			"component": map[string]any{"id": "a0000000-0000-4000-8000-000000c00001"},
-		},
+	fake.AddComponentVersion(fakes.DeployComponentVersion{
+		ID:          "a0000000-0000-4000-8000-000000v00002",
+		ComponentID: "a0000000-0000-4000-8000-000000c00001",
+		Name:        "1.2.0",
+		CreatedAt:   "2026-04-20T10:00:00Z",
 	})
 
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 	env.CircleCIURL = fake.URL()
 	return fake, env
 }
@@ -381,18 +342,14 @@ func setupDeploySettingsFake(t *testing.T) (*fakes.CircleCI, *testenv.TestEnv) {
 	)
 	fake.AddProjectBySlug("gh/myorg/alpha", projectID, "alpha", orgID)
 
-	fake.SetDeploySettings(projectID, map[string]any{
-		"id": "a0000000-0000-4000-8000-000000s00001",
-		"attributes": map[string]any{
-			"auto_cancel_redundant_deploys": true,
-		},
-		"references": map[string]any{
-			"project": map[string]any{"id": projectID},
-		},
+	fake.SetDeploySettings(fakes.DeploySettings{
+		ID:                         "a0000000-0000-4000-8000-000000s00001",
+		ProjectID:                  projectID,
+		AutoCancelRedundantDeploys: true,
 	})
 
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 	env.CircleCIURL = fake.URL()
 	return fake, env
 }
@@ -429,7 +386,7 @@ func TestDeploySettings_Empty(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
 	fake.AddProjectBySlug("gh/myorg/alpha", "a0000000-0000-4000-8000-0000000f0001", "alpha", "a0000000-0000-4000-8000-0000000f0002")
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{

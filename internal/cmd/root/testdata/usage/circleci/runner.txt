@@ -5,5 +5,4 @@ Available commands:
   instance
   open
   resource-class
-  task
   token

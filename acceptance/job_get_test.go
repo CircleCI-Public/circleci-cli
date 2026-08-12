@@ -42,96 +42,34 @@ func setupJobGetFake(t *testing.T) (*fakes.CircleCI, *testenv.TestEnv) {
 	t.Helper()
 	fake := fakes.NewCircleCI(t)
 
-	fake.AddJobV3(testJobID, map[string]any{
-		"data": map[string]any{
-			"id": testJobID,
-			"attributes": map[string]any{
-				"name":       "yaml-lint",
-				"type":       "build",
-				"phase":      "ended",
-				"outcome":    "succeeded",
-				"started_at": "2026-05-19T20:29:13.938Z",
-				"ended_at":   "2026-05-19T20:29:22.564Z",
-				"parallel_executions": []map[string]any{
-					{
-						"steps": []map[string]any{
-							{
-								"name":       "Spin up environment",
-								"type":       "spinup_environment",
-								"num":        0,
-								"phase":      "ended",
-								"outcome":    "succeeded",
-								"started_at": "2026-05-19T20:29:13.521Z",
-								"ended_at":   "2026-05-19T20:29:14.871Z",
-							},
-							{
-								"name":       "Checkout code",
-								"type":       "checkout",
-								"num":        101,
-								"phase":      "ended",
-								"outcome":    "succeeded",
-								"started_at": "2026-05-19T20:29:15.235Z",
-								"ended_at":   "2026-05-19T20:29:16.204Z",
-							},
-							{
-								"name":       "task lint-yaml",
-								"type":       "run",
-								"num":        103,
-								"phase":      "ended",
-								"outcome":    "succeeded",
-								"exit_code":  0,
-								"command":    "#!/bin/bash -eo pipefail\ntask lint-yaml",
-								"started_at": "2026-05-19T20:29:19.964Z",
-								"ended_at":   "2026-05-19T20:29:20.613Z",
-							},
-						},
-					},
-					{
-						"steps": []map[string]any{
-							{
-								"name":       "Spin up environment",
-								"type":       "spinup_environment",
-								"num":        0,
-								"phase":      "ended",
-								"outcome":    "succeeded",
-								"started_at": "2026-05-19T20:29:13.800Z",
-								"ended_at":   "2026-05-19T20:29:15.100Z",
-							},
-							{
-								"name":       "Checkout code",
-								"type":       "checkout",
-								"num":        101,
-								"phase":      "ended",
-								"outcome":    "succeeded",
-								"started_at": "2026-05-19T20:29:15.500Z",
-								"ended_at":   "2026-05-19T20:29:16.450Z",
-							},
-							{
-								"name":       "task lint-yaml",
-								"type":       "run",
-								"num":        103,
-								"phase":      "ended",
-								"outcome":    "failed",
-								"exit_code":  1,
-								"command":    "#!/bin/bash -eo pipefail\ntask lint-yaml\ntask lint-extra",
-								"started_at": "2026-05-19T20:29:20.100Z",
-								"ended_at":   "2026-05-19T20:29:21.750Z",
-							},
-						},
-					},
-				},
+	fake.AddJobV3(fakes.JobV3{
+		ID:         testJobID,
+		Name:       "yaml-lint",
+		Type:       "build",
+		Phase:      "ended",
+		Outcome:    "succeeded",
+		StartedAt:  "2026-05-19T20:29:13.938Z",
+		EndedAt:    "2026-05-19T20:29:22.564Z",
+		ProjectID:  testProjectID,
+		PipelineID: "682142f3-f35d-4c94-adf7-d855321716e4",
+		WorkflowID: "c266c3a7-0dad-459a-aa7b-dd13e005b9a0",
+		UserID:     "206f4e13-bac7-48c2-aedf-ebdd8282fba8",
+		Executions: [][]fakes.JobStep{
+			{
+				{Name: "Spin up environment", Type: "spinup_environment", Num: 0, Phase: "ended", Outcome: "succeeded", StartedAt: "2026-05-19T20:29:13.521Z", EndedAt: "2026-05-19T20:29:14.871Z"},
+				{Name: "Checkout code", Type: "checkout", Num: 101, Phase: "ended", Outcome: "succeeded", StartedAt: "2026-05-19T20:29:15.235Z", EndedAt: "2026-05-19T20:29:16.204Z"},
+				{Name: "task lint-yaml", Type: "run", Num: 103, Phase: "ended", Outcome: "succeeded", ExitCode: new(0), Command: "#!/bin/bash -eo pipefail\ntask lint-yaml", StartedAt: "2026-05-19T20:29:19.964Z", EndedAt: "2026-05-19T20:29:20.613Z"},
 			},
-			"references": map[string]any{
-				"project":  map[string]any{"id": testProjectID},
-				"pipeline": map[string]any{"id": "682142f3-f35d-4c94-adf7-d855321716e4"},
-				"workflow": map[string]any{"id": "c266c3a7-0dad-459a-aa7b-dd13e005b9a0"},
-				"user":     map[string]any{"id": "206f4e13-bac7-48c2-aedf-ebdd8282fba8"},
+			{
+				{Name: "Spin up environment", Type: "spinup_environment", Num: 0, Phase: "ended", Outcome: "succeeded", StartedAt: "2026-05-19T20:29:13.800Z", EndedAt: "2026-05-19T20:29:15.100Z"},
+				{Name: "Checkout code", Type: "checkout", Num: 101, Phase: "ended", Outcome: "succeeded", StartedAt: "2026-05-19T20:29:15.500Z", EndedAt: "2026-05-19T20:29:16.450Z"},
+				{Name: "task lint-yaml", Type: "run", Num: 103, Phase: "ended", Outcome: "failed", ExitCode: new(1), Command: "#!/bin/bash -eo pipefail\ntask lint-yaml\ntask lint-extra", StartedAt: "2026-05-19T20:29:20.100Z", EndedAt: "2026-05-19T20:29:21.750Z"},
 			},
 		},
 	})
 
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 	env.CircleCIURL = fake.URL()
 
 	return fake, env
@@ -168,7 +106,7 @@ func TestJobGet_JSON(t *testing.T) {
 func TestJobGet_NotFound(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{
@@ -185,7 +123,7 @@ func TestJobGet_NotFound(t *testing.T) {
 func TestJobGet_MissingArg(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 	env.CircleCIURL = fake.URL()
 
 	result := binary.RunCLI(t, binary.RunOpts{

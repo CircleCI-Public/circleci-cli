@@ -32,9 +32,9 @@ import (
 	"strings"
 	"time"
 
+	"github.com/CircleCI-Public/circleci-cli/clikit/browser"
+	"github.com/CircleCI-Public/circleci-cli/clikit/iostream"
 	"github.com/CircleCI-Public/circleci-cli/internal/apiclient"
-	"github.com/CircleCI-Public/circleci-cli/internal/browser"
-	"github.com/CircleCI-Public/circleci-cli/internal/iostream"
 )
 
 const (

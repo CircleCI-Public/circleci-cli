@@ -29,7 +29,7 @@ import (
 
 	"github.com/go-chi/chi/v5/middleware"
 
-	"github.com/CircleCI-Public/circleci-cli/internal/iostream"
+	"github.com/CircleCI-Public/circleci-cli/clikit/iostream"
 )
 
 // Middleware logs each request using iostream.DebugContext with the same

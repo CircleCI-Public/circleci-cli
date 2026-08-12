@@ -30,10 +30,10 @@ import (
 	"github.com/MakeNowJust/heredoc"
 	"github.com/spf13/cobra"
 
+	clierrors "github.com/CircleCI-Public/circleci-cli/clikit/errors"
+	"github.com/CircleCI-Public/circleci-cli/clikit/iostream"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmdutil"
 	"github.com/CircleCI-Public/circleci-cli/internal/config"
-	clierrors "github.com/CircleCI-Public/circleci-cli/internal/errors"
-	"github.com/CircleCI-Public/circleci-cli/internal/iostream"
 )
 
 func newSetCmd() *cobra.Command {
@@ -42,16 +42,13 @@ func newSetCmd() *cobra.Command {
 		Short: "Set a CLI setting",
 		Annotations: map[string]string{
 			"help:arguments": heredoc.Docf(`
-				- %[1]s<key>%[1]s is the setting to change. Options are: %[1]stoken%[1]s, %[1]shost%[1]s, %[1]stelemetry%[1]s, or %[1]stheme%[1]s.
+				- %[1]s<key>%[1]s is the setting to change. Options are: %[1]stoken%[1]s, %[1]shost%[1]s, %[1]stelemetry%[1]s, %[1]stheme%[1]s, or %[1]supdate-check%[1]s.
 				- %[1]s<value>%[1]s is the value to store. Pass %[1]s-%[1]s to read it from stdin.
 				  May be omitted for %[1]stheme%[1]s to pick interactively.
 			`, "`"),
 		},
 		Long: heredoc.Doc(`
 			Set a CLI setting by key.
-
-			Run 'circleci setting set theme' with no value in an interactive terminal to
-			pick a theme from a list.
 		`),
 		Example: heredoc.Doc(`
 			# Store your personal API token
@@ -74,6 +71,9 @@ func newSetCmd() *cobra.Command {
 
 			# Pick the color theme interactively
 			$ circleci setting set theme
+
+			# Disable update notifications
+			$ circleci setting set update-check off
 		`),
 		Args: cobra.MaximumNArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -119,9 +119,11 @@ func runSet(ctx context.Context, secureStorage bool, path, key, value string) (e
 		return runSetTelemetry(ctx, path, value)
 	case "theme":
 		return runSetTheme(ctx, path, value)
+	case "update-check":
+		return runSetUpdateCheck(ctx, path, value)
 	default:
 		return clierrors.New("setting.unknown_key", "Unknown setting", "Unknown setting key: "+key).
-			WithSuggestions("Valid keys are: token, host, telemetry, theme").
+			WithSuggestions("Valid keys are: token, host, telemetry, theme, update-check").
 			WithExitCode(clierrors.ExitBadArguments)
 	}
 	if err != nil {
@@ -239,6 +241,32 @@ func runSetTelemetry(ctx context.Context, path, value string) error {
 		}
 	} else {
 		iostream.ErrPrintf(ctx, "%s Telemetry disabled. Saved to %s\n", iostream.SymbolOK(ctx), path)
+	}
+	return nil
+}
+
+func runSetUpdateCheck(ctx context.Context, path, value string) error {
+	var enabled bool
+	switch strings.ToLower(value) {
+	case "on", "true", "yes", "1", "enabled":
+		enabled = true
+	case "off", "false", "no", "0", "disabled":
+		enabled = false
+	default:
+		return clierrors.New("setting.invalid_value", "Invalid update-check value", "Invalid value for update-check: "+value).
+			WithSuggestions("Valid values are: on, off").
+			WithExitCode(clierrors.ExitBadArguments)
+	}
+
+	if err := config.SetUpdateCheck(ctx, enabled, ""); err != nil {
+		return clierrors.New("setting.save_failed", "Failed to save update-check setting", err.Error()).
+			WithExitCode(clierrors.ExitGeneralError)
+	}
+
+	if enabled {
+		iostream.ErrPrintf(ctx, "%s Update notifications enabled. Saved to %s\n", iostream.SymbolOK(ctx), path)
+	} else {
+		iostream.ErrPrintf(ctx, "%s Update notifications disabled. Saved to %s\n", iostream.SymbolOK(ctx), path)
 	}
 	return nil
 }

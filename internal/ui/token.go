@@ -1,0 +1,95 @@
+// Copyright (c) 2026 Circle Internet Services, Inc.
+//
+// Permission is hereby granted, free of charge, to any person obtaining a copy
+// of this software and associated documentation files (the "Software"), to deal
+// in the Software without restriction, including without limitation the rights
+// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+// copies of the Software, and to permit persons to whom the Software is
+// furnished to do so, subject to the following conditions:
+//
+// The above copyright notice and this permission notice shall be included in
+// all copies or substantial portions of the Software.
+//
+// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// SOFTWARE.
+//
+// SPDX-License-Identifier: MIT
+
+package ui
+
+import (
+	"charm.land/bubbles/v2/key"
+	"charm.land/bubbles/v2/textinput"
+	tea "charm.land/bubbletea/v2"
+	"charm.land/lipgloss/v2"
+
+	"github.com/CircleCI-Public/circleci-cli/clikit/ui/components"
+	"github.com/CircleCI-Public/circleci-cli/clikit/ui/theme"
+)
+
+// TokenModel collects a CircleCI personal access token. It lives here rather
+// than in clikit/ui/components because it is not a reusable widget: the header
+// copy and the CCIPAT_ placeholder (which also sets the input's width and char
+// limit) are specific to CircleCI auth. It is a stage of the login flow.
+type TokenModel struct {
+	textInput textinput.Model
+	token     string
+}
+
+func NewTokenModel() TokenModel {
+	ti := textinput.New()
+	ti.Placeholder = "CCIPAT_XXXXXXXXXXXXXXXXXXXXXX_XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+	ti.SetVirtualCursor(false)
+	ti.Focus()
+	ti.CharLimit = len(ti.Placeholder)
+	ti.SetWidth(len(ti.Placeholder))
+	ti.EchoMode = textinput.EchoPassword
+
+	return TokenModel{textInput: ti}
+}
+
+func (m TokenModel) Token() string {
+	return m.token
+}
+
+func (m TokenModel) Init() tea.Cmd {
+	return textinput.Blink
+}
+
+func (m TokenModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if keyMsg, ok := msg.(tea.KeyPressMsg); ok && key.Matches(keyMsg, components.KeyEnter) {
+		m.token = m.textInput.Value()
+		return m, nil
+	}
+	var cmd tea.Cmd
+	m.textInput, cmd = m.textInput.Update(msg)
+	return m, cmd
+}
+
+func (m TokenModel) View() tea.View {
+	var c *tea.Cursor
+	if !m.textInput.VirtualCursor() {
+		c = m.textInput.Cursor()
+		c.Y += lipgloss.Height(m.headerView())
+	}
+
+	str := lipgloss.JoinVertical(lipgloss.Top, m.headerView(), m.textInput.View(), m.footerView())
+	v := tea.NewView(str)
+	v.Cursor = c
+	return v
+}
+
+func (m TokenModel) headerView() string {
+	return theme.TitleStyle.Render("Enter CircleCI personal access token")
+}
+func (m TokenModel) footerView() string {
+	return components.Hints(
+		key.NewBinding(key.WithKeys("enter"), key.WithHelp("enter", "confirm")),
+		components.BindBack,
+	)
+}

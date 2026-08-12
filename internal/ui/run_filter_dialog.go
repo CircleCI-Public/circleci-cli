@@ -30,8 +30,8 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"charm.land/lipgloss/v2"
 
-	"github.com/CircleCI-Public/circleci-cli/internal/ui/components"
-	"github.com/CircleCI-Public/circleci-cli/internal/ui/theme"
+	"github.com/CircleCI-Public/circleci-cli/clikit/ui/components"
+	"github.com/CircleCI-Public/circleci-cli/clikit/ui/theme"
 )
 
 // runFilterOutcome is the state of a runFilterDialog after an Update: still open,

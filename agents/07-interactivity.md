@@ -87,7 +87,7 @@ Run 'myapp init --help' to see all options.
 
 For interactive implementation, bubbletea should be used, with the "program" in the `internal/ui` package.
 
-Re-usable components should be in the `internal/ui/components` package.
+Re-usable components should be in the `clikit/ui/components` package.
 
 Standard components from `charm.land/bubbles/v2` should be preferred over custom ones from scratch.
 

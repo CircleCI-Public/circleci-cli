@@ -24,6 +24,7 @@ package acceptance_test
 
 import (
 	"bytes"
+	"fmt"
 	"net/http"
 	"net/url"
 	"os"
@@ -45,29 +46,29 @@ import (
 // Shared by certificate_test.go and signing_config_test.go.
 const testIOSOrgID = "11111111-1111-1111-1111-111111111111"
 
-func fakeIOSCert(id, fileName string) map[string]any {
-	return map[string]any{
-		"id":        id,
-		"file_name": fileName,
-		"cert_type": "distribution",
-	}
+func fakeIOSCert(id, fileName string) fakes.IOSCert {
+	return fakes.IOSCert{ID: id, FileName: fileName, CertType: "distribution"}
 }
 
 // fakeIOSSigningConfig builds a fixture matching the API list-response shape.
-// certFileName populates the nested `certificate` ref; the FK fields used by
-// the fake's cert-in-use check are prefixed with `_` and stripped on the wire.
-func fakeIOSSigningConfig(id, name, certID, certFileName string, profileFiles ...string) map[string]any {
-	profiles := make([]map[string]any, len(profileFiles))
-	for i, f := range profileFiles {
-		profiles[i] = map[string]any{"file_name": f}
+// certFileName populates the nested certificate reference; CertID is the FK the
+// fake's cert-in-use check reads (never sent on the wire).
+func fakeIOSSigningConfig(id, name, certID, certFileName string, profileFiles ...string) fakes.IOSSigningConfig {
+	profiles := make([]fakes.IOSProfile, 0, len(profileFiles))
+	for _, fileName := range profileFiles {
+		profiles = append(profiles, fakes.IOSProfile{
+			FileName:    fileName,
+			BundleID:    "fixture-bundle:" + fileName,
+			ProfileType: "fixture-type",
+		})
 	}
-	return map[string]any{
-		"id":                    id,
-		"name":                  name,
-		"certificate":           map[string]any{"file_name": certFileName, "cert_type": "distribution"},
-		"provisioning_profiles": profiles,
-		"_cert_id":              certID,
-		"_org_id":               testIOSOrgID,
+	return fakes.IOSSigningConfig{
+		ID:                   id,
+		Name:                 name,
+		CertID:               certID,
+		CertFileName:         certFileName,
+		CertType:             "distribution",
+		ProvisioningProfiles: profiles,
 	}
 }
 
@@ -87,6 +88,12 @@ func writeBinaryFile(t *testing.T, dir, name, content string) string {
 	path := filepath.Join(dir, name)
 	assert.NilError(t, os.WriteFile(path, []byte(content), 0o600))
 	return name
+}
+
+// fakeMobileProvisionContent stands in for a real .mobileprovision plist,
+// letting the fake server parse a bundle ID and profile type back out of it.
+func fakeMobileProvisionContent(bundleID, profileType string) string {
+	return fmt.Sprintf("bundle-id=%s;profile-type=%s", bundleID, profileType)
 }
 
 // --- certificate upload ---

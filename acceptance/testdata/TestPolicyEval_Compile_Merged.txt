@@ -1,0 +1,7 @@
+{
+  "_compiled_": {
+    "sentinel": "compiled-marker",
+    "version": "2.1"
+  },
+  "test": "config"
+}

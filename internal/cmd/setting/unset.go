@@ -26,10 +26,10 @@ import (
 	"github.com/MakeNowJust/heredoc"
 	"github.com/spf13/cobra"
 
+	clierrors "github.com/CircleCI-Public/circleci-cli/clikit/errors"
+	"github.com/CircleCI-Public/circleci-cli/clikit/iostream"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmdutil"
 	"github.com/CircleCI-Public/circleci-cli/internal/config"
-	clierrors "github.com/CircleCI-Public/circleci-cli/internal/errors"
-	"github.com/CircleCI-Public/circleci-cli/internal/iostream"
 )
 
 func newUnsetCmd() *cobra.Command {
@@ -38,18 +38,22 @@ func newUnsetCmd() *cobra.Command {
 		Short: "Remove a stored CLI setting",
 		Annotations: map[string]string{
 			"help:arguments": heredoc.Docf(`
-				%[1]s<key>%[1]s is the setting to remove. Currently only %[1]stoken%[1]s is supported.
+				%[1]s<key>%[1]s is the setting to remove. Supported keys are %[1]stoken%[1]s and %[1]supdate-check%[1]s.
 			`, "`"),
 		},
 		Long: heredoc.Doc(`
 			Remove a stored CLI setting by key.
 
 			Supported keys:
-			  token      Remove your stored CircleCI personal API token
+			  token         Remove your stored CircleCI personal API token
+			  update-check  Revert update notifications to the default (enabled)
 		`),
 		Example: heredoc.Doc(`
 			# Remove your stored API token
 			$ circleci setting unset token
+
+			# Revert update notifications to the default
+			$ circleci setting unset update-check
 		`),
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -70,9 +74,16 @@ func newUnsetCmd() *cobra.Command {
 					iostream.ErrPrintf(ctx, "%s Removed token from %s\n", iostream.SymbolOK(ctx), configPath)
 				}
 				return nil
+			case "update-check":
+				if err := config.UnsetUpdateCheck(ctx, configPath); err != nil {
+					return clierrors.New("setting.unset_failed", "Failed to remove update-check setting", err.Error()).
+						WithExitCode(clierrors.ExitGeneralError)
+				}
+				iostream.ErrPrintf(ctx, "%s Reverted update-check to the default in %s\n", iostream.SymbolOK(ctx), configPath)
+				return nil
 			default:
 				return clierrors.New("setting.unknown_key", "Unknown setting", "Unknown setting key: "+args[0]).
-					WithSuggestions("Valid keys are: token").
+					WithSuggestions("Valid keys are: token, update-check").
 					WithExitCode(clierrors.ExitBadArguments)
 			}
 		},

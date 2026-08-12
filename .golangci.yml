@@ -46,6 +46,18 @@ linters:
             - pkg: gotest.tools/assert
               desc: use gotest.tools/v3/assert instead
 
+        # clikit is published for extension authors, who may use any CLI
+        # framework or none, so a framework dependency there would be imposed on
+        # all of them. Adapt in internal/iostreamcobra instead. See CLAUDE.md.
+        clikit-stays-framework-agnostic:
+          files:
+            - '**/clikit/**'
+          deny:
+            - pkg: github.com/spf13/cobra
+              desc: clikit must not depend on a CLI framework — adapt cobra in internal/iostreamcobra and pass iostream.Options
+            - pkg: github.com/spf13/pflag
+              desc: clikit must not depend on a CLI framework — adapt flags in internal/iostreamcobra and pass iostream.Options
+
     govet:
       enable-all: true
       disable:

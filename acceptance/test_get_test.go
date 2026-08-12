@@ -47,7 +47,7 @@ func setupTestGetFake(t *testing.T) *testenv.TestEnv {
 	)
 
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 	env.CircleCIURL = fake.URL()
 	return env
 }
@@ -98,7 +98,7 @@ func TestTestGet_MessageRendered(t *testing.T) {
 	msg := "Building\n\x1b[31mFAIL: expected 1 got 2\x1b[0m\ndownloading 10%\rdownloading 100%\n\x1b[Kdone\n"
 	fake.AddJobTests(testTestsJobID, testResult("pkg/foo", "TestAnsi", "failure", 0.50, msg))
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 	env.CircleCIURL = fake.URL()
 
 	result := runTestGet(t, env, "TestAnsi")
@@ -113,7 +113,7 @@ func TestTestGet_MessageBacktickFence(t *testing.T) {
 	msg := "before\n```go\ncode()\n```\nafter\n"
 	fake.AddJobTests(testTestsJobID, testResult("pkg/foo", "TestFence", "failure", 0.10, msg))
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 	env.CircleCIURL = fake.URL()
 
 	result := runTestGet(t, env, "TestFence")
@@ -129,7 +129,7 @@ func TestTestGet_Plain(t *testing.T) {
 	msg := "Building\n\x1b[31mFAIL: expected 1 got 2\x1b[0m\ndownloading 10%\rdownloading 100%\n\x1b[Kdone\n"
 	fake.AddJobTests(testTestsJobID, testResult("pkg/foo", "TestAnsi", "failure", 0.50, msg))
 	env := testenv.New(t)
-	env.Token = "testtoken"
+	env.Token = testToken
 	env.CircleCIURL = fake.URL()
 
 	result := runTestGet(t, env, "TestAnsi", "--plain")

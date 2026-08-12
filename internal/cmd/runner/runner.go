@@ -27,8 +27,8 @@ import (
 	"github.com/MakeNowJust/heredoc"
 	"github.com/spf13/cobra"
 
+	clierrors "github.com/CircleCI-Public/circleci-cli/clikit/errors"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmdutil"
-	clierrors "github.com/CircleCI-Public/circleci-cli/internal/errors"
 )
 
 // NewRunnerCmd returns the "circleci runner" command group.
@@ -49,7 +49,6 @@ func NewRunnerCmd() *cobra.Command {
 		newOpenCmd(),
 	)
 	cmdutil.AddGroup(cmd, "Targeted commands",
-		newTasksCmd(),
 		newConfigCmd(),
 	)
 	cmdutil.AddGroup(cmd, "Subcommands",

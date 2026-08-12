@@ -24,11 +24,13 @@
 package fakes
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -54,56 +56,51 @@ type CircleCI struct {
 	ExtraHeaders http.Header
 
 	mu                                sync.RWMutex
-	pipelines                         map[string]any
-	projects                          map[string][]any  // project slug → ordered list of pipelines
-	workflowJobs                      map[string][]any  // workflow id → jobs
-	jobArtifacts                      map[string][]any  // "slug/jobNumber" → artifacts
-	jobArtifactsV3                    map[string][]any  // job UUID → V3 artifact data items
-	staticFiles                       map[string]string // path → body content, for artifact downloads
-	jobs                              map[string]any    // "slug/jobNumber" → job detail response (v2)
-	jobsV1                            map[string]any    // "vcs/org/repo/jobNumber" → job detail response (v1.1)
-	rawStepOutputs                    map[string]string // "slug/number/taskIndex/stepID" → plain text output
-	rawStepErrors                     map[string]string // "slug/number/taskIndex/stepID" → plain text error
-	triggerResponses                  map[string]any    // project slug → trigger response body
-	triggerPipelineRunResponses       map[string]any    // project slug → trigger run response body
-	triggerPipelineRunStatuses        map[string]int    // project slug → HTTP status (default 201)
-	pipelineDefinitions               map[string][]any  // projectID → list of pipeline definition objects
-	createPipelineDefinitionResponses map[string]any    // projectID → response body
-	createTriggerResponses            map[string]any    // "projectID/pipelineDefinitionID" → response body
-	listTriggerResponses              map[string][]any  // "projectID/pipelineDefinitionID" → list of triggers
+	pipelines                         map[string]PipelineV2
+	projects                          map[string][]PipelineV2 // project slug → ordered pipelines
+	jobArtifacts                      map[string][]any        // "slug/jobNumber" → artifacts
+	jobArtifactsV3                    map[string][]Artifact   // job UUID → V3 artifacts
+	staticFiles                       map[string]string       // path → body content, for artifact downloads
+	triggerResponses                  map[string]any          // project slug → trigger response body
+	triggerPipelineRunResponses       map[string]any          // project slug → trigger run response body
+	triggerPipelineRunStatuses        map[string]int          // project slug → HTTP status (default 201)
+	pipelineDefinitions               map[string][]any        // projectID → list of pipeline definition objects
+	createPipelineDefinitionResponses map[string]any          // projectID → response body
+	createTriggerResponses            map[string]any          // "projectID/pipelineDefinitionID" → response body
+	listTriggerResponses              map[string][]any        // "projectID/pipelineDefinitionID" → list of triggers
 
 	// GitHub App state.
-	githubAppInstalled      map[string]bool   // orgID → app installed (200) vs not (404)
-	githubAppRepos          map[string][]any  // orgID → repositories the app can access
-	githubAppInstallResp    any               // response body for POST /github-app/install
-	rerunResponses          map[string]int    // workflow id → HTTP status to return
-	rerunNewIDs             map[string]string // workflow id → id of the workflow its rerun creates
-	rerunFromFailed         map[string]bool   // workflow id → is_from_failed as the request actually set it
-	cancelResponses         map[string]int    // workflow id → HTTP status to return
-	pipelineCancelResponses map[string]int    // pipeline id → HTTP status to return
+	githubAppInstalled      map[string]bool            // orgID → app installed (200) vs not (404)
+	githubAppRepos          map[string][]GitHubAppRepo // orgID → repositories the app can access
+	githubAppInstallResp    any                        // response body for POST /github-app/install
+	rerunResponses          map[string]int             // workflow id → HTTP status to return
+	rerunNewIDs             map[string]string          // workflow id → id of the workflow its rerun creates
+	rerunFromFailed         map[string]bool            // workflow id → is_from_failed as the request actually set it
+	cancelResponses         map[string]int             // workflow id → HTTP status to return
+	pipelineCancelResponses map[string]int             // pipeline id → HTTP status to return
 
 	// Job (v3) state.
-	jobsV3             map[string]any    // job UUID → V3 response body
-	workflowJobsV3     map[string][]any  // workflow id → V3 job list items
-	jobStdout          map[string][]byte // "jobID/index/stepNum" → plain text stdout
-	jobStderr          map[string][]byte // "jobID/index/stepNum" → plain text stderr
-	jobStdoutCondensed map[string][]byte // "jobID/index/stepNum" → raw condensed text
-	jobTests           map[string][]any  // job UUID → test result objects (served as JSONL)
+	jobsV3             map[string]JobV3        // job UUID → job detail entity
+	workflowJobsV3     map[string][]JobV3      // workflow id → job list entities
+	jobStdout          map[string][]byte       // "jobID/index/stepNum" → plain text stdout
+	jobStderr          map[string][]byte       // "jobID/index/stepNum" → plain text stderr
+	jobStdoutCondensed map[string][]byte       // "jobID/index/stepNum" → raw condensed text
+	jobTests           map[string][]TestResult // job UUID → test result objects (served as JSONL)
 
 	// Run (v3) state.
-	runsV3          map[string]any   // run UUID → V3 response data (inner, not wrapped)
-	runsV3ByProject map[string][]any // project UUID → ordered V3 run data items
-	userRunsV3      []any            // ordered V3 run data items for GET /runs?filter[user_id]=me
+	runsV3          map[string]RunV3   // run UUID → stored run
+	runsV3ByProject map[string][]RunV3 // project UUID → ordered runs (for search)
+	userRunsV3      []RunV3            // ordered runs for GET /runs?filter[user_id]=me
 
 	// Workflow (v3) state.
-	workflowsV3         map[string]any   // workflow UUID → V3 workflow data (inner, not wrapped)
-	workflowsV3ByRun    map[string][]any // run UUID → V3 workflow data items
-	workflowsV3NotFound map[string]bool  // run UUID → workflows list returns 404
+	workflowsV3         map[string]WorkflowV3   // workflow UUID → stored workflow
+	workflowsV3ByRun    map[string][]WorkflowV3 // run UUID → ordered workflows
+	workflowsV3NotFound map[string]bool         // run UUID → workflows list returns 404
 
 	// Runner (v3) state.
-	resourceClasses []any            // all resource classes
-	runnerTokens    map[string][]any // resource class → tokens
-	runnerInstances []any            // all instances
+	resourceClasses []ResourceClass          // all resource classes
+	runnerTokens    map[string][]RunnerToken // resource class slug → tokens
+	runnerInstances []RunnerInstance         // all instances
 
 	runnerTokenCreateStatus int // 0 = default success response
 	runnerTokenCreateBody   any
@@ -111,80 +108,81 @@ type CircleCI struct {
 	deletedRCs              map[string]bool // resource class → deleted
 
 	// Project / env-var state.
-	followedProjects    []any            // list of project objects for GET /api/v1.1/projects
-	followedSlugs       map[string]bool  // vcs+org+repo → true (for follow idempotency)
-	envVars             map[string][]any // project slug → env vars
-	deletedEnvVars      map[string]bool  // "slug/name" → deleted
-	projectInfos        map[string]any   // project slug → project info response
-	projectsByID        map[string]any   // project UUID → V3 project response (GET /api/v3/projects/{id})
-	projectsBySlug      map[string]any   // project slug → V3 project entity (GET /api/v3/projects?filter[slug]=)
-	projectSettings     map[string]any   // project UUID → advanced settings attributes
-	createProjectResp   any              // preset response for POST /organization/{vcs}/{org}/project
-	createProjectStatus int              // HTTP status for that POST (0 → 201 Created)
-	createOrgResp       any              // preset response for POST /organization
+	followedProjects    []FollowedProject      // projects for GET /api/v1.1/projects
+	followedSlugs       map[string]bool        // vcs+org+repo → true (for follow idempotency)
+	envVars             map[string][]EnvVar    // project slug → env vars
+	deletedEnvVars      map[string]bool        // "slug/name" → deleted
+	projectInfos        map[string]ProjectInfo // project slug → project info response
+	projectsByID        map[string]any         // project UUID → V3 project response (GET /api/v3/projects/{id})
+	projectsBySlug      map[string]ProjectV3   // project slug → resolved project (GET /api/v3/projects?filter[slug]=)
+	projectSettings     map[string]any         // project UUID → advanced settings attributes
+	createProjectResp   any                    // preset response for POST /organization/{vcs}/{org}/project
+	createProjectStatus int                    // HTTP status for that POST (0 → 201 Created)
+	createOrgResp       any                    // preset response for POST /organization
 
 	// Context state.
-	contexts                   map[string]any   // context id → context object
-	contextsByOrg              map[string][]any // org slug → ordered context objects
-	contextEnvVars             map[string][]any // context id → env var objects
-	contextRestrictions        map[string][]any // context id → restriction objects
-	deletedContexts            map[string]bool  // context id → deleted
-	deletedContextVars         map[string]bool  // "contextID/name" → deleted
-	deletedContextRestrictions map[string]bool  // "contextID/restrictionID" → deleted
+	contexts                   map[string]Context              // context id → context
+	contextsByOrg              map[string][]Context            // org slug → ordered contexts
+	contextEnvVars             map[string][]ContextEnvVar      // context id → env vars
+	contextRestrictions        map[string][]ContextRestriction // context id → restrictions
+	deletedContexts            map[string]bool                 // context id → deleted
+	deletedContextVars         map[string]bool                 // "contextID/name" → deleted
+	deletedContextRestrictions map[string]bool                 // "contextID/restrictionID" → deleted
 
-	// Deploy state.
-	deployments     map[string][]any // project id → deployments
-	environments    []any            // all environments (filtered by org_id in handler)
-	environmentByID map[string]any   // environment UUID → environment entity
-	components      map[string][]any // org_id → components list
-	componentByID   map[string]any   // component UUID → component entity
-	compVersions    map[string][]any // component UUID → version entities
-	deploySettings  map[string]any   // project UUID → settings entity
+	// Deploy state. Each slice holds every stored entity; the list handlers
+	// filter it by the org/project/component the request names.
+	deployments    []Deployment              // filtered by project_id
+	environments   []DeployEnvironment       // filtered by org_id
+	components     []DeployComponent         // filtered by org_id and (optionally) project_id
+	compVersions   []DeployComponentVersion  // filtered by component id and (optionally) environment_id
+	deploySettings map[string]DeploySettings // project id → settings entity
 
 	// Policy state.
 	policyBundles   map[string]map[string]string // "ownerID/ctx" → bundle
-	decisionLogs    map[string][]any             // "ownerID/ctx" → logs
-	decisionResults map[string]any               // "ownerID/ctx" → decision response
+	decisionLogs    map[string][]DecisionLog     // "ownerID/ctx" → logs
+	decisionResults map[string]DecisionResult    // "ownerID/ctx" → decision response
 	policySettings  map[string]bool              // "ownerID/ctx" → enabled
 
 	// iOS code signing state.
-	iosCerts          map[string][]any // org id → certificate objects
-	iosBundles        map[string][]any // org id → signing bundle objects
-	deletedIOSCerts   map[string]bool  // cert id → deleted
-	deletedIOSBundles map[string]bool  // bundle id → deleted
-	iosCertCounter    int              // monotonic ID generator for uploaded certs
-	iosBundleCounter  int              // monotonic ID generator for created bundles
+	iosCerts          map[string][]IOSCert          // org id → certificates
+	iosBundles        map[string][]IOSSigningConfig // org id → signing configs
+	deletedIOSCerts   map[string]bool               // cert id → deleted
+	deletedIOSBundles map[string]bool               // bundle id → deleted
+	iosCertCounter    int                           // monotonic ID generator for uploaded certs
+	iosBundleCounter  int                           // monotonic ID generator for created bundles
+	iosProfileCounter int                           // monotonic ID generator for provisioning profiles
 
 	// Auth state.
-	me                 any          // response for GET /api/v3/users?filter[user_id]=me
-	collaborations     []any        // response for GET /api/v2/me/collaborations
-	oauthTokenResponse any          // response body for POST /oauth/token
-	oauthTokenStatus   int          // HTTP status for POST /oauth/token (0 → 200 OK)
-	parRequests        []url.Values // recorded POST /oauth/par request bodies, in order
-	parCounter         int          // monotonic ID generator for request_uri values
+	tokens             map[string]bool // accepted bearer tokens; a request whose Authorization: Bearer <token> is absent from this set is rejected 401 on every non-exempt route
+	me                 *User           // authenticated user for GET /api/v3/users?filter[user_id]=me (nil → 401)
+	collaborations     []Collaboration // response for GET /api/v2/me/collaborations
+	oauthTokenResponse any             // response body for POST /oauth/token
+	oauthTokenStatus   int             // HTTP status for POST /oauth/token (0 → 200 OK)
+	parRequests        []url.Values    // recorded POST /oauth/par request bodies, in order
+	parCounter         int             // monotonic ID generator for request_uri values
 
 	// Orb state (v3).
-	orbPackages        map[string]map[string]any // id → package object
-	orbPackagesByName  map[string]string         // "ns/name" → id
-	orbVersions        map[string]map[string]any // id → version object
-	orbVersionsByRef   map[string]string         // "ns/name@version" → id
-	orbVersionsByOrbID map[string][]string       // orbID → ordered version IDs
-	orbCategories      map[string]map[string]any // id → category object
+	orbPackages        map[string]Orb         // id → package
+	orbPackagesByName  map[string]string      // "ns/name" → id
+	orbVersions        map[string]OrbVersion  // id → version
+	orbVersionsByRef   map[string]string      // "ns/name@version" → id
+	orbVersionsByOrbID map[string][]string    // orbID → ordered version IDs (newest first)
+	orbCategories      map[string]OrbCategory // id → category
 	// orbAddCategoryStatus, when non-zero, is the HTTP status returned for every
 	// POST /api/v3/orb/packages/{id}/add-category, so a test can exercise how a
 	// caller copes with the registry refusing a category.
 	orbAddCategoryStatus int
 	orbCategoriesByName  map[string]string        // name → id
 	orbValidateResponse  *orbFakeValidateResponse // override for validate/process responses
-	orbCreatedPackages   []map[string]any         // packages created via POST
-	orbCreatedVersions   []map[string]any         // versions created via POST
+	orbCreatedPackages   []Orb                    // packages created via POST
+	orbCreatedVersions   []OrbVersion             // versions created via POST
 	orbUnlistedPackages  map[string]bool          // id → unlisted
 	orbCategoryMembers   map[string][]string      // packageID → []categoryID
 
 	// Namespace state (served via /graphql-unstable).
-	namespaces        map[string]any    // namespace id → {id, name}
-	namespacesByName  map[string]string // namespace name → id
-	deletedNamespaces map[string]bool   // namespace id → deleted
+	namespaces        map[string]Namespace // namespace id → namespace
+	namespacesByName  map[string]string    // namespace name → id
+	deletedNamespaces map[string]bool      // namespace id → deleted
 
 	// DLC state.
 	dlcPurgeStatus map[string]int // projectID → HTTP status to return (default 204)
@@ -195,9 +193,15 @@ type CircleCI struct {
 	lastCompileOwnerID string
 
 	// Org state.
-	orgs        map[string]map[string]any
+	orgs        map[string]Org  // org slug → resolved org
 	orgsByUUID  map[string]bool // org UUID → true
 	orgSettings map[string]any  // org UUID → attributes map
+
+	// Release state (GET /api/v3/tool/releases).
+	releaseTool        string    // tool name the fake answers for (default "circleci-cli")
+	releaseVersion     string    // version returned in the 200 response
+	releasePublishedAt time.Time // published_at returned in the 200 response
+	releaseStatus      int       // 0 → 200; otherwise the status to return
 }
 
 // orbFakeValidateResponse holds a preset validate/process response for testing.
@@ -208,22 +212,38 @@ type orbFakeValidateResponse struct {
 	outputYAML string
 }
 
+// DefaultToken is the bearer token the fake accepts when NewCircleCI is called
+// without an explicit token list. It matches the token acceptance tests inject
+// via env.Token, so the common case needs no wiring.
+const DefaultToken = "test-token"
+
 // NewCircleCI starts a fake CircleCI API server and registers t.Cleanup to close it.
-func NewCircleCI(t *testing.T) *CircleCI {
+//
+// The fake enforces authentication: every request to a non-exempt route must
+// carry Authorization: Bearer <token> with a token in the accepted set, or it is
+// rejected with 401. The accepted set defaults to DefaultToken; pass one or more
+// tokens to override it, or adjust it later with RequireTokens/AllowToken. The
+// login/pre-auth routes (/oauth/*, /artifacts/*, config compile, tool releases)
+// are exempt — see authExempt.
+func NewCircleCI(t *testing.T, tokens ...string) *CircleCI {
 	t.Helper()
+	if len(tokens) == 0 {
+		tokens = []string{DefaultToken}
+	}
+	tokenSet := make(map[string]bool, len(tokens))
+	for _, tok := range tokens {
+		tokenSet[tok] = true
+	}
 	f := &CircleCI{
 		RequestRecorder: httprecorder.New(),
 
-		pipelines:                         map[string]any{},
-		projects:                          map[string][]any{},
-		workflowJobs:                      map[string][]any{},
+		tokens: tokenSet,
+
+		pipelines:                         map[string]PipelineV2{},
+		projects:                          map[string][]PipelineV2{},
 		jobArtifacts:                      map[string][]any{},
-		jobArtifactsV3:                    map[string][]any{},
+		jobArtifactsV3:                    map[string][]Artifact{},
 		staticFiles:                       map[string]string{},
-		jobs:                              map[string]any{},
-		jobsV1:                            map[string]any{},
-		rawStepOutputs:                    map[string]string{},
-		rawStepErrors:                     map[string]string{},
 		triggerResponses:                  map[string]any{},
 		triggerPipelineRunResponses:       map[string]any{},
 		triggerPipelineRunStatuses:        map[string]int{},
@@ -232,74 +252,68 @@ func NewCircleCI(t *testing.T) *CircleCI {
 		createTriggerResponses:            map[string]any{},
 		listTriggerResponses:              map[string][]any{},
 		githubAppInstalled:                map[string]bool{},
-		githubAppRepos:                    map[string][]any{},
+		githubAppRepos:                    map[string][]GitHubAppRepo{},
 		rerunResponses:                    map[string]int{},
 		rerunNewIDs:                       map[string]string{},
 		rerunFromFailed:                   map[string]bool{},
 		cancelResponses:                   map[string]int{},
 		pipelineCancelResponses:           map[string]int{},
-		jobsV3:                            map[string]any{},
-		workflowJobsV3:                    map[string][]any{},
+		jobsV3:                            map[string]JobV3{},
+		workflowJobsV3:                    map[string][]JobV3{},
 		jobStdout:                         map[string][]byte{},
 		jobStderr:                         map[string][]byte{},
 		jobStdoutCondensed:                map[string][]byte{},
-		jobTests:                          map[string][]any{},
-		runsV3:                            map[string]any{},
-		runsV3ByProject:                   map[string][]any{},
-		workflowsV3:                       map[string]any{},
-		workflowsV3ByRun:                  map[string][]any{},
+		jobTests:                          map[string][]TestResult{},
+		runsV3:                            map[string]RunV3{},
+		runsV3ByProject:                   map[string][]RunV3{},
+		workflowsV3:                       map[string]WorkflowV3{},
+		workflowsV3ByRun:                  map[string][]WorkflowV3{},
 		workflowsV3NotFound:               map[string]bool{},
-		resourceClasses:                   []any{},
-		runnerTokens:                      map[string][]any{},
-		runnerInstances:                   []any{},
+		resourceClasses:                   []ResourceClass{},
+		runnerTokens:                      map[string][]RunnerToken{},
+		runnerInstances:                   []RunnerInstance{},
 		deletedTokens:                     map[string]bool{},
 		deletedRCs:                        map[string]bool{},
-		followedProjects:                  []any{},
+		followedProjects:                  []FollowedProject{},
 		followedSlugs:                     map[string]bool{},
-		envVars:                           map[string][]any{},
+		envVars:                           map[string][]EnvVar{},
 		deletedEnvVars:                    map[string]bool{},
-		contexts:                          map[string]any{},
-		contextsByOrg:                     map[string][]any{},
-		contextEnvVars:                    map[string][]any{},
-		contextRestrictions:               map[string][]any{},
+		contexts:                          map[string]Context{},
+		contextsByOrg:                     map[string][]Context{},
+		contextEnvVars:                    map[string][]ContextEnvVar{},
+		contextRestrictions:               map[string][]ContextRestriction{},
 		deletedContexts:                   map[string]bool{},
 		deletedContextVars:                map[string]bool{},
 		deletedContextRestrictions:        map[string]bool{},
-		projectInfos:                      map[string]any{},
+		projectInfos:                      map[string]ProjectInfo{},
 		projectsByID:                      map[string]any{},
-		projectsBySlug:                    map[string]any{},
+		projectsBySlug:                    map[string]ProjectV3{},
 		projectSettings:                   map[string]any{},
-		deployments:                       map[string][]any{},
-		environments:                      []any{},
-		environmentByID:                   map[string]any{},
-		components:                        map[string][]any{},
-		componentByID:                     map[string]any{},
-		compVersions:                      map[string][]any{},
-		deploySettings:                    map[string]any{},
+		deploySettings:                    map[string]DeploySettings{},
 		policyBundles:                     make(map[string]map[string]string),
-		decisionLogs:                      make(map[string][]any),
-		decisionResults:                   make(map[string]any),
+		decisionLogs:                      make(map[string][]DecisionLog),
+		decisionResults:                   make(map[string]DecisionResult),
 		policySettings:                    make(map[string]bool),
-		namespaces:                        map[string]any{},
+		namespaces:                        map[string]Namespace{},
 		namespacesByName:                  map[string]string{},
 		deletedNamespaces:                 map[string]bool{},
-		iosCerts:                          map[string][]any{},
-		iosBundles:                        map[string][]any{},
+		iosCerts:                          map[string][]IOSCert{},
+		iosBundles:                        map[string][]IOSSigningConfig{},
 		deletedIOSCerts:                   map[string]bool{},
 		deletedIOSBundles:                 map[string]bool{},
-		orbPackages:                       map[string]map[string]any{},
+		orbPackages:                       map[string]Orb{},
 		orbPackagesByName:                 map[string]string{},
-		orbVersions:                       map[string]map[string]any{},
+		orbVersions:                       map[string]OrbVersion{},
 		orbVersionsByRef:                  map[string]string{},
 		orbVersionsByOrbID:                map[string][]string{},
-		orbCategories:                     map[string]map[string]any{},
+		orbCategories:                     map[string]OrbCategory{},
 		orbCategoriesByName:               map[string]string{},
 		orbUnlistedPackages:               map[string]bool{},
 		orbCategoryMembers:                map[string][]string{},
 		dlcPurgeStatus:                    map[string]int{},
 		compileValid:                      true,
 		compileOutputYAML:                 "# compiled output\nversion: \"2.1\"\n",
-		orgs:                              map[string]map[string]any{},
+		orgs:                              map[string]Org{},
 		orgsByUUID:                        map[string]bool{},
 		orgSettings:                       map[string]any{},
 	}
@@ -318,18 +332,16 @@ func NewCircleCI(t *testing.T) *CircleCI {
 			next.ServeHTTP(w, req)
 		})
 	})
+	r.Use(f.authMiddleware)
 	r.Get("/api/v2/pipeline/{id}", f.handleGetPipeline)
 	r.Post("/api/v2/pipeline/{id}/cancel", f.handleCancelPipeline)
 	r.Post("/api/v3/workflows/{id}/rerun", f.handleRerunWorkflow)
 	r.Post("/api/v3/workflows/{id}/cancel", f.handleCancelWorkflow)
 	r.Get("/api/v2/project/{vcs}/{org}/{repo}/pipeline", f.handleListProjectPipelines)
 	r.Get("/api/v2/project/{vcs}/{org}/{repo}/pipeline/{number}", f.handleGetPipelineByNumber)
-	r.Get("/api/v2/workflow/{id}/job", f.handleGetWorkflowJobs)
 	r.Get("/api/v2/project/{vcs}/{org}/{repo}/{jobNumber}/artifacts", f.handleGetJobArtifacts)
-	r.Get("/api/v2/project/{vcs}/{org}/{repo}/job/{jobNumber}", f.handleGetJob)
 	r.Post("/api/v2/project/{vcs}/{org}/{repo}/pipeline", f.handleTriggerPipeline)
 	r.Post("/api/v2/project/{vcs}/{org}/{repo}/pipeline/run", f.handleTriggerPipelineRun)
-	r.Get("/api/v1.1/project/{vcs}/{org}/{repo}/{jobNumber}", f.handleGetJobV1)
 	// Project / env-var routes. These API calls do not URL-encode slashes in the
 	// project slug, so we match three separate path segments rather than {slug}.
 	r.Get("/api/v1.1/projects", f.handleListProjects)
@@ -363,16 +375,14 @@ func NewCircleCI(t *testing.T) *CircleCI {
 	r.Post("/api/v2/github-app/install", f.handleInstallGitHubApp)
 	r.Get("/api/v2/github-app/organization/{orgID}/repositories", f.handleListGitHubAppRepositories)
 	// Policy routes.
-	r.Route("/api/v2/owner/{ownerID}/context/{policyCtx}", func(r chi.Router) {
-		r.Post("/policy-bundle", f.handleCreatePolicyBundle)
-		r.Get("/policy-bundle", f.handleFetchPolicyBundle)
-		r.Get("/policy-bundle/{name}", f.handleFetchPolicyBundleByName)
-		r.Get("/decision", f.handleGetDecisionLogs)
-		r.Post("/decision", f.handleMakeDecision)
-		r.Get("/decision/settings", f.handleGetPolicySettings)
-		r.Patch("/decision/settings", f.handleSetPolicySettings)
-		r.Get("/decision/{id}", f.handleGetDecisionLog)
-	})
+	r.Post("/api/v2/owner/{ownerID}/context/{policyCtx}/policy-bundle", f.handleCreatePolicyBundle)
+	r.Get("/api/v2/owner/{ownerID}/context/{policyCtx}/policy-bundle", f.handleFetchPolicyBundle)
+	r.Get("/api/v2/owner/{ownerID}/context/{policyCtx}/policy-bundle/{name}", f.handleFetchPolicyBundleByName)
+	r.Get("/api/v2/owner/{ownerID}/context/{policyCtx}/decision", f.handleGetDecisionLogs)
+	r.Post("/api/v2/owner/{ownerID}/context/{policyCtx}/decision", f.handleMakeDecision)
+	r.Get("/api/v2/owner/{ownerID}/context/{policyCtx}/decision/settings", f.handleGetPolicySettings)
+	r.Patch("/api/v2/owner/{ownerID}/context/{policyCtx}/decision/settings", f.handleSetPolicySettings)
+	r.Get("/api/v2/owner/{ownerID}/context/{policyCtx}/decision/{id}", f.handleGetDecisionLog)
 	// Deploy routes. Static sub-paths must be registered before the {id} catch-alls.
 	r.Get("/api/v3/deploy/deployments", f.handleListDeployments)
 	r.Get("/api/v3/deploy/environments", f.handleListEnvironments)
@@ -388,8 +398,11 @@ func NewCircleCI(t *testing.T) *CircleCI {
 	r.Post("/api/v3/signing/configs", f.handleCreateIOSBundle)
 	r.Get("/api/v3/signing/configs", f.handleListIOSBundles)
 	r.Delete("/api/v3/signing/configs/{id}", f.handleDeleteIOSBundle)
+	r.Post("/api/v3/signing/configs/{id}/update-profile", f.handleUpdateIOSBundleProfile)
+	r.Post("/api/v3/signing/configs/{id}/remove-profile", f.handleRemoveIOSBundleProfile)
 	// Config compile + org routes.
-	r.Post("/api/v2/compile-config-with-defaults", f.handleCompileConfig)
+	r.Post("/api/v3/configs/compile", f.handleCompileConfig)
+	r.Get("/api/v3/tool/releases", f.handleGetReleases)
 	r.Get("/api/v3/orgs", f.handleResolveOrg)
 	r.Get("/api/v3/orgs/{id}/settings", f.handleGetOrgSettingsV3)
 	r.Post("/api/v3/orgs/{id}/update-settings", f.handleUpdateOrgSettingsV3)
@@ -449,9 +462,6 @@ func NewCircleCI(t *testing.T) *CircleCI {
 	r.Delete("/api/v3/projects/{projectID}/dlc", f.handleDLCPurge)
 	// Wildcard route for artifact downloads — populated via AddStaticFile before requests.
 	r.Get("/artifacts/*", f.handleStaticFile)
-	// Raw step output/error routes for the private output API.
-	r.Get("/api/private/output/raw/{vcs}/{org}/{repo}/{number}/output/{taskIndex}/{stepID}", f.handleRawStepOutput)
-	r.Get("/api/private/output/raw/{vcs}/{org}/{repo}/{number}/error/{taskIndex}/{stepID}", f.handleRawStepError)
 	// GraphQL endpoint — dispatches by operation within the request body.
 	r.Post("/graphql-unstable", f.handleGraphQL)
 
@@ -463,6 +473,66 @@ func NewCircleCI(t *testing.T) *CircleCI {
 // URL returns the base URL of the fake server.
 func (f *CircleCI) URL() string {
 	return f.server.URL
+}
+
+// RequireTokens replaces the accepted-token set, so a request must carry one of
+// these as its Bearer token to reach any non-exempt route. Use it to pin the
+// exact token a test expects, or to exercise the 401 path with a token the fake
+// will reject.
+func (f *CircleCI) RequireTokens(tokens ...string) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.tokens = make(map[string]bool, len(tokens))
+	for _, tok := range tokens {
+		f.tokens[tok] = true
+	}
+}
+
+// AllowToken adds a token to the accepted-token set without disturbing the
+// tokens already there. The OAuth token endpoint calls this for every token it
+// mints, so a login flow's follow-up authenticated calls are accepted.
+func (f *CircleCI) AllowToken(token string) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.tokens[token] = true
+}
+
+// authMiddleware rejects any request to a non-exempt route that does not carry
+// Authorization: Bearer <token> with an accepted token, mirroring how the real
+// API refuses unauthenticated calls.
+func (f *CircleCI) authMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if authExempt(r.URL.Path) {
+			next.ServeHTTP(w, r)
+			return
+		}
+		if tok, ok := strings.CutPrefix(r.Header.Get("Authorization"), "Bearer "); ok {
+			f.mu.RLock()
+			accepted := f.tokens[tok]
+			f.mu.RUnlock()
+			if accepted {
+				next.ServeHTTP(w, r)
+				return
+			}
+		}
+		render.Status(r, http.StatusUnauthorized)
+		render.JSON(w, r, map[string]any{"message": "Unauthorized"})
+	})
+}
+
+// authExempt reports whether a path is reachable without authentication. These
+// are the routes the CLI legitimately calls with no (or not-yet-issued) token:
+// the OAuth login flow, signed artifact downloads, the optional-auth config
+// compile endpoint, and the public tool-releases feed.
+func authExempt(path string) bool {
+	if strings.HasPrefix(path, "/oauth/") || strings.HasPrefix(path, "/artifacts/") {
+		return true
+	}
+	switch path {
+	case "/api/v3/configs/compile", "/api/v3/tool/releases":
+		return true
+	}
+	return false
 }
 
 // SetPipelineCancelResponse sets the HTTP status code returned for POST /api/v2/pipeline/<id>/cancel.
@@ -546,8 +616,90 @@ func (f *CircleCI) handleDLCPurge(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(status)
 }
 
+// SetLatestRelease registers the release returned by GET /api/v3/tool/releases
+// for the given tool. Clears any previously set non-200 status.
+func (f *CircleCI) SetLatestRelease(tool, version string, publishedAt time.Time) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.releaseTool = tool
+	f.releaseVersion = version
+	f.releasePublishedAt = publishedAt
+	f.releaseStatus = http.StatusOK
+}
+
+// SetReleaseStatus makes GET /api/v3/tool/releases answer with the given HTTP
+// status (e.g. 503 or 400) instead of a 200.
+func (f *CircleCI) SetReleaseStatus(status int) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.releaseStatus = status
+}
+
+// handleGetReleases serves GET /api/v3/tool/releases, a required-filter single
+// lookup modelled as a one-element collection. It honours filter[tool] and the
+// status override set via SetReleaseStatus.
+func (f *CircleCI) handleGetReleases(w http.ResponseWriter, r *http.Request) {
+	tool := r.URL.Query().Get("filter[tool]")
+
+	f.mu.RLock()
+	status := f.releaseStatus
+	wantTool := f.releaseTool
+	version := f.releaseVersion
+	publishedAt := f.releasePublishedAt
+	f.mu.RUnlock()
+
+	if wantTool == "" {
+		wantTool = "circleci-cli"
+	}
+
+	writeReleaseError := func(code int, title, detail string) {
+		render.Status(r, code)
+		render.JSON(w, r, map[string]any{"error": map[string]any{"title": title, "detail": detail}})
+	}
+
+	if tool == "" {
+		writeReleaseError(http.StatusBadRequest, "Missing Required Filter", "Query parameter 'filter[tool]' is required.")
+		return
+	}
+	if status != 0 && status != http.StatusOK {
+		writeReleaseError(status, http.StatusText(status), "release lookup failed")
+		return
+	}
+	if tool != wantTool {
+		writeReleaseError(http.StatusBadRequest, "Unknown Tool", "Unknown tool: "+tool)
+		return
+	}
+
+	w.Header().Set("Cache-Control", "private, max-age=3600")
+	render.JSON(w, r, map[string]any{
+		"data": []any{map[string]any{
+			"id": "b0f8c1e2-4d3a-5f6b-8c7d-9e0f1a2b3c4d",
+			"attributes": map[string]any{
+				"tool":         tool,
+				"version":      version,
+				"published_at": publishedAt.UTC().Format(time.RFC3339Nano),
+			},
+		}},
+	})
+}
+
+// PipelineV2 is a stored v2 pipeline served by the pipeline get/get-by-number
+// and project pipeline-list endpoints. The structural fixture fields (trigger
+// type, actor, repository URLs) are constant across tests and supplied by the
+// renderer; only the fields below vary.
+type PipelineV2 struct {
+	ID          string
+	Number      int
+	State       string
+	ProjectSlug string
+	Branch      string
+	Revision    string
+	CreatedAt   string
+	UpdatedAt   string
+}
+
 // AddRun registers a run response for GET /api/v2/pipeline/<id>.
-func (f *CircleCI) AddRun(id string, run any) {
+func (f *CircleCI) AddRun(id string, run PipelineV2) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.pipelines[id] = run
@@ -555,24 +707,138 @@ func (f *CircleCI) AddRun(id string, run any) {
 
 // AddProjectRuns registers runs for GET /api/v2/project/<slug>/pipeline.
 // slug should be in "vcs/org/repo" form, e.g. "gh/myorg/myrepo".
-func (f *CircleCI) AddProjectRuns(slug string, runs ...any) {
+func (f *CircleCI) AddProjectRuns(slug string, runs ...PipelineV2) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.projects[slug] = runs
 }
 
-// AddWorkflowJobs registers job responses for a workflow.
-func (f *CircleCI) AddWorkflowJobs(workflowID string, jobs ...any) {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	f.workflowJobs[workflowID] = jobs
+// pipelineV2Entity renders a stored PipelineV2 as its v2 wire object, filling in
+// the constant trigger/actor/vcs scaffold every fixture shares.
+func pipelineV2Entity(p PipelineV2) map[string]any {
+	return map[string]any{
+		"id":           p.ID,
+		"state":        p.State,
+		"number":       p.Number,
+		"project_slug": p.ProjectSlug,
+		"created_at":   p.CreatedAt,
+		"updated_at":   p.UpdatedAt,
+		"trigger": map[string]any{
+			"type":        "webhook",
+			"received_at": p.CreatedAt,
+			"actor":       map[string]any{"login": "testuser", "avatar_url": ""},
+		},
+		"vcs": map[string]any{
+			"provider_name":         "GitHub",
+			"origin_repository_url": "https://github.com/testorg/testrepo",
+			"target_repository_url": "https://github.com/testorg/testrepo",
+			"revision":              p.Revision,
+			"branch":                p.Branch,
+		},
+	}
 }
 
-// AddWorkflowJobsV3 registers V3 job list items for a workflow.
-func (f *CircleCI) AddWorkflowJobsV3(workflowID string, jobs ...any) {
+// JobV3 is a stored job served by both the workflow-jobs list
+// (GET /api/v3/workflows/{id}/jobs) and the job-detail endpoint
+// (GET /api/v3/jobs/{id}). The list exposes the summary attributes and
+// references; detail adds the nested parallel executions. Optional fields
+// (Outcome, StartedAt, EndedAt, the reference ids) are omitted from the wire
+// entity when empty, and Executions is omitted when nil — matching how the real
+// API reports a queued job that has not run yet.
+type JobV3 struct {
+	ID         string
+	Name       string
+	Type       string
+	Phase      string
+	Outcome    string
+	StartedAt  string
+	EndedAt    string
+	ProjectID  string
+	WorkflowID string
+	PipelineID string
+	UserID     string
+	Executions [][]JobStep // parallel_executions, one inner slice of steps per execution
+}
+
+// JobStep is a single step within a JobV3 execution. ExitCode is a pointer so a
+// step that never ran a command (spin-up, checkout) omits it, distinct from an
+// explicit exit code of 0; Command is omitted when empty.
+type JobStep struct {
+	Name      string
+	Type      string
+	Num       int
+	Phase     string
+	Outcome   string
+	ExitCode  *int
+	Command   string
+	StartedAt string
+	EndedAt   string
+}
+
+// AddWorkflowJobsV3 registers the jobs a workflow lists.
+func (f *CircleCI) AddWorkflowJobsV3(workflowID string, jobs ...JobV3) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.workflowJobsV3[workflowID] = jobs
+}
+
+// jobV3Entity renders a stored JobV3 as its V3 entity, omitting the optional
+// attributes and references that are empty.
+func jobV3Entity(j JobV3) map[string]any {
+	attrs := map[string]any{"name": j.Name, "type": j.Type, "phase": j.Phase}
+	if j.Outcome != "" {
+		attrs["outcome"] = j.Outcome
+	}
+	if j.StartedAt != "" {
+		attrs["started_at"] = j.StartedAt
+	}
+	if j.EndedAt != "" {
+		attrs["ended_at"] = j.EndedAt
+	}
+	if len(j.Executions) > 0 {
+		execs := make([]any, 0, len(j.Executions))
+		for _, steps := range j.Executions {
+			rendered := make([]any, 0, len(steps))
+			for _, s := range steps {
+				rendered = append(rendered, jobStepEntity(s))
+			}
+			execs = append(execs, map[string]any{"steps": rendered})
+		}
+		attrs["parallel_executions"] = execs
+	}
+	refs := map[string]any{}
+	for key, id := range map[string]string{
+		"project":  j.ProjectID,
+		"workflow": j.WorkflowID,
+		"pipeline": j.PipelineID,
+		"user":     j.UserID,
+	} {
+		if id != "" {
+			refs[key] = map[string]any{"id": id}
+		}
+	}
+	return map[string]any{"id": j.ID, "attributes": attrs, "references": refs}
+}
+
+// jobStepEntity renders a single JobStep, omitting exit_code when unset and
+// command when empty.
+func jobStepEntity(s JobStep) map[string]any {
+	step := map[string]any{
+		"name":       s.Name,
+		"type":       s.Type,
+		"num":        s.Num,
+		"phase":      s.Phase,
+		"outcome":    s.Outcome,
+		"started_at": s.StartedAt,
+		"ended_at":   s.EndedAt,
+	}
+	if s.ExitCode != nil {
+		step["exit_code"] = *s.ExitCode
+	}
+	if s.Command != "" {
+		step["command"] = s.Command
+	}
+	return step
 }
 
 // AddJobArtifacts registers artifact responses for a job.
@@ -584,29 +850,41 @@ func (f *CircleCI) AddJobArtifacts(slug string, jobNumber int64, artifactItems .
 	f.jobArtifacts[key] = artifactItems
 }
 
-// AddJobArtifactsV3 registers V3 artifact data items for a job UUID.
-// Each item should be a V3 data entity with "attributes" containing path, url, execution.
-func (f *CircleCI) AddJobArtifactsV3(jobID string, items ...any) {
+// Artifact is a stored job artifact served by GET /api/v3/jobs/<id>/artifacts.
+// Execution is the parallel-run index (0-based) the artifact came from.
+type Artifact struct {
+	Path      string
+	URL       string
+	Execution int
+}
+
+// AddJobArtifactsV3 registers V3 artifacts for a job UUID.
+func (f *CircleCI) AddJobArtifactsV3(jobID string, items ...Artifact) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.jobArtifactsV3[jobID] = items
 }
 
-// AddJobV1 registers a v1.1 job detail response. Use this alongside AddJob
-// (with a job body that has no steps) to exercise the v2→v1.1 fallback path.
-// slug should be in the v1.1 form, e.g. "github/org/repo".
-func (f *CircleCI) AddJobV1(slug string, jobNumber int64, job any) {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	key := fmt.Sprintf("%s/%d", slug, jobNumber)
-	f.jobsV1[key] = job
+// artifactEntity renders a stored Artifact as its V3 entity. The id is a stable
+// UUIDv5 of the artifact's URL and execution — the CLI ignores it, but the
+// envelope requires one.
+func artifactEntity(a Artifact) map[string]any {
+	return map[string]any{
+		"id": uuid.NewSHA1(uuid.NameSpaceURL, fmt.Appendf(nil, "%s#%d", a.URL, a.Execution)).String(),
+		"attributes": map[string]any{
+			"path":      a.Path,
+			"url":       a.URL,
+			"execution": a.Execution,
+		},
+	}
 }
 
-// AddJobV3 registers a V3 job detail response for GET /api/v3/jobs/<id>.
-func (f *CircleCI) AddJobV3(id string, job any) {
+// AddJobV3 registers a job's detail, served by GET /api/v3/jobs/<id> keyed on
+// the job's ID.
+func (f *CircleCI) AddJobV3(job JobV3) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	f.jobsV3[id] = job
+	f.jobsV3[job.ID] = job
 }
 
 // AddJobStdout registers plain-text stdout for a step, served at
@@ -660,34 +938,6 @@ func (f *CircleCI) SetTriggerPipelineRunSkipped(slug, message string) {
 	f.triggerPipelineRunStatuses[slug] = http.StatusOK
 }
 
-// AddJob registers a job detail response for GET /api/v2/project/<slug>/job/<number>.
-// slug should be in "vcs/org/repo" form; jobNumber is the integer job number.
-func (f *CircleCI) AddJob(slug string, jobNumber int64, job any) {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	key := fmt.Sprintf("%s/%d", slug, jobNumber)
-	f.jobs[key] = job
-}
-
-// AddStepOutput registers plain-text output content for a step action, served
-// at GET /api/private/output/raw/{slug}/{number}/output/{taskIndex}/{stepID}.
-// taskIndex is action.Index and stepID is action.Step from the job response.
-func (f *CircleCI) AddStepOutput(slug string, jobNumber int64, taskIndex, stepID int, content string) {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	key := fmt.Sprintf("%s/%d/%d/%d", slug, jobNumber, taskIndex, stepID)
-	f.rawStepOutputs[key] = content
-}
-
-// AddStepError registers plain-text error content for a step action, served
-// at GET /api/private/output/raw/{slug}/{number}/error/{taskIndex}/{stepID}.
-func (f *CircleCI) AddStepError(slug string, jobNumber int64, taskIndex, stepID int, content string) {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	key := fmt.Sprintf("%s/%d/%d/%d", slug, jobNumber, taskIndex, stepID)
-	f.rawStepErrors[key] = content
-}
-
 // AddStaticFile registers a path that serves static content for artifact
 // download tests. Must be called before any requests are made to the server
 // (i.e. before RunCLI). The path should be relative, e.g. "/artifacts/foo.html".
@@ -722,7 +972,7 @@ func (f *CircleCI) handleGetPipeline(w http.ResponseWriter, r *http.Request) {
 		render.JSON(w, r, map[string]any{"message": "not found"})
 		return
 	}
-	render.JSON(w, r, p)
+	render.JSON(w, r, pipelineV2Entity(p))
 }
 
 func (f *CircleCI) handleCancelPipeline(w http.ResponseWriter, r *http.Request) {
@@ -748,42 +998,13 @@ func (f *CircleCI) handleGetPipelineByNumber(w http.ResponseWriter, r *http.Requ
 	f.mu.RUnlock()
 
 	for _, p := range pipelines {
-		m, ok := p.(map[string]any)
-		if !ok {
-			continue
-		}
-		num := m["number"]
-		// number may be int, int64, float64, or json.Number depending on how it was stored
-		var numStr string
-		switch v := num.(type) {
-		case int:
-			numStr = strconv.Itoa(v)
-		case int64:
-			numStr = strconv.FormatInt(v, 10)
-		case float64:
-			numStr = strconv.FormatInt(int64(v), 10)
-		case json.Number:
-			numStr = v.String()
-		}
-		if numStr == numberStr {
-			render.JSON(w, r, p)
+		if strconv.Itoa(p.Number) == numberStr {
+			render.JSON(w, r, pipelineV2Entity(p))
 			return
 		}
 	}
 	render.Status(r, http.StatusNotFound)
 	render.JSON(w, r, map[string]any{"message": "not found"})
-}
-
-func (f *CircleCI) handleGetWorkflowJobs(w http.ResponseWriter, r *http.Request) {
-	id := chi.URLParam(r, "id")
-	f.mu.RLock()
-	jobs := f.workflowJobs[id]
-	f.mu.RUnlock()
-
-	if jobs == nil {
-		jobs = []any{}
-	}
-	render.JSON(w, r, map[string]any{"items": jobs, "next_page_token": nil})
 }
 
 func (f *CircleCI) handleGetJobArtifacts(w http.ResponseWriter, r *http.Request) {
@@ -802,40 +1023,25 @@ func (f *CircleCI) handleGetJobArtifacts(w http.ResponseWriter, r *http.Request)
 func (f *CircleCI) handleGetJobArtifactsV3(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	f.mu.RLock()
-	items := f.jobArtifactsV3[id]
+	items := make([]any, 0, len(f.jobArtifactsV3[id]))
+	for _, a := range f.jobArtifactsV3[id] {
+		items = append(items, artifactEntity(a))
+	}
 	f.mu.RUnlock()
 
-	if items == nil {
-		items = []any{}
-	}
 	render.JSON(w, r, map[string]any{"data": items})
 }
 
 func (f *CircleCI) handleListProjectPipelines(w http.ResponseWriter, r *http.Request) {
 	slug := chi.URLParam(r, "vcs") + "/" + chi.URLParam(r, "org") + "/" + chi.URLParam(r, "repo")
 	f.mu.RLock()
-	pipelines := f.projects[slug]
+	items := make([]any, 0, len(f.projects[slug]))
+	for _, p := range f.projects[slug] {
+		items = append(items, pipelineV2Entity(p))
+	}
 	f.mu.RUnlock()
 
-	if pipelines == nil {
-		pipelines = []any{}
-	}
-	render.JSON(w, r, map[string]any{"items": pipelines, "next_page_token": nil})
-}
-
-func (f *CircleCI) handleGetJobV1(w http.ResponseWriter, r *http.Request) {
-	slug := chi.URLParam(r, "vcs") + "/" + chi.URLParam(r, "org") + "/" + chi.URLParam(r, "repo")
-	key := slug + "/" + chi.URLParam(r, "jobNumber")
-	f.mu.RLock()
-	job, ok := f.jobsV1[key]
-	f.mu.RUnlock()
-
-	if !ok {
-		render.Status(r, http.StatusNotFound)
-		render.JSON(w, r, map[string]any{"message": "not found"})
-		return
-	}
-	render.JSON(w, r, job)
+	render.JSON(w, r, map[string]any{"items": items, "next_page_token": nil})
 }
 
 func (f *CircleCI) handleTriggerPipeline(w http.ResponseWriter, r *http.Request) {
@@ -869,21 +1075,6 @@ func (f *CircleCI) handleTriggerPipelineRun(w http.ResponseWriter, r *http.Reque
 	render.JSON(w, r, resp)
 }
 
-func (f *CircleCI) handleGetJob(w http.ResponseWriter, r *http.Request) {
-	slug := chi.URLParam(r, "vcs") + "/" + chi.URLParam(r, "org") + "/" + chi.URLParam(r, "repo")
-	key := slug + "/" + chi.URLParam(r, "jobNumber")
-	f.mu.RLock()
-	job, ok := f.jobs[key]
-	f.mu.RUnlock()
-
-	if !ok {
-		render.Status(r, http.StatusNotFound)
-		render.JSON(w, r, map[string]any{"message": "not found"})
-		return
-	}
-	render.JSON(w, r, job)
-}
-
 func (f *CircleCI) handleGetJobV3(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	f.mu.RLock()
@@ -895,7 +1086,7 @@ func (f *CircleCI) handleGetJobV3(w http.ResponseWriter, r *http.Request) {
 		render.JSON(w, r, map[string]any{"message": "not found"})
 		return
 	}
-	render.JSON(w, r, job)
+	render.JSON(w, r, map[string]any{"data": jobV3Entity(job)})
 }
 
 func (f *CircleCI) handleGetJobStdout(w http.ResponseWriter, r *http.Request) {
@@ -965,10 +1156,20 @@ func (f *CircleCI) handleGetJobStderr(w http.ResponseWriter, r *http.Request) {
 	render.Data(w, r, content)
 }
 
+// TestResult is a stored test result served by the fake job-tests endpoint,
+// which streams these as newline-delimited JSON (JSONL). The JSON tags match
+// the wire fields the CLI decodes.
+type TestResult struct {
+	Classname string  `json:"classname"`
+	Name      string  `json:"name"`
+	Result    string  `json:"result"`
+	RunTime   float64 `json:"run_time"`
+	Message   string  `json:"message"`
+}
+
 // AddJobTests registers test-result records for a job UUID, served as
-// newline-delimited JSON (JSONL) at GET /api/v3/jobs/<id>/tests. Each record
-// should be a map with classname, name, result, run_time and message fields.
-func (f *CircleCI) AddJobTests(id string, tests ...any) {
+// newline-delimited JSON (JSONL) at GET /api/v3/jobs/<id>/tests.
+func (f *CircleCI) AddJobTests(id string, tests ...TestResult) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.jobTests[id] = tests
@@ -1019,27 +1220,68 @@ func (f *CircleCI) handleListWorkflowJobsV3(w http.ResponseWriter, r *http.Reque
 	}
 
 	f.mu.RLock()
-	jobs := f.workflowJobsV3[workflowID]
+	jobs := []any{}
+	for _, j := range f.workflowJobsV3[workflowID] {
+		jobs = append(jobs, jobV3Entity(j))
+	}
 	f.mu.RUnlock()
 
-	if jobs == nil {
-		jobs = []any{}
-	}
 	render.JSON(w, r, map[string]any{"data": jobs})
 }
 
-// AddWorkflowV3 registers a single V3 workflow response for GET /api/v3/workflows/<id>.
-func (f *CircleCI) AddWorkflowV3(id string, workflow any) {
+// WorkflowV3 is a stored workflow served by the workflow-detail
+// (GET /api/v3/workflows/{id}) and run-workflows list endpoints. An ended
+// workflow reports outcome + ended_at; a still-running one reports
+// current_outcome and no ended_at instead — mirroring the real API.
+type WorkflowV3 struct {
+	ID        string
+	Name      string
+	RunID     string
+	ProjectID string
+	UserID    string
+	Phase     string
+	Outcome   string
+	CreatedAt string
+	EndedAt   string
+}
+
+// AddWorkflowV3 registers a workflow served by GET /api/v3/workflows/<id>.
+func (f *CircleCI) AddWorkflowV3(id string, workflow WorkflowV3) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.workflowsV3[id] = workflow
 }
 
-// AddRunWorkflowsV3 registers V3 workflow responses for a run.
-func (f *CircleCI) AddRunWorkflowsV3(runID string, workflows ...any) {
+// AddRunWorkflowsV3 registers the workflows a run lists.
+func (f *CircleCI) AddRunWorkflowsV3(runID string, workflows ...WorkflowV3) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.workflowsV3ByRun[runID] = workflows
+}
+
+// workflowV3Entity renders a stored WorkflowV3 as its V3 entity, choosing the
+// outcome/ended_at vs current_outcome shape from the phase.
+func workflowV3Entity(wf WorkflowV3) map[string]any {
+	attrs := map[string]any{
+		"name":       wf.Name,
+		"phase":      wf.Phase,
+		"created_at": wf.CreatedAt,
+	}
+	if wf.Phase == "ended" {
+		attrs["outcome"] = wf.Outcome
+		attrs["ended_at"] = wf.EndedAt
+	} else {
+		attrs["current_outcome"] = wf.Outcome
+	}
+	return map[string]any{
+		"id":         wf.ID,
+		"attributes": attrs,
+		"references": map[string]any{
+			"run":     map[string]any{"id": wf.RunID},
+			"project": map[string]any{"id": wf.ProjectID},
+			"user":    map[string]any{"id": wf.UserID},
+		},
+	}
 }
 
 // SetRunWorkflowsV3NotFound makes GET /api/v3/workflows?filter[run_id]=<runID>
@@ -1062,7 +1304,7 @@ func (f *CircleCI) handleGetWorkflowV3ByID(w http.ResponseWriter, r *http.Reques
 		render.JSON(w, r, map[string]any{"message": "not found"})
 		return
 	}
-	render.JSON(w, r, map[string]any{"data": wf})
+	render.JSON(w, r, map[string]any{"data": workflowV3Entity(wf)})
 }
 
 func (f *CircleCI) handleGetWorkflowsV3(w http.ResponseWriter, r *http.Request) {
@@ -1079,27 +1321,99 @@ func (f *CircleCI) handleGetWorkflowsV3(w http.ResponseWriter, r *http.Request) 
 		})
 		return
 	}
-	if workflows == nil {
-		workflows = []any{}
+	items := make([]any, 0, len(workflows))
+	for _, wf := range workflows {
+		items = append(items, workflowV3Entity(wf))
 	}
-	render.JSON(w, r, map[string]any{"data": workflows})
+	render.JSON(w, r, map[string]any{"data": items})
 }
 
-// AddRunV3 registers a V3 run response and associates it with a project.
-// The run must have an "id" and "references.project.id" field.
-func (f *CircleCI) AddRunV3(id, projectID string, run any) {
+// RunV3 is a stored run served by the run-detail, run-search, and my-runs
+// endpoints. A run that resolved a revision renders a commit block; Tag,
+// OriginRepoURL and Errors render only when set. CurrentOutcome is omitted when
+// empty, matching a run that has not finished.
+type RunV3 struct {
+	ID             string
+	ProjectID      string
+	UserID         string
+	Phase          string
+	CurrentOutcome string
+	CreatedAt      string
+	Branch         string
+	Tag            string
+	Revision       string
+	OriginRepoURL  string
+	Errors         []RunError
+}
+
+// RunError is a config/setup error attached to a run, surfaced by run get.
+type RunError struct {
+	Type    string
+	Message string
+}
+
+// AddRunV3 registers a run served by GET /api/v3/runs/<id> and included in the
+// search results for its project.
+func (f *CircleCI) AddRunV3(id, projectID string, run RunV3) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.runsV3[id] = run
 	f.runsV3ByProject[projectID] = append(f.runsV3ByProject[projectID], run)
 }
 
-// SetUserRuns registers the V3 run data items returned by
+// SetUserRuns registers the runs returned by
 // GET /api/v3/runs?filter[user_id]=me (i.e. "circleci my runs").
-func (f *CircleCI) SetUserRuns(runs ...any) {
+func (f *CircleCI) SetUserRuns(runs ...RunV3) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.userRunsV3 = runs
+}
+
+// runV3Entity renders a stored RunV3 as its V3 entity. The VCS block always
+// carries branch and revision; tag, origin_repository_url and a commit
+// sub-object render only when the run has them.
+func runV3Entity(run RunV3) map[string]any {
+	attrs := map[string]any{
+		"phase":      run.Phase,
+		"created_at": run.CreatedAt,
+	}
+	if run.CurrentOutcome != "" {
+		attrs["current_outcome"] = run.CurrentOutcome
+	}
+	if len(run.Errors) > 0 {
+		errs := make([]any, 0, len(run.Errors))
+		for _, e := range run.Errors {
+			errs = append(errs, map[string]any{"type": e.Type, "message": e.Message})
+		}
+		attrs["errors"] = errs
+	}
+	vcs := map[string]any{
+		"branch":   run.Branch,
+		"revision": run.Revision,
+	}
+	if run.Tag != "" {
+		vcs["tag"] = run.Tag
+	}
+	if run.OriginRepoURL != "" {
+		vcs["origin_repository_url"] = run.OriginRepoURL
+	}
+	if run.Revision != "" {
+		vcs["commit"] = map[string]any{
+			"subject": "Fix the widget",
+			"url":     "https://github.com/testorg/testrepo/commit/" + run.Revision,
+			"author":  map[string]any{"name": "Ada Lovelace", "login": "ada"},
+		}
+	}
+	return map[string]any{
+		"id":         run.ID,
+		"attributes": attrs,
+		"references": map[string]any{
+			"event":   map[string]any{"attributes": map[string]any{"vcs": vcs}},
+			"trigger": map[string]any{"attributes": map[string]any{"event_source": map[string]any{"type": "webhook"}}},
+			"project": map[string]any{"id": run.ProjectID},
+			"user":    map[string]any{"id": run.UserID},
+		},
+	}
 }
 
 func (f *CircleCI) handleListMyRunsV3(w http.ResponseWriter, r *http.Request) {
@@ -1117,13 +1431,13 @@ func (f *CircleCI) handleListMyRunsV3(w http.ResponseWriter, r *http.Request) {
 	f.mu.RLock()
 	var results []any
 	for _, run := range f.userRunsV3 {
-		if phase != "" && runAttr(run, "phase") != phase {
+		if phase != "" && run.Phase != phase {
 			continue
 		}
-		if currentOutcome != "" && runAttr(run, "current_outcome") != currentOutcome {
+		if currentOutcome != "" && run.CurrentOutcome != currentOutcome {
 			continue
 		}
-		results = append(results, run)
+		results = append(results, runV3Entity(run))
 	}
 	f.mu.RUnlock()
 
@@ -1158,7 +1472,7 @@ func (f *CircleCI) handleGetRunV3(w http.ResponseWriter, r *http.Request) {
 		render.JSON(w, r, map[string]any{"message": "not found"})
 		return
 	}
-	render.JSON(w, r, map[string]any{"data": run})
+	render.JSON(w, r, map[string]any{"data": runV3Entity(run)})
 }
 
 func (f *CircleCI) handleSearchRunsV3(w http.ResponseWriter, r *http.Request) {
@@ -1185,13 +1499,13 @@ func (f *CircleCI) handleSearchRunsV3(w http.ResponseWriter, r *http.Request) {
 	var all []any
 	for _, pid := range body.Scope.ProjectIDs {
 		for _, run := range f.runsV3ByProject[pid] {
-			if branch != "" && runBranch(run) != branch {
+			if branch != "" && run.Branch != branch {
 				continue
 			}
 			if status != "" && runStatus(run) != status {
 				continue
 			}
-			all = append(all, run)
+			all = append(all, runV3Entity(run))
 		}
 	}
 	f.mu.RUnlock()
@@ -1234,33 +1548,6 @@ func runBranchFilter(filter string) string {
 	return rest[:j]
 }
 
-// runAttr reads a top-level attributes field (e.g. "phase", "current_outcome")
-// from a stored fake run as a string, or "" if absent.
-func runAttr(run any, key string) string {
-	m, ok := run.(map[string]any)
-	if !ok {
-		return ""
-	}
-	attrs, _ := m["attributes"].(map[string]any)
-	s, _ := attrs[key].(string)
-	return s
-}
-
-// runBranch reads references.event.attributes.vcs.branch from a stored fake
-// run, or "" if absent.
-func runBranch(run any) string {
-	m, ok := run.(map[string]any)
-	if !ok {
-		return ""
-	}
-	refs, _ := m["references"].(map[string]any)
-	event, _ := refs["event"].(map[string]any)
-	attrs, _ := event["attributes"].(map[string]any)
-	vcs, _ := attrs["vcs"].(map[string]any)
-	branch, _ := vcs["branch"].(string)
-	return branch
-}
-
 // runStatusFilterExpr extracts the pipeline status pinned by a V3 search filter
 // expression like `pipeline.status == "failed"`. It returns "" when no status is
 // pinned, meaning "match every status".
@@ -1283,21 +1570,14 @@ func runStatusFilterExpr(filter string) string {
 // from its phase and current_outcome. An ended run maps its outcome
 // ("succeeded" → "success", others pass through); a non-ended run reports its
 // phase (e.g. "running").
-func runStatus(run any) string {
-	m, ok := run.(map[string]any)
-	if !ok {
-		return ""
+func runStatus(run RunV3) string {
+	if run.Phase != "ended" {
+		return run.Phase
 	}
-	attrs, _ := m["attributes"].(map[string]any)
-	phase, _ := attrs["phase"].(string)
-	if phase != "ended" {
-		return phase
-	}
-	outcome, _ := attrs["current_outcome"].(string)
-	if outcome == "succeeded" {
+	if run.CurrentOutcome == "succeeded" {
 		return "success"
 	}
-	return outcome
+	return run.CurrentOutcome
 }
 
 // handleRerunWorkflow mirrors POST /api/v3/workflows/:id/rerun as the real service
@@ -1356,45 +1636,98 @@ func (f *CircleCI) handleCancelWorkflow(w http.ResponseWriter, r *http.Request) 
 	render.JSON(w, r, map[string]any{"data": map[string]any{"id": id}})
 }
 
-func (f *CircleCI) handleRawStepOutput(w http.ResponseWriter, r *http.Request) {
-	slug := chi.URLParam(r, "vcs") + "/" + chi.URLParam(r, "org") + "/" + chi.URLParam(r, "repo")
-	key := fmt.Sprintf("%s/%s/%s/%s", slug, chi.URLParam(r, "number"), chi.URLParam(r, "taskIndex"), chi.URLParam(r, "stepID"))
-	f.mu.RLock()
-	content := f.rawStepOutputs[key]
-	f.mu.RUnlock()
-	render.PlainText(w, r, content)
-}
-
-func (f *CircleCI) handleRawStepError(w http.ResponseWriter, r *http.Request) {
-	slug := chi.URLParam(r, "vcs") + "/" + chi.URLParam(r, "org") + "/" + chi.URLParam(r, "repo")
-	key := fmt.Sprintf("%s/%s/%s/%s", slug, chi.URLParam(r, "number"), chi.URLParam(r, "taskIndex"), chi.URLParam(r, "stepID"))
-	f.mu.RLock()
-	content := f.rawStepErrors[key]
-	f.mu.RUnlock()
-	render.PlainText(w, r, content)
-}
-
 // --- Runner helpers ---
 
-// AddResourceClass adds a resource class to the fake server's list.
-func (f *CircleCI) AddResourceClass(rc any) {
+// ResourceClass is a stored runner resource class served by the runner
+// resource-class list and create endpoints. Slug is the "resource_class" wire
+// field (e.g. "my-org/linux-runner"); the list filters on its namespace prefix.
+type ResourceClass struct {
+	ID          string
+	Slug        string
+	Description string
+}
+
+// RunnerToken is a stored runner token served by the runner token list and
+// create endpoints. Token carries the secret value, which only the create
+// response includes — it renders when set.
+type RunnerToken struct {
+	ID            string
+	ResourceClass string
+	Nickname      string
+	CreatedAt     string
+	Token         string
+}
+
+// RunnerInstance is a stored runner instance served by the runner instance
+// list, filtered by resource-class or namespace prefix.
+type RunnerInstance struct {
+	ResourceClass  string
+	Hostname       string
+	Name           string
+	Version        string
+	IP             string
+	FirstConnected string
+	LastConnected  string
+	LastUsed       string
+}
+
+// AddResourceClass registers a runner resource class.
+func (f *CircleCI) AddResourceClass(rc ResourceClass) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.resourceClasses = append(f.resourceClasses, rc)
 }
 
 // AddRunnerToken adds a token to the fake server for the given resource class.
-func (f *CircleCI) AddRunnerToken(resourceClass string, token any) {
+func (f *CircleCI) AddRunnerToken(resourceClass string, token RunnerToken) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.runnerTokens[resourceClass] = append(f.runnerTokens[resourceClass], token)
 }
 
 // AddRunnerInstance adds a runner instance to the fake server's list.
-func (f *CircleCI) AddRunnerInstance(instance any) {
+func (f *CircleCI) AddRunnerInstance(instance RunnerInstance) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.runnerInstances = append(f.runnerInstances, instance)
+}
+
+// resourceClassEntity renders a stored ResourceClass as its wire object.
+func resourceClassEntity(rc ResourceClass) map[string]any {
+	return map[string]any{
+		"id":             rc.ID,
+		"resource_class": rc.Slug,
+		"description":    rc.Description,
+	}
+}
+
+// runnerTokenEntity renders a stored RunnerToken, including the secret value
+// only when set (create responses carry it; the list does not).
+func runnerTokenEntity(t RunnerToken) map[string]any {
+	m := map[string]any{
+		"id":             t.ID,
+		"resource_class": t.ResourceClass,
+		"nickname":       t.Nickname,
+		"created_at":     t.CreatedAt,
+	}
+	if t.Token != "" {
+		m["token"] = t.Token
+	}
+	return m
+}
+
+// runnerInstanceEntity renders a stored RunnerInstance as its wire object.
+func runnerInstanceEntity(i RunnerInstance) map[string]any {
+	return map[string]any{
+		"resource_class":  i.ResourceClass,
+		"hostname":        i.Hostname,
+		"name":            i.Name,
+		"version":         i.Version,
+		"ip":              i.IP,
+		"first_connected": i.FirstConnected,
+		"last_connected":  i.LastConnected,
+		"last_used":       i.LastUsed,
+	}
 }
 
 // --- Runner handlers ---
@@ -1418,26 +1751,15 @@ func (f *CircleCI) handleListResourceClasses(w http.ResponseWriter, r *http.Requ
 	deleted := f.deletedRCs
 	f.mu.RUnlock()
 
-	var items []any
+	items := []any{}
 	for _, rc := range all {
-		m, ok := rc.(map[string]any)
-		if !ok {
-			items = append(items, rc)
+		if deleted[rc.Slug] {
 			continue
 		}
-		slug, _ := m["resource_class"].(string)
-		if deleted[slug] {
+		if ns != "" && !strings.HasPrefix(rc.Slug, ns+"/") {
 			continue
 		}
-		if ns != "" {
-			if len(slug) <= len(ns)+1 || slug[:len(ns)+1] != ns+"/" {
-				continue
-			}
-		}
-		items = append(items, rc)
-	}
-	if items == nil {
-		items = []any{}
+		items = append(items, resourceClassEntity(rc))
 	}
 	render.JSON(w, r, map[string]any{"items": items})
 }
@@ -1451,16 +1773,12 @@ func (f *CircleCI) handleCreateResourceClass(w http.ResponseWriter, r *http.Requ
 	}
 	slug, _ := body["resource_class"].(string)
 	desc, _ := body["description"].(string)
-	rc := map[string]any{
-		"id":             fmt.Sprintf("rc-%s", slug),
-		"resource_class": slug,
-		"description":    desc,
-	}
+	rc := ResourceClass{ID: fmt.Sprintf("rc-%s", slug), Slug: slug, Description: desc}
 	f.mu.Lock()
 	f.resourceClasses = append(f.resourceClasses, rc)
 	f.mu.Unlock()
 	render.Status(r, http.StatusCreated)
-	render.JSON(w, r, rc)
+	render.JSON(w, r, resourceClassEntity(rc))
 }
 
 // handleDeleteResourceClass serves DELETE /api/v3/runner/resource/{id}, which
@@ -1480,17 +1798,12 @@ func (f *CircleCI) deleteResourceClass(w http.ResponseWriter, r *http.Request, f
 	f.mu.Lock()
 	found, hasTokens := false, false
 	for _, rc := range f.resourceClasses {
-		m, ok := rc.(map[string]any)
-		if !ok {
-			continue
-		}
-		if m["id"] == id {
+		if rc.ID == id {
 			found = true
-			slug, _ := m["resource_class"].(string)
-			hasTokens = len(f.runnerTokens[slug]) > 0
+			hasTokens = len(f.runnerTokens[rc.Slug]) > 0
 			if force || !hasTokens {
-				f.deletedRCs[slug] = true
-				delete(f.runnerTokens, slug)
+				f.deletedRCs[rc.Slug] = true
+				delete(f.runnerTokens, rc.Slug)
 			}
 			break
 		}
@@ -1516,20 +1829,11 @@ func (f *CircleCI) handleListRunnerTokens(w http.ResponseWriter, r *http.Request
 	deleted := f.deletedTokens
 	f.mu.RUnlock()
 
-	var items []any
+	items := []any{}
 	for _, tok := range tokens {
-		m, ok := tok.(map[string]any)
-		if !ok {
-			items = append(items, tok)
-			continue
+		if !deleted[tok.ID] {
+			items = append(items, runnerTokenEntity(tok))
 		}
-		id, _ := m["id"].(string)
-		if !deleted[id] {
-			items = append(items, tok)
-		}
-	}
-	if items == nil {
-		items = []any{}
 	}
 	render.JSON(w, r, map[string]any{"items": items})
 }
@@ -1567,18 +1871,18 @@ func (f *CircleCI) handleCreateRunnerToken(w http.ResponseWriter, r *http.Reques
 
 	rc, _ := body["resource_class"].(string)
 	nickname, _ := body["nickname"].(string)
-	tok := map[string]any{
-		"id":             fmt.Sprintf("tok-%s", rc),
-		"resource_class": rc,
-		"nickname":       nickname,
-		"created_at":     "2026-01-01T00:00:00Z",
-		"token":          "fake-runner-token-value",
+	tok := RunnerToken{
+		ID:            fmt.Sprintf("tok-%s", rc),
+		ResourceClass: rc,
+		Nickname:      nickname,
+		CreatedAt:     "2026-01-01T00:00:00Z",
+		Token:         "fake-runner-token-value",
 	}
 	f.mu.Lock()
 	f.runnerTokens[rc] = append(f.runnerTokens[rc], tok)
 	f.mu.Unlock()
 	render.Status(r, http.StatusCreated)
-	render.JSON(w, r, tok)
+	render.JSON(w, r, runnerTokenEntity(tok))
 }
 
 func (f *CircleCI) handleDeleteRunnerToken(w http.ResponseWriter, r *http.Request) {
@@ -1587,11 +1891,7 @@ func (f *CircleCI) handleDeleteRunnerToken(w http.ResponseWriter, r *http.Reques
 	found := false
 	for _, tokens := range f.runnerTokens {
 		for _, tok := range tokens {
-			m, ok := tok.(map[string]any)
-			if !ok {
-				continue
-			}
-			if m["id"] == id {
+			if tok.ID == id {
 				found = true
 				break
 			}
@@ -1620,40 +1920,45 @@ func (f *CircleCI) handleListRunnerInstances(w http.ResponseWriter, r *http.Requ
 	all := f.runnerInstances
 	f.mu.RUnlock()
 
-	var items []any
+	items := []any{}
 	for _, inst := range all {
-		if rc == "" && ns == "" {
-			items = append(items, inst)
+		if rc != "" && inst.ResourceClass != rc {
 			continue
 		}
-		m, ok := inst.(map[string]any)
-		if !ok {
-			items = append(items, inst)
+		if ns != "" && !strings.HasPrefix(inst.ResourceClass, ns+"/") {
 			continue
 		}
-		slug, _ := m["resource_class"].(string)
-		if rc != "" && slug != rc {
-			continue
-		}
-		if ns != "" && !strings.HasPrefix(slug, ns+"/") {
-			continue
-		}
-		items = append(items, inst)
-	}
-	if items == nil {
-		items = []any{}
+		items = append(items, runnerInstanceEntity(inst))
 	}
 	render.JSON(w, r, map[string]any{"items": items})
 }
 
 // --- Auth helpers ---
 
-// SetMe sets the data element for GET /api/v3/users?filter[user_id]=me.
-// Pass a DataEntity-shaped map: {"id": "...", "attributes": {"name": "...", "login": "...", "avatar_url": "..."}}.
-func (f *CircleCI) SetMe(me any) {
+// User is the authenticated user served by GET /api/v3/users?filter[user_id]=me.
+// AvatarURL renders only when set.
+type User struct {
+	ID        string
+	Name      string
+	Login     string
+	AvatarURL string
+}
+
+// Collaboration is an org the authenticated user collaborates on, served by
+// GET /api/v2/me/collaborations.
+type Collaboration struct {
+	ID      string
+	Name    string
+	Slug    string
+	VCSType string
+}
+
+// SetMe sets the authenticated user returned by the users?filter[user_id]=me
+// endpoint. When unset, that endpoint answers 401.
+func (f *CircleCI) SetMe(me User) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	f.me = me
+	f.me = &me
 }
 
 func (f *CircleCI) handleGetMe(w http.ResponseWriter, r *http.Request) {
@@ -1667,13 +1972,23 @@ func (f *CircleCI) handleGetMe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	render.JSON(w, r, map[string]any{
-		"data": []any{me},
+		"data": []any{userEntity(*me)},
 		"page": map[string]any{"next": nil, "prev": nil},
 	})
 }
 
+// userEntity renders a stored User as its V3 entity, including avatar_url only
+// when set.
+func userEntity(u User) map[string]any {
+	attrs := map[string]any{"name": u.Name, "login": u.Login}
+	if u.AvatarURL != "" {
+		attrs["avatar_url"] = u.AvatarURL
+	}
+	return map[string]any{"id": u.ID, "attributes": attrs}
+}
+
 // SetCollaborations sets the response for GET /api/v2/me/collaborations.
-func (f *CircleCI) SetCollaborations(collabs []any) {
+func (f *CircleCI) SetCollaborations(collabs ...Collaboration) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.collaborations = collabs
@@ -1681,13 +1996,18 @@ func (f *CircleCI) SetCollaborations(collabs []any) {
 
 func (f *CircleCI) handleGetCollaborations(w http.ResponseWriter, r *http.Request) {
 	f.mu.RLock()
-	collabs := f.collaborations
+	items := make([]any, 0, len(f.collaborations))
+	for _, c := range f.collaborations {
+		items = append(items, collaborationEntity(c))
+	}
 	f.mu.RUnlock()
 
-	if collabs == nil {
-		collabs = []any{}
-	}
-	render.JSON(w, r, collabs)
+	render.JSON(w, r, items)
+}
+
+// collaborationEntity renders a stored Collaboration as its wire object.
+func collaborationEntity(c Collaboration) map[string]any {
+	return map[string]any{"id": c.ID, "name": c.Name, "slug": c.Slug, "vcs_type": c.VCSType}
 }
 
 // SetOAuthTokenResponse sets the response body for POST /oauth/token.
@@ -1756,6 +2076,16 @@ func (f *CircleCI) handleOAuthToken(w http.ResponseWriter, r *http.Request) {
 			"refresh_token": "fake-refresh-token",
 		}
 	}
+	// A successful exchange issues a token the CLI then uses to validate itself
+	// against /api/v3/users. Accept that minted token so the login flow's
+	// follow-up authenticated call is not rejected by authMiddleware.
+	if status == 0 || status < http.StatusBadRequest {
+		if m, ok := resp.(map[string]any); ok {
+			if at, ok := m["access_token"].(string); ok && at != "" {
+				f.AllowToken(at)
+			}
+		}
+	}
 	if status != 0 {
 		render.Status(r, status)
 	}
@@ -1764,12 +2094,56 @@ func (f *CircleCI) handleOAuthToken(w http.ResponseWriter, r *http.Request) {
 
 // --- Project / env-var helpers ---
 
+// ProjectInfo is a stored v1.1/v2 project record served by
+// GET /api/v2/project/<slug>. Only ID and Slug are always present; the org
+// fields and VCSInfo render only when set.
+type ProjectInfo struct {
+	ID               string
+	Slug             string
+	Name             string
+	OrganizationName string
+	OrganizationSlug string
+	OrganizationID   string
+	VCSInfo          *VCSInfo
+}
+
+// VCSInfo is the nested vcs_info block on a ProjectInfo.
+type VCSInfo struct {
+	Provider      string
+	DefaultBranch string
+	VCSURL        string
+}
+
 // AddProjectInfo registers a project info response for GET /api/v2/project/<slug>.
 // slug should be in "vcs/org/repo" form.
-func (f *CircleCI) AddProjectInfo(slug string, info any) {
+func (f *CircleCI) AddProjectInfo(slug string, info ProjectInfo) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.projectInfos[slug] = info
+}
+
+// projectInfoEntity renders a stored ProjectInfo, omitting the optional fields
+// that are empty.
+func projectInfoEntity(p ProjectInfo) map[string]any {
+	m := map[string]any{"id": p.ID, "slug": p.Slug}
+	for k, v := range map[string]string{
+		"name":              p.Name,
+		"organization_name": p.OrganizationName,
+		"organization_slug": p.OrganizationSlug,
+		"organization_id":   p.OrganizationID,
+	} {
+		if v != "" {
+			m[k] = v
+		}
+	}
+	if p.VCSInfo != nil {
+		m["vcs_info"] = map[string]any{
+			"provider":       p.VCSInfo.Provider,
+			"default_branch": p.VCSInfo.DefaultBranch,
+			"vcs_url":        p.VCSInfo.VCSURL,
+		}
+	}
+	return m
 }
 
 // defaultProjectSettingsAttrs returns an all-false v3 attributes payload.
@@ -1883,15 +2257,29 @@ func (f *CircleCI) handleGetProjectV3(w http.ResponseWriter, r *http.Request) {
 	render.JSON(w, r, map[string]any{"data": project})
 }
 
+// ProjectV3 is a stored project resolved by
+// GET /api/v3/projects?filter[slug]=<slug>. The entity carries its UUID, name,
+// and owning org UUID — enough for the CLI to map a slug to its project.
+type ProjectV3 struct {
+	ID    string
+	Name  string
+	OrgID string
+}
+
 // AddProjectBySlug registers a project resolved by GET
 // /api/v3/projects?filter[slug]=<slug>, returning its UUID, name, and org UUID.
 func (f *CircleCI) AddProjectBySlug(slug, id, name, orgID string) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	f.projectsBySlug[slug] = map[string]any{
-		"id":         id,
-		"attributes": map[string]any{"name": name},
-		"references": map[string]any{"org": map[string]any{"id": orgID}},
+	f.projectsBySlug[slug] = ProjectV3{ID: id, Name: name, OrgID: orgID}
+}
+
+// projectV3Entity renders a stored ProjectV3 as its V3 entity.
+func projectV3Entity(p ProjectV3) map[string]any {
+	return map[string]any{
+		"id":         p.ID,
+		"attributes": map[string]any{"name": p.Name},
+		"references": map[string]any{"org": map[string]any{"id": p.OrgID}},
 	}
 }
 
@@ -1909,7 +2297,7 @@ func (f *CircleCI) handleResolveProjectBySlug(w http.ResponseWriter, r *http.Req
 	// The endpoint is a collection: an unmatched slug is an empty list, not a 404.
 	data := []any{}
 	if ok {
-		data = append(data, project)
+		data = append(data, projectV3Entity(project))
 	}
 	render.JSON(w, r, map[string]any{"data": data, "page": map[string]any{"next": nil, "prev": nil}})
 }
@@ -1949,12 +2337,31 @@ func (f *CircleCI) SetCreateTriggerResponse(projectID, pipelineDefinitionID stri
 	f.createTriggerResponses[projectID+"/"+pipelineDefinitionID] = resp
 }
 
+// FollowedProject is a stored project served by GET /api/v1.1/projects.
+type FollowedProject struct {
+	Slug     string
+	Username string
+	Reponame string
+	VCSType  string
+	Name     string
+}
+
 // AddFollowedProject registers a project returned by GET /api/v1.1/projects.
-// proj should be a map or struct with at least "slug", "username", and "reponame" fields.
-func (f *CircleCI) AddFollowedProject(proj any) {
+func (f *CircleCI) AddFollowedProject(proj FollowedProject) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.followedProjects = append(f.followedProjects, proj)
+}
+
+// followedProjectEntity renders a stored FollowedProject as its v1.1 object.
+func followedProjectEntity(p FollowedProject) map[string]any {
+	return map[string]any{
+		"slug":     p.Slug,
+		"username": p.Username,
+		"reponame": p.Reponame,
+		"vcs_type": p.VCSType,
+		"name":     p.Name,
+	}
 }
 
 // SetCreateOrgResponse registers the response body returned when
@@ -1984,28 +2391,39 @@ func (f *CircleCI) SetCreateProjectConflict() {
 	f.createProjectResp = map[string]any{"message": "A project with this name already exists"}
 }
 
+// EnvVar is a stored project environment variable served by the project env-var
+// list/set endpoints. CreatedAt is a pointer so a variable with no timestamp
+// renders created_at as null, matching the real API.
+type EnvVar struct {
+	Name      string
+	Value     string
+	CreatedAt *time.Time
+}
+
 // AddEnvVar registers an env var for a project.
 // slug should be in "vcs/org/repo" form.
 func (f *CircleCI) AddEnvVar(slug, name, value string, createdAt *time.Time) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	f.envVars[slug] = append(f.envVars[slug], map[string]any{
-		"name":       name,
-		"value":      value,
-		"created_at": createdAt,
-	})
+	f.envVars[slug] = append(f.envVars[slug], EnvVar{Name: name, Value: value, CreatedAt: createdAt})
+}
+
+// envVarEntity renders a stored EnvVar as its wire object; created_at is always
+// present (null when unset).
+func envVarEntity(v EnvVar) map[string]any {
+	return map[string]any{"name": v.Name, "value": v.Value, "created_at": v.CreatedAt}
 }
 
 // --- Project / env-var handlers ---
 
 func (f *CircleCI) handleListProjects(w http.ResponseWriter, r *http.Request) {
 	f.mu.RLock()
-	projects := f.followedProjects
+	projects := make([]any, 0, len(f.followedProjects))
+	for _, p := range f.followedProjects {
+		projects = append(projects, followedProjectEntity(p))
+	}
 	f.mu.RUnlock()
 
-	if projects == nil {
-		projects = []any{}
-	}
 	render.JSON(w, r, projects)
 }
 
@@ -2018,11 +2436,11 @@ func (f *CircleCI) handleFollowProject(w http.ResponseWriter, r *http.Request) {
 	f.mu.Lock()
 	if !f.followedSlugs[slug] {
 		f.followedSlugs[slug] = true
-		f.followedProjects = append(f.followedProjects, map[string]any{
-			"slug":     slug,
-			"username": org,
-			"reponame": repo,
-			"vcs_type": vcs,
+		f.followedProjects = append(f.followedProjects, FollowedProject{
+			Slug:     slug,
+			Username: org,
+			Reponame: repo,
+			VCSType:  vcs,
 		})
 	}
 	f.mu.Unlock()
@@ -2087,21 +2505,11 @@ func (f *CircleCI) handleListEnvVars(w http.ResponseWriter, r *http.Request) {
 	deleted := f.deletedEnvVars
 	f.mu.RUnlock()
 
-	var items []any
+	items := []any{}
 	for _, v := range vars {
-		m, ok := v.(map[string]any)
-		if !ok {
-			items = append(items, v)
-			continue
+		if !deleted[slug+"/"+v.Name] {
+			items = append(items, envVarEntity(v))
 		}
-		name, _ := m["name"].(string)
-		key := slug + "/" + name
-		if !deleted[key] {
-			items = append(items, v)
-		}
-	}
-	if items == nil {
-		items = []any{}
 	}
 	render.JSON(w, r, map[string]any{"items": items, "next_page_token": nil})
 }
@@ -2117,13 +2525,12 @@ func (f *CircleCI) handleSetEnvVar(w http.ResponseWriter, r *http.Request) {
 	name, _ := body["name"].(string)
 	value, _ := body["value"].(string)
 
-	ev := map[string]any{"name": name, "value": value}
+	ev := EnvVar{Name: name, Value: value}
 	f.mu.Lock()
 	// Remove any existing var with this name.
-	var kept []any
+	var kept []EnvVar
 	for _, v := range f.envVars[slug] {
-		m, ok := v.(map[string]any)
-		if ok && m["name"] == name {
+		if v.Name == name {
 			continue
 		}
 		kept = append(kept, v)
@@ -2133,38 +2540,97 @@ func (f *CircleCI) handleSetEnvVar(w http.ResponseWriter, r *http.Request) {
 	f.mu.Unlock()
 
 	render.Status(r, http.StatusCreated)
-	render.JSON(w, r, ev)
+	render.JSON(w, r, envVarEntity(ev))
 }
 
 // --- Context helpers ---
 
-// AddContext registers a context object for GET /api/v2/context/{id}.
-// ctx should be a map with at least "id", "name", and "created_at" fields.
-// It is also indexed by org slug for list responses.
-func (f *CircleCI) AddContext(orgSlug string, ctx any) {
+// Context is a stored context served by the context list/get/create endpoints.
+type Context struct {
+	ID        string
+	Name      string
+	CreatedAt string
+}
+
+// ContextEnvVar is a stored context environment variable. TruncatedValue is the
+// masked value the list/get surface; a freshly-set variable has none, so it
+// renders only when set.
+type ContextEnvVar struct {
+	Variable       string
+	TruncatedValue string
+	ContextID      string
+	CreatedAt      string
+	UpdatedAt      string
+}
+
+// ContextRestriction is a stored context restriction. ContextID renders only
+// when set — the create response omits it, matching the real API.
+type ContextRestriction struct {
+	ContextID        string
+	ID               string
+	RestrictionType  string
+	RestrictionValue string
+	Name             string
+}
+
+// AddContext registers a context served by GET /api/v2/context/{id} and
+// indexed by org slug for list responses.
+func (f *CircleCI) AddContext(orgSlug string, ctx Context) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	m, ok := ctx.(map[string]any)
-	if ok {
-		if id, _ := m["id"].(string); id != "" {
-			f.contexts[id] = ctx
-		}
+	if ctx.ID != "" {
+		f.contexts[ctx.ID] = ctx
 	}
 	f.contextsByOrg[orgSlug] = append(f.contextsByOrg[orgSlug], ctx)
 }
 
 // AddContextEnvVar registers an environment variable for a context.
-func (f *CircleCI) AddContextEnvVar(contextID string, envVar any) {
+func (f *CircleCI) AddContextEnvVar(contextID string, envVar ContextEnvVar) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.contextEnvVars[contextID] = append(f.contextEnvVars[contextID], envVar)
 }
 
 // AddContextRestriction registers a restriction for a context.
-func (f *CircleCI) AddContextRestriction(contextID string, restriction any) {
+func (f *CircleCI) AddContextRestriction(contextID string, restriction ContextRestriction) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.contextRestrictions[contextID] = append(f.contextRestrictions[contextID], restriction)
+}
+
+// contextEntity renders a stored Context as its wire object.
+func contextEntity(c Context) map[string]any {
+	return map[string]any{"id": c.ID, "name": c.Name, "created_at": c.CreatedAt}
+}
+
+// contextEnvVarEntity renders a stored ContextEnvVar, including the masked value
+// only when set.
+func contextEnvVarEntity(v ContextEnvVar) map[string]any {
+	m := map[string]any{
+		"variable":   v.Variable,
+		"context_id": v.ContextID,
+		"created_at": v.CreatedAt,
+		"updated_at": v.UpdatedAt,
+	}
+	if v.TruncatedValue != "" {
+		m["truncated_value"] = v.TruncatedValue
+	}
+	return m
+}
+
+// contextRestrictionEntity renders a stored ContextRestriction, including
+// context_id only when set.
+func contextRestrictionEntity(rr ContextRestriction) map[string]any {
+	m := map[string]any{
+		"id":                rr.ID,
+		"name":              rr.Name,
+		"restriction_type":  rr.RestrictionType,
+		"restriction_value": rr.RestrictionValue,
+	}
+	if rr.ContextID != "" {
+		m["context_id"] = rr.ContextID
+	}
+	return m
 }
 
 // --- Context handlers ---
@@ -2177,23 +2643,15 @@ func (f *CircleCI) handleListContexts(w http.ResponseWriter, r *http.Request) {
 	deleted := f.deletedContexts
 	f.mu.RUnlock()
 
-	var result []any
+	result := []any{}
 	for _, ctx := range items {
-		m, ok := ctx.(map[string]any)
-		if ok {
-			if id, _ := m["id"].(string); deleted[id] {
-				continue
-			}
-			if nameFilter != "" {
-				if name, _ := m["name"].(string); !strings.Contains(strings.ToLower(name), strings.ToLower(nameFilter)) {
-					continue
-				}
-			}
+		if deleted[ctx.ID] {
+			continue
 		}
-		result = append(result, ctx)
-	}
-	if result == nil {
-		result = []any{}
+		if nameFilter != "" && !strings.Contains(strings.ToLower(ctx.Name), strings.ToLower(nameFilter)) {
+			continue
+		}
+		result = append(result, contextEntity(ctx))
 	}
 	render.JSON(w, r, map[string]any{"items": result, "next_page_token": nil})
 }
@@ -2211,11 +2669,7 @@ func (f *CircleCI) handleCreateContext(w http.ResponseWriter, r *http.Request) {
 		orgSlug, _ = owner["slug"].(string)
 	}
 	id := "c0000099-0000-4000-8000-000000000099"
-	ctx := map[string]any{
-		"id":         id,
-		"name":       name,
-		"created_at": "2026-01-01T00:00:00Z",
-	}
+	ctx := Context{ID: id, Name: name, CreatedAt: "2026-01-01T00:00:00Z"}
 	f.mu.Lock()
 	f.contexts[id] = ctx
 	if orgSlug != "" {
@@ -2223,7 +2677,7 @@ func (f *CircleCI) handleCreateContext(w http.ResponseWriter, r *http.Request) {
 	}
 	f.mu.Unlock()
 	render.Status(r, http.StatusCreated)
-	render.JSON(w, r, ctx)
+	render.JSON(w, r, contextEntity(ctx))
 }
 
 func (f *CircleCI) handleGetContext(w http.ResponseWriter, r *http.Request) {
@@ -2244,40 +2698,25 @@ func (f *CircleCI) handleGetContext(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Build a ContextDetail-shaped response with env vars embedded.
-	var liveVars []any
+	liveVars := []any{}
 	for _, v := range vars {
-		m, ok := v.(map[string]any)
-		if ok {
-			name, _ := m["variable"].(string)
-			if deletedVars[id+"/"+name] {
-				continue
-			}
+		if deletedVars[id+"/"+v.Variable] {
+			continue
 		}
-		liveVars = append(liveVars, v)
+		liveVars = append(liveVars, contextEnvVarEntity(v))
 	}
-	if liveVars == nil {
-		liveVars = []any{}
-	}
-	var liveRestrictions []any
+	liveRestrictions := []any{}
 	for _, restr := range restrictions {
-		m, ok := restr.(map[string]any)
-		if ok {
-			rid, _ := m["id"].(string)
-			if deletedRestrictions[id+"/"+rid] {
-				continue
-			}
+		if deletedRestrictions[id+"/"+restr.ID] {
+			continue
 		}
-		liveRestrictions = append(liveRestrictions, restr)
-	}
-	if liveRestrictions == nil {
-		liveRestrictions = []any{}
+		liveRestrictions = append(liveRestrictions, contextRestrictionEntity(restr))
 	}
 
-	m, _ := ctx.(map[string]any)
 	detail := map[string]any{
-		"id":                    m["id"],
-		"name":                  m["name"],
-		"created_at":            m["created_at"],
+		"id":                    ctx.ID,
+		"name":                  ctx.Name,
+		"created_at":            ctx.CreatedAt,
 		"org_id":                "00000000-0000-0000-0000-000000000000",
 		"environment_variables": liveVars,
 		"restrictions":          liveRestrictions,
@@ -2309,19 +2748,12 @@ func (f *CircleCI) handleListContextEnvVars(w http.ResponseWriter, r *http.Reque
 	deleted := f.deletedContextVars
 	f.mu.RUnlock()
 
-	var items []any
+	items := []any{}
 	for _, v := range vars {
-		m, ok := v.(map[string]any)
-		if ok {
-			name, _ := m["variable"].(string)
-			if deleted[id+"/"+name] {
-				continue
-			}
+		if deleted[id+"/"+v.Variable] {
+			continue
 		}
-		items = append(items, v)
-	}
-	if items == nil {
-		items = []any{}
+		items = append(items, contextEnvVarEntity(v))
 	}
 	render.JSON(w, r, map[string]any{"items": items, "next_page_token": nil})
 }
@@ -2335,18 +2767,17 @@ func (f *CircleCI) handleSetContextEnvVar(w http.ResponseWriter, r *http.Request
 		render.JSON(w, r, map[string]any{"message": "invalid body"})
 		return
 	}
-	ev := map[string]any{
-		"variable":   name,
-		"context_id": id,
-		"created_at": "2026-01-01T00:00:00Z",
-		"updated_at": "2026-01-01T00:00:00Z",
+	ev := ContextEnvVar{
+		Variable:  name,
+		ContextID: id,
+		CreatedAt: "2026-01-01T00:00:00Z",
+		UpdatedAt: "2026-01-01T00:00:00Z",
 	}
 	f.mu.Lock()
 	// Remove existing var with same name.
-	var kept []any
+	var kept []ContextEnvVar
 	for _, v := range f.contextEnvVars[id] {
-		m, ok := v.(map[string]any)
-		if ok && m["variable"] == name {
+		if v.Variable == name {
 			continue
 		}
 		kept = append(kept, v)
@@ -2354,7 +2785,7 @@ func (f *CircleCI) handleSetContextEnvVar(w http.ResponseWriter, r *http.Request
 	f.contextEnvVars[id] = append(kept, ev)
 	delete(f.deletedContextVars, id+"/"+name)
 	f.mu.Unlock()
-	render.JSON(w, r, ev)
+	render.JSON(w, r, contextEnvVarEntity(ev))
 }
 
 func (f *CircleCI) handleDeleteContextEnvVar(w http.ResponseWriter, r *http.Request) {
@@ -2365,8 +2796,7 @@ func (f *CircleCI) handleDeleteContextEnvVar(w http.ResponseWriter, r *http.Requ
 	f.mu.Lock()
 	found := false
 	for _, v := range f.contextEnvVars[id] {
-		m, ok := v.(map[string]any)
-		if ok && m["variable"] == name {
+		if v.Variable == name {
 			found = true
 			break
 		}
@@ -2405,17 +2835,16 @@ func (f *CircleCI) handleCreateContextRestriction(w http.ResponseWriter, r *http
 	}
 	restrictionType, _ := body["restriction_type"].(string)
 	restrictionValue, _ := body["restriction_value"].(string)
-	restr := map[string]any{
-		"id":                "c0000003-0000-4000-8000-000000000003",
-		"name":              "",
-		"restriction_type":  restrictionType,
-		"restriction_value": restrictionValue,
+	restr := ContextRestriction{
+		ID:               "c0000003-0000-4000-8000-000000000003",
+		RestrictionType:  restrictionType,
+		RestrictionValue: restrictionValue,
 	}
 	f.mu.Lock()
 	f.contextRestrictions[id] = append(f.contextRestrictions[id], restr)
 	f.mu.Unlock()
 	render.Status(r, http.StatusCreated)
-	render.JSON(w, r, restr)
+	render.JSON(w, r, contextRestrictionEntity(restr))
 }
 
 func (f *CircleCI) handleDeleteContextRestriction(w http.ResponseWriter, r *http.Request) {
@@ -2426,8 +2855,7 @@ func (f *CircleCI) handleDeleteContextRestriction(w http.ResponseWriter, r *http
 	f.mu.Lock()
 	found := false
 	for _, restr := range f.contextRestrictions[contextID] {
-		m, ok := restr.(map[string]any)
-		if ok && m["id"] == restrictionID {
+		if restr.ID == restrictionID {
 			found = true
 			break
 		}
@@ -2512,12 +2940,39 @@ func (f *CircleCI) SetGitHubAppInstalled(orgID string, installed bool) {
 	f.githubAppInstalled[orgID] = installed
 }
 
+// GitHubAppRepo is a stored repository the CircleCI GitHub App can access,
+// served by the org repositories endpoint. DefaultBranch renders only when set.
+type GitHubAppRepo struct {
+	ID            int
+	RepoFullName  string
+	RepoName      string
+	Owner         string
+	DefaultBranch string
+	Private       bool
+}
+
 // AddGitHubAppRepository registers a repository returned by GET
 // /api/v2/github-app/organization/{orgID}/repositories.
-func (f *CircleCI) AddGitHubAppRepository(orgID string, repo any) {
+func (f *CircleCI) AddGitHubAppRepository(orgID string, repo GitHubAppRepo) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.githubAppRepos[orgID] = append(f.githubAppRepos[orgID], repo)
+}
+
+// gitHubAppRepoEntity renders a stored GitHubAppRepo as its wire object,
+// including default_branch only when set.
+func gitHubAppRepoEntity(repo GitHubAppRepo) map[string]any {
+	m := map[string]any{
+		"id":             repo.ID,
+		"repo_full_name": repo.RepoFullName,
+		"repo_name":      repo.RepoName,
+		"owner":          repo.Owner,
+		"private":        repo.Private,
+	}
+	if repo.DefaultBranch != "" {
+		m["default_branch"] = repo.DefaultBranch
+	}
+	return m
 }
 
 // SetGitHubAppInstallResponse registers the body returned by POST
@@ -2564,10 +3019,11 @@ func (f *CircleCI) handleListGitHubAppRepositories(w http.ResponseWriter, r *htt
 	repos := f.githubAppRepos[orgID]
 	f.mu.RUnlock()
 
-	if repos == nil {
-		repos = []any{}
+	items := make([]any, 0, len(repos))
+	for _, repo := range repos {
+		items = append(items, gitHubAppRepoEntity(repo))
 	}
-	render.JSON(w, r, map[string]any{"items": repos, "total_count": len(repos)})
+	render.JSON(w, r, map[string]any{"items": items, "total_count": len(items)})
 }
 
 func (f *CircleCI) handleGetProjectInfo(w http.ResponseWriter, r *http.Request) {
@@ -2581,180 +3037,259 @@ func (f *CircleCI) handleGetProjectInfo(w http.ResponseWriter, r *http.Request) 
 		render.JSON(w, r, map[string]any{"message": "not found"})
 		return
 	}
-	render.JSON(w, r, info)
+	render.JSON(w, r, projectInfoEntity(info))
 }
 
 // --- Deploy helpers ---
 
-// AddDeployment registers a deployment for a project, returned by
-// GET /api/v3/deploy/deployments. The deployment must be in V3 format:
-// {"id": "...", "attributes": {...}, "references": {...}}.
-func (f *CircleCI) AddDeployment(projectID string, deployment any) {
+// Deployment is a stored deploy served by GET /api/v3/deploy/deployments,
+// filtered by ProjectID. Add deployments newest-first — the endpoint returns
+// them in insertion order. Optional string fields (FailureReason, EndedAt,
+// PipelineID, WorkflowID) are omitted from the wire entity when empty, matching
+// the real API.
+type Deployment struct {
+	ID            string
+	ProjectID     string // list filter key; not rendered
+	ComponentID   string
+	ComponentName string
+	EnvironmentID string
+	PipelineID    string
+	WorkflowID    string
+	Type          string
+	Status        string
+	FailureReason string
+	Version       string // rendered as target_version.name
+	IsRollback    bool
+	CreatedAt     string
+	EndedAt       string
+}
+
+// DeployEnvironment is a stored deploy environment served by the environment
+// list/get endpoints. OrgID is the list filter key.
+type DeployEnvironment struct {
+	ID    string
+	OrgID string
+	Name  string
+}
+
+// DeployComponent is a stored deploy component served by the component list/get
+// endpoints. OrgID is the list filter key; ProjectID narrows the list.
+type DeployComponent struct {
+	ID        string
+	OrgID     string
+	ProjectID string
+	Name      string
+	Type      string
+}
+
+// DeployComponentVersion is a stored version served by the component-versions
+// endpoint. ComponentID is the list key; EnvironmentID optionally narrows it.
+type DeployComponentVersion struct {
+	ID            string
+	ComponentID   string
+	EnvironmentID string
+	Name          string
+	CreatedAt     string
+}
+
+// DeploySettings is a stored deploy settings entity for a project.
+type DeploySettings struct {
+	ID                         string
+	ProjectID                  string
+	AutoCancelRedundantDeploys bool
+}
+
+// AddDeployment registers a deployment, returned by GET /api/v3/deploy/deployments
+// for requests whose filter[project_id] matches its ProjectID.
+func (f *CircleCI) AddDeployment(deployment Deployment) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	f.deployments[projectID] = append(f.deployments[projectID], deployment)
+	f.deployments = append(f.deployments, deployment)
 }
 
 func (f *CircleCI) handleListDeployments(w http.ResponseWriter, r *http.Request) {
 	projectID := r.URL.Query().Get("filter[project_id]")
 	f.mu.RLock()
-	items := f.deployments[projectID]
+	items := []any{}
+	for _, d := range f.deployments {
+		if projectID == "" || d.ProjectID == projectID {
+			items = append(items, deploymentEntity(d))
+		}
+	}
 	f.mu.RUnlock()
 
-	if items == nil {
-		items = []any{}
-	}
 	render.JSON(w, r, map[string]any{"data": items, "page": map[string]any{}})
 }
 
-// AddEnvironment registers a deploy environment.
-// The environment must be in V3 entity format with "id", "attributes", and "references".
-// orgID is used to filter by filter[org_id] in the list handler.
-func (f *CircleCI) AddEnvironment(orgID string, environment any) {
+// deploymentEntity renders a stored Deployment as the V3 entity the deploy
+// client decodes, omitting the optional fields that are empty.
+func deploymentEntity(d Deployment) map[string]any {
+	attrs := map[string]any{
+		"type":           d.Type,
+		"status":         d.Status,
+		"target_version": map[string]any{"name": d.Version},
+		"is_rollback":    d.IsRollback,
+		"created_at":     d.CreatedAt,
+	}
+	if d.EndedAt != "" {
+		attrs["ended_at"] = d.EndedAt
+	}
+	if d.FailureReason != "" {
+		attrs["failure_reason"] = d.FailureReason
+	}
+	refs := map[string]any{
+		"deploy_component": map[string]any{
+			"id":         d.ComponentID,
+			"attributes": map[string]any{"name": d.ComponentName},
+		},
+		"deploy_environment": map[string]any{"id": d.EnvironmentID},
+	}
+	if d.PipelineID != "" {
+		refs["pipeline"] = map[string]any{"id": d.PipelineID}
+	}
+	if d.WorkflowID != "" {
+		refs["workflow"] = map[string]any{"id": d.WorkflowID}
+	}
+	return map[string]any{"id": d.ID, "attributes": attrs, "references": refs}
+}
+
+// AddEnvironment registers a deploy environment, listed for requests whose
+// filter[org_id] matches its OrgID and fetched by its ID.
+func (f *CircleCI) AddEnvironment(environment DeployEnvironment) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	f.environments = append(f.environments, map[string]any{
-		"org_id": orgID,
-		"entity": environment,
-	})
-	if m, ok := environment.(map[string]any); ok {
-		if id, ok := m["id"].(string); ok {
-			f.environmentByID[id] = environment
-		}
-	}
+	f.environments = append(f.environments, environment)
 }
 
 func (f *CircleCI) handleListEnvironments(w http.ResponseWriter, r *http.Request) {
 	orgID := r.URL.Query().Get("filter[org_id]")
 	f.mu.RLock()
-	all := f.environments
-	f.mu.RUnlock()
-
 	items := []any{}
-	for _, entry := range all {
-		m, ok := entry.(map[string]any)
-		if !ok {
-			continue
-		}
-		if orgID == "" || m["org_id"] == orgID {
-			items = append(items, m["entity"])
+	for _, e := range f.environments {
+		if orgID == "" || e.OrgID == orgID {
+			items = append(items, environmentEntity(e))
 		}
 	}
+	f.mu.RUnlock()
+
 	render.JSON(w, r, map[string]any{"data": items, "page": map[string]any{}})
 }
 
 func (f *CircleCI) handleGetEnvironment(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	f.mu.RLock()
-	env, ok := f.environmentByID[id]
-	f.mu.RUnlock()
-
-	if !ok {
-		render.Status(r, http.StatusNotFound)
-		render.JSON(w, r, map[string]any{"message": "not found"})
-		return
-	}
-	render.JSON(w, r, map[string]any{"data": env})
-}
-
-// AddComponent registers a deploy component.
-// orgID is derived from the component entity's references.project.id via projectID mapping.
-// projectID is used to filter by org. Pass the org UUID in orgID for filtering.
-func (f *CircleCI) AddComponent(orgID string, component any) {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	f.components[orgID] = append(f.components[orgID], component)
-	if m, ok := component.(map[string]any); ok {
-		if id, ok := m["id"].(string); ok {
-			f.componentByID[id] = component
+	defer f.mu.RUnlock()
+	for _, e := range f.environments {
+		if e.ID == id {
+			render.JSON(w, r, map[string]any{"data": environmentEntity(e)})
+			return
 		}
 	}
+	render.Status(r, http.StatusNotFound)
+	render.JSON(w, r, map[string]any{"message": "not found"})
+}
+
+// environmentEntity renders a stored DeployEnvironment as its V3 entity.
+func environmentEntity(e DeployEnvironment) map[string]any {
+	return map[string]any{
+		"id":         e.ID,
+		"attributes": map[string]any{"name": e.Name},
+		"references": map[string]any{"org": map[string]any{"id": e.OrgID}},
+	}
+}
+
+// AddComponent registers a deploy component, listed for requests whose
+// filter[org_id] matches its OrgID (and filter[project_id] its ProjectID) and
+// fetched by its ID.
+func (f *CircleCI) AddComponent(component DeployComponent) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.components = append(f.components, component)
 }
 
 func (f *CircleCI) handleListComponents(w http.ResponseWriter, r *http.Request) {
 	orgID := r.URL.Query().Get("filter[org_id]")
 	projectID := r.URL.Query().Get("filter[project_id]")
 	f.mu.RLock()
-	items := f.components[orgID]
+	items := []any{}
+	for _, c := range f.components {
+		if orgID != "" && c.OrgID != orgID {
+			continue
+		}
+		if projectID != "" && c.ProjectID != projectID {
+			continue
+		}
+		items = append(items, componentEntity(c))
+	}
 	f.mu.RUnlock()
 
-	if items == nil {
-		items = []any{}
-	}
-
-	if projectID != "" {
-		filtered := []any{}
-		for _, item := range items {
-			m, ok := item.(map[string]any)
-			if !ok {
-				continue
-			}
-			refs, _ := m["references"].(map[string]any)
-			proj, _ := refs["project"].(map[string]any)
-			if projID, _ := proj["id"].(string); projID == projectID {
-				filtered = append(filtered, item)
-			}
-		}
-		items = filtered
-	}
 	render.JSON(w, r, map[string]any{"data": items, "page": map[string]any{}})
 }
 
 func (f *CircleCI) handleGetComponent(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	f.mu.RLock()
-	comp, ok := f.componentByID[id]
-	f.mu.RUnlock()
-
-	if !ok {
-		render.Status(r, http.StatusNotFound)
-		render.JSON(w, r, map[string]any{"message": "not found"})
-		return
+	defer f.mu.RUnlock()
+	for _, c := range f.components {
+		if c.ID == id {
+			render.JSON(w, r, map[string]any{"data": componentEntity(c)})
+			return
+		}
 	}
-	render.JSON(w, r, map[string]any{"data": comp})
+	render.Status(r, http.StatusNotFound)
+	render.JSON(w, r, map[string]any{"message": "not found"})
 }
 
-// AddComponentVersion registers a version for a deploy component.
-func (f *CircleCI) AddComponentVersion(componentID string, version any) {
+// componentEntity renders a stored DeployComponent as its V3 entity.
+func componentEntity(c DeployComponent) map[string]any {
+	return map[string]any{
+		"id":         c.ID,
+		"attributes": map[string]any{"name": c.Name, "type": c.Type},
+		"references": map[string]any{"project": map[string]any{"id": c.ProjectID}},
+	}
+}
+
+// AddComponentVersion registers a version for a deploy component, listed under
+// its ComponentID and (optionally) narrowed by filter[environment_id].
+func (f *CircleCI) AddComponentVersion(version DeployComponentVersion) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	f.compVersions[componentID] = append(f.compVersions[componentID], version)
+	f.compVersions = append(f.compVersions, version)
 }
 
 func (f *CircleCI) handleListComponentVersions(w http.ResponseWriter, r *http.Request) {
 	componentID := chi.URLParam(r, "id")
 	envID := r.URL.Query().Get("filter[environment_id]")
 	f.mu.RLock()
-	items := f.compVersions[componentID]
+	items := []any{}
+	for _, v := range f.compVersions {
+		if v.ComponentID != componentID {
+			continue
+		}
+		if envID != "" && v.EnvironmentID != envID {
+			continue
+		}
+		items = append(items, componentVersionEntity(v))
+	}
 	f.mu.RUnlock()
 
-	if items == nil {
-		items = []any{}
-	}
-
-	if envID != "" {
-		filtered := []any{}
-		for _, item := range items {
-			m, ok := item.(map[string]any)
-			if !ok {
-				continue
-			}
-			refs, _ := m["references"].(map[string]any)
-			env, _ := refs["environment"].(map[string]any)
-			if eID, _ := env["id"].(string); eID == envID {
-				filtered = append(filtered, item)
-			}
-		}
-		items = filtered
-	}
 	render.JSON(w, r, map[string]any{"data": items, "page": map[string]any{}})
 }
 
+// componentVersionEntity renders a stored DeployComponentVersion as its V3 entity.
+func componentVersionEntity(v DeployComponentVersion) map[string]any {
+	return map[string]any{
+		"id":         v.ID,
+		"attributes": map[string]any{"name": v.Name, "created_at": v.CreatedAt},
+		"references": map[string]any{"component": map[string]any{"id": v.ComponentID}},
+	}
+}
+
 // SetDeploySettings registers deploy settings for a project.
-func (f *CircleCI) SetDeploySettings(projectID string, settings any) {
+func (f *CircleCI) SetDeploySettings(settings DeploySettings) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	f.deploySettings[projectID] = settings
+	f.deploySettings[settings.ProjectID] = settings
 }
 
 func (f *CircleCI) handleGetDeploySettings(w http.ResponseWriter, r *http.Request) {
@@ -2764,9 +3299,20 @@ func (f *CircleCI) handleGetDeploySettings(w http.ResponseWriter, r *http.Reques
 	f.mu.RUnlock()
 
 	if !ok {
-		settings = map[string]any{"id": projectID, "attributes": map[string]any{}, "references": map[string]any{"project": map[string]any{"id": projectID}}}
+		// No settings registered: an entity with empty attributes, which the CLI
+		// treats as "not configured".
+		render.JSON(w, r, map[string]any{"data": map[string]any{
+			"id":         projectID,
+			"attributes": map[string]any{},
+			"references": map[string]any{"project": map[string]any{"id": projectID}},
+		}})
+		return
 	}
-	render.JSON(w, r, map[string]any{"data": settings})
+	render.JSON(w, r, map[string]any{"data": map[string]any{
+		"id":         settings.ID,
+		"attributes": map[string]any{"auto_cancel_redundant_deploys": settings.AutoCancelRedundantDeploys},
+		"references": map[string]any{"project": map[string]any{"id": settings.ProjectID}},
+	}})
 }
 
 func (f *CircleCI) handleDeleteEnvVar(w http.ResponseWriter, r *http.Request) {
@@ -2777,8 +3323,7 @@ func (f *CircleCI) handleDeleteEnvVar(w http.ResponseWriter, r *http.Request) {
 	f.mu.Lock()
 	found := false
 	for _, v := range f.envVars[slug] {
-		m, ok := v.(map[string]any)
-		if ok && m["name"] == name {
+		if v.Name == name {
 			found = true
 			break
 		}
@@ -2796,12 +3341,18 @@ func (f *CircleCI) handleDeleteEnvVar(w http.ResponseWriter, r *http.Request) {
 	render.JSON(w, r, map[string]any{"message": "Deleted."})
 }
 
+// Namespace is a stored namespace served by the REST namespace endpoints.
+type Namespace struct {
+	ID   string
+	Name string
+}
+
 // AddNamespace registers a namespace for REST API queries.
 // id and name form the namespace record returned by the /api/v3/namespaces endpoints.
 func (f *CircleCI) AddNamespace(id, name string) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	f.namespaces[id] = map[string]any{"id": id, "name": name}
+	f.namespaces[id] = Namespace{ID: id, Name: name}
 	f.namespacesByName[name] = id
 }
 
@@ -2849,8 +3400,7 @@ func (f *CircleCI) handleRESTGetNamespaceByID(w http.ResponseWriter, r *http.Req
 		render.JSON(w, r, map[string]any{"error": map[string]any{"title": "Not Found", "detail": "namespace not found"}})
 		return
 	}
-	name, _ := ns.(map[string]any)["name"].(string)
-	render.JSON(w, r, namespaceDataResponse(id, name))
+	render.JSON(w, r, namespaceDataResponse(id, ns.Name))
 }
 
 func (f *CircleCI) handleRESTCreateNamespace(w http.ResponseWriter, r *http.Request) {
@@ -2865,7 +3415,7 @@ func (f *CircleCI) handleRESTCreateNamespace(w http.ResponseWriter, r *http.Requ
 	}
 	id := uuid.New().String()
 	f.mu.Lock()
-	f.namespaces[id] = map[string]any{"id": id, "name": body.Name}
+	f.namespaces[id] = Namespace{ID: id, Name: body.Name}
 	f.namespacesByName[body.Name] = id
 	f.mu.Unlock()
 
@@ -2887,9 +3437,8 @@ func (f *CircleCI) handleRESTRenameNamespace(w http.ResponseWriter, r *http.Requ
 	ns, ok := f.namespaces[id]
 	deleted := f.deletedNamespaces[id]
 	if ok && !deleted {
-		oldName, _ := ns.(map[string]any)["name"].(string)
-		delete(f.namespacesByName, oldName)
-		f.namespaces[id] = map[string]any{"id": id, "name": body.Name}
+		delete(f.namespacesByName, ns.Name)
+		f.namespaces[id] = Namespace{ID: id, Name: body.Name}
 		f.namespacesByName[body.Name] = id
 	}
 	f.mu.Unlock()
@@ -2938,21 +3487,106 @@ func (f *CircleCI) handleGraphQL(w http.ResponseWriter, r *http.Request) {
 
 // --- iOS code signing helpers ---
 
+// IOSCert is a stored iOS signing certificate served by the signing
+// certificate list endpoint and referenced by signing configs.
+type IOSCert struct {
+	ID       string
+	FileName string
+	CertType string
+}
+
+// IOSProfile holds the ID and file name of a provisioning profile for the
+// remove-profile endpoint
+// BundleID/ProfileType mirror the real server's replace-match key (bundle
+// identifier + profile type embedded in the file, not the file name); the
+// fake reads them from a stand-in content convention instead of a real plist
+// parser (see fakeMobileProvisionContent in acceptance/certificate_test.go).
+type IOSProfile struct {
+	ID          string
+	FileName    string
+	BundleID    string
+	ProfileType string
+}
+
+// parseFakeMobileProvisionBlob extracts the bundle ID and profile type
+// fakeMobileProvisionContent encoded into a base64-encoded blob. Content that
+// doesn't follow that convention yields empty values.
+func parseFakeMobileProvisionBlob(blob string) (bundleID, profileType string) {
+	decoded, err := base64.StdEncoding.DecodeString(blob)
+	if err != nil {
+		return "", ""
+	}
+	for _, field := range strings.Split(string(decoded), ";") {
+		k, v, ok := strings.Cut(field, "=")
+		if !ok {
+			continue
+		}
+		switch k {
+		case "bundle-id":
+			bundleID = v
+		case "profile-type":
+			profileType = v
+		}
+	}
+	return bundleID, profileType
+}
+
+// IOSSigningConfig is a stored iOS signing config (bundle) served by the
+// signing config list endpoint. CertID links it to the IOSCert it uses (the
+// cert-in-use check on delete); CertFileName/CertType are the certificate
+// reference echoed on the wire.
+type IOSSigningConfig struct {
+	ID                   string
+	Name                 string
+	CertID               string
+	CertFileName         string
+	CertType             string
+	ProvisioningProfiles []IOSProfile
+}
+
 // AddIOSCert registers an iOS certificate for an org, returned by
-// GET /api/v3/signing/certificates?filter[org_id]=<orgID>. The cert is stored
-// in its flat fixture shape and wrapped in the V3 entity envelope on read.
-func (f *CircleCI) AddIOSCert(orgID string, cert any) {
+// GET /api/v3/signing/certificates?filter[org_id]=<orgID>.
+func (f *CircleCI) AddIOSCert(orgID string, cert IOSCert) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.iosCerts[orgID] = append(f.iosCerts[orgID], cert)
 }
 
-// AddIOSBundle registers an iOS signing bundle for an org, returned by
+// AddIOSBundle registers an iOS signing config for an org, returned by
 // GET /api/v3/signing/configs?filter[org_id]=<orgID>.
-func (f *CircleCI) AddIOSBundle(orgID string, bundle any) {
+func (f *CircleCI) AddIOSBundle(orgID string, bundle IOSSigningConfig) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.iosBundles[orgID] = append(f.iosBundles[orgID], bundle)
+}
+
+// iosCertEntity renders a stored IOSCert as its V3 entity.
+func iosCertEntity(c IOSCert) map[string]any {
+	return map[string]any{
+		"id":         c.ID,
+		"attributes": map[string]any{"file_name": c.FileName, "cert_type": c.CertType},
+	}
+}
+
+// iosSigningConfigEntity renders a stored IOSSigningConfig as its V3 entity,
+// with the certificate carried as a reference.
+func iosSigningConfigEntity(b IOSSigningConfig) map[string]any {
+	profiles := make([]map[string]any, len(b.ProvisioningProfiles))
+	for i, p := range b.ProvisioningProfiles {
+		profiles[i] = map[string]any{"id": p.ID, "file_name": p.FileName}
+	}
+	return map[string]any{
+		"id": b.ID,
+		"attributes": map[string]any{
+			"name":                  b.Name,
+			"provisioning_profiles": profiles,
+		},
+		"references": map[string]any{
+			"signing_certificate": map[string]any{
+				"attributes": map[string]any{"file_name": b.CertFileName, "cert_type": b.CertType},
+			},
+		},
+	}
 }
 
 // DeletedIOSCert reports whether the given cert ID was deleted.
@@ -3000,10 +3634,10 @@ func (f *CircleCI) handleUploadIOSCert(w http.ResponseWriter, r *http.Request) {
 	f.mu.Lock()
 	f.iosCertCounter++
 	certID := fmt.Sprintf("00000000-0000-0000-0000-%012d", f.iosCertCounter)
-	f.iosCerts[orgID] = append(f.iosCerts[orgID], map[string]any{
-		"id":        certID,
-		"file_name": attrs.FileName,
-		"cert_type": "distribution",
+	f.iosCerts[orgID] = append(f.iosCerts[orgID], IOSCert{
+		ID:       certID,
+		FileName: attrs.FileName,
+		CertType: "distribution",
 	})
 	f.mu.Unlock()
 	render.Status(r, http.StatusCreated)
@@ -3020,24 +3654,12 @@ func (f *CircleCI) handleListIOSCerts(w http.ResponseWriter, r *http.Request) {
 	}
 	f.mu.RUnlock()
 
-	// Wrap each stored flat cert in the V3 entity envelope: {id, attributes:{...}}.
 	items := make([]any, 0, len(all))
 	for _, c := range all {
-		m, ok := c.(map[string]any)
-		if !ok {
-			items = append(items, c)
+		if c.ID != "" && deleted[c.ID] {
 			continue
 		}
-		if id, _ := m["id"].(string); id != "" && deleted[id] {
-			continue
-		}
-		items = append(items, map[string]any{
-			"id": m["id"],
-			"attributes": map[string]any{
-				"file_name": m["file_name"],
-				"cert_type": m["cert_type"],
-			},
-		})
+		items = append(items, iosCertEntity(c))
 	}
 	render.JSON(w, r, map[string]any{"data": items})
 }
@@ -3048,7 +3670,7 @@ func (f *CircleCI) handleDeleteIOSCert(w http.ResponseWriter, r *http.Request) {
 	found := false
 	for _, certs := range f.iosCerts {
 		for _, c := range certs {
-			if m, ok := c.(map[string]any); ok && m["id"] == id {
+			if c.ID == id {
 				found = true
 				break
 			}
@@ -3062,11 +3684,10 @@ func (f *CircleCI) handleDeleteIOSCert(w http.ResponseWriter, r *http.Request) {
 	if found {
 		for _, bundles := range f.iosBundles {
 			for _, b := range bundles {
-				m, ok := b.(map[string]any)
-				if !ok || m["_cert_id"] != id {
+				if b.CertID != id {
 					continue
 				}
-				if bid, _ := m["id"].(string); bid != "" && !f.deletedIOSBundles[bid] {
+				if b.ID != "" && !f.deletedIOSBundles[b.ID] {
 					inUse = true
 					break
 				}
@@ -3129,22 +3750,15 @@ func (f *CircleCI) handleCreateIOSBundle(w http.ResponseWriter, r *http.Request)
 	f.mu.Lock()
 
 	// Reject if no live cert with the given id exists in this org.
-	var certRef map[string]any
+	var cert *IOSCert
 	for _, c := range f.iosCerts[orgID] {
-		m, ok := c.(map[string]any)
-		if !ok || m["id"] != certID {
+		if c.ID != certID || f.deletedIOSCerts[c.ID] {
 			continue
 		}
-		if id, _ := m["id"].(string); f.deletedIOSCerts[id] {
-			continue
-		}
-		certRef = map[string]any{
-			"file_name": m["file_name"],
-			"cert_type": m["cert_type"],
-		}
+		cert = &c
 		break
 	}
-	if certRef == nil {
+	if cert == nil {
 		f.mu.Unlock()
 		render.Status(r, http.StatusNotFound)
 		render.JSON(w, r, map[string]any{"message": "certificate not found"})
@@ -3153,11 +3767,10 @@ func (f *CircleCI) handleCreateIOSBundle(w http.ResponseWriter, r *http.Request)
 
 	// Reject if a live signing config already uses this name in this org.
 	for _, b := range f.iosBundles[orgID] {
-		m, ok := b.(map[string]any)
-		if !ok || m["name"] != name {
+		if b.Name != name {
 			continue
 		}
-		if bid, _ := m["id"].(string); bid != "" && f.deletedIOSBundles[bid] {
+		if b.ID != "" && f.deletedIOSBundles[b.ID] {
 			continue
 		}
 		f.mu.Unlock()
@@ -3169,24 +3782,29 @@ func (f *CircleCI) handleCreateIOSBundle(w http.ResponseWriter, r *http.Request)
 	f.iosBundleCounter++
 	id := fmt.Sprintf("10000000-0000-0000-0000-%012d", f.iosBundleCounter)
 
-	// Provisioning-profile list response echoes only file_name, not the blob.
-	profiles := make([]map[string]any, len(body.Data.Attributes.ProvisioningProfiles))
+	// Provisioning-profile list response echoes the id and file_name, not the blob.
+	profiles := make([]IOSProfile, len(body.Data.Attributes.ProvisioningProfiles))
 	for i, p := range body.Data.Attributes.ProvisioningProfiles {
-		profiles[i] = map[string]any{"file_name": p["file_name"]}
+		f.iosProfileCounter++
+		fileName, _ := p["file_name"].(string)
+		blob, _ := p["blob"].(string)
+		bundleID, profileType := parseFakeMobileProvisionBlob(blob)
+		profiles[i] = IOSProfile{
+			ID:          fmt.Sprintf("20000000-0000-0000-0000-%012d", f.iosProfileCounter),
+			FileName:    fileName,
+			BundleID:    bundleID,
+			ProfileType: profileType,
+		}
 	}
 
-	stored := map[string]any{
-		"id":                    id,
-		"name":                  name,
-		"certificate":           certRef,
-		"provisioning_profiles": profiles,
-		// Internal-only — used by handleDeleteIOSCert's in-use check; not
-		// part of the real API response shape but harmless extras for the
-		// CLI, which only decodes documented fields.
-		"_cert_id": certID,
-		"_org_id":  orgID,
-	}
-	f.iosBundles[orgID] = append(f.iosBundles[orgID], stored)
+	f.iosBundles[orgID] = append(f.iosBundles[orgID], IOSSigningConfig{
+		ID:                   id,
+		Name:                 name,
+		CertID:               certID,
+		CertFileName:         cert.FileName,
+		CertType:             cert.CertType,
+		ProvisioningProfiles: profiles,
+	})
 	f.mu.Unlock()
 	render.Status(r, http.StatusCreated)
 	render.JSON(w, r, map[string]any{"data": map[string]any{"id": id}})
@@ -3202,30 +3820,12 @@ func (f *CircleCI) handleListIOSBundles(w http.ResponseWriter, r *http.Request) 
 	}
 	f.mu.RUnlock()
 
-	// Wrap each stored flat bundle in the V3 entity envelope: name and profiles
-	// in attributes, the certificate carried as a reference with its attributes.
 	items := make([]any, 0, len(all))
 	for _, b := range all {
-		m, ok := b.(map[string]any)
-		if !ok {
-			items = append(items, b)
+		if b.ID != "" && deleted[b.ID] {
 			continue
 		}
-		if id, _ := m["id"].(string); id != "" && deleted[id] {
-			continue
-		}
-		items = append(items, map[string]any{
-			"id": m["id"],
-			"attributes": map[string]any{
-				"name":                  m["name"],
-				"provisioning_profiles": m["provisioning_profiles"],
-			},
-			"references": map[string]any{
-				"signing_certificate": map[string]any{
-					"attributes": m["certificate"],
-				},
-			},
-		})
+		items = append(items, iosSigningConfigEntity(b))
 	}
 	render.JSON(w, r, map[string]any{"data": items})
 }
@@ -3236,7 +3836,7 @@ func (f *CircleCI) handleDeleteIOSBundle(w http.ResponseWriter, r *http.Request)
 	found := false
 	for _, bundles := range f.iosBundles {
 		for _, b := range bundles {
-			if m, ok := b.(map[string]any); ok && m["id"] == id {
+			if b.ID == id {
 				found = true
 				break
 			}
@@ -3258,6 +3858,103 @@ func (f *CircleCI) handleDeleteIOSBundle(w http.ResponseWriter, r *http.Request)
 	w.WriteHeader(http.StatusNoContent)
 }
 
+// findIOSBundle returns the mutable fixture map for the signing config with
+// the given id. The returned struct is the same one stored in f.iosBundles
+func (f *CircleCI) findIOSBundle(id string) *IOSSigningConfig {
+	for i := range f.iosBundles {
+		for j := range f.iosBundles[i] {
+			if f.iosBundles[i][j].ID == id {
+				return &f.iosBundles[i][j]
+			}
+		}
+	}
+	return nil
+}
+
+func (f *CircleCI) handleUpdateIOSBundleProfile(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	var body struct {
+		Blob     string `json:"blob"`
+		FileName string `json:"file_name"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		render.Status(r, http.StatusBadRequest)
+		render.JSON(w, r, map[string]any{"message": err.Error()})
+		return
+	}
+	if body.Blob == "" || body.FileName == "" {
+		render.Status(r, http.StatusBadRequest)
+		render.JSON(w, r, map[string]any{"message": "missing required fields"})
+		return
+	}
+
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
+	bundle := f.findIOSBundle(id)
+	if bundle == nil || f.deletedIOSBundles[id] {
+		render.Status(r, http.StatusNotFound)
+		render.JSON(w, r, map[string]any{"message": "not found"})
+		return
+	}
+
+	// Same bundle ID + profile type replaces in place, regardless of file name.
+	bundleID, profileType := parseFakeMobileProvisionBlob(body.Blob)
+	replaced := false
+	for i, p := range bundle.ProvisioningProfiles {
+		if p.BundleID == bundleID && p.ProfileType == profileType {
+			bundle.ProvisioningProfiles[i].FileName = body.FileName
+			replaced = true
+			break
+		}
+	}
+	if !replaced {
+		f.iosProfileCounter++
+		bundle.ProvisioningProfiles = append(bundle.ProvisioningProfiles, IOSProfile{
+			ID:          fmt.Sprintf("20000000-0000-0000-0000-%012d", f.iosProfileCounter),
+			FileName:    body.FileName,
+			BundleID:    bundleID,
+			ProfileType: profileType,
+		})
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (f *CircleCI) handleRemoveIOSBundleProfile(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	var body struct {
+		ProfileID string `json:"profile_id"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		render.Status(r, http.StatusBadRequest)
+		render.JSON(w, r, map[string]any{"message": err.Error()})
+		return
+	}
+
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
+	bundle := f.findIOSBundle(id)
+	if bundle == nil || f.deletedIOSBundles[id] {
+		render.Status(r, http.StatusNotFound)
+		render.JSON(w, r, map[string]any{"message": "not found"})
+		return
+	}
+
+	kept := make([]IOSProfile, 0, len(bundle.ProvisioningProfiles))
+	for _, p := range bundle.ProvisioningProfiles {
+		if p.ID == body.ProfileID {
+			continue
+		}
+		kept = append(kept, p)
+	}
+	bundle.ProvisioningProfiles = kept
+
+	// Removing an already-absent profile is idempotent: still 204.
+	w.WriteHeader(http.StatusNoContent)
+}
+
 // --- Orb helpers ---
 
 // AddOrbPackage registers an orb package in the fake server.
@@ -3265,25 +3962,15 @@ func (f *CircleCI) AddOrbPackage(id, nsID, nsName, orbName string, isPrivate, is
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	fullName := nsName + "/" + orbName
-	pkg := map[string]any{
-		"id": id,
-		"attributes": map[string]any{
-			"name":                       fullName,
-			"is_private":                 isPrivate,
-			"is_listed":                  isListed,
-			"created_at":                 "2026-01-01T00:00:00.000Z",
-			"last_30_days_build_count":   int64(0),
-			"last_30_days_project_count": int64(0),
-			"last_30_days_org_count":     int64(0),
-		},
-		"references": map[string]any{
-			"namespace": map[string]any{
-				"id":         nsID,
-				"attributes": map[string]any{"name": nsName},
-			},
-		},
+	f.orbPackages[id] = Orb{
+		ID:        id,
+		Name:      fullName,
+		NsID:      nsID,
+		NsName:    nsName,
+		IsPrivate: isPrivate,
+		IsListed:  isListed,
+		CreatedAt: "2026-01-01T00:00:00.000Z",
 	}
-	f.orbPackages[id] = pkg
 	f.orbPackagesByName[fullName] = id
 }
 
@@ -3295,52 +3982,135 @@ func (f *CircleCI) AddOrbVersion(id, orbID, orbName, version, source, createdAt 
 	if createdAt == "" {
 		createdAt = "2026-01-15T10:30:00.000Z"
 	}
-	ver := map[string]any{
-		"id": id,
-		"attributes": map[string]any{
-			"version":    version,
-			"source":     source,
-			"created_at": createdAt,
-		},
-		"references": map[string]any{
-			"orb_package": map[string]any{
-				"id":         orbID,
-				"attributes": map[string]any{"name": orbName},
-			},
-		},
-	}
-	f.orbVersions[id] = ver
-	ref := orbName + "@" + version
-	f.orbVersionsByRef[ref] = id
-	// Also register @volatile pointing to this version (last registered wins).
-	volatileRef := orbName + "@volatile"
-	f.orbVersionsByRef[volatileRef] = id
-	// Add to orb's version list (for list by orb_id)
-	f.orbVersionsByOrbID[orbID] = append([]string{id}, f.orbVersionsByOrbID[orbID]...)
-
-	// Update the package's orb/versions reference
-	if pkg, ok := f.orbPackages[orbID]; ok {
-		if refs, ok := pkg["references"].(map[string]any); ok {
-			refs["orb_versions"] = []any{map[string]any{
-				"id": id,
-				"attributes": map[string]any{
-					"version":    version,
-					"created_at": createdAt,
-				},
-			}}
-		}
-	}
+	f.storeOrbVersionLocked(OrbVersion{
+		ID:        id,
+		OrbID:     orbID,
+		OrbName:   orbName,
+		Version:   version,
+		Source:    source,
+		CreatedAt: createdAt,
+	})
 }
 
 // AddOrbCategory registers an orb category in the fake server.
 func (f *CircleCI) AddOrbCategory(id, name string) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	f.orbCategories[id] = map[string]any{
-		"id":         id,
-		"attributes": map[string]any{"name": name},
-	}
+	f.orbCategories[id] = OrbCategory{ID: id, Name: name}
 	f.orbCategoriesByName[name] = id
+}
+
+// Orb is a stored orb package served by the orb package endpoints. is_listed,
+// orb_versions and orb_categories are derived at render time from the unlisted
+// set, version list and category membership respectively.
+type Orb struct {
+	ID        string
+	Name      string // full "namespace/orb"
+	NsID      string
+	NsName    string
+	IsPrivate bool
+	IsListed  bool
+	CreatedAt string
+}
+
+// OrbVersion is a stored orb version. Source is served only by the dedicated
+// /source endpoint and by the version list — the get/create/promote responses
+// strip it.
+type OrbVersion struct {
+	ID        string
+	OrbID     string
+	OrbName   string // full "namespace/orb"
+	Version   string
+	Source    string
+	CreatedAt string
+}
+
+// OrbCategory is a stored orb category.
+type OrbCategory struct {
+	ID   string
+	Name string
+}
+
+// storeOrbVersionLocked records a version and its ref/volatile/order indexes.
+// Callers must hold the write lock.
+func (f *CircleCI) storeOrbVersionLocked(v OrbVersion) {
+	f.orbVersions[v.ID] = v
+	f.orbVersionsByRef[v.OrbName+"@"+v.Version] = v.ID
+	f.orbVersionsByRef[v.OrbName+"@volatile"] = v.ID
+	f.orbVersionsByOrbID[v.OrbID] = append([]string{v.ID}, f.orbVersionsByOrbID[v.OrbID]...)
+}
+
+// orbEntity renders a stored Orb as its V3 entity. isListed, cats and latest
+// are the render-time derived values; orb_versions and orb_categories are
+// omitted when empty, matching the real API.
+func orbEntity(o Orb, isListed bool, cats []OrbCategory, latest *OrbVersion) map[string]any {
+	refs := map[string]any{
+		"namespace": map[string]any{"id": o.NsID, "attributes": map[string]any{"name": o.NsName}},
+	}
+	if latest != nil {
+		refs["orb_versions"] = []any{map[string]any{
+			"id":         latest.ID,
+			"attributes": map[string]any{"version": latest.Version, "created_at": latest.CreatedAt},
+		}}
+	}
+	if len(cats) > 0 {
+		catList := make([]any, 0, len(cats))
+		for _, c := range cats {
+			catList = append(catList, orbCategoryEntity(c))
+		}
+		refs["orb_categories"] = catList
+	}
+	return map[string]any{
+		"id": o.ID,
+		"attributes": map[string]any{
+			"name":                       o.Name,
+			"is_private":                 o.IsPrivate,
+			"is_listed":                  isListed,
+			"created_at":                 o.CreatedAt,
+			"last_30_days_build_count":   int64(0),
+			"last_30_days_project_count": int64(0),
+			"last_30_days_org_count":     int64(0),
+		},
+		"references": refs,
+	}
+}
+
+// orbVersionEntity renders a stored OrbVersion. Source is included only when
+// requested (the version list serves it; get/create/promote do not).
+func orbVersionEntity(v OrbVersion, includeSource bool) map[string]any {
+	attrs := map[string]any{"version": v.Version, "created_at": v.CreatedAt}
+	if includeSource {
+		attrs["source"] = v.Source
+	}
+	return map[string]any{
+		"id":         v.ID,
+		"attributes": attrs,
+		"references": map[string]any{
+			"orb_package": map[string]any{"id": v.OrbID, "attributes": map[string]any{"name": v.OrbName}},
+		},
+	}
+}
+
+// orbCategoryEntity renders a stored OrbCategory.
+func orbCategoryEntity(c OrbCategory) map[string]any {
+	return map[string]any{"id": c.ID, "attributes": map[string]any{"name": c.Name}}
+}
+
+// orbDerivedLocked gathers the render-time derived values for an orb: its listed
+// state, attached categories, and latest version. Callers must hold the lock.
+func (f *CircleCI) orbDerivedLocked(orbID string) (isListed bool, cats []OrbCategory, latest *OrbVersion) {
+	isListed = !f.orbUnlistedPackages[orbID]
+	for _, cid := range f.orbCategoryMembers[orbID] {
+		if c, ok := f.orbCategories[cid]; ok {
+			cats = append(cats, c)
+		}
+	}
+	if ids := f.orbVersionsByOrbID[orbID]; len(ids) > 0 {
+		if v, ok := f.orbVersions[ids[0]]; ok {
+			latest = &v
+		}
+	}
+	return isListed, cats, latest
 }
 
 // SetOrbValidationResponse configures the validate/process endpoints to return
@@ -3359,75 +4129,22 @@ func (f *CircleCI) SetOrbValidationResponse(yaml string, valid bool, errors []st
 
 // --- Orb handlers ---
 
-func orbPackageResponse(pkg map[string]any) map[string]any {
-	return map[string]any{"data": pkg}
-}
-
-func orbVersionResponse(ver map[string]any) map[string]any {
-	// Return a shallow copy of ver with source stripped from attributes —
-	// source is only served via the dedicated /source endpoint.
-	attrs, _ := ver["attributes"].(map[string]any)
-	filteredAttrs := make(map[string]any, len(attrs))
-	for k, v := range attrs {
-		if k != "source" {
-			filteredAttrs[k] = v
-		}
-	}
-	filtered := make(map[string]any, len(ver))
-	for k, v := range ver {
-		filtered[k] = v
-	}
-	filtered["attributes"] = filteredAttrs
-	return map[string]any{"data": filtered}
-}
-
 func (f *CircleCI) handleOrbListPackages(w http.ResponseWriter, r *http.Request) {
 	nsID := r.URL.Query().Get("namespace_id")
 	nameFilter := r.URL.Query().Get("filter[name]")
 	f.mu.RLock()
-	pkgs := f.orbPackages
-	unlisted := f.orbUnlistedPackages
-	catMembers := f.orbCategoryMembers
-	cats := f.orbCategories
-	f.mu.RUnlock()
+	defer f.mu.RUnlock()
 
-	var items []any
-	for _, pkg := range pkgs {
-		attrs, _ := pkg["attributes"].(map[string]any)
-		name, _ := attrs["name"].(string)
-
-		if nameFilter != "" && name != nameFilter {
+	items := []any{}
+	for _, o := range f.orbPackages {
+		if nameFilter != "" && o.Name != nameFilter {
 			continue
 		}
-		refs, _ := pkg["references"].(map[string]any)
-		ns, _ := refs["namespace"].(map[string]any)
-		nsIDVal, _ := ns["id"].(string)
-		if nsID != "" && nsIDVal != nsID {
+		if nsID != "" && o.NsID != nsID {
 			continue
 		}
-		id, _ := pkg["id"].(string)
-		// Build categories list for this package.
-		catIDs := catMembers[id]
-		catList := make([]any, 0, len(catIDs))
-		for _, cid := range catIDs {
-			if c, ok := cats[cid]; ok {
-				catList = append(catList, c)
-			}
-		}
-		// Clone pkg with updated listed state and categories.
-		pkgCopy := cloneMap(pkg)
-		if attrsCopy, ok := pkgCopy["attributes"].(map[string]any); ok {
-			attrsCopy["is_listed"] = !unlisted[id]
-		}
-		if refsCopy, ok := pkgCopy["references"].(map[string]any); ok {
-			if len(catList) > 0 {
-				refsCopy["orb_categories"] = catList
-			}
-		}
-		items = append(items, pkgCopy)
-	}
-	if items == nil {
-		items = []any{}
+		isListed, cats, latest := f.orbDerivedLocked(o.ID)
+		items = append(items, orbEntity(o, isListed, cats, latest))
 	}
 	render.JSON(w, r, map[string]any{
 		"data": items,
@@ -3457,75 +4174,45 @@ func (f *CircleCI) handleOrbCreatePackage(w http.ResponseWriter, r *http.Request
 
 	nsID := body.Data.References.Namespace.ID
 	f.mu.Lock()
+	defer f.mu.Unlock()
 	nsData, ok := f.namespaces[nsID]
-	f.mu.Unlock()
 	if !ok {
 		render.Status(r, http.StatusNotFound)
 		render.JSON(w, r, map[string]any{"message": "namespace not found"})
 		return
 	}
-	nsName, _ := nsData.(map[string]any)["name"].(string)
 
 	id := uuid.New().String()
-	pkg := map[string]any{
-		"id": id,
-		"attributes": map[string]any{
-			"name":                       body.Data.Attributes.Name,
-			"is_private":                 body.Data.Attributes.IsPrivate,
-			"is_listed":                  true,
-			"created_at":                 "2026-01-01T00:00:00.000Z",
-			"last_30_days_build_count":   int64(0),
-			"last_30_days_project_count": int64(0),
-			"last_30_days_org_count":     int64(0),
-		},
-		"references": map[string]any{
-			"namespace": map[string]any{
-				"id":         nsID,
-				"attributes": map[string]any{"name": nsName},
-			},
-		},
+	o := Orb{
+		ID:        id,
+		Name:      body.Data.Attributes.Name,
+		NsID:      nsID,
+		NsName:    nsData.Name,
+		IsPrivate: body.Data.Attributes.IsPrivate,
+		IsListed:  true,
+		CreatedAt: "2026-01-01T00:00:00.000Z",
 	}
-	f.mu.Lock()
-	f.orbPackages[id] = pkg
-	f.orbPackagesByName[body.Data.Attributes.Name] = id
-	f.orbCreatedPackages = append(f.orbCreatedPackages, pkg)
-	f.mu.Unlock()
+	f.orbPackages[id] = o
+	f.orbPackagesByName[o.Name] = id
+	f.orbCreatedPackages = append(f.orbCreatedPackages, o)
 
 	render.Status(r, http.StatusCreated)
-	render.JSON(w, r, orbPackageResponse(pkg))
+	isListed, cats, latest := f.orbDerivedLocked(id)
+	render.JSON(w, r, map[string]any{"data": orbEntity(o, isListed, cats, latest)})
 }
 
 func (f *CircleCI) handleOrbGetPackage(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	f.mu.RLock()
-	pkg, ok := f.orbPackages[id]
-	catIDs := f.orbCategoryMembers[id]
-	cats := f.orbCategories
-	unlisted := f.orbUnlistedPackages[id]
-	f.mu.RUnlock()
-
+	defer f.mu.RUnlock()
+	o, ok := f.orbPackages[id]
 	if !ok {
 		render.Status(r, http.StatusNotFound)
 		render.JSON(w, r, map[string]any{"message": "not found"})
 		return
 	}
-
-	catList := make([]any, 0, len(catIDs))
-	for _, cid := range catIDs {
-		if c, ok := cats[cid]; ok {
-			catList = append(catList, c)
-		}
-	}
-	pkgCopy := cloneMap(pkg)
-	if attrsCopy, ok := pkgCopy["attributes"].(map[string]any); ok {
-		attrsCopy["is_listed"] = !unlisted
-	}
-	if refsCopy, ok := pkgCopy["references"].(map[string]any); ok {
-		if len(catList) > 0 {
-			refsCopy["orb_categories"] = catList
-		}
-	}
-	render.JSON(w, r, orbPackageResponse(pkgCopy))
+	isListed, cats, latest := f.orbDerivedLocked(id)
+	render.JSON(w, r, map[string]any{"data": orbEntity(o, isListed, cats, latest)})
 }
 
 func (f *CircleCI) handleOrbSetListed(w http.ResponseWriter, r *http.Request) {
@@ -3540,22 +4227,20 @@ func (f *CircleCI) handleOrbSetListed(w http.ResponseWriter, r *http.Request) {
 	}
 
 	f.mu.Lock()
-	pkg, ok := f.orbPackages[id]
-	if ok {
-		if !body.Listed {
-			f.orbUnlistedPackages[id] = true
-		} else {
-			delete(f.orbUnlistedPackages, id)
-		}
-	}
-	f.mu.Unlock()
-
+	defer f.mu.Unlock()
+	o, ok := f.orbPackages[id]
 	if !ok {
 		render.Status(r, http.StatusNotFound)
 		render.JSON(w, r, map[string]any{"message": "not found"})
 		return
 	}
-	render.JSON(w, r, orbPackageResponse(pkg))
+	if !body.Listed {
+		f.orbUnlistedPackages[id] = true
+	} else {
+		delete(f.orbUnlistedPackages, id)
+	}
+	isListed, cats, latest := f.orbDerivedLocked(id)
+	render.JSON(w, r, map[string]any{"data": orbEntity(o, isListed, cats, latest)})
 }
 
 func (f *CircleCI) handleOrbAddCategory(w http.ResponseWriter, r *http.Request) {
@@ -3582,28 +4267,19 @@ func (f *CircleCI) handleOrbAddCategory(w http.ResponseWriter, r *http.Request) 
 	}
 
 	f.mu.Lock()
-	pkg, ok := f.orbPackages[id]
-	if ok {
-		// Avoid duplicates
-		found := false
-		for _, cid := range f.orbCategoryMembers[id] {
-			if cid == body.CategoryID {
-				found = true
-				break
-			}
-		}
-		if !found {
-			f.orbCategoryMembers[id] = append(f.orbCategoryMembers[id], body.CategoryID)
-		}
-	}
-	f.mu.Unlock()
-
+	defer f.mu.Unlock()
+	o, ok := f.orbPackages[id]
 	if !ok {
 		render.Status(r, http.StatusNotFound)
 		render.JSON(w, r, map[string]any{"message": "not found"})
 		return
 	}
-	render.JSON(w, r, orbPackageResponse(pkg))
+	// Avoid duplicates.
+	if !slices.Contains(f.orbCategoryMembers[id], body.CategoryID) {
+		f.orbCategoryMembers[id] = append(f.orbCategoryMembers[id], body.CategoryID)
+	}
+	isListed, cats, latest := f.orbDerivedLocked(id)
+	render.JSON(w, r, map[string]any{"data": orbEntity(o, isListed, cats, latest)})
 }
 
 func (f *CircleCI) handleOrbRemoveCategory(w http.ResponseWriter, r *http.Request) {
@@ -3618,24 +4294,22 @@ func (f *CircleCI) handleOrbRemoveCategory(w http.ResponseWriter, r *http.Reques
 	}
 
 	f.mu.Lock()
-	pkg, ok := f.orbPackages[id]
-	if ok {
-		var remaining []string
-		for _, cid := range f.orbCategoryMembers[id] {
-			if cid != body.CategoryID {
-				remaining = append(remaining, cid)
-			}
-		}
-		f.orbCategoryMembers[id] = remaining
-	}
-	f.mu.Unlock()
-
+	defer f.mu.Unlock()
+	o, ok := f.orbPackages[id]
 	if !ok {
 		render.Status(r, http.StatusNotFound)
 		render.JSON(w, r, map[string]any{"message": "not found"})
 		return
 	}
-	render.JSON(w, r, orbPackageResponse(pkg))
+	var remaining []string
+	for _, cid := range f.orbCategoryMembers[id] {
+		if cid != body.CategoryID {
+			remaining = append(remaining, cid)
+		}
+	}
+	f.orbCategoryMembers[id] = remaining
+	isListed, cats, latest := f.orbDerivedLocked(id)
+	render.JSON(w, r, map[string]any{"data": orbEntity(o, isListed, cats, latest)})
 }
 
 func (f *CircleCI) handleOrbValidate(w http.ResponseWriter, r *http.Request) {
@@ -3696,11 +4370,9 @@ func (f *CircleCI) handleOrbListVersions(w http.ResponseWriter, r *http.Request)
 	pageSizeStr := r.URL.Query().Get("page[limit]")
 
 	f.mu.RLock()
+	defer f.mu.RUnlock()
 	versionIDs := f.orbVersionsByOrbID[orbID]
-	allVersions := f.orbVersions
-	f.mu.RUnlock()
 
-	var items []any
 	pageSize := len(versionIDs)
 	if pageSizeStr != "" {
 		if n, err := fmt.Sscanf(pageSizeStr, "%d", &pageSize); n != 1 || err != nil {
@@ -3708,31 +4380,23 @@ func (f *CircleCI) handleOrbListVersions(w http.ResponseWriter, r *http.Request)
 		}
 	}
 
-	count := 0
+	items := []any{}
 	for _, id := range versionIDs {
-		if count >= pageSize {
+		if len(items) >= pageSize {
 			break
 		}
-		ver, ok := allVersions[id]
+		v, ok := f.orbVersions[id]
 		if !ok {
 			continue
 		}
-		if channel != "" {
-			attrs, _ := ver["attributes"].(map[string]any)
-			version, _ := attrs["version"].(string)
-			isDev := len(version) > 4 && version[:4] == "dev:"
-			if channel == "stable" && isDev {
-				continue
-			}
-			if channel == "dev" && !isDev {
-				continue
-			}
+		isDev := strings.HasPrefix(v.Version, "dev:")
+		if channel == "stable" && isDev {
+			continue
 		}
-		items = append(items, ver)
-		count++
-	}
-	if items == nil {
-		items = []any{}
+		if channel == "dev" && !isDev {
+			continue
+		}
+		items = append(items, orbVersionEntity(v, true)) // the list serves source
 	}
 	render.JSON(w, r, map[string]any{
 		"data": items,
@@ -3757,62 +4421,34 @@ func (f *CircleCI) handleOrbCreateVersion(w http.ResponseWriter, r *http.Request
 	}
 
 	orbID := body.Data.Attributes.OrbID
-	f.mu.RLock()
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	pkg, pkgOK := f.orbPackages[orbID]
-	f.mu.RUnlock()
-
 	if !pkgOK {
 		render.Status(r, http.StatusNotFound)
 		render.JSON(w, r, map[string]any{"message": "orb not found"})
 		return
 	}
 
-	attrs, _ := pkg["attributes"].(map[string]any)
-	orbName, _ := attrs["name"].(string)
-	version := body.Data.Attributes.Version
-
-	id := uuid.New().String()
-	ver := map[string]any{
-		"id": id,
-		"attributes": map[string]any{
-			"version":    version,
-			"source":     body.Data.Attributes.YAML,
-			"created_at": "2026-01-15T10:30:00.000Z",
-		},
-		"references": map[string]any{
-			"orb_package": map[string]any{
-				"id":         orbID,
-				"attributes": map[string]any{"name": orbName},
-			},
-		},
+	v := OrbVersion{
+		ID:        uuid.New().String(),
+		OrbID:     orbID,
+		OrbName:   pkg.Name,
+		Version:   body.Data.Attributes.Version,
+		Source:    body.Data.Attributes.YAML,
+		CreatedAt: "2026-01-15T10:30:00.000Z",
 	}
-
-	f.mu.Lock()
-	f.orbVersions[id] = ver
-	ref := orbName + "@" + version
-	f.orbVersionsByRef[ref] = id
-	f.orbVersionsByRef[orbName+"@volatile"] = id
-	f.orbVersionsByOrbID[orbID] = append([]string{id}, f.orbVersionsByOrbID[orbID]...)
-	if refs, ok := pkg["references"].(map[string]any); ok {
-		refs["orb_versions"] = []any{map[string]any{
-			"id": id,
-			"attributes": map[string]any{
-				"version":    version,
-				"created_at": "2026-01-15T10:30:00.000Z",
-			},
-		}}
-	}
-	f.orbCreatedVersions = append(f.orbCreatedVersions, ver)
-	f.mu.Unlock()
+	f.storeOrbVersionLocked(v)
+	f.orbCreatedVersions = append(f.orbCreatedVersions, v)
 
 	render.Status(r, http.StatusCreated)
-	render.JSON(w, r, orbVersionResponse(ver))
+	render.JSON(w, r, map[string]any{"data": orbVersionEntity(v, false)})
 }
 
 func (f *CircleCI) handleOrbGetVersion(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	f.mu.RLock()
-	ver, ok := f.orbVersions[id]
+	v, ok := f.orbVersions[id]
 	f.mu.RUnlock()
 
 	if !ok {
@@ -3820,13 +4456,13 @@ func (f *CircleCI) handleOrbGetVersion(w http.ResponseWriter, r *http.Request) {
 		render.JSON(w, r, map[string]any{"message": "not found"})
 		return
 	}
-	render.JSON(w, r, orbVersionResponse(ver))
+	render.JSON(w, r, map[string]any{"data": orbVersionEntity(v, false)})
 }
 
 func (f *CircleCI) handleOrbGetVersionSource(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	f.mu.RLock()
-	ver, ok := f.orbVersions[id]
+	v, ok := f.orbVersions[id]
 	f.mu.RUnlock()
 
 	if !ok {
@@ -3834,10 +4470,8 @@ func (f *CircleCI) handleOrbGetVersionSource(w http.ResponseWriter, r *http.Requ
 		_, _ = w.Write([]byte("not found"))
 		return
 	}
-	attrs, _ := ver["attributes"].(map[string]any)
-	source, _ := attrs["source"].(string)
 	w.Header().Set("Content-Type", "text/plain")
-	_, _ = w.Write([]byte(source))
+	_, _ = w.Write([]byte(v.Source))
 }
 
 func (f *CircleCI) handleOrbPromoteVersion(w http.ResponseWriter, r *http.Request) {
@@ -3851,94 +4485,56 @@ func (f *CircleCI) handleOrbPromoteVersion(w http.ResponseWriter, r *http.Reques
 		return
 	}
 
-	f.mu.RLock()
+	f.mu.Lock()
+	defer f.mu.Unlock()
 	ver, ok := f.orbVersions[id]
-	f.mu.RUnlock()
-
 	if !ok {
 		render.Status(r, http.StatusNotFound)
 		render.JSON(w, r, map[string]any{"message": "not found"})
 		return
 	}
 
-	refs, _ := ver["references"].(map[string]any)
-	orb, _ := refs["orb_package"].(map[string]any)
-	orbID, _ := orb["id"].(string)
-	orbName, _ := orb["attributes"].(map[string]any)["name"].(string)
-
-	// Find the latest stable version to increment from
-	f.mu.RLock()
-	versionIDs := f.orbVersionsByOrbID[orbID]
-	allVersions := f.orbVersions
-	f.mu.RUnlock()
-
+	// Find the latest stable version to increment from.
 	latestStable := "0.0.0"
-	for _, vid := range versionIDs {
-		v, ok := allVersions[vid]
-		if !ok {
+	for _, vid := range f.orbVersionsByOrbID[ver.OrbID] {
+		v, ok := f.orbVersions[vid]
+		if !ok || strings.HasPrefix(v.Version, "dev:") {
 			continue
 		}
-		attrs, _ := v["attributes"].(map[string]any)
-		ver2, _ := attrs["version"].(string)
-		if len(ver2) > 4 && ver2[:4] == "dev:" {
-			continue
-		}
-		latestStable = ver2
+		latestStable = v.Version
 		break
 	}
 
-	// Increment version
-	newVersion := incrementFakeVersion(latestStable, body.Segment)
-
-	attrs, _ := ver["attributes"].(map[string]any)
-	newID := uuid.New().String()
-	newVer := map[string]any{
-		"id": newID,
-		"attributes": map[string]any{
-			"version":    newVersion,
-			"source":     attrs["source"],
-			"created_at": "2026-01-15T10:30:00.000Z",
-		},
-		"references": map[string]any{
-			"orb_package": map[string]any{
-				"id":         orbID,
-				"attributes": map[string]any{"name": orbName},
-			},
-		},
+	newVer := OrbVersion{
+		ID:        uuid.New().String(),
+		OrbID:     ver.OrbID,
+		OrbName:   ver.OrbName,
+		Version:   incrementFakeVersion(latestStable, body.Segment),
+		Source:    ver.Source,
+		CreatedAt: "2026-01-15T10:30:00.000Z",
 	}
-
-	f.mu.Lock()
-	f.orbVersions[newID] = newVer
-	f.orbVersionsByRef[orbName+"@"+newVersion] = newID
-	f.orbVersionsByRef[orbName+"@volatile"] = newID
-	f.orbVersionsByOrbID[orbID] = append([]string{newID}, f.orbVersionsByOrbID[orbID]...)
-	f.mu.Unlock()
+	f.storeOrbVersionLocked(newVer)
 
 	render.Status(r, http.StatusCreated)
-	render.JSON(w, r, orbVersionResponse(newVer))
+	render.JSON(w, r, map[string]any{"data": orbVersionEntity(newVer, false)})
 }
 
 func (f *CircleCI) handleOrbListCategories(w http.ResponseWriter, r *http.Request) {
 	nameFilter := r.URL.Query().Get("filter[name]")
 	f.mu.RLock()
-	cats := f.orbCategories
-	byName := f.orbCategoriesByName
-	f.mu.RUnlock()
+	defer f.mu.RUnlock()
 
-	var items []any
+	items := []any{}
 	if nameFilter != "" {
-		if id, ok := byName[nameFilter]; ok {
-			if c, ok := cats[id]; ok {
-				items = append(items, c)
+		if id, ok := f.orbCategoriesByName[nameFilter]; ok {
+			if c, ok := f.orbCategories[id]; ok {
+				items = append(items, orbCategoryEntity(c))
 			}
 		}
 	} else {
-		for _, c := range cats {
-			items = append(items, c)
+		for _, c := range f.orbCategories {
+			items = append(items, orbCategoryEntity(c))
 		}
-	}
-	if items == nil {
-		items = []any{}
 	}
 	render.JSON(w, r, map[string]any{
 		"data": items,
@@ -3951,37 +4547,17 @@ func (f *CircleCI) handleOrbListCategories(w http.ResponseWriter, r *http.Reques
 func (f *CircleCI) handleOrbListVersionsByRefInternal(w http.ResponseWriter, r *http.Request, refFilter string) {
 	f.mu.RLock()
 	verID, ok := f.orbVersionsByRef[refFilter]
-	allVersions := f.orbVersions
+	v, vOK := f.orbVersions[verID]
 	f.mu.RUnlock()
 
-	if !ok {
-		render.JSON(w, r, map[string]any{
-			"data": []any{},
-			"page": map[string]any{"next": nil, "prev": nil},
-		})
-		return
-	}
-	ver, ok := allVersions[verID]
-	if !ok {
-		render.JSON(w, r, map[string]any{
-			"data": []any{},
-			"page": map[string]any{"next": nil, "prev": nil},
-		})
-		return
+	data := []any{}
+	if ok && vOK {
+		data = append(data, orbVersionEntity(v, true)) // the list serves source
 	}
 	render.JSON(w, r, map[string]any{
-		"data": []any{ver},
+		"data": data,
 		"page": map[string]any{"next": nil, "prev": nil},
 	})
-}
-
-// cloneMap does a shallow clone of a map[string]any.
-func cloneMap(m map[string]any) map[string]any {
-	out := make(map[string]any, len(m))
-	for k, v := range m {
-		out[k] = v
-	}
-	return out
 }
 
 // incrementFakeVersion increments a semver string.
@@ -4023,8 +4599,19 @@ func (f *CircleCI) AddPolicyBundle(ownerID, policyCtx string, bundle map[string]
 	f.policyBundles[key] = bundle
 }
 
-// AddDecisionLog appends a decision log entry for the given owner and context.
-func (f *CircleCI) AddDecisionLog(ownerID, policyCtx string, log any) {
+// DecisionLog is a stored policy decision-log entry served by the decision log
+// list/get endpoints.
+type DecisionLog struct {
+	ID     string
+	Status string
+}
+
+// DecisionResult is the decision returned by the make-decision endpoint.
+type DecisionResult struct {
+	Status string
+}
+
+func (f *CircleCI) AddDecisionLog(ownerID, policyCtx string, log DecisionLog) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	key := ownerID + "/" + policyCtx
@@ -4032,11 +4619,16 @@ func (f *CircleCI) AddDecisionLog(ownerID, policyCtx string, log any) {
 }
 
 // SetDecisionResult sets the response returned by MakeDecision for the given owner and context.
-func (f *CircleCI) SetDecisionResult(ownerID, policyCtx string, result any) {
+func (f *CircleCI) SetDecisionResult(ownerID, policyCtx string, result DecisionResult) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	key := ownerID + "/" + policyCtx
 	f.decisionResults[key] = result
+}
+
+// decisionLogEntity renders a stored DecisionLog as its wire object.
+func decisionLogEntity(l DecisionLog) map[string]any {
+	return map[string]any{"id": l.ID, "status": l.Status}
 }
 
 // SetPolicyEnabled sets the policy enforcement enabled flag for the given owner and context.
@@ -4111,11 +4703,12 @@ func (f *CircleCI) handleGetDecisionLogs(w http.ResponseWriter, r *http.Request)
 	f.mu.RLock()
 	all := f.decisionLogs[ownerID+"/"+policyCtx]
 	f.mu.RUnlock()
-	if offset >= len(all) {
-		render.JSON(w, r, []any{})
-		return
+	tail := all[min(offset, len(all)):]
+	items := make([]any, 0, len(tail))
+	for _, l := range tail {
+		items = append(items, decisionLogEntity(l))
 	}
-	render.JSON(w, r, all[offset:])
+	render.JSON(w, r, items)
 }
 
 func (f *CircleCI) handleGetDecisionLog(w http.ResponseWriter, r *http.Request) {
@@ -4126,11 +4719,9 @@ func (f *CircleCI) handleGetDecisionLog(w http.ResponseWriter, r *http.Request) 
 	all := f.decisionLogs[ownerID+"/"+policyCtx]
 	f.mu.RUnlock()
 	for _, l := range all {
-		if m, ok := l.(map[string]any); ok {
-			if m["id"] == id {
-				render.JSON(w, r, l)
-				return
-			}
+		if l.ID == id {
+			render.JSON(w, r, decisionLogEntity(l))
+			return
 		}
 	}
 	http.NotFound(w, r)
@@ -4140,12 +4731,12 @@ func (f *CircleCI) handleMakeDecision(w http.ResponseWriter, r *http.Request) {
 	ownerID := chi.URLParam(r, "ownerID")
 	policyCtx := chi.URLParam(r, "policyCtx")
 	f.mu.RLock()
-	result := f.decisionResults[ownerID+"/"+policyCtx]
+	result, ok := f.decisionResults[ownerID+"/"+policyCtx]
 	f.mu.RUnlock()
-	if result == nil {
-		result = map[string]any{"status": "PASS"}
+	if !ok {
+		result = DecisionResult{Status: "PASS"}
 	}
-	render.JSON(w, r, result)
+	render.JSON(w, r, map[string]any{"status": result.Status})
 }
 
 func (f *CircleCI) handleGetPolicySettings(w http.ResponseWriter, r *http.Request) {
@@ -4172,8 +4763,8 @@ func (f *CircleCI) handleSetPolicySettings(w http.ResponseWriter, r *http.Reques
 
 // --- Config compile + org helpers ---
 
-// SetCompileResponse configures what the fake returns for POST /compile-config-with-defaults.
-// Pass valid=false and one or more error messages to simulate a compilation failure.
+// SetCompileResponse configures what the compile route returns. Pass
+// valid=false and one or more error messages to simulate a compilation failure.
 func (f *CircleCI) SetCompileResponse(valid bool, outputYAML string, errors ...string) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -4182,56 +4773,77 @@ func (f *CircleCI) SetCompileResponse(valid bool, outputYAML string, errors ...s
 	f.compileErrors = errors
 }
 
-// LastCompileOwnerID returns the owner_id sent on the most recent
-// POST /compile-config-with-defaults request (empty if none yet). Tests use it
-// to assert that --org resolved to the expected organization UUID.
+// LastCompileOwnerID returns the owning org UUID sent on the most recent compile
+// request (empty if none yet). Tests use it to assert that --org resolved to the
+// expected organization UUID.
 func (f *CircleCI) LastCompileOwnerID() string {
 	f.mu.RLock()
 	defer f.mu.RUnlock()
 	return f.lastCompileOwnerID
 }
 
+// Org is a stored organization resolved by
+// GET /api/v3/orgs?filter[slug]=<slug>. The resolve endpoint surfaces only the
+// id; Slug, Name and VCSType round out the record for completeness.
+type Org struct {
+	ID      string
+	Slug    string
+	Name    string
+	VCSType string
+}
+
 // AddOrg registers an org resolvable by slug via GET /api/v3/orgs.
 func (f *CircleCI) AddOrg(id, slug, name, vcsType string) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	f.orgs[slug] = map[string]any{
-		"id":       id,
-		"name":     name,
-		"slug":     slug,
-		"vcs_type": vcsType,
-	}
+	f.orgs[slug] = Org{ID: id, Slug: slug, Name: name, VCSType: vcsType}
 	f.orgsByUUID[id] = true
 }
 
+// handleCompileConfig serves POST /api/v3/configs/compile. A config that fails
+// to compile is still a 200: outcome is "failed" and the reasons ride in
+// meta.messages, mirroring the real endpoint.
 func (f *CircleCI) handleCompileConfig(w http.ResponseWriter, r *http.Request) {
-	// Capture the resolved owner_id so tests can assert that --org (slug or UUID)
+	// Capture the referenced org so tests can assert that --org (slug or UUID)
 	// resolved to the expected organization UUID before the compile call.
 	var body struct {
-		Options struct {
-			OwnerID string `json:"owner_id"`
-		} `json:"options"`
+		Data struct {
+			References struct {
+				Org struct {
+					ID string `json:"id"`
+				} `json:"org"`
+			} `json:"references"`
+		} `json:"data"`
 	}
 	_ = json.NewDecoder(r.Body).Decode(&body)
 
 	f.mu.Lock()
-	f.lastCompileOwnerID = body.Options.OwnerID
+	f.lastCompileOwnerID = body.Data.References.Org.ID
 	valid := f.compileValid
 	outputYAML := f.compileOutputYAML
 	errs := f.compileErrors
 	f.mu.Unlock()
 
-	apiErrors := make([]map[string]any, len(errs))
-	for i, e := range errs {
-		apiErrors[i] = map[string]any{"message": e}
+	attrs := map[string]any{"phase": "ended", "outcome": "succeeded"}
+	if !valid {
+		attrs["outcome"] = "failed"
+	} else {
+		attrs["compiled_config"] = outputYAML
 	}
 
-	render.JSON(w, r, map[string]any{
-		"valid":       valid,
-		"source-yaml": outputYAML,
-		"output-yaml": outputYAML,
-		"errors":      apiErrors,
-	})
+	resp := map[string]any{"data": map[string]any{
+		"id":         "00000000-0000-0000-0000-00000000c0de",
+		"attributes": attrs,
+	}}
+	if !valid {
+		messages := make([]map[string]any, len(errs))
+		for i, e := range errs {
+			messages[i] = map[string]any{"title": e}
+		}
+		resp["meta"] = map[string]any{"messages": messages}
+	}
+
+	render.JSON(w, r, resp)
 }
 
 // handleResolveOrg serves GET /api/v3/orgs?filter[slug]=<slug>, resolving a
@@ -4245,7 +4857,7 @@ func (f *CircleCI) handleResolveOrg(w http.ResponseWriter, r *http.Request) {
 
 	data := []map[string]any{}
 	if ok {
-		data = append(data, map[string]any{"id": org["id"]})
+		data = append(data, map[string]any{"id": org.ID})
 	}
 	render.JSON(w, r, map[string]any{
 		"data": data,

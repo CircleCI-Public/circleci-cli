@@ -68,12 +68,10 @@ func TestAuthLogin_Browser(t *testing.T) {
 	ctx := t.Context()
 
 	fake := fakes.NewCircleCI(t)
-	fake.SetMe(map[string]any{
-		"id": "e4a72497-7c55-400d-a72d-dadc4b92255d",
-		"attributes": map[string]any{
-			"name":  "Test User",
-			"login": "testuser",
-		},
+	fake.SetMe(fakes.User{
+		ID:    "e4a72497-7c55-400d-a72d-dadc4b92255d",
+		Name:  "Test User",
+		Login: "testuser",
 	})
 
 	env := testenv.New(t)
@@ -160,12 +158,10 @@ func TestAuthLogin_Browser(t *testing.T) {
 // exits 0 having validated the token against /api/v3/users?filter[user_id]=me.
 func TestAuthLogin_Token(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
-	fake.SetMe(map[string]any{
-		"id": "e4a72497-7c55-400d-a72d-dadc4b92255d",
-		"attributes": map[string]any{
-			"name":  "Test User",
-			"login": "testuser",
-		},
+	fake.SetMe(fakes.User{
+		ID:    "e4a72497-7c55-400d-a72d-dadc4b92255d",
+		Name:  "Test User",
+		Login: "testuser",
 	})
 
 	env := testenv.New(t)
@@ -192,7 +188,9 @@ func TestAuthLogin_Token(t *testing.T) {
 	assert.Assert(t, t.Run("enter token", func(t *testing.T) {
 		_, err := console.ExpectString("Enter CircleCI personal access token")
 		assert.NilError(t, err)
-		_, err = console.Send("fake-token\r")
+		// The fake validates the pasted token against /api/v3/users, so it must
+		// be one the fake accepts (see fakes.DefaultToken).
+		_, err = console.Send(fakes.DefaultToken + "\r")
 		assert.NilError(t, err)
 	}))
 

@@ -12,10 +12,9 @@ Manage self-hosted runners
 
 ## Targeted Commands
 
-| Command  | Description                                  |
-| -------- | -------------------------------------------- |
-| `config` | Generate a runner agent configuration file   |
-| `task`   | Show task counts for a runner resource class |
+| Command  | Description                                |
+| -------- | ------------------------------------------ |
+| `config` | Generate a runner agent configuration file |
 
 ## Subcommands
 

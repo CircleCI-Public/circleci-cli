@@ -1,0 +1,32 @@
+Remove a provisioning profile from a signing config
+
+## Usage
+
+`circleci signing-config profile remove <signing-config-id> <profile-id> [flags]`
+
+Aliases: `circleci signing-config profile rm`
+
+## Arguments
+
+`<signing-config-id>` is the ID of the signing config to update.
+`<profile-id>` is the ID of the provisioning profile to remove.
+Use `circleci signing-config list --json` to find both IDs.
+
+## Flags
+
+Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `circleci --help`.
+
+## Examples
+
+- Remove a profile by ID: 
+  `circleci signing-config profile remove <signing-config-id> <profile-id>`
+- Find the profile ID first: 
+  `circleci signing-config list --json --jq '.[] | select(.id=="<signing-config-id>") | .provisioning_profiles'`
+
+## Details
+
+Remove a single provisioning profile from a signing config, without
+recreating the whole config.
+
+Removing a profile that no longer exists is not an error.
+

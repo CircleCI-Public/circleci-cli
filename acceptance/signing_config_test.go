@@ -314,3 +314,194 @@ func TestSigningConfigDelete_RequiresForce(t *testing.T) {
 	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 	assert.Check(t, !fake.DeletedIOSBundle("eccccccc-cccc-cccc-cccc-cccccccccccc"))
 }
+
+// --- signing-config profile add ---
+
+// fakeIOSSigningConfigWithProfileID is fakeIOSSigningConfig for a single
+// profile, with a known profile ID injected so profile remove tests can
+// reference it without going through a real create + list round trip.
+func fakeIOSSigningConfigWithProfileID(id, name, certID, certFileName, profileID, profileFileName string) fakes.IOSSigningConfig {
+	cfg := fakeIOSSigningConfig(id, name, certID, certFileName, profileFileName)
+	if len(cfg.ProvisioningProfiles) > 0 {
+		cfg.ProvisioningProfiles[0].ID = profileID
+	}
+	return cfg
+}
+
+func TestSigningConfigProfileAdd(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	fake.AddIOSBundle(testIOSOrgID, fakeIOSSigningConfig("eccccccc-cccc-cccc-cccc-cccccccccccc", "production-signing", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", "Distribution.p12",
+		"MyApp.mobileprovision"))
+	env := setupIOSEnv(t, fake)
+
+	dir := t.TempDir()
+	profilePath := writeBinaryFile(t, dir, "MyAppExtension.mobileprovision", "fake-profile-bytes")
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary: binaryPath,
+		Args: []string{
+			"signing-config", "profile", "add", "eccccccc-cccc-cccc-cccc-cccccccccccc",
+			"--profile", profilePath,
+		},
+		Env:     env.Environ(),
+		WorkDir: dir,
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+
+	t.Run("check request", func(t *testing.T) {
+		assert.Check(t, cmp.DeepEqual(fake.LastRequest(), &httprecorder.Request{
+			Method: http.MethodPost,
+			URL:    url.URL{Path: "/api/v3/signing/configs/eccccccc-cccc-cccc-cccc-cccccccccccc/update-profile"},
+			Header: http.Header{
+				"Authorization": {"Bearer test-token"},
+				"User-Agent":    {httpcl.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
+			},
+			Body: new(`{"blob":"ZmFrZS1wcm9maWxlLWJ5dGVz","file_name":"MyAppExtension.mobileprovision"}`),
+		}, ignoreCommonHeaders))
+	})
+}
+
+func TestSigningConfigProfileAdd_Replace(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	existing := fakeIOSSigningConfig("eccccccc-cccc-cccc-cccc-cccccccccccc", "production-signing", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", "Distribution.p12",
+		"MyApp.mobileprovision")
+	existing.ProvisioningProfiles[0].BundleID = "com.example.myapp"
+	existing.ProvisioningProfiles[0].ProfileType = "ios-app-store"
+	fake.AddIOSBundle(testIOSOrgID, existing)
+	env := setupIOSEnv(t, fake)
+
+	// Different file name, same bundle ID and profile type: still a replace.
+	dir := t.TempDir()
+	profilePath := writeBinaryFile(t, dir, "MyApp-2026.mobileprovision", fakeMobileProvisionContent("com.example.myapp", "ios-app-store"))
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary: binaryPath,
+		Args: []string{
+			"signing-config", "profile", "add", "eccccccc-cccc-cccc-cccc-cccccccccccc",
+			"--profile", profilePath,
+		},
+		Env:     env.Environ(),
+		WorkDir: dir,
+	})
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+
+	list := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"signing-config", "list", "--org", testIOSOrgID},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+	assert.Equal(t, list.ExitCode, 0, "stderr: %s", list.Stderr)
+	assert.Check(t, golden.String(list.Stdout, t.Name()+".txt"))
+}
+
+func TestSigningConfigProfileAdd_MissingProfile(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	fake.AddIOSBundle(testIOSOrgID, fakeIOSSigningConfig("eccccccc-cccc-cccc-cccc-cccccccccccc", "production-signing", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", "Distribution.p12"))
+	env := setupIOSEnv(t, fake)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"signing-config", "profile", "add", "eccccccc-cccc-cccc-cccc-cccccccccccc"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 2, "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+}
+
+func TestSigningConfigProfileAdd_NotFound(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	env := setupIOSEnv(t, fake)
+
+	dir := t.TempDir()
+	profilePath := writeBinaryFile(t, dir, "MyApp.mobileprovision", "fake-profile-bytes")
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary: binaryPath,
+		Args: []string{
+			"signing-config", "profile", "add", "eddddddd-dddd-dddd-dddd-dddddddddddd",
+			"--profile", profilePath,
+		},
+		Env:     env.Environ(),
+		WorkDir: dir,
+	})
+
+	assert.Equal(t, result.ExitCode, 5, "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+}
+
+// --- signing-config profile remove ---
+
+func TestSigningConfigProfileRemove(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	fake.AddIOSBundle(testIOSOrgID, fakeIOSSigningConfigWithProfileID("eccccccc-cccc-cccc-cccc-cccccccccccc", "production-signing", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", "Distribution.p12",
+		"30000000-0000-0000-0000-000000000001", "MyApp.mobileprovision"))
+	env := setupIOSEnv(t, fake)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary: binaryPath,
+		Args: []string{
+			"signing-config", "profile", "remove",
+			"eccccccc-cccc-cccc-cccc-cccccccccccc", "30000000-0000-0000-0000-000000000001",
+		},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+
+	t.Run("check request", func(t *testing.T) {
+		assert.Check(t, cmp.DeepEqual(fake.LastRequest(), &httprecorder.Request{
+			Method: http.MethodPost,
+			URL:    url.URL{Path: "/api/v3/signing/configs/eccccccc-cccc-cccc-cccc-cccccccccccc/remove-profile"},
+			Header: http.Header{
+				"Authorization": {"Bearer test-token"},
+				"User-Agent":    {httpcl.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
+			},
+			Body: new(`{"profile_id":"30000000-0000-0000-0000-000000000001"}`),
+		}, ignoreCommonHeaders))
+	})
+}
+
+func TestSigningConfigProfileRemove_NotFound(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	env := setupIOSEnv(t, fake)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary: binaryPath,
+		Args: []string{
+			"signing-config", "profile", "remove",
+			"eddddddd-dddd-dddd-dddd-dddddddddddd", "30000000-0000-0000-0000-000000000001",
+		},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 5, "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+}
+
+func TestSigningConfigProfileRemove_AlreadyAbsent(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	fake.AddIOSBundle(testIOSOrgID, fakeIOSSigningConfigWithProfileID("eccccccc-cccc-cccc-cccc-cccccccccccc", "production-signing", "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", "Distribution.p12",
+		"30000000-0000-0000-0000-000000000001", "MyApp.mobileprovision"))
+	env := setupIOSEnv(t, fake)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary: binaryPath,
+		Args: []string{
+			"signing-config", "profile", "remove",
+			"eccccccc-cccc-cccc-cccc-cccccccccccc", "39999999-9999-9999-9999-999999999999",
+		},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+}

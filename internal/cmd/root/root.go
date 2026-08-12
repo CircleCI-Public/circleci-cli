@@ -26,10 +26,13 @@ import (
 	"os"
 	"strings"
 
+	"charm.land/glamour/v2"
 	"github.com/njayp/ophis"
 	"github.com/shirou/gopsutil/v4/host"
 	"github.com/spf13/cobra"
 
+	clierrors "github.com/CircleCI-Public/circleci-cli/clikit/errors"
+	"github.com/CircleCI-Public/circleci-cli/clikit/iostream"
 	"github.com/CircleCI-Public/circleci-cli/internal/agent"
 	cmdapi "github.com/CircleCI-Public/circleci-cli/internal/cmd/api"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmd/artifacts"
@@ -65,9 +68,9 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/internal/cmd/workflow"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmdutil"
 	"github.com/CircleCI-Public/circleci-cli/internal/config"
-	clierrors "github.com/CircleCI-Public/circleci-cli/internal/errors"
-	"github.com/CircleCI-Public/circleci-cli/internal/iostream"
+	"github.com/CircleCI-Public/circleci-cli/internal/iostreamcobra"
 	"github.com/CircleCI-Public/circleci-cli/internal/telemetry"
+	"github.com/CircleCI-Public/circleci-cli/internal/update"
 )
 
 // NewRootCmd builds the root cobra command and wires all subcommands.
@@ -122,7 +125,7 @@ func NewRootCmd(version string) *cobra.Command {
 			return func() {}, err
 		}
 
-		ctx = iostream.FromCmd(ctx, cmd, cfg.EffectiveTheme())
+		ctx = iostreamcobra.FromCmd(ctx, cmd, cfg.EffectiveTheme(), glamour.WithTableFitContent())
 		ctx = cmdutil.WithVersion(ctx, version)
 		ctx = cmdutil.WithConfig(ctx, cfg)
 
@@ -329,15 +332,28 @@ func NewRootCmd(version string) *cobra.Command {
 
 	extension.RegisterExtensions(cmd)
 
+	// updateNotifier carries the background update check between the pre-run
+	// (which launches it) and the post-run (which drains and prints it). There is
+	// exactly one command execution per process, so a captured variable is safe.
+	var updateNotifier *update.Notifier
+
 	cmd.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
 		for i := range args {
 			args[i] = strings.TrimSpace(args[i])
 		}
-		_, err := initConfig(cmd)
-		return err
+		if _, err := initConfig(cmd); err != nil {
+			return err
+		}
+		updateNotifier = startUpdateNotifier(cmd, version)
+		return nil
 	}
 	cmd.PersistentPostRunE = func(cmd *cobra.Command, _ []string) error {
 		ctx := cmd.Context()
+		// PersistentPostRunE runs only when the command's RunE succeeded, so the
+		// notice never lands on top of an error and always follows all output.
+		if rel := updateNotifier.Finish(); rel != nil {
+			update.PrintNotice(ctx, update.EffectiveVersion(version), rel)
+		}
 		tc := cmdutil.GetTelemetry(ctx)
 		_ = tc.Close()
 		return nil
@@ -367,4 +383,34 @@ func NewRootCmd(version string) *cobra.Command {
 	}
 
 	return cmd
+}
+
+// startUpdateNotifier launches the background update check for a normal command
+// run, or returns nil when a check should not happen. The notice is suppressed
+// for telemetry-disabled commands, under --json (scripting), and when the user
+// passes --skip-update-check; the remaining gates live in update.ShouldCheck.
+func startUpdateNotifier(cmd *cobra.Command, version string) *update.Notifier {
+	if cmdutil.IsEverythingDisabled(cmd) {
+		return nil
+	}
+	if f := cmd.Flags().Lookup("json"); f != nil && f.Value.String() == "true" {
+		return nil
+	}
+	if skip, _ := cmd.Root().Flags().GetBool("skip-update-check"); skip {
+		return nil
+	}
+
+	ctx := cmd.Context()
+	cfg := cmdutil.GetConfig(ctx)
+	if !update.ShouldCheck(ctx, cfg, version) {
+		return nil
+	}
+
+	statePath, err := config.StatePath()
+	if err != nil {
+		return nil
+	}
+
+	src := update.NewProxySource(cmdutil.LoadClientOptionalAuth(ctx))
+	return update.Start(ctx, src, statePath, update.EffectiveVersion(version))
 }

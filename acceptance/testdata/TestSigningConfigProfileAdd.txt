@@ -1,0 +1,1 @@
+✓ Added profile "MyAppExtension.mobileprovision" to signing config eccccccc-cccc-cccc-cccc-cccccccccccc

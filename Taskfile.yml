@@ -64,8 +64,11 @@ tasks:
 
   test:
     desc: Run unit tests
+    # clikit is a separate module, so ./... does not reach it. A relative
+    # ./clikit/... is rejected as outside the main module, but the module path
+    # resolves through the replace in go.mod.
     vars:
-      ARGS: '{{default "./..." .CLI_ARGS}}'
+      ARGS: '{{default "./... github.com/CircleCI-Public/circleci-cli/clikit/..." .CLI_ARGS}}'
     cmds:
       - go tool -modfile tools/go.mod gotestsum -- -race -count=1 {{.ARGS}}
 
@@ -73,6 +76,7 @@ tasks:
     desc: Run all static checks
     cmds:
       - task: lint
+      - task: lint:clikit
       - task: license
         vars:
           CLI_ARGS: -check .
@@ -85,9 +89,13 @@ tasks:
     desc: Auto-fix static checks
     cmds:
       - task: fmt
+      - task: fmt:clikit
       - task: license
       - task: mod-tidy
       - task: lint
+        vars:
+          CLI_ARGS: ./... --fix
+      - task: lint:clikit
         vars:
           CLI_ARGS: ./... --fix
 
@@ -98,12 +106,28 @@ tasks:
     cmds:
       - go tool -modfile tools/go.mod golangci-lint run {{.ARGS}}
 
+  lint:clikit:
+    desc: Run golangci-lint on the clikit module
+    dir: clikit
+    vars:
+      ARGS: '{{default "./..." .CLI_ARGS}}'
+    cmds:
+      - go tool -modfile ../tools/go.mod golangci-lint run {{.ARGS}}
+
   fmt:
     desc: Format the code
     vars:
       ARGS: '{{default "./..." .CLI_ARGS}}'
     cmds:
       - go tool -modfile tools/go.mod golangci-lint fmt {{.ARGS}}
+
+  fmt:clikit:
+    desc: Format the clikit module
+    dir: clikit
+    vars:
+      ARGS: '{{default "./..." .CLI_ARGS}}'
+    cmds:
+      - go tool -modfile ../tools/go.mod golangci-lint fmt {{.ARGS}}
 
   license:
     desc: Manage license headers
@@ -135,12 +159,14 @@ tasks:
       ARGS: '{{default "-v" .CLI_ARGS}}'
     cmds:
       - go mod tidy {{.ARGS}}
+      - go -C clikit mod tidy {{.ARGS}}
       - go -C tools mod tidy {{.ARGS}}
 
   mod-download:
     desc: Run 'go mod download'
     cmds:
       - go mod download
+      - go -C clikit mod download
       - go mod download -modfile tools/go.mod
 
   dev-install:
@@ -317,6 +343,7 @@ tasks:
     desc: Check no uncommitted diffs after generate/fmt/tidy
     cmds:
       - task: ci:lint
+      - task: lint:clikit
       - task: license
         vars:
           CLI_ARGS: -check .
@@ -344,6 +371,21 @@ tasks:
       - task: ci:packagecloud
       - task: ci:cloudsmith
       - task: ci:virustotal
+      - task: ci:tag-clikit
+
+  ci:tag-clikit:
+    desc: Tag the clikit module so extension authors can 'go get' this release
+    vars:
+      TAG: 'clikit/{{.RELEASE_VERSION}}'
+    cmds:
+      # Only set the deploy-bot identity in CI; never clobber a local git config.
+      - |
+        if [ -n "${CI:-}" ]; then
+          git config --global user.email '{{.GH_EMAIL}}'
+          git config --global user.name '{{.GH_NAME}}'
+        fi
+      - git tag -a '{{.TAG}}' -m 'Release {{.TAG}}'
+      - git push origin '{{.TAG}}'
 
   ci:virustotal:
     desc: Submit the release artifacts in dist/ to VirusTotal for scanning

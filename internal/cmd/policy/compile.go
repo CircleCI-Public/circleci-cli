@@ -28,10 +28,10 @@ import (
 
 	"gopkg.in/yaml.v3"
 
+	clierrors "github.com/CircleCI-Public/circleci-cli/clikit/errors"
 	"github.com/CircleCI-Public/circleci-cli/internal/apiclient"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmdutil"
 	"github.com/CircleCI-Public/circleci-cli/internal/configcmd"
-	clierrors "github.com/CircleCI-Public/circleci-cli/internal/errors"
 )
 
 // resolveOwnerID resolves the organization reference to its UUID for config
@@ -54,20 +54,25 @@ func resolveOwnerID(ctx context.Context, client *apiclient.Client, org, cmdName 
 // and returns the source config with its compiled form nested under a
 // "_compiled_" key, so policies can inspect both. ownerID may be empty; params
 // are injected at << pipeline.parameters.* >>.
+//
+// The source half of the merged document is parsed from the local input rather
+// than from anything the API returns. The compile endpoint's source config is a
+// verbatim echo of the config it was sent, so there is nothing to read back.
 func compileConfig(ctx context.Context, client *apiclient.Client, input []byte, ownerID string, params map[string]any) ([]byte, error) {
-	resp, err := client.CompileConfig(ctx, string(input), ownerID, false, configcmd.LocalPipelineValues(params), params)
+	res, err := client.Compile(ctx, apiclient.CompileInput{
+		ConfigYAML:         string(input),
+		OrgID:              ownerID,
+		PipelineValues:     configcmd.LocalPipelineValues(params),
+		PipelineParameters: params,
+	})
 	if err != nil {
 		return nil, cmdutil.APIErr(err, "", "policy.compile_failed", "Config compilation request failed")
 	}
 
-	if !resp.Valid || len(resp.Errors) > 0 {
-		msgs := make([]string, 0, len(resp.Errors))
-		for _, e := range resp.Errors {
-			msgs = append(msgs, e.Message)
-		}
+	if !res.Valid {
 		detail := "config compilation failed"
-		if len(msgs) > 0 {
-			detail = strings.Join(msgs, "; ")
+		if len(res.Errors) > 0 {
+			detail = strings.Join(res.Errors, "; ")
 		}
 		return nil, clierrors.New("policy.compile_invalid", "Config compilation failed", detail).
 			WithSuggestions("Validate the config first: circleci config validate",
@@ -76,13 +81,14 @@ func compileConfig(ctx context.Context, client *apiclient.Client, input []byte, 
 	}
 
 	var compiledConfigMap, sourceConfigMap map[string]any
-	if err := yaml.Unmarshal([]byte(resp.OutputYAML), &compiledConfigMap); err != nil {
+	if err := yaml.Unmarshal([]byte(res.CompiledYAML), &compiledConfigMap); err != nil {
 		return nil, clierrors.New("policy.compile_parse_failed", "Could not parse compiled config", err.Error()).
 			WithExitCode(clierrors.ExitAPIError)
 	}
-	if err := yaml.Unmarshal([]byte(resp.SourceYAML), &sourceConfigMap); err != nil {
-		return nil, clierrors.New("policy.compile_parse_failed", "Could not parse source config", err.Error()).
-			WithExitCode(clierrors.ExitAPIError)
+	if err := yaml.Unmarshal(input, &sourceConfigMap); err != nil {
+		return nil, clierrors.New("policy.source_parse_failed", "Could not parse config", err.Error()).
+			WithSuggestions("Check the config is valid YAML: circleci config validate").
+			WithExitCode(clierrors.ExitValidationFail)
 	}
 	if sourceConfigMap == nil {
 		sourceConfigMap = map[string]any{}

@@ -32,8 +32,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	clierrors "github.com/CircleCI-Public/circleci-cli/internal/errors"
-	"github.com/CircleCI-Public/circleci-cli/internal/iostream"
+	clierrors "github.com/CircleCI-Public/circleci-cli/clikit/errors"
+	"github.com/CircleCI-Public/circleci-cli/clikit/iostream"
 )
 
 // AddJSONFlag registers --json on cmd and binds it to out.

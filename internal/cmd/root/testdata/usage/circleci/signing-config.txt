@@ -4,3 +4,4 @@ Available commands:
   create
   delete
   list
+  profile

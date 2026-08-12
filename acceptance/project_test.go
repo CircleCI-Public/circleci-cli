@@ -46,35 +46,35 @@ func setupProjectFake(t *testing.T) (*fakes.CircleCI, *testenv.TestEnv) {
 	t.Helper()
 	fake := fakes.NewCircleCI(t)
 
-	fake.SetCollaborations([]any{
-		map[string]any{"id": "a0000000-0000-4000-8000-0000000c0002", "name": "myorg", "slug": "gh/myorg", "vcs_type": "github"},
-	})
+	fake.SetCollaborations(
+		fakes.Collaboration{ID: "a0000000-0000-4000-8000-0000000c0002", Name: "myorg", Slug: "gh/myorg", VCSType: "github"},
+	)
 
-	fake.AddFollowedProject(map[string]any{
-		"slug":     "gh/myorg/alpha",
-		"username": "myorg",
-		"reponame": "alpha",
-		"vcs_type": "github",
-		"name":     "alpha",
+	fake.AddFollowedProject(fakes.FollowedProject{
+		Slug:     "gh/myorg/alpha",
+		Username: "myorg",
+		Reponame: "alpha",
+		VCSType:  "github",
+		Name:     "alpha",
 	})
-	fake.AddFollowedProject(map[string]any{
-		"slug":     "gh/myorg/beta",
-		"username": "myorg",
-		"reponame": "beta",
-		"vcs_type": "github",
-		"name":     "beta",
+	fake.AddFollowedProject(fakes.FollowedProject{
+		Slug:     "gh/myorg/beta",
+		Username: "myorg",
+		Reponame: "beta",
+		VCSType:  "github",
+		Name:     "beta",
 	})
-	fake.AddProjectInfo("gh/myorg/alpha", map[string]any{
-		"id":                "a0000000-0000-4000-8000-0000000c0001",
-		"slug":              "gh/myorg/alpha",
-		"name":              "alpha",
-		"organization_name": "myorg",
-		"organization_slug": "gh/myorg",
-		"organization_id":   "a0000000-0000-4000-8000-0000000c0002",
-		"vcs_info": map[string]any{
-			"provider":       "GitHub",
-			"default_branch": "main",
-			"vcs_url":        "https://github.com/myorg/alpha",
+	fake.AddProjectInfo("gh/myorg/alpha", fakes.ProjectInfo{
+		ID:               "a0000000-0000-4000-8000-0000000c0001",
+		Slug:             "gh/myorg/alpha",
+		Name:             "alpha",
+		OrganizationName: "myorg",
+		OrganizationSlug: "gh/myorg",
+		OrganizationID:   "a0000000-0000-4000-8000-0000000c0002",
+		VCSInfo: &fakes.VCSInfo{
+			Provider:      "GitHub",
+			DefaultBranch: "main",
+			VCSURL:        "https://github.com/myorg/alpha",
 		},
 	})
 	// v3 slug → UUID resolution, used by `project trigger`.
@@ -673,10 +673,10 @@ func TestProjectTriggerList_JSON(t *testing.T) {
 func TestProjectTriggerList_Empty(t *testing.T) {
 	fake, env := setupProjectFake(t)
 	// Register project but no triggers
-	fake.AddProjectInfo("gh/myorg/beta", map[string]any{
-		"id":   "proj-uuid-beta",
-		"slug": "gh/myorg/beta",
-		"name": "beta",
+	fake.AddProjectInfo("gh/myorg/beta", fakes.ProjectInfo{
+		ID:   "proj-uuid-beta",
+		Slug: "gh/myorg/beta",
+		Name: "beta",
 	})
 
 	result := binary.RunCLI(t, binary.RunOpts{
@@ -896,10 +896,10 @@ func setupCreateProjectFake(t *testing.T) (*fakes.CircleCI, *testenv.TestEnv) {
 			"vcs_url":        "https://github.com/myorg/my-new-repo",
 		},
 	})
-	fake.SetCollaborations([]any{
-		map[string]any{"id": "a0000000-0000-4000-8000-0000000c0002", "name": "myorg", "slug": "gh/myorg", "vcs_type": "github"},
-		map[string]any{"id": "org-uuid-9999", "name": "other-org", "slug": "gh/other-org", "vcs_type": "github"},
-	})
+	fake.SetCollaborations(
+		fakes.Collaboration{ID: "a0000000-0000-4000-8000-0000000c0002", Name: "myorg", Slug: "gh/myorg", VCSType: "github"},
+		fakes.Collaboration{ID: "org-uuid-9999", Name: "other-org", Slug: "gh/other-org", VCSType: "github"},
+	)
 	return fake, env
 }
 
@@ -1041,7 +1041,7 @@ func TestProjectCreate_NoArgs_NoGitRepo(t *testing.T) {
 
 func TestProjectCreate_NoOrgs(t *testing.T) {
 	fake, env := setupCreateProjectFake(t)
-	fake.SetCollaborations(nil)
+	fake.SetCollaborations()
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
@@ -1056,7 +1056,7 @@ func TestProjectCreate_NoOrgs(t *testing.T) {
 
 func TestProjectCreate_NoOrgs_NoOrgFlag(t *testing.T) {
 	fake, env := setupCreateProjectFake(t)
-	fake.SetCollaborations(nil)
+	fake.SetCollaborations()
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
@@ -1071,7 +1071,7 @@ func TestProjectCreate_NoOrgs_NoOrgFlag(t *testing.T) {
 
 func TestProjectCreate_NoOrgs_Interactive_CreatesOrg(t *testing.T) {
 	fake, env := setupCreateProjectFake(t)
-	fake.SetCollaborations(nil)
+	fake.SetCollaborations()
 	fake.SetCreateOrgResponse(map[string]any{
 		"id":       "org-new-uuid",
 		"name":     "my-new-org",

@@ -60,12 +60,6 @@ type RunnerInstance struct {
 	Version        string `json:"version"`
 }
 
-// RunnerTaskCounts holds unclaimed and running task counts for a resource class.
-type RunnerTaskCounts struct {
-	Unclaimed int `json:"unclaimed_task_count"`
-	Running   int `json:"running_runner_tasks"`
-}
-
 // ListResourceClassesByOrg returns the resource classes for an organization,
 // identified by its UUID. Uses the runner API at runner.circleci.com (or the
 // configured server host).
@@ -176,29 +170,6 @@ func (c *Client) DeleteRunnerToken(ctx context.Context, tokenID string) error {
 	return c.deleteV3(ctx, "/runner/token/%s",
 		routeParams(tokenID),
 	)
-}
-
-// GetRunnerTaskCounts returns unclaimed and running task counts for a resource class.
-func (c *Client) GetRunnerTaskCounts(ctx context.Context, resourceClass string) (*RunnerTaskCounts, error) {
-	qp := queryParam("resource-class", resourceClass)
-	var unclaimed struct {
-		Count int `json:"unclaimed_task_count"`
-	}
-	var running struct {
-		Count int `json:"running_runner_tasks"`
-	}
-	err := c.getV3(ctx, "/runner/tasks", &unclaimed, qp)
-	if err != nil {
-		return nil, err
-	}
-	err = c.getV3(ctx, "/runner/tasks/running", &running, qp)
-	if err != nil {
-		return nil, err
-	}
-	return &RunnerTaskCounts{
-		Unclaimed: unclaimed.Count,
-		Running:   running.Count,
-	}, nil
 }
 
 // ListRunnerInstancesByOrg returns the live runner instances for an

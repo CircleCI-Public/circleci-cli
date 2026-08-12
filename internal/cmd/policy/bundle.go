@@ -27,8 +27,8 @@ import (
 	"os"
 	"path/filepath"
 
+	clierrors "github.com/CircleCI-Public/circleci-cli/clikit/errors"
 	"github.com/CircleCI-Public/circleci-cli/internal/apiclient"
-	clierrors "github.com/CircleCI-Public/circleci-cli/internal/errors"
 )
 
 // loadPolicyBundle reads all .rego files under root and returns them as a

@@ -115,12 +115,12 @@ mapped to YAML keys in the merged document.
 
 Compile and expand a pipeline config file
 
-Compile a CircleCI pipeline config and print the fully expanded YAML: orbs
-inlined, matrix jobs expanded, parameter expressions resolved. The output is
-what CircleCI would actually execute.
+Compile a CircleCI pipeline config and print the fully expanded YAML —
+orbs inlined, matrices expanded, parameters resolved.
 
-Private and namespaced orbs resolve against your organization: with --org
-omitted, from a 'circleci project link' binding, else the git remote.
+No API token is required; without one, only public orbs resolve.
+Private and namespaced orbs need a token and resolve against your org, taken
+from --org, a 'circleci project link' binding, or the git remote, in that order.
 
 | Flag                           | Description                                                                                  |
 | ------------------------------ | -------------------------------------------------------------------------------------------- |
@@ -3790,36 +3790,6 @@ JSON fields: id, resource_class, description
 - Output as JSON: 
   `circleci runner resource-class list --org gh/my-org --json`
 
-#### `circleci runner task [flags]`
-
-Show task counts for a runner resource class
-
-Show the number of unclaimed and running tasks for a CircleCI runner
-resource class.
-
-Unclaimed tasks are queued and waiting for a runner to pick them up.
-Running tasks are actively executing on a runner instance.
-
-JSON fields: resource_class, unclaimed, running
-
-| Flag                      | Description                                                                       |
-| ------------------------- | --------------------------------------------------------------------------------- |
-| `--jq string`             | Process values from the response using jq syntax (see `circleci help formatting`) |
-| `--json`                  | Output as JSON                                                                    |
-| `--resource-class string` | Resource class to query (namespace/name)                                          |
-
-
-**Examples:**
-
-- Show task counts for a resource class: 
-  `circleci runner task --resource-class my-org/my-runner`
-- Output as JSON: 
-  `circleci runner task --resource-class my-org/my-runner --json`
-- Check for a backlog across multiple classes: 
-  `for rc in my-org/build my-org/deploy; do`
-- circleci runner task --resource-class $rc
-- done
-
 #### `circleci runner token <command>`
 
 Manage runner tokens
@@ -4042,6 +4012,79 @@ JSON fields: id, name, certificate, provisioning_profiles
   `circleci signing-config list --json`
 - Get signing config names only: 
   `circleci signing-config list --json --jq '.[].name'`
+
+#### `circleci signing-config profile <command>`
+
+Add or remove provisioning profiles on a signing config
+
+Add, replace, or remove a provisioning profile on an existing signing
+config, without recreating the whole config.
+
+A profile is matched to an existing one by the bundle identifier and
+profile type embedded in the provisioning profile file itself, not by
+file name: the same bundle ID and type replaces it in place, and
+anything else is added alongside it.
+
+Recreating a signing config (delete then create) leaves a gap where
+pipelines referencing it by name fail; these commands update it in
+place instead.
+
+##### `circleci signing-config profile add <signing-config-id> [flags]`
+
+Add or replace a provisioning profile on a signing config
+
+Add a provisioning profile to a signing config, or replace one that
+already has the same bundle identifier and profile type.
+
+The file at --profile is read and base64-encoded locally, then sent
+to CircleCI. The config's other profiles and certificate are left
+untouched.
+
+| Flag               | Description                         |
+| ------------------ | ----------------------------------- |
+| `--profile string` | Path to a provisioning profile file |
+
+
+**Arguments:**
+
+`<signing-config-id>` is the ID of the signing config to update.
+Use `circleci signing-config list` to find the ID.
+
+**Examples:**
+
+- Add a new profile: 
+  `circleci signing-config profile add <signing-config-id> --profile ./MyAppExtension.mobileprovision`
+- Replace an existing profile (same bundle ID and profile type, regardless of file name): 
+  `circleci signing-config profile add <signing-config-id> --profile ./MyApp.mobileprovision`
+- Find the signing config ID first: 
+  `circleci signing-config list --json --jq '.[].id'`
+
+##### `circleci signing-config profile remove <signing-config-id> <profile-id>`
+
+Remove a provisioning profile from a signing config
+
+Remove a single provisioning profile from a signing config, without
+recreating the whole config.
+
+Removing a profile that no longer exists is not an error.
+
+**Arguments:**
+
+`<signing-config-id>` is the ID of the signing config to update.
+`<profile-id>` is the ID of the provisioning profile to remove.
+Use `circleci signing-config list --json` to find both IDs.
+
+**Aliases:**
+
+
+`circleci signing-config profile rm`
+
+**Examples:**
+
+- Remove a profile by ID: 
+  `circleci signing-config profile remove <signing-config-id> <profile-id>`
+- Find the profile ID first: 
+  `circleci signing-config list --json --jq '.[] | select(.id=="<signing-config-id>") | .provisioning_profiles'`
 
 ## User Commands
 
@@ -4510,7 +4553,7 @@ Display the current CLI settings.
 The token value is masked for security. Settings are read from
 $XDG_CONFIG_HOME/circleci/config.yml (default: ~/.config/circleci/config.yml).
 
-JSON fields: token_set, host, telemetry, theme
+JSON fields: token_set, host, telemetry, theme, update_check
 
 | Flag          | Description                                                                       |
 | ------------- | --------------------------------------------------------------------------------- |
@@ -4536,12 +4579,9 @@ Set a CLI setting
 
 Set a CLI setting by key.
 
-Run 'circleci setting set theme' with no value in an interactive terminal to
-pick a theme from a list.
-
 **Arguments:**
 
-- `<key>` is the setting to change. Options are: `token`, `host`, `telemetry`, or `theme`.
+- `<key>` is the setting to change. Options are: `token`, `host`, `telemetry`, `theme`, or `update-check`.
 - `<value>` is the value to store. Pass `-` to read it from stdin.
   May be omitted for `theme` to pick interactively.
 
@@ -4561,6 +4601,8 @@ pick a theme from a list.
   `circleci setting set theme dracula`
 - Pick the color theme interactively: 
   `circleci setting set theme`
+- Disable update notifications: 
+  `circleci setting set update-check off`
 
 #### `circleci setting unset <key>`
 
@@ -4569,16 +4611,19 @@ Remove a stored CLI setting
 Remove a stored CLI setting by key.
 
 Supported keys:
-  token      Remove your stored CircleCI personal API token
+  token         Remove your stored CircleCI personal API token
+  update-check  Revert update notifications to the default (enabled)
 
 **Arguments:**
 
-`<key>` is the setting to remove. Currently only `token` is supported.
+`<key>` is the setting to remove. Supported keys are `token` and `update-check`.
 
 **Examples:**
 
 - Remove your stored API token: 
   `circleci setting unset token`
+- Revert update notifications to the default: 
+  `circleci setting unset update-check`
 
 ## Extension Commands
 

@@ -29,8 +29,8 @@ import (
 	"github.com/muesli/roff"
 	"github.com/spf13/cobra"
 
+	"github.com/CircleCI-Public/circleci-cli/clikit/iostream"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmdutil"
-	"github.com/CircleCI-Public/circleci-cli/internal/iostream"
 )
 
 // newManCmd builds the hidden `man` command that renders the CLI's manpage from
