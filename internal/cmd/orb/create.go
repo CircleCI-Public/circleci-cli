@@ -109,7 +109,7 @@ func runOrbCreate(ctx context.Context, client *apiclient.Client, namespace, orbN
 	}
 
 	pkg, err := client.CreateOrbPackage(ctx, apiclient.CreateOrbPackageRequest{
-		Name:        namespace + "/" + orbName,
+		Name:        orbName,
 		NamespaceID: ns.ID,
 		IsPrivate:   private,
 	})
