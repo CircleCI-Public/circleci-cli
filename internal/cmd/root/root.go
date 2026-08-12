@@ -26,6 +26,7 @@ import (
 	"os"
 	"strings"
 
+	"charm.land/glamour/v2"
 	"github.com/njayp/ophis"
 	"github.com/shirou/gopsutil/v4/host"
 	"github.com/spf13/cobra"
@@ -123,7 +124,7 @@ func NewRootCmd(version string) *cobra.Command {
 			return func() {}, err
 		}
 
-		ctx = iostream.FromCmd(ctx, cmd, cfg.EffectiveTheme())
+		ctx = iostream.FromCmd(ctx, cmd, cfg.EffectiveTheme(), glamour.WithTableFitContent())
 		ctx = cmdutil.WithVersion(ctx, version)
 		ctx = cmdutil.WithConfig(ctx, cfg)
 

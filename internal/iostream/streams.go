@@ -344,21 +344,25 @@ type Streams struct {
 	slog  *slog.Logger
 	width int
 	style string
+	// mdOpts are extra glamour options appended to every markdown render.
+	// See the mdOpts parameter on FromCmd.
+	mdOpts []glamour.TermRendererOption
 }
 
-func Testing(ctx context.Context) context.Context {
+func Testing(ctx context.Context, mdOpts ...glamour.TermRendererOption) context.Context {
 	stdin := os.Stdin
 	stdout := os.Stdout
 	stderr := os.Stderr
 	width, style := terminalProperties(styles.DarkStyle, stdin, stdout)
 
 	return WithStreams(ctx, Streams{
-		Out:   stdout,
-		Err:   stderr,
-		In:    stdin,
-		Quiet: false,
-		style: style,
-		width: width,
+		Out:    stdout,
+		Err:    stderr,
+		In:     stdin,
+		Quiet:  false,
+		style:  style,
+		width:  width,
+		mdOpts: mdOpts,
 		slog: slog.New(log.NewWithOptions(stderr, log.Options{
 			Level: log.DebugLevel,
 		})),
@@ -371,7 +375,11 @@ func Testing(ctx context.Context) context.Context {
 // The color theme is resolved with the --theme flag taking precedence when it
 // was explicitly set; otherwise configTheme (the stored CLI setting, "" if
 // none) is used, falling back to the flag's "auto" default.
-func FromCmd(ctx context.Context, cmd *cobra.Command, configTheme string) context.Context {
+//
+// mdOpts are appended to the glamour options used by every markdown render, so
+// the caller can enable renderer features this package does not itself depend
+// on.
+func FromCmd(ctx context.Context, cmd *cobra.Command, configTheme string, mdOpts ...glamour.TermRendererOption) context.Context {
 	lvl := log.InfoLevel
 	verbose, _ := cmd.Flags().GetBool("debug")
 	if verbose {
@@ -385,12 +393,13 @@ func FromCmd(ctx context.Context, cmd *cobra.Command, configTheme string) contex
 	width, style := terminalProperties(resolveTheme(cmd, configTheme), stdin, stdout)
 
 	return WithStreams(ctx, Streams{
-		Out:   stdout,
-		Err:   stderr,
-		In:    stdin,
-		Quiet: quiet,
-		style: style,
-		width: width,
+		Out:    stdout,
+		Err:    stderr,
+		In:     stdin,
+		Quiet:  quiet,
+		style:  style,
+		width:  width,
+		mdOpts: mdOpts,
 		slog: slog.New(log.NewWithOptions(stderr, log.Options{
 			Level: lvl,
 		})),
@@ -851,13 +860,12 @@ func (s Streams) RenderMarkdown(md string) (string, error) {
 // Unlike RenderMarkdown it does not consult ColorEnabled — callers use it once
 // they have already decided to produce styled output (e.g. the viewport pager).
 func (s Streams) renderMarkdownAt(md string, width int) (_ string, err error) {
-	r, err := glamour.NewTermRenderer(
+	r, err := glamour.NewTermRenderer(s.glamourOptions(
 		glamour.WithWordWrap(width),
-		glamour.WithTableFitContent(),
 		glamour.WithEmoji(),
 		glamour.WithStyles(s.styleConfig()),
 		glamour.WithInlineTableLinks(true),
-	)
+	)...)
 	if err != nil {
 		return md, err
 	}
@@ -872,18 +880,24 @@ func (s Streams) renderMarkdownAt(md string, width int) (_ string, err error) {
 // terminalProperties. Used by the interactive theme picker to preview a theme
 // the user has not committed to yet.
 func (s Streams) renderMarkdownThemeAt(md, theme string, width int) (_ string, err error) {
-	r, err := glamour.NewTermRenderer(
+	r, err := glamour.NewTermRenderer(s.glamourOptions(
 		glamour.WithWordWrap(width),
-		glamour.WithTableFitContent(),
 		glamour.WithStyles(s.styleConfigForTheme(theme)),
 		glamour.WithInlineTableLinks(true),
-	)
+	)...)
 	if err != nil {
 		return md, err
 	}
 	defer closer.ErrorHandler(r, &err)
 
 	return r.Render(md)
+}
+
+// glamourOptions appends the caller-supplied mdOpts to base, so every renderer
+// here picks up the options passed to FromCmd. Caller options come last and so
+// win over any base option they overlap with.
+func (s Streams) glamourOptions(base ...glamour.TermRendererOption) []glamour.TermRendererOption {
+	return append(base, s.mdOpts...)
 }
 
 // styleConfigForTheme resolves a theme name to its glamour style config. Unlike
