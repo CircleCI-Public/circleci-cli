@@ -24,6 +24,7 @@
 package fakes
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -149,6 +150,7 @@ type CircleCI struct {
 	deletedIOSBundles map[string]bool               // bundle id → deleted
 	iosCertCounter    int                           // monotonic ID generator for uploaded certs
 	iosBundleCounter  int                           // monotonic ID generator for created bundles
+	iosProfileCounter int                           // monotonic ID generator for provisioning profiles
 
 	// Auth state.
 	tokens             map[string]bool // accepted bearer tokens; a request whose Authorization: Bearer <token> is absent from this set is rejected 401 on every non-exempt route
@@ -396,6 +398,8 @@ func NewCircleCI(t *testing.T, tokens ...string) *CircleCI {
 	r.Post("/api/v3/signing/configs", f.handleCreateIOSBundle)
 	r.Get("/api/v3/signing/configs", f.handleListIOSBundles)
 	r.Delete("/api/v3/signing/configs/{id}", f.handleDeleteIOSBundle)
+	r.Post("/api/v3/signing/configs/{id}/update-profile", f.handleUpdateIOSBundleProfile)
+	r.Post("/api/v3/signing/configs/{id}/remove-profile", f.handleRemoveIOSBundleProfile)
 	// Config compile + org routes.
 	r.Post("/api/v3/configs/compile", f.handleCompileConfig)
 	r.Get("/api/v3/tool/releases", f.handleGetReleases)
@@ -3491,6 +3495,42 @@ type IOSCert struct {
 	CertType string
 }
 
+// IOSProfile holds the ID and file name of a provisioning profile for the
+// remove-profile endpoint
+// BundleID/ProfileType mirror the real server's replace-match key (bundle
+// identifier + profile type embedded in the file, not the file name); the
+// fake reads them from a stand-in content convention instead of a real plist
+// parser (see fakeMobileProvisionContent in acceptance/certificate_test.go).
+type IOSProfile struct {
+	ID          string
+	FileName    string
+	BundleID    string
+	ProfileType string
+}
+
+// parseFakeMobileProvisionBlob extracts the bundle ID and profile type
+// fakeMobileProvisionContent encoded into a base64-encoded blob. Content that
+// doesn't follow that convention yields empty values.
+func parseFakeMobileProvisionBlob(blob string) (bundleID, profileType string) {
+	decoded, err := base64.StdEncoding.DecodeString(blob)
+	if err != nil {
+		return "", ""
+	}
+	for _, field := range strings.Split(string(decoded), ";") {
+		k, v, ok := strings.Cut(field, "=")
+		if !ok {
+			continue
+		}
+		switch k {
+		case "bundle-id":
+			bundleID = v
+		case "profile-type":
+			profileType = v
+		}
+	}
+	return bundleID, profileType
+}
+
 // IOSSigningConfig is a stored iOS signing config (bundle) served by the
 // signing config list endpoint. CertID links it to the IOSCert it uses (the
 // cert-in-use check on delete); CertFileName/CertType are the certificate
@@ -3501,7 +3541,7 @@ type IOSSigningConfig struct {
 	CertID               string
 	CertFileName         string
 	CertType             string
-	ProvisioningProfiles []string
+	ProvisioningProfiles []IOSProfile
 }
 
 // AddIOSCert registers an iOS certificate for an org, returned by
@@ -3533,7 +3573,7 @@ func iosCertEntity(c IOSCert) map[string]any {
 func iosSigningConfigEntity(b IOSSigningConfig) map[string]any {
 	profiles := make([]map[string]any, len(b.ProvisioningProfiles))
 	for i, p := range b.ProvisioningProfiles {
-		profiles[i] = map[string]any{"file_name": p}
+		profiles[i] = map[string]any{"id": p.ID, "file_name": p.FileName}
 	}
 	return map[string]any{
 		"id": b.ID,
@@ -3742,10 +3782,19 @@ func (f *CircleCI) handleCreateIOSBundle(w http.ResponseWriter, r *http.Request)
 	f.iosBundleCounter++
 	id := fmt.Sprintf("10000000-0000-0000-0000-%012d", f.iosBundleCounter)
 
-	// Provisioning-profile list response echoes only file_name, not the blob.
-	profiles := make([]string, len(body.Data.Attributes.ProvisioningProfiles))
+	// Provisioning-profile list response echoes the id and file_name, not the blob.
+	profiles := make([]IOSProfile, len(body.Data.Attributes.ProvisioningProfiles))
 	for i, p := range body.Data.Attributes.ProvisioningProfiles {
-		profiles[i], _ = p["file_name"].(string)
+		f.iosProfileCounter++
+		fileName, _ := p["file_name"].(string)
+		blob, _ := p["blob"].(string)
+		bundleID, profileType := parseFakeMobileProvisionBlob(blob)
+		profiles[i] = IOSProfile{
+			ID:          fmt.Sprintf("20000000-0000-0000-0000-%012d", f.iosProfileCounter),
+			FileName:    fileName,
+			BundleID:    bundleID,
+			ProfileType: profileType,
+		}
 	}
 
 	f.iosBundles[orgID] = append(f.iosBundles[orgID], IOSSigningConfig{
@@ -3806,6 +3855,103 @@ func (f *CircleCI) handleDeleteIOSBundle(w http.ResponseWriter, r *http.Request)
 		render.JSON(w, r, map[string]any{"message": "not found"})
 		return
 	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// findIOSBundle returns the mutable fixture map for the signing config with
+// the given id. The returned struct is the same one stored in f.iosBundles
+func (f *CircleCI) findIOSBundle(id string) *IOSSigningConfig {
+	for i := range f.iosBundles {
+		for j := range f.iosBundles[i] {
+			if f.iosBundles[i][j].ID == id {
+				return &f.iosBundles[i][j]
+			}
+		}
+	}
+	return nil
+}
+
+func (f *CircleCI) handleUpdateIOSBundleProfile(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	var body struct {
+		Blob     string `json:"blob"`
+		FileName string `json:"file_name"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		render.Status(r, http.StatusBadRequest)
+		render.JSON(w, r, map[string]any{"message": err.Error()})
+		return
+	}
+	if body.Blob == "" || body.FileName == "" {
+		render.Status(r, http.StatusBadRequest)
+		render.JSON(w, r, map[string]any{"message": "missing required fields"})
+		return
+	}
+
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
+	bundle := f.findIOSBundle(id)
+	if bundle == nil || f.deletedIOSBundles[id] {
+		render.Status(r, http.StatusNotFound)
+		render.JSON(w, r, map[string]any{"message": "not found"})
+		return
+	}
+
+	// Same bundle ID + profile type replaces in place, regardless of file name.
+	bundleID, profileType := parseFakeMobileProvisionBlob(body.Blob)
+	replaced := false
+	for i, p := range bundle.ProvisioningProfiles {
+		if p.BundleID == bundleID && p.ProfileType == profileType {
+			bundle.ProvisioningProfiles[i].FileName = body.FileName
+			replaced = true
+			break
+		}
+	}
+	if !replaced {
+		f.iosProfileCounter++
+		bundle.ProvisioningProfiles = append(bundle.ProvisioningProfiles, IOSProfile{
+			ID:          fmt.Sprintf("20000000-0000-0000-0000-%012d", f.iosProfileCounter),
+			FileName:    body.FileName,
+			BundleID:    bundleID,
+			ProfileType: profileType,
+		})
+	}
+
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (f *CircleCI) handleRemoveIOSBundleProfile(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	var body struct {
+		ProfileID string `json:"profile_id"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		render.Status(r, http.StatusBadRequest)
+		render.JSON(w, r, map[string]any{"message": err.Error()})
+		return
+	}
+
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
+	bundle := f.findIOSBundle(id)
+	if bundle == nil || f.deletedIOSBundles[id] {
+		render.Status(r, http.StatusNotFound)
+		render.JSON(w, r, map[string]any{"message": "not found"})
+		return
+	}
+
+	kept := make([]IOSProfile, 0, len(bundle.ProvisioningProfiles))
+	for _, p := range bundle.ProvisioningProfiles {
+		if p.ID == body.ProfileID {
+			continue
+		}
+		kept = append(kept, p)
+	}
+	bundle.ProvisioningProfiles = kept
+
+	// Removing an already-absent profile is idempotent: still 204.
 	w.WriteHeader(http.StatusNoContent)
 }
 

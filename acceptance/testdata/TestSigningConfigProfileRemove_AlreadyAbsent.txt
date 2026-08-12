@@ -1,0 +1,1 @@
+✓ Removed profile 39999999-9999-9999-9999-999999999999 from signing config eccccccc-cccc-cccc-cccc-cccccccccccc

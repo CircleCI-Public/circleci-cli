@@ -24,6 +24,7 @@ package acceptance_test
 
 import (
 	"bytes"
+	"fmt"
 	"net/http"
 	"net/url"
 	"os"
@@ -53,13 +54,21 @@ func fakeIOSCert(id, fileName string) fakes.IOSCert {
 // certFileName populates the nested certificate reference; CertID is the FK the
 // fake's cert-in-use check reads (never sent on the wire).
 func fakeIOSSigningConfig(id, name, certID, certFileName string, profileFiles ...string) fakes.IOSSigningConfig {
+	profiles := make([]fakes.IOSProfile, 0, len(profileFiles))
+	for _, fileName := range profileFiles {
+		profiles = append(profiles, fakes.IOSProfile{
+			FileName:    fileName,
+			BundleID:    "fixture-bundle:" + fileName,
+			ProfileType: "fixture-type",
+		})
+	}
 	return fakes.IOSSigningConfig{
 		ID:                   id,
 		Name:                 name,
 		CertID:               certID,
 		CertFileName:         certFileName,
 		CertType:             "distribution",
-		ProvisioningProfiles: profileFiles,
+		ProvisioningProfiles: profiles,
 	}
 }
 
@@ -79,6 +88,12 @@ func writeBinaryFile(t *testing.T, dir, name, content string) string {
 	path := filepath.Join(dir, name)
 	assert.NilError(t, os.WriteFile(path, []byte(content), 0o600))
 	return name
+}
+
+// fakeMobileProvisionContent stands in for a real .mobileprovision plist,
+// letting the fake server parse a bundle ID and profile type back out of it.
+func fakeMobileProvisionContent(bundleID, profileType string) string {
+	return fmt.Sprintf("bundle-id=%s;profile-type=%s", bundleID, profileType)
 }
 
 // --- certificate upload ---

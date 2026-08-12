@@ -67,6 +67,9 @@ func NewSigningConfigCmd() *cobra.Command {
 	cmdutil.AddGroup(cmd, "Targeted commands",
 		newDeleteCmd(),
 	)
+	cmdutil.AddGroup(cmd, "Subcommands",
+		newProfileCmd(),
+	)
 
 	return cmd
 }

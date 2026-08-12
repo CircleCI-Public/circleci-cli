@@ -1,0 +1,37 @@
+Add or replace a provisioning profile on a signing config
+
+## Usage
+
+`circleci signing-config profile add <signing-config-id> [flags]`
+
+## Arguments
+
+`<signing-config-id>` is the ID of the signing config to update.
+Use `circleci signing-config list` to find the ID.
+
+## Flags
+
+| Flag               | Description                         |
+| ------------------ | ----------------------------------- |
+| `--profile string` | Path to a provisioning profile file |
+
+Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `circleci --help`.
+
+## Examples
+
+- Add a new profile: 
+  `circleci signing-config profile add <signing-config-id> --profile ./MyAppExtension.mobileprovision`
+- Replace an existing profile (same bundle ID and profile type, regardless of file name): 
+  `circleci signing-config profile add <signing-config-id> --profile ./MyApp.mobileprovision`
+- Find the signing config ID first: 
+  `circleci signing-config list --json --jq '.[].id'`
+
+## Details
+
+Add a provisioning profile to a signing config, or replace one that
+already has the same bundle identifier and profile type.
+
+The file at --profile is read and base64-encoded locally, then sent
+to CircleCI. The config's other profiles and certificate are left
+untouched.
+

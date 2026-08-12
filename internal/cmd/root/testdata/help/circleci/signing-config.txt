@@ -17,6 +17,12 @@ Manage iOS signing configs
 | -------- | ---------------------------- |
 | `delete` | Delete an iOS signing config |
 
+## Subcommands
+
+| Command   | Description                                             |
+| --------- | ------------------------------------------------------- |
+| `profile` | Add or remove provisioning profiles on a signing config |
+
 ## Flags
 
 Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `circleci --help`.

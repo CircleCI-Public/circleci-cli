@@ -1,0 +1,31 @@
+Add or remove provisioning profiles on a signing config
+
+## Usage
+
+`circleci signing-config profile <command> [flags]`
+
+## Available Commands
+
+| Command  | Description                                               |
+| -------- | --------------------------------------------------------- |
+| `add`    | Add or replace a provisioning profile on a signing config |
+| `remove` | Remove a provisioning profile from a signing config       |
+
+## Flags
+
+Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `circleci --help`.
+
+## Details
+
+Add, replace, or remove a provisioning profile on an existing signing
+config, without recreating the whole config.
+
+A profile is matched to an existing one by the bundle identifier and
+profile type embedded in the provisioning profile file itself, not by
+file name: the same bundle ID and type replaces it in place, and
+anything else is added alongside it.
+
+Recreating a signing config (delete then create) leaves a gap where
+pipelines referencing it by name fail; these commands update it in
+place instead.
+
