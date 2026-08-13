@@ -480,6 +480,51 @@ UUIDs are shown in the output of `circleci workflow get` and
 - Show every line of every step in the rendered view: 
   `circleci job output list 8e50c384-0083-43d0-bc8f-93f0db589d6b --tail 0`
 
+#### `circleci job resource-usage <command>`
+
+Work with a job's CPU and memory usage
+
+Inspect how much of its executor a job actually used.
+
+CPU and memory are sampled at a fixed interval for the length of each
+parallel execution, and reported against the limits of the resource class
+the job ran on — so a job that needs a smaller (or larger) executor shows
+it.
+
+##### `circleci job resource-usage get <job-id> [flags]`
+
+Chart a job's CPU and memory usage
+
+Chart how much CPU and memory a job used against its resource class limits.
+Peak of limit sizes the executor: under 50% on both means a smaller class fits.
+Parallel executions are overlaid in color, or charted apart past 5 (--chart).
+
+JSON fields: id, resource_class.name/cpu_count/memory_limit_bytes, executions[].execution/interval_ms/samples/duration_seconds/cpu_cores/memory_bytes/network_rx_bytes/network_tx_bytes/cpu.min/mean/max/peak_percent_of_limit (and memory.*)
+
+| Flag              | Description                                                                           |
+| ----------------- | ------------------------------------------------------------------------------------- |
+| `--chart string`  | Plot parallel executions together or apart: auto\|combined\|separate (default "auto") |
+| `--execution int` | Parallel execution index to report on (default all) (default -1)                      |
+| `--jq string`     | Process values from the response using jq syntax (see `circleci help formatting`)     |
+| `--json`          | Output as JSON                                                                        |
+
+
+**Arguments:**
+
+`<job-id>` is the UUID of the job whose usage to fetch. Job UUIDs are
+shown in the output of `circleci workflow get` and `circleci job get`.
+
+**Examples:**
+
+- Chart a job's CPU and memory usage: 
+  `circleci job resource-usage get 0dc4d8df-8f7e-41b0-a3ef-88066a5465c1`
+- One chart per execution, however few there are: 
+  `circleci job resource-usage get 0dc4d8df-8f7e-41b0-a3ef-88066a5465c1 --chart separate`
+- Only the third parallel execution: 
+  `circleci job resource-usage get 0dc4d8df-8f7e-41b0-a3ef-88066a5465c1 --execution 2`
+- How close each execution came to its memory limit: 
+  `circleci job resource-usage get 0dc4d8df-8f7e-41b0-a3ef-88066a5465c1 --json | jq '.executions[].memory.peak_percent_of_limit'`
+
 ### `circleci pipeline <command>`
 
 Define what will happen in a run
