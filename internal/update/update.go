@@ -72,12 +72,12 @@ const (
 	// users can fetch the latest immediately regardless).
 	notifyDelay = 6 * time.Hour
 
-	// cacheWindow is how often we are willing to hit the network. Matched to our
+	// CacheWindow is how often we are willing to hit the network. Matched to our
 	// ~daily release cadence so the version we advertise never lags reality by
 	// more than about a day: a longer window would keep pointing at a stale
 	// "latest" (still a correct nag, just an out-of-date target) while a shorter
 	// one would probe more often than a new release can appear.
-	cacheWindow = 24 * time.Hour
+	CacheWindow = 24 * time.Hour
 )
 
 // ReleaseInfo is the newest stable release the source reported.
@@ -135,7 +135,7 @@ func ShouldCheck(ctx context.Context, cfg *config.Config, version string) bool {
 }
 
 // Check returns a release worth telling the user about, or nil. It refreshes
-// from src at most once per cacheWindow, but evaluates notifyDelay against cached
+// from src at most once per CacheWindow, but evaluates notifyDelay against cached
 // state on every call — so a notice suppressed by the delay appears the moment
 // the delay elapses, without waiting for the next network fetch.
 //
@@ -159,7 +159,7 @@ func Check(ctx context.Context, src Source, statePath, currentVersion string) (*
 	release := ReleaseInfo{Version: stored.Version, PublishedAt: stored.PublishedAt}
 	checkedAt := st.CheckedForUpdateAt()
 
-	if checkedAt.IsZero() || time.Since(checkedAt) >= cacheWindow {
+	if checkedAt.IsZero() || time.Since(checkedAt) >= CacheWindow {
 		info, ferr := src.Latest(ctx)
 		if ferr != nil {
 			// Transient/unexpected failure: don't write state, so the cache
@@ -185,7 +185,7 @@ func Check(ctx context.Context, src Source, statePath, currentVersion string) (*
 		}
 		if info == nil {
 			// Recognised-but-unactionable (e.g. 400/401/403): state is written so
-			// we back off for cacheWindow, but there is nothing to show.
+			// we back off for CacheWindow, but there is nothing to show.
 			return nil, nil
 		}
 		release = *info
@@ -196,7 +196,7 @@ func Check(ctx context.Context, src Source, statePath, currentVersion string) (*
 		"latest", release.Version,
 		"current", currentVersion,
 		"published_at", release.PublishedAt,
-		"newer", isNewer(release.Version, currentVersion),
+		"newer", IsNewer(release.Version, currentVersion),
 		"within_delay", !release.PublishedAt.IsZero() && time.Since(release.PublishedAt) < notifyDelay,
 		"notify", result != nil,
 	)
@@ -208,7 +208,7 @@ func evaluate(release ReleaseInfo, currentVersion string) *ReleaseInfo {
 	if release.Version == "" {
 		return nil
 	}
-	if !isNewer(release.Version, currentVersion) {
+	if !IsNewer(release.Version, currentVersion) {
 		return nil
 	}
 	// Blanket delay: stay quiet until the package managers have had time to catch
@@ -241,9 +241,9 @@ func normalizeBuildVersion(v string) string {
 	return fmt.Sprintf("%s.%s.%d-pre.0", m[1], m[2], patch+1)
 }
 
-// isNewer reports whether latest is a strictly greater semver than current,
+// IsNewer reports whether latest is a strictly greater semver than current,
 // after normalising a git-describe current version.
-func isNewer(latest, current string) bool {
+func IsNewer(latest, current string) bool {
 	current = normalizeBuildVersion(current)
 	lv, lerr := goversion.NewVersion(latest)
 	cv, cerr := goversion.NewVersion(current)
@@ -296,7 +296,7 @@ func (n *Notifier) Finish() *ReleaseInfo {
 	return rel
 }
 
-// PrintNotice writes the two-line update notice to stderr, blank-line padded and
+// PrintReleaseNotice writes the two-line update notice to stderr, blank-line padded and
 // after all command output. The second line links the new release's GitHub
 // release page. It is a no-op when rel is nil.
 //
@@ -304,16 +304,28 @@ func (n *Notifier) Finish() *ReleaseInfo {
 // color is always safe here — there is no pipe to corrupt. The color helpers
 // still fall back to plain text under NO_COLOR / TERM=dumb, so the message text
 // is unchanged when color is disabled.
-func PrintNotice(ctx context.Context, currentVersion string, rel *ReleaseInfo) {
+func PrintReleaseNotice(ctx context.Context, currentVersion string, rel *ReleaseInfo) {
 	if rel == nil {
 		return
 	}
+	printNotice(ctx, "circleci", currentVersion, rel.Version)
+	iostream.ErrPrintf(ctx, "%s\n\n", iostream.Muted(ctx, releaseURL(rel.Version)))
+}
+
+// PrintBinaryNotice writes the update notice to stderr for the given binary and version.
+func PrintBinaryNotice(ctx context.Context, binaryName, installedVersion, latestVersion string) {
+	printNotice(ctx, binaryName, installedVersion, latestVersion)
+}
+
+// printNotice writes the shared "a new version is available" line: a leading
+// blank line to separate it from command output, then the name of the thing that
+// is behind and the version transition.
+func printNotice(ctx context.Context, name, currentVersion, latestVersion string) {
 	iostream.ErrPrintf(ctx,
-		"\n%s %s → %s\n%s\n\n",
-		iostream.Warning(ctx, "A new version of circleci is available:"),
+		"\n%s %s → %s\n",
+		iostream.Warning(ctx, fmt.Sprintf("A new version of %s is available:", name)),
 		iostream.Muted(ctx, currentVersion),
-		iostream.Success(ctx, rel.Version),
-		iostream.Muted(ctx, releaseURL(rel.Version)))
+		iostream.Success(ctx, latestVersion))
 }
 
 // releaseURL returns the GitHub release page for version, tolerating a leading

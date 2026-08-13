@@ -20,8 +20,8 @@ notifications are all disabled automatically.
 
 `CIRCLE_SPINNER_DISABLED`: set to any value to replace the animated spinner with plain text.
 
-`CIRCLE_NO_UPDATE_CHECK`: set to any value to disable checking for newer CLI releases.
-Same effect as `circleci setting set update-check off`.
+`CIRCLE_NO_UPDATE_CHECK`: set to any value to disable checking for newer CLI and
+extension releases. Same effect as `circleci setting set update-check off`.
 
 `CIRCLE_NO_PAGER`: set to any value to print long output directly instead of through a pager.
 
