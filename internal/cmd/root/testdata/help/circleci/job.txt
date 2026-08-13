@@ -6,12 +6,13 @@ Inspect a job's details, output and artifacts
 
 ## Targeted Commands
 
-| Command    | Description                          |
-| ---------- | ------------------------------------ |
-| `artifact` | List or download artifacts for a job |
-| `get`      | Get job details                      |
-| `open`     | Open job in browser                  |
-| `output`   | Work with job step output            |
+| Command          | Description                            |
+| ---------------- | -------------------------------------- |
+| `artifact`       | List or download artifacts for a job   |
+| `get`            | Get job details                        |
+| `open`           | Open job in browser                    |
+| `output`         | Work with job step output              |
+| `resource-usage` | Work with a job's CPU and memory usage |
 
 ## Flags
 

@@ -29,26 +29,23 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/internal/cmdutil"
 )
 
-// NewJobCmd returns the "circleci job" command group.
-func NewJobCmd() *cobra.Command {
+func newResourceUsageCmd() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:     "job <command>",
-		GroupID: "ci",
-		Short:   "Inspect a job's details, output and artifacts",
+		Use:   "resource-usage <command>",
+		Short: "Work with a job's CPU and memory usage",
 		Long: heredoc.Doc(`
-			Work with CircleCI jobs.
+			Inspect how much of its executor a job actually used.
 
-			Jobs are the individual units of work within a workflow.
+			CPU and memory are sampled at a fixed interval for the length of each
+			parallel execution, and reported against the limits of the resource class
+			the job ran on — so a job that needs a smaller (or larger) executor shows
+			it.
 		`),
+		RunE:               cmdutil.GroupRunE,
+		FParseErrWhitelist: cobra.FParseErrWhitelist{UnknownFlags: true},
 	}
 
-	cmdutil.AddGroup(cmd, "Targeted commands",
-		newArtifactCmd(),
-		newGetCmd(),
-		newOpenCmd(),
-		newOutputCmd(),
-		newResourceUsageCmd(),
-	)
+	cmd.AddCommand(newResourceUsageGetCmd())
 
 	return cmd
 }

@@ -129,17 +129,18 @@ When paging through markdown, step or test output:
 // Labels for the "show everything at this level" option that heads each of the
 // workflow and job pickers.
 const (
-	runGetAllWorkflowsLabel = "See all workflows (run summary)"
-	runGetAllJobsLabel      = "All jobs in workflow (workflow summary)"
-	runGetJobReportLabel    = "Job report (summary)"
-	runGetJobOutputLabel    = "Full job report (including step output)"
-	runGetFailedTestsLabel  = "Failed tests"
+	runGetAllWorkflowsLabel  = "See all workflows (run summary)"
+	runGetAllJobsLabel       = "All jobs in workflow (workflow summary)"
+	runGetJobReportLabel     = "Job report (summary)"
+	runGetJobOutputLabel     = "Full job report (including step output)"
+	runGetFailedTestsLabel   = "Failed tests"
+	runGetResourceUsageLabel = "Resource usage (CPU and memory charts)"
 
 	// runGetMetaCount is the number of leading job-summary options (job report,
-	// full output report, failed tests). They sit on the first picker after the
-	// job: the step picker for a single-execution job, or the execution picker
-	// otherwise.
-	runGetMetaCount = 3
+	// full output report, failed tests, resource usage). They sit on the first
+	// picker after the job: the step picker for a single-execution job, or the
+	// execution picker otherwise.
+	runGetMetaCount = 4
 
 	// runGetMetaGlyph fills the icon column for the leading "see all" / "all
 	// jobs" summary options. They carry no status, so rather than leave a blank
@@ -152,6 +153,12 @@ const (
 	// than a status symbol, since the option is offered whether or not any test
 	// actually failed.
 	runGetFailedTestsGlyph = "?"
+
+	// runGetResourceUsageGlyph marks the "resource usage" summary option: a
+	// single block glyph, the same vocabulary the charts behind the option are
+	// drawn in. Like the other meta glyphs it is muted, so it does not read as a
+	// status symbol on the rows below.
+	runGetResourceUsageGlyph = "▃"
 )
 
 // RunGetAction is the terminal choice the user reached in the run-get flow.
@@ -170,6 +177,9 @@ const (
 	// RunGetActionShowJobOutput displays the full per-step output report for a
 	// job (the equivalent of "circleci job output list").
 	RunGetActionShowJobOutput
+	// RunGetActionShowResourceUsage displays a job's CPU and memory usage charts
+	// (the equivalent of "circleci job resource-usage get").
+	RunGetActionShowResourceUsage
 )
 
 // RunGetItem is one selectable row: a display label, an optional status symbol
@@ -282,7 +292,12 @@ type RunGetFlowOptions struct {
 	// with RunGetActionShowJob / RunGetActionShowJobOutput instead.
 	RenderJobSummary func(ctx context.Context, jobID uuid.UUID) (string, error)
 	RenderJobOutput  func(ctx context.Context, jobID uuid.UUID) (string, error)
-	Color            bool
+	// RenderResourceUsage returns the job's CPU and memory usage report as
+	// markdown for the "resource usage" option, paged in-flow like the summaries
+	// above. When nil the option quits with RunGetActionShowResourceUsage
+	// instead.
+	RenderResourceUsage func(ctx context.Context, jobID uuid.UUID) (string, error)
+	Color               bool
 	// Animate reports whether the loading spinner should animate. Pass false when
 	// CIRCLE_SPINNER_DISABLED is set (or the session is non-interactive) so the
 	// loading line stays static instead of repainting.
@@ -1341,6 +1356,9 @@ func (m RunGetFlowModel) updateExecutionSelect(msg tea.Msg) (tea.Model, tea.Cmd)
 			"Fetching job output", RunGetResult{Action: RunGetActionShowJobOutput, JobID: m.jobID})
 	case 2: // "failed tests" — open the failed-test picker
 		return m.enterFailedTests(runGetStageExecutionSelect)
+	case 3: // "resource usage" — CPU/memory charts, all executions
+		return m.openSummary(m.opts.RenderResourceUsage, m.jobID, runGetStageExecutionSelect,
+			"Fetching resource usage", RunGetResult{Action: RunGetActionShowResourceUsage, JobID: m.jobID})
 	}
 	m.executionCursor = sel
 	return m.enterStepSelect(m.executions[sel-runGetMetaCount]), nil
@@ -1395,6 +1413,9 @@ func (m RunGetFlowModel) updateStepSelect(msg tea.Msg) (tea.Model, tea.Cmd) {
 				"Fetching job output", RunGetResult{Action: RunGetActionShowJobOutput, JobID: m.jobID})
 		case 2: // "failed tests" — open the failed-test picker
 			return m.enterFailedTests(runGetStageStepSelect)
+		case 3: // "resource usage" — CPU/memory charts
+			return m.openSummary(m.opts.RenderResourceUsage, m.jobID, runGetStageStepSelect,
+				"Fetching resource usage", RunGetResult{Action: RunGetActionShowResourceUsage, JobID: m.jobID})
 		}
 		sel -= meta
 	}
@@ -1887,8 +1908,8 @@ func (m RunGetFlowModel) jobItemStyle(i int) lipgloss.Style {
 func (m RunGetFlowModel) newExecutionSelect() components.SelectModel {
 	labels := make([]string, 0, len(m.executions)+runGetMetaCount)
 	icons := make([]string, 0, len(m.executions)+runGetMetaCount)
-	labels = append(labels, runGetJobReportLabel, runGetJobOutputLabel, runGetFailedTestsLabel)
-	icons = append(icons, m.metaIcon(), m.metaIcon(), m.failedTestsIcon())
+	labels = append(labels, runGetJobReportLabel, runGetJobOutputLabel, runGetFailedTestsLabel, runGetResourceUsageLabel)
+	icons = append(icons, m.metaIcon(), m.metaIcon(), m.failedTestsIcon(), m.resourceUsageIcon())
 	for _, e := range m.executions {
 		labels = append(labels, e.Label)
 		icons = append(icons, colorizeStatusIcon(e.Icon, m.opts.Color))
@@ -1917,8 +1938,8 @@ func (m RunGetFlowModel) newStepSelect() components.SelectModel {
 	labels := make([]string, 0, len(m.steps)+meta)
 	icons := make([]string, 0, len(m.steps)+meta)
 	if meta > 0 {
-		labels = append(labels, runGetJobReportLabel, runGetJobOutputLabel, runGetFailedTestsLabel)
-		icons = append(icons, m.metaIcon(), m.metaIcon(), m.failedTestsIcon())
+		labels = append(labels, runGetJobReportLabel, runGetJobOutputLabel, runGetFailedTestsLabel, runGetResourceUsageLabel)
+		icons = append(icons, m.metaIcon(), m.metaIcon(), m.failedTestsIcon(), m.resourceUsageIcon())
 	}
 	for _, s := range m.steps {
 		labels = append(labels, s.Label)
@@ -1993,6 +2014,12 @@ func (m RunGetFlowModel) metaIcon() string {
 // still state-neutral (the option appears whether or not any test failed).
 func (m RunGetFlowModel) failedTestsIcon() string {
 	return m.mutedGlyph(runGetFailedTestsGlyph)
+}
+
+// resourceUsageIcon is the glyph for the "resource usage" summary option: a
+// muted block, the same vocabulary as the charts it leads to.
+func (m RunGetFlowModel) resourceUsageIcon() string {
+	return m.mutedGlyph(runGetResourceUsageGlyph)
 }
 
 // mutedGlyph dims a summary-option glyph when color is on so it stays distinct

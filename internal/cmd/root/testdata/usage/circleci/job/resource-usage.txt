@@ -1,0 +1,4 @@
+Usage:  circleci job resource-usage <command> [flags]
+
+Available commands:
+  get

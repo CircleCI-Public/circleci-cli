@@ -1,0 +1,7 @@
+error: No resource usage recorded for job "8e50c384-0083-43d0-bc8f-93f0db589d6b".
+API: {"message":"not found"}
+
+
+Suggestions:
+  • Usage is only recorded for jobs that ran an executor — an approval job, or one cancelled before it started, has none.
+  • Check the job exists with: circleci job get 8e50c384-0083-43d0-bc8f-93f0db589d6b

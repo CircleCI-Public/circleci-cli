@@ -542,6 +542,18 @@ func setupRunGetInteractiveFake(t *testing.T) *testenv.TestEnv {
 		fakes.TestResult{Classname: "pkg/foo", Name: "TestThatFailed", Result: "failure", RunTime: 0.5, Message: "assertion failed: want 1 got 2"},
 		fakes.TestResult{Classname: "pkg/foo", Name: "TestThatPassed", Result: "success", RunTime: 0.1, Message: ""},
 	)
+	// Sampled usage for the "Resource usage" meta option. The CPU series touches
+	// the resource class limit, so the report's peak-of-limit reads 100% — a
+	// distinctive string for the test to expect.
+	fake.AddJobResourceUsage(irunJob1ID, fakes.ResourceUsage{
+		ClassName: "large", CPUCount: 4, MemoryLimitBytes: 8 * 1024 * 1024 * 1024,
+		Executions: []fakes.ResourceUsageExecution{{
+			Index: 0, IntervalMS: 15000,
+			CPUCores:       []float64{0.5, 2.25, 4},
+			MemoryBytes:    []int64{256 << 20, 1024 << 20, 2048 << 20},
+			NetworkRxBytes: 350 << 20, NetworkTxBytes: 2 << 20,
+		}},
+	})
 
 	// A parallel job (parallelism 2): execution 0 succeeded, execution 1 failed.
 	deployStep := func(outcome string, exit int) []fakes.JobStep {
@@ -671,9 +683,9 @@ func TestRunGet_Interactive_JobReport(t *testing.T) {
 	console := startRunGetInteractive(t, env)
 	drillToStepPicker(t, console)
 
-	// Cursor starts on the failed step (index 4, below the three meta options);
-	// four ups reach the first option, "Job report (summary)".
-	_, err := console.Send(keyUp + keyUp + keyUp + keyUp + "\r")
+	// Cursor starts on the failed step (index 5, below the four meta options);
+	// five ups reach the first option, "Job report (summary)".
+	_, err := console.Send(keyUp + keyUp + keyUp + keyUp + keyUp + "\r")
 	assert.NilError(t, err)
 
 	_, err = console.ExpectString(irunWfID)
@@ -691,9 +703,9 @@ func TestRunGet_Interactive_FullOutputReport(t *testing.T) {
 	console := startRunGetInteractive(t, env)
 	drillToStepPicker(t, console)
 
-	// Cursor starts on the failed step (index 4, below the three meta options);
-	// three ups reach the second option, "Full job report (including step output)".
-	_, err := console.Send(keyUp + keyUp + keyUp + "\r")
+	// Cursor starts on the failed step (index 5, below the four meta options);
+	// four ups reach the second option, "Full job report (including step output)".
+	_, err := console.Send(keyUp + keyUp + keyUp + keyUp + "\r")
 	assert.NilError(t, err)
 
 	_, err = console.ExpectString("FAILURE: 2 tests failed")
@@ -752,9 +764,9 @@ func TestRunGet_Interactive_FailedTests(t *testing.T) {
 	console := startRunGetInteractive(t, env)
 	drillToStepPicker(t, console)
 
-	// Cursor starts on the failed step (index 4); two ups reach the third option,
-	// "Failed tests".
-	_, err := console.Send(keyUp + keyUp + "\r")
+	// Cursor starts on the failed step (index 5); three ups reach the third
+	// option, "Failed tests".
+	_, err := console.Send(keyUp + keyUp + keyUp + "\r")
 	assert.NilError(t, err)
 
 	// The failed-test picker lists the one failing test (passing tests excluded).
@@ -768,6 +780,26 @@ func TestRunGet_Interactive_FailedTests(t *testing.T) {
 	assert.NilError(t, err)
 
 	// ctrl+c quits the flow from the pager.
+	_, err = console.Send(keyCtrlC)
+	assert.NilError(t, err)
+}
+
+// TestRunGet_Interactive_ResourceUsage picks the "Resource usage" meta option and
+// confirms the CPU and memory charts page in-flow. It is the last of the four
+// options, so two ups from the failed step (index 5) reach it.
+func TestRunGet_Interactive_ResourceUsage(t *testing.T) {
+	env := setupRunGetInteractiveFake(t)
+	console := startRunGetInteractive(t, env)
+	drillToStepPicker(t, console)
+
+	_, err := console.Send(keyUp + keyUp + "\r")
+	assert.NilError(t, err)
+
+	// The job saturated its 4 cores, which only the usage report says.
+	_, err = console.ExpectString("100%")
+	assert.NilError(t, err)
+
+	// The report is paged in-flow, so the program is still running; ctrl+c quits.
 	_, err = console.Send(keyCtrlC)
 	assert.NilError(t, err)
 }
@@ -809,9 +841,9 @@ func TestRunGet_Interactive_ParallelJobReport(t *testing.T) {
 	console := startRunGetInteractive(t, env)
 	drillToExecutionPicker(t, console)
 
-	// Cursor starts on the failed Execution 1 (index 4, below the three meta
-	// options); four ups reach the first option, "Job report (summary)".
-	_, err := console.Send(keyUp + keyUp + keyUp + keyUp + "\r")
+	// Cursor starts on the failed Execution 1 (index 5, below the four meta
+	// options); five ups reach the first option, "Job report (summary)".
+	_, err := console.Send(keyUp + keyUp + keyUp + keyUp + keyUp + "\r")
 	assert.NilError(t, err)
 
 	_, err = console.ExpectString(irunWfID)

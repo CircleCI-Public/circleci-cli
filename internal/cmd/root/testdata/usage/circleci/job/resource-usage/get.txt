@@ -1,0 +1,9 @@
+Usage:  circleci job resource-usage get <job-id> [flags]
+
+Flags:
+      --chart string    Plot parallel executions together or apart: auto|combined|separate (default "auto")
+      --execution int   Parallel execution index to report on (default all) (default -1)
+  -h, --help            help for get
+      --jq string       Process values from the response using jq syntax
+      --json            Output as JSON
+  

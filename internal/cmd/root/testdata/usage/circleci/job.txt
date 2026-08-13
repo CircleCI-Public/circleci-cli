@@ -5,3 +5,4 @@ Available commands:
   get
   open
   output
+  resource-usage

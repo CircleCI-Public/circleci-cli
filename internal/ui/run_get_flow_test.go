@@ -676,8 +676,8 @@ func newTestsFlow(failed []ui.RunGetTestItem) ui.RunGetFlowModel {
 // driveToFailedTestsPicker navigates run → workflow → job to the step picker,
 // then selects the "Failed tests" meta option to open the failed-test picker.
 // On the step picker the cursor lands on the failed step ("run tests"), which
-// sits just below the three meta rows, so one keyUp reaches "Failed tests". It
-// stops after sending the select; callers wait on their own distinctive row (a
+// sits just below the four meta rows, so two keyUps reach "Failed tests" (past
+// "Resource usage"). It stops after sending the select; callers wait on their own distinctive row (a
 // test label, or the empty-state placeholder) since the title/rows arrive in one
 // frame that a single WaitFor would consume whole.
 func driveToFailedTestsPicker(t *testing.T, tm *teatest.TestModel) {
@@ -690,7 +690,8 @@ func driveToFailedTestsPicker(t *testing.T, tm *teatest.TestModel) {
 	tm.Send(keyDown)
 	tm.Send(keyEnt) // select "test"
 	waitForOutput(t, tm, "Failed tests")
-	tm.Send(keyUp)  // failed step → "Failed tests"
+	tm.Send(keyUp)  // failed step → "Resource usage"
+	tm.Send(keyUp)  // → "Failed tests"
 	tm.Send(keyEnt) // open the failed-test picker
 }
 
@@ -989,7 +990,8 @@ func TestRunGetFlow_FilterApplyCreated(t *testing.T) {
 
 // newSummaryFlow builds a single-execution flow (run → workflow "build" → job
 // "test" → step picker) with every summary renderer wired, so the "see all
-// workflows", "all jobs in workflow", "job report" and "full job report" options
+// workflows", "all jobs in workflow", "job report", "full job report" and
+// "resource usage" options
 // open their summary in an in-flow pager whose esc returns to the offering picker
 // rather than quitting. RenderMarkdown returns the markdown verbatim so tests
 // can assert on the distinctive body each renderer emits. The step picker has a
@@ -1014,6 +1016,7 @@ func newSummaryFlow() ui.RunGetFlowModel {
 		RenderWorkflowSummary: func(context.Context, uuid.UUID) (string, error) { return "WORKFLOW-SUMMARY-BODY", nil },
 		RenderJobSummary:      func(context.Context, uuid.UUID) (string, error) { return "JOB-REPORT-BODY", nil },
 		RenderJobOutput:       func(context.Context, uuid.UUID) (string, error) { return "FULL-JOB-OUTPUT-BODY", nil },
+		RenderResourceUsage:   func(context.Context, uuid.UUID) (string, error) { return "RESOURCE-USAGE-BODY", nil },
 		RenderMarkdown:        func(md string, _ int) string { return md },
 	})
 }
@@ -1070,8 +1073,9 @@ func TestRunGetFlow_JobReportPager(t *testing.T) {
 
 	assert.Assert(t, t.Run("job report opens in the pager", func(t *testing.T) {
 		driveToStepPicker(t, tm)
-		// The cursor starts on the failed step (below the three meta rows); four ups
+		// The cursor starts on the failed step (below the four meta rows); five ups
 		// reach the first option, "Job report".
+		tm.Send(keyUp)
 		tm.Send(keyUp)
 		tm.Send(keyUp)
 		tm.Send(keyUp)
@@ -1188,12 +1192,34 @@ func TestRunGetFlow_FullJobOutputPager(t *testing.T) {
 
 	assert.Assert(t, t.Run("full job report opens in the pager", func(t *testing.T) {
 		driveToStepPicker(t, tm)
-		// Three ups from the failed step reach the second option, "Full job report".
+		// Four ups from the failed step reach the second option, "Full job report".
+		tm.Send(keyUp)
 		tm.Send(keyUp)
 		tm.Send(keyUp)
 		tm.Send(keyUp)
 		tm.Send(keyEnt)
 		waitForOutput(t, tm, "FULL-JOB-OUTPUT-BODY")
+	}))
+
+	assert.Assert(t, t.Run("esc returns to the step picker", func(t *testing.T) {
+		tm.Send(keyEsc)
+		assert.Check(t, cmp.Contains(flowSnapshot(t, tm), "Select a step"))
+	}))
+}
+
+// TestRunGetFlow_ResourceUsagePager confirms the "resource usage" option on the
+// step picker opens the usage charts in an in-flow pager and esc returns to the
+// step picker. It is the last of the four meta options, so two ups from the
+// failed step reach it — one past the passing "checkout" step above it.
+func TestRunGetFlow_ResourceUsagePager(t *testing.T) {
+	tm := startFlow(t, newSummaryFlow())
+
+	assert.Assert(t, t.Run("resource usage opens in the pager", func(t *testing.T) {
+		driveToStepPicker(t, tm)
+		tm.Send(keyUp)
+		tm.Send(keyUp)
+		tm.Send(keyEnt)
+		waitForOutput(t, tm, "RESOURCE-USAGE-BODY")
 	}))
 
 	assert.Assert(t, t.Run("esc returns to the step picker", func(t *testing.T) {
