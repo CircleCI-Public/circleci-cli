@@ -122,6 +122,24 @@ jobs:
           name: Verify circleci binary
           command: circleci version
 
+  nix-build:
+    executor: linux
+    steps:
+      - checkout
+      - run:
+          name: Install Nix (Determinate)
+          command: |
+            curl --proto '=https' --tlsv1.2 -sSf -L https://install.determinate.systems/nix | \
+              sh -s -- install linux --init none --no-confirm
+            echo '. /nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh' >> "$BASH_ENV"
+      - run:
+          name: Start Nix daemon
+          command: sudo /nix/var/nix/profiles/default/bin/nix-daemon &
+          background: true
+      - run:
+          name: nix build
+          command: nix build --no-link --print-build-logs
+
   docs:
     executor: linux
     steps:
@@ -159,6 +177,11 @@ workflows:
       # `requires`) must opt out explicitly; downstream jobs are gated by these.
 
       - check:
+          filters:
+            branches:
+              ignore: gh-pages
+
+      - nix-build:
           filters:
             branches:
               ignore: gh-pages
