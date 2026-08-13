@@ -349,7 +349,7 @@ func applyOrbInitSetup(ctx context.Context, client *apiclient.Client, path strin
 		orbID = existing.ID
 	} else {
 		pkg, createErr := client.CreateOrbPackage(ctx, apiclient.CreateOrbPackageRequest{
-			Name:        fullName,
+			Name:        d.orbName,
 			NamespaceID: ns.ID,
 			IsPrivate:   d.private,
 		})

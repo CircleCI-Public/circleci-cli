@@ -199,7 +199,7 @@ func TestOrbCreate(t *testing.T) {
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
 	assert.Check(t, cmp.Contains(result.Stdout, "Created orb"))
-	assert.Check(t, cmp.Contains(result.Stdout, testOrbName))
+	assert.Check(t, cmp.Contains(result.Stdout, testOrbShortName))
 
 	t.Run("check request", func(t *testing.T) {
 		assert.Check(t, cmp.DeepEqual(fake.LastRequest(), &httprecorder.Request{
@@ -209,7 +209,7 @@ func TestOrbCreate(t *testing.T) {
 				"Authorization": {"Bearer test-token"},
 				"User-Agent":    {httpcl.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
 			},
-			Body: new(`{"data":{"attributes":{"name":"myorg/my-orb","is_private":false},"references":{"namespace":{"id":"orbns001-0000-4000-8000-000000000001"}}}}`),
+			Body: new(`{"data":{"attributes":{"name":"my-orb","is_private":false},"references":{"namespace":{"id":"orbns001-0000-4000-8000-000000000001"}}}}`),
 		}, ignoreCommonHeaders))
 	})
 }
@@ -228,7 +228,7 @@ func TestOrbCreate_JSON(t *testing.T) {
 
 	var out map[string]any
 	assert.NilError(t, json.Unmarshal([]byte(result.Stdout), &out))
-	assert.Check(t, cmp.Equal(out["name"], testOrbName))
+	assert.Check(t, cmp.Equal(out["name"], testOrbShortName))
 	assert.Check(t, cmp.Equal(out["namespace"], testOrbNsName))
 	id, _ := out["id"].(string)
 	assert.Check(t, id != "", "id should be non-empty")
