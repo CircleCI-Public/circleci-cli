@@ -46,15 +46,13 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/internal/httpcl"
 	"github.com/CircleCI-Public/circleci-cli/internal/org"
 	"github.com/CircleCI-Public/circleci-cli/internal/projectref"
-	"github.com/CircleCI-Public/circleci-cli/internal/reposcan"
-	"github.com/CircleCI-Public/circleci-cli/internal/testrunner"
 	"github.com/CircleCI-Public/circleci-cli/internal/ui"
 )
 
 type mode int
 
 const (
-	modeScan   mode = iota // scan repo, run tests, generate config, then sign up
+	modeScan   mode = iota // generate config for a repo, then sign up
 	modeSignup             // sign up only — no repo required
 )
 
@@ -77,8 +75,8 @@ type Options struct {
 	RepoID string
 }
 
-// Run scans a repository, verifies its tests, generates a starter config when
-// needed, and ensures the CLI has an authenticated CircleCI session.
+// Run generates a starter config for a repository when it has none, and ensures
+// the CLI has an authenticated CircleCI session.
 func Run(ctx context.Context, dir string, opts Options) error {
 	m, err := resolveMode(ctx, opts)
 	if err != nil {
@@ -141,31 +139,14 @@ func Run(ctx context.Context, dir string, opts Options) error {
 		return err
 	}
 
-	result, err := reposcan.NewDefaultScanner().Scan(ctx, dir)
-	if err != nil {
-		return clierrors.New(
-			"onboard.scan_failed",
-			"Repository scan failed",
-			fmt.Sprintf("Could not detect the project stack: %s.", err),
-		).WithSuggestions(
-			"Re-run with --debug to see scan details",
-			"Try again; image resolution requires network access",
-		).WithExitCode(clierrors.ExitGeneralError)
-	}
-
-	if !result.IsEmpty() {
-		reposcan.Render(ctx, result)
-	}
-
-	if err := testrunner.Run(ctx, dir, result); err != nil {
-		return err
-	}
-
+	// A nil scan result yields the generic starter template. Onboard does not scan
+	// the repository: the config only has to be valid enough for the first pipeline
+	// to run, and `circleci config generate` is where stack detection belongs.
 	configPath := filepath.Join(dir, ".circleci", "config.yml")
 	if _, err := os.Stat(configPath); err == nil {
 		iostream.Printf(ctx, "%s Using existing config at %s\n",
 			iostream.SymbolOK(ctx), configPath)
-	} else if err := configgen.Generate(ctx, dir, result); err != nil {
+	} else if err := configgen.Generate(ctx, dir, nil); err != nil {
 		return err
 	}
 
@@ -745,7 +726,7 @@ func resolveMode(ctx context.Context, opts Options) (mode, error) {
 	}
 
 	idx, err := iostream.PromptSelect(ctx, "What would you like to do?", []string{
-		"Scan this repo and generate config",
+		"Set up this repo on CircleCI",
 		"Sign up for CircleCI",
 	})
 	if err != nil {
@@ -782,8 +763,6 @@ func displayPreamble(ctx context.Context, dir string) error {
 		"circleci onboard will:",
 		dir,
 		[]string{
-			"Scan your repo for the language stack and tests",
-			"Run your tests locally",
 			"Generate a starter .circleci/config.yml",
 			"Sign you up for CircleCI",
 			"Create your project and connect it to GitHub",
@@ -809,7 +788,7 @@ func displayPreamble(ctx context.Context, dir string) error {
 		return clierrors.New(
 			"onboard.cancelled",
 			"Onboarding cancelled",
-			"Cancelled before scan started.",
+			"Cancelled before setup started.",
 		).WithExitCode(clierrors.ExitCancelled)
 	}
 	return nil

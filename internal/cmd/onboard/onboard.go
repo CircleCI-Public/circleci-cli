@@ -44,24 +44,24 @@ func NewOnboardCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "onboard [path]",
 		GroupID: "user",
-		Short:   "Guided onboarding: scan, test, generate config, sign up",
+		Short:   "Guided onboarding: generate config, sign up, connect project",
 		Annotations: map[string]string{
 			"help:arguments": heredoc.Docf(`
-				%[1]s<path>%[1]s is the directory to scan. Defaults to the current directory.
+				%[1]s<path>%[1]s is the directory to onboard. Defaults to the current directory.
 			`, "`"),
 		},
 		Long: heredoc.Doc(`
-			Interactively without --scan or --signup, a prompt offers both. For
-			CircleCI-native orgs it also creates the project and an all-pushes trigger.
+			Prompts for repo setup or signup unless --scan or --signup is given. Writes a
+			starter config if the repo has none, creates the project, adds a push trigger.
 		`),
 		Example: heredoc.Doc(`
-			# Interactive mode: choose scan or signup
+			# Interactive mode: choose repo setup or signup
 			$ circleci onboard
 
-			# Scan the current directory (skip the choice prompt)
+			# Set up the current directory (skip the choice prompt)
 			$ circleci onboard --scan
 
-			# Scan and wire up the first pipeline without prompts
+			# Set up and wire up the first pipeline without prompts
 			$ circleci onboard --scan --repo-id 123456789
 
 			# Sign up for CircleCI (no repo needed)
@@ -101,7 +101,7 @@ func NewOnboardCmd() *cobra.Command {
 	}
 
 	cmd.Flags().BoolVar(&noBrowser, "no-browser", false, "Print the signup URL instead of opening a browser")
-	cmd.Flags().BoolVar(&scan, "scan", false, "Skip prompt: scan the repo and generate config")
+	cmd.Flags().BoolVar(&scan, "scan", false, "Skip prompt: set up this repo on CircleCI")
 	cmd.Flags().BoolVar(&signup, "signup", false, "Skip prompt: sign up for CircleCI")
 	cmd.Flags().StringVar(&repoID, "repo-id", "", "Numeric repository ID, if the GitHub App cannot resolve it")
 	return cmd
