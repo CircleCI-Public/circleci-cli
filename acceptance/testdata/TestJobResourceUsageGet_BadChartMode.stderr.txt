@@ -1,0 +1,4 @@
+error: "bananas" is not a chart mode.
+
+Suggestions:
+  • Use one of: auto, combined, separate

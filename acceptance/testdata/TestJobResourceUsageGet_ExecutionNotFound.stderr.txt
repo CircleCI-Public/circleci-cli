@@ -1,0 +1,4 @@
+error: Job "8e50c384-0083-43d0-bc8f-93f0db589d6b" recorded no usage for execution 7.
+
+Suggestions:
+  • This job recorded 1 execution (index 0); omit --execution to report on all of them.

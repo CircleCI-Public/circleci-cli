@@ -80,12 +80,13 @@ type CircleCI struct {
 	pipelineCancelResponses map[string]int             // pipeline id → HTTP status to return
 
 	// Job (v3) state.
-	jobsV3             map[string]JobV3        // job UUID → job detail entity
-	workflowJobsV3     map[string][]JobV3      // workflow id → job list entities
-	jobStdout          map[string][]byte       // "jobID/index/stepNum" → plain text stdout
-	jobStderr          map[string][]byte       // "jobID/index/stepNum" → plain text stderr
-	jobStdoutCondensed map[string][]byte       // "jobID/index/stepNum" → raw condensed text
-	jobTests           map[string][]TestResult // job UUID → test result objects (served as JSONL)
+	jobsV3             map[string]JobV3         // job UUID → job detail entity
+	workflowJobsV3     map[string][]JobV3       // workflow id → job list entities
+	jobStdout          map[string][]byte        // "jobID/index/stepNum" → plain text stdout
+	jobStderr          map[string][]byte        // "jobID/index/stepNum" → plain text stderr
+	jobStdoutCondensed map[string][]byte        // "jobID/index/stepNum" → raw condensed text
+	jobTests           map[string][]TestResult  // job UUID → test result objects (served as JSONL)
+	jobResourceUsage   map[string]ResourceUsage // job UUID → sampled CPU/memory usage
 
 	// Run (v3) state.
 	runsV3          map[string]RunV3   // run UUID → stored run
@@ -264,6 +265,7 @@ func NewCircleCI(t *testing.T, tokens ...string) *CircleCI {
 		jobStderr:                         map[string][]byte{},
 		jobStdoutCondensed:                map[string][]byte{},
 		jobTests:                          map[string][]TestResult{},
+		jobResourceUsage:                  map[string]ResourceUsage{},
 		runsV3:                            map[string]RunV3{},
 		runsV3ByProject:                   map[string][]RunV3{},
 		workflowsV3:                       map[string]WorkflowV3{},
@@ -414,6 +416,7 @@ func NewCircleCI(t *testing.T, tokens ...string) *CircleCI {
 	r.Get("/api/v3/jobs/{id}/stdout/condensed", f.handleGetJobStdoutCondensed)
 	r.Get("/api/v3/jobs/{id}/stderr", f.handleGetJobStderr)
 	r.Get("/api/v3/jobs/{id}/tests", f.handleGetJobTests)
+	r.Get("/api/v3/jobs/{id}/resource-usage", f.handleGetJobResourceUsage)
 	// Workflow (v3) routes.
 	r.Get("/api/v3/workflows/{id}", f.handleGetWorkflowV3ByID)
 	r.Get("/api/v3/workflows", f.handleGetWorkflowsV3)
@@ -1194,6 +1197,74 @@ func (f *CircleCI) handleGetJobTests(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write(b)
 		_, _ = w.Write([]byte("\n"))
 	}
+}
+
+// ResourceUsage is a job's stored resource usage, served by
+// GET /api/v3/jobs/<id>/resource-usage. It is named for the endpoint rather than
+// the resource class it carries, since ResourceClass is already taken by the
+// runner fixtures.
+type ResourceUsage struct {
+	ClassName        string
+	CPUCount         float64
+	MemoryLimitBytes int64
+	Executions       []ResourceUsageExecution
+}
+
+// ResourceUsageExecution is one parallel execution's usage series. Index is the
+// execution index the entity reports; the caller sets it explicitly rather than
+// relying on slice position, so a test can register a non-zero index on its own.
+type ResourceUsageExecution struct {
+	Index          int
+	IntervalMS     int
+	CPUCores       []float64
+	MemoryBytes    []int64
+	NetworkRxBytes int64
+	NetworkTxBytes int64
+}
+
+// AddJobResourceUsage registers a job's sampled resource usage, served by
+// GET /api/v3/jobs/<id>/resource-usage. A job with none registered returns 404,
+// matching the real endpoint's answer for a job that never ran an executor.
+func (f *CircleCI) AddJobResourceUsage(id string, usage ResourceUsage) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.jobResourceUsage[id] = usage
+}
+
+func (f *CircleCI) handleGetJobResourceUsage(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	f.mu.RLock()
+	usage, ok := f.jobResourceUsage[id]
+	f.mu.RUnlock()
+
+	if !ok {
+		render.Status(r, http.StatusNotFound)
+		render.JSON(w, r, map[string]any{"message": "not found"})
+		return
+	}
+
+	execs := make([]map[string]any, len(usage.Executions))
+	for i, e := range usage.Executions {
+		execs[i] = map[string]any{
+			"execution":        e.Index,
+			"interval_ms":      e.IntervalMS,
+			"cpu_cores":        e.CPUCores,
+			"memory_bytes":     e.MemoryBytes,
+			"network_rx_bytes": e.NetworkRxBytes,
+			"network_tx_bytes": e.NetworkTxBytes,
+		}
+	}
+	render.JSON(w, r, map[string]any{"data": map[string]any{
+		"id": id,
+		"attributes": map[string]any{
+			"resource_class": map[string]any{
+				"name":               usage.ClassName,
+				"cpu_count":          usage.CPUCount,
+				"memory_limit_bytes": usage.MemoryLimitBytes,
+			},
+			"parallel_executions": execs,
+		},
+	}})
 }
 
 // jobStepKey builds the "jobID/execution/stepNum" lookup key from the request,

@@ -1,0 +1,10 @@
+# Job Resource Usage
+- ID: `8e50c384-0083-43d0-bc8f-93f0db589d6b`
+- Resource class: large
+- CPU limit: 4 cores
+- Memory limit: 8.00 GiB
+- Sample interval: 15s
+
+## Usage
+
+No samples recorded — usage is sampled every 15s, and this execution did not run that long.

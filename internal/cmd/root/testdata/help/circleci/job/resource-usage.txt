@@ -1,0 +1,25 @@
+Work with a job's CPU and memory usage
+
+## Usage
+
+`circleci job resource-usage <command> [flags]`
+
+## Available Commands
+
+| Command | Description                        |
+| ------- | ---------------------------------- |
+| `get`   | Chart a job's CPU and memory usage |
+
+## Flags
+
+Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `circleci --help`.
+
+## Details
+
+Inspect how much of its executor a job actually used.
+
+CPU and memory are sampled at a fixed interval for the length of each
+parallel execution, and reported against the limits of the resource class
+the job ran on — so a job that needs a smaller (or larger) executor shows
+it.
+

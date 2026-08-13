@@ -479,6 +479,9 @@ func runGetInteractive(ctx context.Context, client *apiclient.Client, projectSlu
 		RenderJobOutput: func(ctx context.Context, jobID uuid.UUID) (string, error) {
 			return jobOutputMarkdown(ctx, client, jobID)
 		},
+		RenderResourceUsage: func(ctx context.Context, jobID uuid.UUID) (string, error) {
+			return job.ResourceUsageMarkdown(ctx, client, jobID)
+		},
 		RenderMarkdown: func(md string, width int) string {
 			return iostream.RenderMarkdownAt(ctx, md, width)
 		},
@@ -515,6 +518,8 @@ func runGetInteractive(ctx context.Context, client *apiclient.Client, projectSlu
 		return job.Get(ctx, client, res.JobID.String(), false)
 	case ui.RunGetActionShowJobOutput:
 		return showJobOutput(ctx, client, res.JobID)
+	case ui.RunGetActionShowResourceUsage:
+		return job.ResourceUsageGet(ctx, client, res.JobID, false)
 	case ui.RunGetActionCancel:
 		return nil
 	default:

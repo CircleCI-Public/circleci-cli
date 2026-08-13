@@ -154,7 +154,8 @@ internal/cmd/
 ├── env/                  circleci env subst.
 ├── envvar/               circleci envvar list/set/delete — alias for project env.
 ├── extension/            circleci extension install/remove + dispatch to circleci-* binaries.
-├── job/                  circleci job get/open/output/artifacts (deep path for artifacts).
+├── job/                  circleci job get/open/output/artifacts/resource-usage (deep path
+│                         for artifacts).
 ├── my/                   circleci my runs.
 ├── namespace/            circleci namespace create/delete/get/rename.
 ├── onboard/              circleci onboard — guided first-run project setup.

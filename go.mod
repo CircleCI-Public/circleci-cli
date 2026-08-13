@@ -42,9 +42,11 @@ require (
 
 require (
 	charm.land/log/v2 v2.0.0 // indirect
+	github.com/NimbleMarkets/ntcharts/v2 v2.2.0 // indirect
 	github.com/charmbracelet/x/term v0.2.2 // indirect
 	github.com/cli/browser v1.3.0 // indirect
 	github.com/itchyny/gojq v0.12.19 // indirect
+	github.com/lrstanley/bubblezone/v2 v2.0.0 // indirect
 )
 
 require (

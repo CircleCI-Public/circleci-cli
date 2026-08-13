@@ -82,6 +82,34 @@ var (
 	SearchSelectedStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("232")).Background(ColorAccent)
 )
 
+// SeriesStyles are the colors for telling apart data series overlaid on one
+// chart, in the order they should be handed out. They are the semantic tokens
+// above, reused for a purpose that has no semantics of its own — the only thing
+// that matters is that adjacent entries are easy to tell apart, including for the
+// most common forms of color blindness, which is why the blue/green/pink run
+// leads and red comes last.
+//
+// There are deliberately only five. Beyond that, colors stop being reliably
+// distinguishable and a caller is better off drawing separate charts than
+// stacking more lines onto one.
+var SeriesStyles = []lipgloss.Style{
+	RunningStyle,   // blue
+	SuccessStyle,   // green
+	AccentStyle,    // pink
+	SecondaryStyle, // gold
+	ErrorStyle,     // red
+}
+
+// SeriesStyle returns the style for series i, cycling once the palette is
+// exhausted so an out-of-range index still renders rather than panicking. Two
+// series sharing a color is a presentation compromise; a crash is not.
+func SeriesStyle(i int) lipgloss.Style {
+	if i < 0 {
+		i = 0
+	}
+	return SeriesStyles[i%len(SeriesStyles)]
+}
+
 // Status icons. Keep these in one place so prompts, results, and JSON-text
 // fallbacks all reach for the same glyph.
 const (
