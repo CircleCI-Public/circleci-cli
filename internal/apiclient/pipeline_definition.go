@@ -28,6 +28,8 @@ import (
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/CircleCI-Public/circleci-cli/internal/httpcl"
 )
 
 // PipelineDefinitionRepo holds repository info for a pipeline definition source.
@@ -58,9 +60,10 @@ func (c *Client) ListPipelineDefinitions(ctx context.Context, projectID string) 
 	var resp struct {
 		Items []PipelineDefinition `json:"items"`
 	}
-	err := c.get(ctx, "/projects/%s/pipeline-definitions", &resp,
-		routeParams(projectID),
-	)
+	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodGet, "/api/v2/projects/%s/pipeline-definitions",
+		httpcl.RouteParams(projectID),
+		httpcl.JSONDecoder(&resp),
+	))
 	if err != nil {
 		return nil, err
 	}
@@ -149,9 +152,11 @@ func (c *Client) TriggerPipelineRun(ctx context.Context, projectSlug string, inp
 		CreatedAt time.Time `json:"created_at"`
 		Message   string    `json:"message"`
 	}
-	status, err := c.postStatus(ctx, "/project/%s/%s/%s/pipeline/run", body, &raw,
-		routeParams(parts[0], parts[1], parts[2]),
-	)
+	status, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodPost, "/api/v2/project/%s/%s/%s/pipeline/run",
+		httpcl.RouteParams(parts[0], parts[1], parts[2]),
+		httpcl.Body(body),
+		httpcl.JSONDecoder(&raw),
+	))
 	if err != nil {
 		return nil, err
 	}
@@ -196,9 +201,11 @@ func (c *Client) CreatePipelineDefinition(ctx context.Context, projectID string,
 	}
 
 	var resp PipelineDefinition
-	err := c.post(ctx, "/projects/%s/pipeline-definitions", body, &resp,
-		routeParams(projectID),
-	)
+	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodPost, "/api/v2/projects/%s/pipeline-definitions",
+		httpcl.RouteParams(projectID),
+		httpcl.Body(body),
+		httpcl.JSONDecoder(&resp),
+	))
 	if err != nil {
 		return nil, err
 	}

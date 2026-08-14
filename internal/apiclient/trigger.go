@@ -24,7 +24,10 @@ package apiclient
 
 import (
 	"context"
+	"net/http"
 	"time"
+
+	"github.com/CircleCI-Public/circleci-cli/internal/httpcl"
 )
 
 // TriggerEventSourceRepo holds repository information for a trigger event source.
@@ -69,9 +72,10 @@ func (c *Client) ListTriggers(ctx context.Context, projectID, pipelineDefinition
 	var resp struct {
 		Items []Trigger `json:"items"`
 	}
-	err := c.get(ctx, "/projects/%s/pipeline-definitions/%s/triggers", &resp,
-		routeParams(projectID, pipelineDefinitionID),
-	)
+	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodGet, "/api/v2/projects/%s/pipeline-definitions/%s/triggers",
+		httpcl.RouteParams(projectID, pipelineDefinitionID),
+		httpcl.JSONDecoder(&resp),
+	))
 	if err != nil {
 		return nil, err
 	}
@@ -104,9 +108,11 @@ func (c *Client) CreateTrigger(ctx context.Context, projectID, pipelineDefinitio
 	}
 
 	var resp Trigger
-	err := c.post(ctx, "/projects/%s/pipeline-definitions/%s/triggers", body, &resp,
-		routeParams(projectID, pipelineDefinitionID),
-	)
+	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodPost, "/api/v2/projects/%s/pipeline-definitions/%s/triggers",
+		httpcl.RouteParams(projectID, pipelineDefinitionID),
+		httpcl.Body(body),
+		httpcl.JSONDecoder(&resp),
+	))
 	if err != nil {
 		return nil, err
 	}

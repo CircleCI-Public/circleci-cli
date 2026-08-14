@@ -26,8 +26,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
 
 	"github.com/google/uuid"
+
+	"github.com/CircleCI-Public/circleci-cli/internal/httpcl"
 )
 
 // OrgInfo is returned by POST /api/v2/organization.
@@ -53,7 +56,11 @@ type orgRef struct {
 // (not a 404), which is surfaced as ErrOrgNotFound.
 func (c *Client) ResolveOrgID(ctx context.Context, slug string) (uuid.UUID, error) {
 	var env v3List[orgRef]
-	if err := c.getV3(ctx, "/orgs", &env, filterParam("slug", slug)); err != nil {
+	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodGet, "/api/v3/orgs",
+		filterParam("slug", slug),
+		httpcl.JSONDecoder(&env),
+	))
+	if err != nil {
 		return uuid.Nil, err
 	}
 	if len(env.Data) == 0 {
@@ -67,7 +74,11 @@ func (c *Client) ResolveOrgID(ctx context.Context, slug string) (uuid.UUID, erro
 func (c *Client) CreateOrg(ctx context.Context, name, vcsType string) (*OrgInfo, error) {
 	body := map[string]string{"name": name, "vcs_type": vcsType}
 	var org OrgInfo
-	if err := c.post(ctx, "/organization", body, &org); err != nil {
+	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodPost, "/api/v2/organization",
+		httpcl.Body(body),
+		httpcl.JSONDecoder(&org),
+	))
+	if err != nil {
 		return nil, err
 	}
 	return &org, nil
@@ -122,7 +133,11 @@ type orgSettingsEnvelope struct {
 // GetOrgSettings returns settings for an organization via GET /api/v3/orgs/:id/settings.
 func (c *Client) GetOrgSettings(ctx context.Context, orgID uuid.UUID) (*OrgSettingsAttributes, error) {
 	var env orgSettingsEnvelope
-	if err := c.getV3(ctx, "/orgs/%s/settings", &env, routeParams(orgID)); err != nil {
+	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodGet, "/api/v3/orgs/%s/settings",
+		httpcl.RouteParams(orgID),
+		httpcl.JSONDecoder(&env),
+	))
+	if err != nil {
 		return nil, err
 	}
 	return &env.Data.Attributes, nil
@@ -132,7 +147,12 @@ func (c *Client) GetOrgSettings(ctx context.Context, orgID uuid.UUID) (*OrgSetti
 // Only the fields set in update are changed; omitted fields are left as-is.
 func (c *Client) UpdateOrgSettings(ctx context.Context, orgID uuid.UUID, update OrgSettingsUpdate) (*OrgSettingsAttributes, error) {
 	var env orgSettingsEnvelope
-	if err := c.postV3(ctx, "/orgs/%s/update-settings", update, &env, routeParams(orgID)); err != nil {
+	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodPost, "/api/v3/orgs/%s/update-settings",
+		httpcl.RouteParams(orgID),
+		httpcl.Body(update),
+		httpcl.JSONDecoder(&env),
+	))
+	if err != nil {
 		return nil, err
 	}
 	return &env.Data.Attributes, nil

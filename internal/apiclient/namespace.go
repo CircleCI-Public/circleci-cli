@@ -55,9 +55,10 @@ func (e *namespace) toNamespace() *Namespace {
 // GetNamespace looks up a namespace by name and returns its ID and name.
 func (c *Client) GetNamespace(ctx context.Context, name string) (*Namespace, error) {
 	var env v3Entity[namespace]
-	err := c.getV3(ctx, "/namespaces", &env,
+	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodGet, "/api/v3/namespaces",
 		filterParam("name", name),
-	)
+		httpcl.JSONDecoder(&env),
+	))
 	if httpcl.HasStatusCode(err, http.StatusNotFound) {
 		return nil, fmt.Errorf("%w: %q", ErrNamespaceNotFound, name)
 	}
@@ -80,7 +81,10 @@ type RenameNamespaceRequest struct {
 // CreateNamespace creates a namespace for the given organization ID.
 func (c *Client) CreateNamespace(ctx context.Context, req CreateNamespaceRequest) (*Namespace, error) {
 	var env v3Entity[namespace]
-	err := c.postV3(ctx, "/namespaces", req, &env)
+	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodPost, "/api/v3/namespaces",
+		httpcl.Body(req),
+		httpcl.JSONDecoder(&env),
+	))
 	if err != nil {
 		return nil, err
 	}
@@ -94,9 +98,11 @@ func (c *Client) RenameNamespace(ctx context.Context, req RenameNamespaceRequest
 		return nil, err
 	}
 	var env v3Entity[namespace]
-	err = c.postV3(ctx, "/namespaces/%s/rename", req, &env,
-		routeParams(ns.ID),
-	)
+	_, err = c.main.Call(ctx, httpcl.NewRequest(http.MethodPost, "/api/v3/namespaces/%s/rename",
+		httpcl.RouteParams(ns.ID),
+		httpcl.Body(req),
+		httpcl.JSONDecoder(&env),
+	))
 	if httpcl.HasStatusCode(err, http.StatusNotFound) {
 		return nil, fmt.Errorf("%w: %q", ErrNamespaceNotFound, req.Name)
 	}
@@ -113,9 +119,9 @@ func (c *Client) DeleteNamespace(ctx context.Context, name string) error {
 	if err != nil {
 		return err
 	}
-	err = c.deleteV3(ctx, "/namespaces/%s",
-		routeParams(ns.ID),
-	)
+	_, err = c.main.Call(ctx, httpcl.NewRequest(http.MethodDelete, "/api/v3/namespaces/%s",
+		httpcl.RouteParams(ns.ID),
+	))
 	if httpcl.HasStatusCode(err, http.StatusNotFound) {
 		return fmt.Errorf("%w: %q", ErrNamespaceNotFound, name)
 	}

@@ -24,7 +24,10 @@ package apiclient
 
 import (
 	"context"
+	"net/http"
 	"time"
+
+	"github.com/CircleCI-Public/circleci-cli/internal/httpcl"
 )
 
 // V3Component represents a deploy component returned by GET /api/v3/deploy/components.
@@ -73,12 +76,13 @@ func (c *Client) ListComponents(ctx context.Context, orgID, projectID string, li
 
 	for {
 		var resp v3List[V3Component]
-		err := c.getV3(ctx, "/deploy/components", &resp,
-			queryParam("filter[org_id]", orgID),
+		_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodGet, "/api/v3/deploy/components",
+			httpcl.QueryParam("filter[org_id]", orgID),
 			filterParam("project_id", projectID),
 			pageLimit(limit),
 			pageCursor(cursor),
-		)
+			httpcl.JSONDecoder(&resp),
+		))
 		if err != nil {
 			return nil, err
 		}
@@ -99,7 +103,10 @@ func (c *Client) ListComponents(ctx context.Context, orgID, projectID string, li
 // GetComponent returns a single deploy component by ID.
 func (c *Client) GetComponent(ctx context.Context, componentID string) (*V3Component, error) {
 	var resp v3Entity[V3Component]
-	err := c.getV3(ctx, "/deploy/components/"+componentID, &resp)
+	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodGet, "/api/v3/deploy/components/%s",
+		httpcl.RouteParams(componentID),
+		httpcl.JSONDecoder(&resp),
+	))
 	if err != nil {
 		return nil, err
 	}
@@ -114,11 +121,13 @@ func (c *Client) ListComponentVersions(ctx context.Context, componentID, envID s
 
 	for {
 		var resp v3List[V3ComponentVersion]
-		err := c.getV3(ctx, "/deploy/components/"+componentID+"/versions", &resp,
+		_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodGet, "/api/v3/deploy/components/%s/versions",
+			httpcl.RouteParams(componentID),
 			filterParam("environment_id", envID),
 			pageLimit(limit),
 			pageCursor(cursor),
-		)
+			httpcl.JSONDecoder(&resp),
+		))
 		if err != nil {
 			return nil, err
 		}

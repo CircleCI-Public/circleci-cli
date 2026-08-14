@@ -25,8 +25,11 @@ package apiclient
 import (
 	"context"
 	"fmt"
+	"net/http"
 
 	"github.com/google/uuid"
+
+	"github.com/CircleCI-Public/circleci-cli/internal/httpcl"
 )
 
 type Me struct {
@@ -47,7 +50,11 @@ type meWire struct {
 
 func (c *Client) GetMe(ctx context.Context) (*Me, error) {
 	var result v3List[meWire]
-	if err := c.getV3(ctx, "/users", &result, filterParam("user_id", "me")); err != nil {
+	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodGet, "/api/v3/users",
+		filterParam("user_id", "me"),
+		httpcl.JSONDecoder(&result),
+	))
+	if err != nil {
 		return nil, err
 	}
 	if len(result.Data) == 0 {
@@ -73,7 +80,10 @@ type Collaboration struct {
 // ListCollaborations returns the organizations the authenticated user belongs to.
 func (c *Client) ListCollaborations(ctx context.Context) ([]Collaboration, error) {
 	var collabs []Collaboration
-	if err := c.get(ctx, "/me/collaborations", &collabs); err != nil {
+	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodGet, "/api/v2/me/collaborations",
+		httpcl.JSONDecoder(&collabs),
+	))
+	if err != nil {
 		return nil, err
 	}
 	return collabs, nil

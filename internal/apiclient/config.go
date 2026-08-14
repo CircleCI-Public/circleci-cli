@@ -22,7 +22,12 @@
 
 package apiclient
 
-import "context"
+import (
+	"context"
+	"net/http"
+
+	"github.com/CircleCI-Public/circleci-cli/internal/httpcl"
+)
 
 // CompileInput holds everything a config compilation needs. It is the input to
 // Compile, in the CLI's own terms rather than the wire shape.
@@ -126,7 +131,11 @@ func (c *Client) Compile(ctx context.Context, in CompileInput) (*CompileResult, 
 	}
 
 	var resp compileV3Response
-	if err := c.postV3(ctx, "/configs/compile", req, &resp); err != nil {
+	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodPost, "/api/v3/configs/compile",
+		httpcl.Body(req),
+		httpcl.JSONDecoder(&resp),
+	))
+	if err != nil {
 		return nil, err
 	}
 

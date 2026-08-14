@@ -25,10 +25,13 @@ package apiclient
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"strings"
 	"time"
 
 	"github.com/google/uuid"
+
+	"github.com/CircleCI-Public/circleci-cli/internal/httpcl"
 )
 
 // --- V3 wire types ---
@@ -169,7 +172,11 @@ func (w runWire) toRunV3() *RunV3 {
 // GetRunV3 fetches a single run by UUID from the V3 API.
 func (c *Client) GetRunV3(ctx context.Context, id uuid.UUID) (*RunV3, error) {
 	var env v3Entity[runWire]
-	if err := c.getV3(ctx, "/runs/%s", &env, routeParams(id)); err != nil {
+	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodGet, "/api/v3/runs/%s",
+		httpcl.RouteParams(id),
+		httpcl.JSONDecoder(&env),
+	))
+	if err != nil {
 		return nil, err
 	}
 	return env.Data.toRunV3(), nil
@@ -262,7 +269,10 @@ func (c *Client) SearchRunsV3(ctx context.Context, params RunSearchParams) ([]Ru
 			},
 		}
 		var resp v3List[runWire]
-		err := c.postV3(ctx, "/runs/search", body, &resp)
+		_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodPost, "/api/v3/runs/search",
+			httpcl.Body(body),
+			httpcl.JSONDecoder(&resp),
+		))
 		return resp, err
 	})
 }
@@ -293,14 +303,16 @@ func (c *Client) ListMyRunsV3(ctx context.Context, params MyRunsParams) ([]RunV3
 	phase, currentOutcome := StatusPhaseOutcome(params.Status)
 	return paginateRunsV3(params.Limit, "", func(pageSize int, cursor string) (v3List[runWire], error) {
 		var resp v3List[runWire]
-		err := c.getV3(ctx, "/runs", &resp,
+		_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodGet, "/api/v3/runs",
 			filterParam("user_id", "me"),
 			filterParam("phase", phase),
 			filterParam("current_outcome", currentOutcome),
 			filterParam("from", rfc3339OrEmpty(params.From)),
 			filterParam("to", rfc3339OrEmpty(params.To)),
 			pageLimit(pageSize),
-			pageCursor(cursor))
+			pageCursor(cursor),
+			httpcl.JSONDecoder(&resp),
+		))
 		return resp, err
 	})
 }

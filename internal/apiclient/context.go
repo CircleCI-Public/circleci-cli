@@ -24,9 +24,12 @@ package apiclient
 
 import (
 	"context"
+	"net/http"
 	"time"
 
 	"github.com/google/uuid"
+
+	"github.com/CircleCI-Public/circleci-cli/internal/httpcl"
 )
 
 // Context is a CircleCI context — a named collection of secret environment
@@ -58,11 +61,12 @@ func (c *Client) ListContexts(ctx context.Context, ownerSlug, name string) ([]Co
 			Items         []Context `json:"items"`
 			NextPageToken string    `json:"next_page_token"`
 		}
-		err := c.get(ctx, "/context", &resp,
-			optionalQueryParam("owner-slug", ownerSlug),
-			optionalQueryParam("name", name),
-			optionalQueryParam("page-token", pageToken),
-		)
+		_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodGet, "/api/v2/context",
+			httpcl.OptionalQueryParam("owner-slug", ownerSlug),
+			httpcl.OptionalQueryParam("name", name),
+			httpcl.OptionalQueryParam("page-token", pageToken),
+			httpcl.JSONDecoder(&resp),
+		))
 		if err != nil {
 			return nil, err
 		}
@@ -84,7 +88,10 @@ func (c *Client) CreateContext(ctx context.Context, name, ownerSlug string) (*Co
 		},
 	}
 	var ctxt Context
-	err := c.post(ctx, "/context", body, &ctxt)
+	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodPost, "/api/v2/context",
+		httpcl.Body(body),
+		httpcl.JSONDecoder(&ctxt),
+	))
 	if err != nil {
 		return nil, err
 	}
@@ -111,9 +118,10 @@ type ContextRestriction struct {
 // GetContext returns a context by its UUID.
 func (c *Client) GetContext(ctx context.Context, id uuid.UUID) (*ContextDetail, error) {
 	var ctxt ContextDetail
-	err := c.get(ctx, "/context/%s", &ctxt,
-		routeParams(id),
-	)
+	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodGet, "/api/v2/context/%s",
+		httpcl.RouteParams(id),
+		httpcl.JSONDecoder(&ctxt),
+	))
 	if err != nil {
 		return nil, err
 	}
@@ -122,9 +130,10 @@ func (c *Client) GetContext(ctx context.Context, id uuid.UUID) (*ContextDetail, 
 
 // DeleteContext deletes a context by its UUID.
 func (c *Client) DeleteContext(ctx context.Context, id uuid.UUID) error {
-	return c.deleteV2(ctx, "/context/%s",
-		routeParams(id),
-	)
+	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodDelete, "/api/v2/context/%s",
+		httpcl.RouteParams(id),
+	))
+	return err
 }
 
 // ListContextEnvVars returns the environment variable names stored in a context.
@@ -138,10 +147,11 @@ func (c *Client) ListContextEnvVars(ctx context.Context, contextID string) ([]Co
 			Items         []ContextEnvVar `json:"items"`
 			NextPageToken string          `json:"next_page_token"`
 		}
-		err := c.get(ctx, "/context/%s/environment-variable", &resp,
-			routeParams(contextID),
-			optionalQueryParam("page-token", pageToken),
-		)
+		_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodGet, "/api/v2/context/%s/environment-variable",
+			httpcl.RouteParams(contextID),
+			httpcl.OptionalQueryParam("page-token", pageToken),
+			httpcl.JSONDecoder(&resp),
+		))
 		if err != nil {
 			return nil, err
 		}
@@ -157,9 +167,11 @@ func (c *Client) ListContextEnvVars(ctx context.Context, contextID string) ([]Co
 func (c *Client) SetContextEnvVar(ctx context.Context, contextID, name, value string) (*ContextEnvVar, error) {
 	body := map[string]any{"value": value}
 	var ev ContextEnvVar
-	err := c.put(ctx, "/context/%s/environment-variable/%s", body, &ev,
-		routeParams(contextID, name),
-	)
+	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodPut, "/api/v2/context/%s/environment-variable/%s",
+		httpcl.RouteParams(contextID, name),
+		httpcl.Body(body),
+		httpcl.JSONDecoder(&ev),
+	))
 	if err != nil {
 		return nil, err
 	}
@@ -168,9 +180,10 @@ func (c *Client) SetContextEnvVar(ctx context.Context, contextID, name, value st
 
 // DeleteContextEnvVar removes an environment variable from a context.
 func (c *Client) DeleteContextEnvVar(ctx context.Context, contextID, name string) error {
-	return c.deleteV2(ctx, "/context/%s/environment-variable/%s",
-		routeParams(contextID, name),
-	)
+	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodDelete, "/api/v2/context/%s/environment-variable/%s",
+		httpcl.RouteParams(contextID, name),
+	))
+	return err
 }
 
 // CreateContextRestriction adds a project, expression, or group restriction to a context.
@@ -184,9 +197,11 @@ func (c *Client) CreateContextRestriction(ctx context.Context, contextID uuid.UU
 		"restriction_value": restrictionValue,
 	}
 	var r ContextRestriction
-	err := c.post(ctx, "/context/%s/restrictions", body, &r,
-		routeParams(contextID),
-	)
+	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodPost, "/api/v2/context/%s/restrictions",
+		httpcl.RouteParams(contextID),
+		httpcl.Body(body),
+		httpcl.JSONDecoder(&r),
+	))
 	if err != nil {
 		return nil, err
 	}
@@ -195,7 +210,8 @@ func (c *Client) CreateContextRestriction(ctx context.Context, contextID uuid.UU
 
 // DeleteContextRestriction removes a restriction from a context by its restriction UUID.
 func (c *Client) DeleteContextRestriction(ctx context.Context, contextID, restrictionID uuid.UUID) error {
-	return c.deleteV2(ctx, "/context/%s/restrictions/%s",
-		routeParams(contextID, restrictionID),
-	)
+	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodDelete, "/api/v2/context/%s/restrictions/%s",
+		httpcl.RouteParams(contextID, restrictionID),
+	))
+	return err
 }

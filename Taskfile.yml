@@ -75,6 +75,12 @@ tasks:
   check:
     desc: Run all static checks
     cmds:
+      - task: fmt
+        vars:
+          CLI_ARGS: ./... --diff
+      - task: fmt:clikit
+        vars:
+          CLI_ARGS: ./... --diff
       - task: lint
       - task: lint:clikit
       - task: license
@@ -342,6 +348,12 @@ tasks:
   ci:check:
     desc: Check no uncommitted diffs after generate/fmt/tidy
     cmds:
+      - task: fmt
+        vars:
+          CLI_ARGS: ./... --diff
+      - task: fmt:clikit
+        vars:
+          CLI_ARGS: ./... --diff
       - task: ci:lint
       - task: lint:clikit
       - task: license

@@ -24,9 +24,12 @@ package apiclient
 
 import (
 	"context"
+	"net/http"
 	"time"
 
 	"github.com/google/uuid"
+
+	"github.com/CircleCI-Public/circleci-cli/internal/httpcl"
 )
 
 // Pipeline represents a CircleCI pipeline.
@@ -94,9 +97,10 @@ type PipelineError struct {
 // GetPipeline fetches a single pipeline by its UUID.
 func (c *Client) GetPipeline(ctx context.Context, id string) (*Pipeline, error) {
 	var p Pipeline
-	err := c.get(ctx, "/pipeline/%s", &p,
-		routeParams(id),
-	)
+	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodGet, "/api/v2/pipeline/%s",
+		httpcl.RouteParams(id),
+		httpcl.JSONDecoder(&p),
+	))
 	if err != nil {
 		return nil, err
 	}
@@ -106,9 +110,10 @@ func (c *Client) GetPipeline(ctx context.Context, id string) (*Pipeline, error) 
 // GetPipelineByNumber fetches a pipeline by its project-scoped number.
 func (c *Client) GetPipelineByNumber(ctx context.Context, projectSlug string, number int64) (*Pipeline, error) {
 	var p Pipeline
-	err := c.get(ctx, "/project/%s/pipeline/%d", &p,
-		routeParams(projectSlug, number),
-	)
+	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodGet, "/api/v2/project/%s/pipeline/%d",
+		httpcl.RouteParams(projectSlug, number),
+		httpcl.JSONDecoder(&p),
+	))
 	if err != nil {
 		return nil, err
 	}
@@ -135,9 +140,11 @@ func (c *Client) TriggerPipeline(ctx context.Context, projectSlug, branch string
 	}
 
 	var resp TriggerResponse
-	err := c.post(ctx, "/project/%s/pipeline", body, &resp,
-		routeParams(projectSlug),
-	)
+	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodPost, "/api/v2/project/%s/pipeline",
+		httpcl.RouteParams(projectSlug),
+		httpcl.Body(body),
+		httpcl.JSONDecoder(&resp),
+	))
 	if err != nil {
 		return nil, err
 	}

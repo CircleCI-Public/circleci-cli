@@ -24,7 +24,10 @@ package apiclient
 
 import (
 	"context"
+	"net/http"
 	"time"
+
+	"github.com/CircleCI-Public/circleci-cli/internal/httpcl"
 )
 
 // V3Deployment represents a deployment returned by GET /api/v3/deploy/deployments.
@@ -68,12 +71,13 @@ func (c *Client) ListDeployments(ctx context.Context, orgID, projectID string, l
 
 	for {
 		var resp v3List[V3Deployment]
-		err := c.getV3(ctx, "/deploy/deployments", &resp,
-			queryParam("filter[org_id]", orgID),
+		_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodGet, "/api/v3/deploy/deployments",
+			httpcl.QueryParam("filter[org_id]", orgID),
 			filterParam("project_id", projectID),
 			pageLimit(limit),
 			pageCursor(cursor),
-		)
+			httpcl.JSONDecoder(&resp),
+		))
 		if err != nil {
 			return nil, err
 		}

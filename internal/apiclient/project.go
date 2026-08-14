@@ -26,9 +26,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
 	"time"
 
 	"github.com/google/uuid"
+
+	"github.com/CircleCI-Public/circleci-cli/internal/httpcl"
 )
 
 // ErrProjectNotFound is returned by GetProjectBySlug when no project matches the slug.
@@ -63,7 +66,9 @@ type EnvVar struct {
 // Uses the v1.1 API.
 func (c *Client) ListProjects(ctx context.Context) ([]Project, error) {
 	var projects []Project
-	err := c.getV1(ctx, "/projects", &projects)
+	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodGet, "/api/v1.1/projects",
+		httpcl.JSONDecoder(&projects),
+	))
 	if err != nil {
 		return nil, err
 	}
@@ -75,9 +80,11 @@ func (c *Client) FollowProject(ctx context.Context, vcsType, org, repo string) e
 	var resp struct {
 		Following bool `json:"following"`
 	}
-	return c.postV1(ctx, "/project/%s/%s/%s/follow", nil, &resp,
-		routeParams(vcsType, org, repo),
-	)
+	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodPost, "/api/v1.1/project/%s/%s/%s/follow",
+		httpcl.RouteParams(vcsType, org, repo),
+		httpcl.JSONDecoder(&resp),
+	))
+	return err
 }
 
 // ListEnvVars returns the environment variables for a project.
@@ -86,9 +93,10 @@ func (c *Client) ListEnvVars(ctx context.Context, projectSlug string) ([]EnvVar,
 	var resp struct {
 		Items []EnvVar `json:"items"`
 	}
-	err := c.get(ctx, "/project/%s/envvar", &resp,
-		routeParams(projectSlug),
-	)
+	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodGet, "/api/v2/project/%s/envvar",
+		httpcl.RouteParams(projectSlug),
+		httpcl.JSONDecoder(&resp),
+	))
 	if err != nil {
 		return nil, err
 	}
@@ -99,9 +107,11 @@ func (c *Client) ListEnvVars(ctx context.Context, projectSlug string) ([]EnvVar,
 func (c *Client) SetEnvVar(ctx context.Context, projectSlug, name, value string) (*EnvVar, error) {
 	body := map[string]any{"name": name, "value": value}
 	var ev EnvVar
-	err := c.post(ctx, "/project/%s/envvar", body, &ev,
-		routeParams(projectSlug),
-	)
+	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodPost, "/api/v2/project/%s/envvar",
+		httpcl.RouteParams(projectSlug),
+		httpcl.Body(body),
+		httpcl.JSONDecoder(&ev),
+	))
 	if err != nil {
 		return nil, err
 	}
@@ -110,9 +120,10 @@ func (c *Client) SetEnvVar(ctx context.Context, projectSlug, name, value string)
 
 // DeleteEnvVar deletes a project environment variable by name.
 func (c *Client) DeleteEnvVar(ctx context.Context, projectSlug, name string) error {
-	return c.deleteV2(ctx, "/project/%s/envvar/%s",
-		routeParams(projectSlug, name),
-	)
+	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodDelete, "/api/v2/project/%s/envvar/%s",
+		httpcl.RouteParams(projectSlug, name),
+	))
+	return err
 }
 
 // ProjectInfo contains detailed information about a CircleCI project.
@@ -154,9 +165,10 @@ type projectEntity struct {
 // (not a 404), which is surfaced as ErrProjectNotFound.
 func (c *Client) GetProjectBySlug(ctx context.Context, slug string) (*ProjectRef, error) {
 	var env v3List[projectEntity]
-	err := c.getV3(ctx, "/projects", &env,
+	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodGet, "/api/v3/projects",
 		filterParam("slug", slug),
-	)
+		httpcl.JSONDecoder(&env),
+	))
 	if err != nil {
 		return nil, err
 	}
@@ -177,7 +189,11 @@ func (c *Client) GetProjectBySlug(ctx context.Context, slug string) (*ProjectRef
 // whose slugs were never resolved.
 func (c *Client) GetProjectByID(ctx context.Context, id uuid.UUID) (*ProjectRef, error) {
 	var env v3Entity[projectEntity]
-	if err := c.getV3(ctx, "/projects/%s", &env, routeParams(id)); err != nil {
+	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodGet, "/api/v3/projects/%s",
+		httpcl.RouteParams(id),
+		httpcl.JSONDecoder(&env),
+	))
+	if err != nil {
 		return nil, err
 	}
 	p := env.Data
@@ -191,9 +207,10 @@ func (c *Client) GetProjectByID(ctx context.Context, id uuid.UUID) (*ProjectRef,
 // GetProjectInfo returns detailed information about a project by slug.
 func (c *Client) GetProjectInfo(ctx context.Context, projectSlug string) (*ProjectInfo, error) {
 	var info ProjectInfo
-	err := c.get(ctx, "/project/%s", &info,
-		routeParams(projectSlug),
-	)
+	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodGet, "/api/v2/project/%s",
+		httpcl.RouteParams(projectSlug),
+		httpcl.JSONDecoder(&info),
+	))
 	if err != nil {
 		return nil, err
 	}
@@ -207,9 +224,11 @@ func (c *Client) GetProjectInfo(ctx context.Context, projectSlug string) (*Proje
 func (c *Client) CreateProject(ctx context.Context, vcs, org, name string) (*ProjectInfo, error) {
 	body := map[string]any{"name": name}
 	var proj ProjectInfo
-	err := c.post(ctx, "/organization/%s/%s/project", body, &proj,
-		routeParams(vcs, org),
-	)
+	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodPost, "/api/v2/organization/%s/%s/project",
+		httpcl.RouteParams(vcs, org),
+		httpcl.Body(body),
+		httpcl.JSONDecoder(&proj),
+	))
 	if err != nil {
 		return nil, err
 	}
@@ -261,7 +280,11 @@ type projectSettingsEnvelope struct {
 // GetProjectSettings returns settings for a project via GET /api/v3/projects/:id/settings.
 func (c *Client) GetProjectSettings(ctx context.Context, projectID uuid.UUID) (*ProjectSettingsAttributes, error) {
 	var env projectSettingsEnvelope
-	if err := c.getV3(ctx, "/projects/%s/settings", &env, routeParams(projectID)); err != nil {
+	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodGet, "/api/v3/projects/%s/settings",
+		httpcl.RouteParams(projectID),
+		httpcl.JSONDecoder(&env),
+	))
+	if err != nil {
 		return nil, err
 	}
 	return &env.Data.Attributes, nil
@@ -271,7 +294,12 @@ func (c *Client) GetProjectSettings(ctx context.Context, projectID uuid.UUID) (*
 // Only the fields set in update are changed; omitted fields are left as-is.
 func (c *Client) UpdateProjectSettings(ctx context.Context, projectID uuid.UUID, update ProjectSettingsUpdate) (*ProjectSettingsAttributes, error) {
 	var env projectSettingsEnvelope
-	if err := c.postV3(ctx, "/projects/%s/update-settings", update, &env, routeParams(projectID)); err != nil {
+	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodPost, "/api/v3/projects/%s/update-settings",
+		httpcl.RouteParams(projectID),
+		httpcl.Body(update),
+		httpcl.JSONDecoder(&env),
+	))
+	if err != nil {
 		return nil, err
 	}
 	return &env.Data.Attributes, nil

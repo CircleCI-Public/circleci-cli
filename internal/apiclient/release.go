@@ -25,7 +25,10 @@ package apiclient
 import (
 	"context"
 	"errors"
+	"net/http"
 	"time"
+
+	"github.com/CircleCI-Public/circleci-cli/internal/httpcl"
 )
 
 // Release is the latest released version of a CircleCI tool.
@@ -61,7 +64,11 @@ type releaseEntity struct {
 // permanent (400/401/403) failures.
 func (c *Client) LatestRelease(ctx context.Context, tool string) (*Release, error) {
 	var env v3List[releaseEntity]
-	if err := c.getV3(ctx, "/tool/releases", &env, filterParam("tool", tool)); err != nil {
+	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodGet, "/api/v3/tool/releases",
+		filterParam("tool", tool),
+		httpcl.JSONDecoder(&env),
+	))
+	if err != nil {
 		return nil, err
 	}
 	if len(env.Data) == 0 {
