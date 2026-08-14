@@ -203,7 +203,7 @@ func NewRootCmd(version string) *cobra.Command {
 	cmd.PersistentFlags().BoolP("insecure-storage", "", false, "do not use the system's secure storage for storing tokens")
 	_ = cmd.PersistentFlags().MarkHidden("insecure-storage")
 
-	cmd.PersistentFlags().BoolP("skip-update-check", "", false, "skip checking for CLI updates")
+	cmd.PersistentFlags().BoolP("skip-update-check", "", false, "skip checking for CLI and extension updates")
 	_ = cmd.PersistentFlags().MarkHidden("skip-update-check")
 
 	cmd.AddGroup(&cobra.Group{
@@ -352,7 +352,7 @@ func NewRootCmd(version string) *cobra.Command {
 		// PersistentPostRunE runs only when the command's RunE succeeded, so the
 		// notice never lands on top of an error and always follows all output.
 		if rel := updateNotifier.Finish(); rel != nil {
-			update.PrintNotice(ctx, update.EffectiveVersion(version), rel)
+			update.PrintReleaseNotice(ctx, update.EffectiveVersion(version), rel)
 		}
 		tc := cmdutil.GetTelemetry(ctx)
 		_ = tc.Close()

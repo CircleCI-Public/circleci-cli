@@ -278,7 +278,7 @@ through `iostream.Streams`.
 | `CIRCLE_NO_INTERACTIVE` | Suppress all interactive prompts | `iostream` |
 | `CI` | Set by CI systems. Implies non-interactive (so: no prompts, no spinner) **and** disables telemetry | `iostream`, `config` |
 | `CIRCLE_SPINNER_DISABLED` | Replace the animated spinner with plain text | `iostream` |
-| `CIRCLE_NO_UPDATE_CHECK` | Disable checking for newer CLI releases. Same as `setting set update-check off` | `config.IsUpdateCheck()` |
+| `CIRCLE_NO_UPDATE_CHECK` | Disable checking for newer CLI and extension releases. Same as `setting set update-check off` | `config.IsUpdateCheck()` |
 | `CIRCLE_NO_PAGER` | Print long output inline instead of through a pager | `iostream` |
 | `PAGER` | Pager program for long output. Unset → built-in scrollable viewer; `cat` or empty → paging off | `iostream` |
 | `CIRCLE_NO_TELEMETRY` | Disable telemetry | `config` |

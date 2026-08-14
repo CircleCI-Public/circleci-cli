@@ -71,7 +71,7 @@ func TestIsNewer(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Check(t, cmp.Equal(isNewer(tt.latest, tt.current), tt.want))
+			assert.Check(t, cmp.Equal(IsNewer(tt.latest, tt.current), tt.want))
 		})
 	}
 }
@@ -80,9 +80,9 @@ func TestIsNewer(t *testing.T) {
 // every channel, including @next prerelease users.
 func TestSingleSourceAcrossChannels(t *testing.T) {
 	// A @next user on an rc is told about the stable release above it...
-	assert.Check(t, cmp.Equal(isNewer("1.3.0", "1.3.0-rc.1"), true))
+	assert.Check(t, cmp.Equal(IsNewer("1.3.0", "1.3.0-rc.1"), true))
 	// ...and told nothing when stable is below their rc.
-	assert.Check(t, cmp.Equal(isNewer("1.2.0", "1.3.0-rc.1"), false))
+	assert.Check(t, cmp.Equal(IsNewer("1.2.0", "1.3.0-rc.1"), false))
 }
 
 func TestNormalizeBuildVersion(t *testing.T) {

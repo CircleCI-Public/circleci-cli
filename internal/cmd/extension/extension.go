@@ -34,6 +34,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/MakeNowJust/heredoc"
 	"github.com/spf13/cobra"
@@ -44,11 +45,16 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/internal/cmdutil"
 	"github.com/CircleCI-Public/circleci-cli/internal/config"
 	"github.com/CircleCI-Public/circleci-cli/internal/extension"
+	"github.com/CircleCI-Public/circleci-cli/internal/update"
 )
 
 const (
 	// Testsuite is the official extension for running tests.
 	Testsuite = "testsuite"
+
+	// updateFetchTimeout bounds the registry call so a slow or unreachable registry
+	// delays the extension by at most this long.
+	updateFetchTimeout = 3 * time.Second
 )
 
 // RegisterExtensions registers extensions in the following order:
@@ -112,6 +118,7 @@ func newPromptCmd(name string) *cobra.Command {
 		DisableFlagParsing: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
+			extArgs := ParseRootFlags(cmd)
 
 			s := iostream.Get(ctx)
 			if s.IsInteractive() {
@@ -122,7 +129,7 @@ func newPromptCmd(name string) *cobra.Command {
 						return err
 					}
 
-					return runExtension(ctx, cmd, ext)
+					return runExtension(ctx, ext, extArgs)
 				}
 			}
 
@@ -175,7 +182,11 @@ func newManagedCmd(ext extension.Manifest) *cobra.Command {
 		DisableFlagParsing: true,
 		SilenceUsage:       true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runExtension(cmd.Context(), cmd, ext)
+			ctx := cmd.Context()
+			extArgs := ParseRootFlags(cmd)
+			skipFlag, _ := cmd.Root().Flags().GetBool("skip-update-check")
+			prompted := promptForUpdate(ctx, ext, skipFlag)
+			return runExtension(ctx, prompted, extArgs)
 		},
 	}
 
@@ -190,9 +201,7 @@ func newManagedCmd(ext extension.Manifest) *cobra.Command {
 	return cmd
 }
 
-func runExtension(ctx context.Context, cmd *cobra.Command, ext extension.Manifest) error {
-	extArgs := ParseRootFlags(cmd)
-
+func runExtension(ctx context.Context, ext extension.Manifest, extArgs []string) error {
 	// Some extensions do not need a CCI account, load the client and suppress
 	// any errors; extensions are expected to handle any missing vars.
 	client, _ := cmdutil.LoadClient(ctx)
@@ -211,6 +220,100 @@ func runExtension(ctx context.Context, cmd *cobra.Command, ext extension.Manifes
 	}
 
 	return nil
+}
+
+// promptForUpdate offers to install a newer version of a managed extension
+// before it runs and returns the manifest to run.
+func promptForUpdate(ctx context.Context, ext extension.Manifest, skip bool) extension.Manifest {
+	cfg := cmdutil.GetConfig(ctx)
+
+	if !update.ShouldCheck(ctx, cfg, ext.Version) || skip {
+		return ext
+	}
+
+	statePath, err := config.StatePath()
+	if err != nil {
+		return ext
+	}
+
+	st, err := config.LoadState(ctx, statePath)
+	if err != nil {
+		return ext
+	}
+
+	if at := st.CheckedExtensionUpdateAt(ext.BinaryName); !at.IsZero() && time.Since(at) < update.CacheWindow {
+		return ext
+	}
+
+	extDir, err := config.ExtensionsDir()
+	if err != nil {
+		return ext
+	}
+
+	store := extension.NewStore(extDir)
+	m := extension.NewManager(extension.Config{
+		Version: cmdutil.GetVersion(ctx),
+		Agent:   cmdutil.GetAgentName(ctx),
+		BaseURL: cfg.EffectiveExtensionHost(),
+	})
+
+	fetchCtx, cancel := context.WithTimeout(ctx, updateFetchTimeout)
+	defer cancel()
+
+	latest, err := m.Get(fetchCtx, ext.BinaryName)
+	if err != nil {
+		iostream.DebugContext(ctx, "extension update check: fetch failed",
+			"extension", ext.BinaryName, "err", err)
+		return ext
+	}
+
+	err = config.SaveState(ctx, statePath, func(s *config.State) error {
+		s.SetCheckedExtensionUpdateAt(ext.BinaryName, time.Now())
+		return nil
+	})
+	if err != nil {
+		iostream.DebugContext(ctx, "extension update check: could not write state", "err", err)
+		return ext
+	}
+
+	newer := update.IsNewer(latest.Version, ext.Version)
+	iostream.DebugContext(ctx, "extension update check evaluated",
+		"extension", ext.BinaryName,
+		"latest", latest.Version,
+		"current", ext.Version,
+		"newer", newer)
+
+	if !newer {
+		return ext
+	}
+
+	update.PrintBinaryNotice(ctx, ext.BinaryName, ext.Version, latest.Version)
+
+	if !iostream.Get(ctx).Confirm(ctx, fmt.Sprintf("Update %s %s now?", ext.BinaryName, latest.Version)) {
+		return ext
+	}
+
+	iostream.ErrPrintf(ctx, "Updating %s to version %s...\n", ext.BinaryName, latest.Version)
+
+	binary, err := m.Download(ctx, latest)
+	if err != nil {
+		iostream.ErrPrintf(ctx, "%s Could not download %s %s: %s\n",
+			iostream.SymbolWarn(ctx), ext.BinaryName, latest.Version, err)
+		return ext
+	}
+
+	defer func() { _ = binary.Close() }()
+
+	updated, err := store.Write(latest, binary)
+	if err != nil {
+		iostream.ErrPrintf(ctx, "%s Could not install %s %s: %s\n",
+			iostream.SymbolWarn(ctx), ext.BinaryName, latest.Version, err)
+		return ext
+	}
+
+	iostream.ErrPrintf(ctx, "%s Updated %s version %s\n", iostream.SymbolOK(ctx), ext.BinaryName, latest.Version)
+
+	return updated
 }
 
 // newUnmanagedCmd returns a cobra command that dispatches to the circleci-<name>

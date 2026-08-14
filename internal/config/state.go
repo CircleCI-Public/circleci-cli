@@ -96,6 +96,10 @@ type State struct {
 type stateData struct {
 	CheckedForUpdateAt time.Time `yaml:"checked_for_update_at,omitempty"`
 	LatestRelease      Release   `yaml:"latest_release,omitempty"`
+	// CheckedExtensionUpdatesAt is keyed by extension binary name
+	// ("circleci-testsuite"), because each managed extension is versioned and
+	// checked independently of the CLI and of every other extension.
+	CheckedExtensionUpdatesAt map[string]time.Time `yaml:"checked_extension_updates_at,omitempty"`
 }
 
 // Release is the newest release recorded by the last successful update check.
@@ -117,6 +121,21 @@ func (s *State) LatestRelease() Release { return s.data.LatestRelease }
 // SetLatestRelease records the newest release seen (pass the zero Release to
 // clear it).
 func (s *State) SetLatestRelease(r Release) { s.data.LatestRelease = r }
+
+// CheckedExtensionUpdateAt reports when the registry was last queried for a
+// newer version of the named extension.
+func (s *State) CheckedExtensionUpdateAt(binaryName string) time.Time {
+	return s.data.CheckedExtensionUpdatesAt[binaryName]
+}
+
+// SetCheckedExtensionUpdateAt records when the named extension was last checked
+// against the registry.
+func (s *State) SetCheckedExtensionUpdateAt(binaryName string, t time.Time) {
+	if s.data.CheckedExtensionUpdatesAt == nil {
+		s.data.CheckedExtensionUpdatesAt = make(map[string]time.Time, 1)
+	}
+	s.data.CheckedExtensionUpdatesAt[binaryName] = t
+}
 
 // LoadState reads the state file at path under a shared advisory lock, mirroring
 // the lock Config's read path takes. A missing file yields a zero State. path is
