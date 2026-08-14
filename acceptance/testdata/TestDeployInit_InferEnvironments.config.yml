@@ -8,7 +8,11 @@ jobs:
       - run: make deploy-staging
       - run:
           name: Log deploy marker
-          command: circleci run release log --component "myapp" --environment "staging"
+          command: |
+            circleci run release log \
+              --component-name=myapp \
+              --environment-name=staging \
+              --target-version=$CIRCLE_SHA1
   deploy-production:
     docker:
       - image: cimg/base:stable
@@ -17,7 +21,11 @@ jobs:
       - run: make deploy-prod
       - run:
           name: Log deploy marker
-          command: circleci run release log --component "myapp" --environment "production"
+          command: |
+            circleci run release log \
+              --component-name=myapp \
+              --environment-name=production \
+              --target-version=$CIRCLE_SHA1
 workflows:
   main:
     jobs:

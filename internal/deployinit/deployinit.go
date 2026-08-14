@@ -29,6 +29,7 @@ import (
 	"fmt"
 	"os"
 	"regexp"
+	"slices"
 	"strings"
 
 	"gopkg.in/yaml.v3"
@@ -295,36 +296,92 @@ func Patch(configPath string, input PatchInput, useOrb bool) (bool, error) {
 	return true, nil
 }
 
+// markerCommands are the command forms that mean a job is already instrumented.
+// `plan` counts as well as `log` even though this command only ever writes
+// `log`: a plan step is the definitive signal that deploy markers are in use,
+// so a job already tracking the full release lifecycle must be left alone
+// rather than have a redundant log step appended to it.
+var markerCommands = []string{
+	"circleci run release log",
+	"circleci run release plan",
+}
+
+// markerOrbSteps are the circleci/deploys orb steps that instrument a job.
+var markerOrbSteps = []string{"deploys/log", "deploys/plan"}
+
 // alreadyPatched returns true if stepsNode already contains a deploy marker step.
 func alreadyPatched(stepsNode *yaml.Node) bool {
 	for _, step := range stepsNode.Content {
-		step = resolve(step)
-		if step.Kind != yaml.MappingNode {
-			continue
+		if stepHasMarker(resolve(step)) {
+			return true
 		}
-		// raw run step
-		runNode := findMappingValue(step, "run")
-		if runNode != nil {
-			runNode = resolve(runNode)
-			if runNode.Kind == yaml.MappingNode {
-				cmdNode := findMappingValue(runNode, "command")
-				if cmdNode != nil && strings.Contains(cmdNode.Value, "circleci run release log") {
-					return true
-				}
+	}
+	return false
+}
+
+// stepHasMarker reports whether a single step already invokes a deploy marker.
+// A step is either a bare scalar (`- checkout`), an orb step keyed by the orb
+// command name, or a mapping whose `run` key holds either a scalar command
+// (`- run: make deploy`) or a nested mapping with `command:`.
+func stepHasMarker(step *yaml.Node) bool {
+	switch step.Kind { //nolint:exhaustive // DocumentNode/SequenceNode/AliasNode don't appear as job steps
+	case yaml.ScalarNode:
+		return containsMarkerCommand(step.Value)
+	case yaml.MappingNode:
+		for i := 0; i+1 < len(step.Content); i += 2 {
+			if slices.Contains(markerOrbSteps, step.Content[i].Value) {
+				return true
 			}
 		}
-		// orb step: deploys/log
-		for i := 0; i < len(step.Content); i++ {
-			if step.Content[i].Value == "deploys/log" {
-				return true
+		runNode := findMappingValue(step, "run")
+		if runNode == nil {
+			return false
+		}
+		runNode = resolve(runNode)
+		switch runNode.Kind { //nolint:exhaustive // a run step is either a shorthand scalar or a mapping
+		case yaml.ScalarNode:
+			return containsMarkerCommand(runNode.Value)
+		case yaml.MappingNode:
+			if cmdNode := findMappingValue(runNode, "command"); cmdNode != nil {
+				return containsMarkerCommand(cmdNode.Value)
 			}
 		}
 	}
 	return false
 }
 
+// containsMarkerCommand reports whether cmd invokes a deploy marker command.
+// Whitespace is normalised first, so the multi-line backslash-continued form
+// this command writes matches as readily as a single-line invocation.
+func containsMarkerCommand(cmd string) bool {
+	if cmd == "" {
+		return false
+	}
+	normalized := strings.Join(strings.Fields(cmd), " ")
+	for _, marker := range markerCommands {
+		if strings.Contains(normalized, marker) {
+			return true
+		}
+	}
+	return false
+}
+
+// markerTargetVersion is the version expression written into every marker.
+// `release log` requires --target-version, so it can never be omitted.
+const markerTargetVersion = "$CIRCLE_SHA1"
+
+// makeRunStep builds the raw `run` step form of the marker. The flag names are
+// those of the `release` subcommand that build-agent injects into the job
+// (--component-name/--environment-name, not --component/--environment), and
+// --target-version is required there, so all three are always written.
+//
+// The command is a literal block so the rendered YAML stays readable at three
+// flags, matching the form documented in the deploy markers guide.
 func makeRunStep(component, env string) *yaml.Node {
-	cmd := fmt.Sprintf("circleci run release log --component %q --environment %q", component, env)
+	cmd := fmt.Sprintf(
+		"circleci run release log \\\n  --component-name=%s \\\n  --environment-name=%s \\\n  --target-version=%s\n",
+		component, env, markerTargetVersion,
+	)
 	return &yaml.Node{
 		Kind: yaml.MappingNode,
 		Content: []*yaml.Node{
@@ -333,13 +390,18 @@ func makeRunStep(component, env string) *yaml.Node {
 				Kind: yaml.MappingNode,
 				Content: []*yaml.Node{
 					scalar("name"), scalar("Log deploy marker"),
-					scalar("command"), scalar(cmd),
+					scalar("command"), literalBlock(cmd),
 				},
 			},
 		},
 	}
 }
 
+// makeOrbStep builds the circleci/deploys orb form. Its parameter names are
+// snake_case (component_name/environment_name/target_version) — the orb rejects
+// the bare component/environment spellings. target_version is passed explicitly
+// rather than left to the orb's own ${CIRCLE_SHA1:0:7} default so that both
+// forms of the marker report the same version.
 func makeOrbStep(component, env string) *yaml.Node {
 	return &yaml.Node{
 		Kind: yaml.MappingNode,
@@ -348,8 +410,9 @@ func makeOrbStep(component, env string) *yaml.Node {
 			{
 				Kind: yaml.MappingNode,
 				Content: []*yaml.Node{
-					scalar("component"), scalar(component),
-					scalar("environment"), scalar(env),
+					scalar("component_name"), scalar(component),
+					scalar("environment_name"), scalar(env),
+					scalar("target_version"), scalar(markerTargetVersion),
 				},
 			},
 		},
@@ -358,4 +421,8 @@ func makeOrbStep(component, env string) *yaml.Node {
 
 func scalar(v string) *yaml.Node {
 	return &yaml.Node{Kind: yaml.ScalarNode, Value: v, Tag: "!!str"}
+}
+
+func literalBlock(v string) *yaml.Node {
+	return &yaml.Node{Kind: yaml.ScalarNode, Value: v, Tag: "!!str", Style: yaml.LiteralStyle}
 }
