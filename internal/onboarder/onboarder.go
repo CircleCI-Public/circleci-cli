@@ -60,6 +60,10 @@ const (
 // push, which is what onboard sets up.
 const allPushesPreset = "all-pushes"
 
+// githubAppProvider is the only integration onboard sets a pipeline up for today;
+// resolving the repository goes through the GitHub App either way.
+const githubAppProvider = "github_app"
+
 // Options configures the onboarding flow.
 type Options struct {
 	ConfigPath    string
@@ -481,7 +485,7 @@ func setupFirstPipeline(ctx context.Context, client *apiclient.Client, returnURL
 		return nil
 	}
 
-	def, err := ensurePipelineDefinition(ctx, client, proj.ID, proj.Name, repoID)
+	def, err := ensurePipelineDefinition(ctx, client, proj.ID, proj.Name, repoID, remote.FullName())
 	if err != nil {
 		trackOnboard(ctx, "onboard_project_setup", map[string]any{"outcome": "pipeline_definition_failed"})
 		return clierrors.New("onboard.pipeline_definition_failed",
@@ -494,7 +498,7 @@ func setupFirstPipeline(ctx context.Context, client *apiclient.Client, returnURL
 			WithExitCode(clierrors.ExitAPIError)
 	}
 
-	if err := ensureTrigger(ctx, client, proj.ID, def.ID, repoID); err != nil {
+	if err := ensureTrigger(ctx, client, proj.ID, def.ID, repoID, remote.FullName()); err != nil {
 		trackOnboard(ctx, "onboard_project_setup", map[string]any{"outcome": "trigger_failed"})
 		return clierrors.New("onboard.trigger_failed",
 			"Could not set up the trigger",
@@ -514,7 +518,7 @@ func setupFirstPipeline(ctx context.Context, client *apiclient.Client, returnURL
 // ensurePipelineDefinition returns the pipeline definition already configured
 // for the repo, or creates one. Reusing an existing definition keeps re-runs of
 // onboard from creating duplicates.
-func ensurePipelineDefinition(ctx context.Context, client *apiclient.Client, projectID, name, repoID string) (*apiclient.PipelineDefinition, error) {
+func ensurePipelineDefinition(ctx context.Context, client *apiclient.Client, projectID, name, repoID, repoFullName string) (*apiclient.PipelineDefinition, error) {
 	defs, err := client.ListPipelineDefinitions(ctx, projectID)
 	if err != nil {
 		// Creating blindly after a failed lookup risks a duplicate definition, so
@@ -530,12 +534,14 @@ func ensurePipelineDefinition(ctx context.Context, client *apiclient.Client, pro
 	}
 
 	def, err := client.CreatePipelineDefinition(ctx, projectID, apiclient.CreatePipelineDefinitionInput{
-		Name:             name,
-		ConfigProvider:   "github_app",
-		ConfigRepoID:     repoID,
-		ConfigFilePath:   ".circleci/config.yml",
-		CheckoutProvider: "github_app",
-		CheckoutRepoID:   repoID,
+		Name:                 name,
+		ConfigProvider:       githubAppProvider,
+		ConfigRepoID:         repoID,
+		ConfigRepoFullName:   repoFullName,
+		ConfigFilePath:       ".circleci/config.yml",
+		CheckoutProvider:     githubAppProvider,
+		CheckoutRepoID:       repoID,
+		CheckoutRepoFullName: repoFullName,
 	})
 	if err != nil {
 		return nil, err
@@ -550,7 +556,7 @@ func ensurePipelineDefinition(ctx context.Context, client *apiclient.Client, pro
 // Only an all-pushes trigger counts. A definition carrying just a schedule or
 // webhook trigger would otherwise be reported as ready, and the push onboard tells
 // the user to make would build nothing.
-func ensureTrigger(ctx context.Context, client *apiclient.Client, projectID, definitionID, repoID string) error {
+func ensureTrigger(ctx context.Context, client *apiclient.Client, projectID, definitionID, repoID, repoFullName string) error {
 	trigs, err := client.ListTriggers(ctx, projectID, definitionID)
 	if err != nil {
 		return err
@@ -562,7 +568,14 @@ func ensureTrigger(ctx context.Context, client *apiclient.Client, projectID, def
 		}
 	}
 
-	trig, err := client.CreateTrigger(ctx, projectID, definitionID, "github_app", repoID, allPushesPreset, "", "")
+	trig, err := client.CreateTrigger(ctx, apiclient.CreateTriggerInput{
+		ProjectID:            projectID,
+		PipelineDefinitionID: definitionID,
+		Provider:             githubAppProvider,
+		RepoID:               repoID,
+		RepoFullName:         repoFullName,
+		EventPreset:          allPushesPreset,
+	})
 	if err != nil {
 		return err
 	}

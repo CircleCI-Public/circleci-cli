@@ -49,26 +49,35 @@ const (
 	pipelineRepoID    = "987654321"
 )
 
+// fakePipelineDefPayload builds a v3 pipeline data entity with both sources
+// VCS-backed, which is what every pipeline fixture here needs.
 func fakePipelineDefPayload(id, name, configProvider, configRepoID, configFile, checkoutProvider, checkoutRepoID string) map[string]any {
 	now := time.Date(2024, 6, 1, 0, 0, 0, 0, time.UTC)
 	return map[string]any{
-		"id":         id,
-		"name":       name,
-		"created_at": now.Format(time.RFC3339),
-		"config_source": map[string]any{
-			"provider":  configProvider,
-			"file_path": configFile,
-			"repo": map[string]any{
-				"external_id": configRepoID,
-				"full_name":   "myorg/myrepo",
+		"id": id,
+		"attributes": map[string]any{
+			"name":       name,
+			"created_at": now.Format(time.RFC3339),
+			"config": map[string]any{
+				"type":      "vcs",
+				"file_path": configFile,
+				"vcs": map[string]any{
+					"provider":       configProvider,
+					"repo_id":        configRepoID,
+					"repo_full_name": "myorg/myrepo",
+				},
+			},
+			"checkout": map[string]any{
+				"type": "vcs",
+				"vcs": map[string]any{
+					"provider":       checkoutProvider,
+					"repo_id":        checkoutRepoID,
+					"repo_full_name": "myorg/myrepo",
+				},
 			},
 		},
-		"checkout_source": map[string]any{
-			"provider": checkoutProvider,
-			"repo": map[string]any{
-				"external_id": checkoutRepoID,
-				"full_name":   "myorg/myrepo",
-			},
+		"references": map[string]any{
+			"project": map[string]any{"id": pipelineProjectID},
 		},
 	}
 }
@@ -91,33 +100,39 @@ func setupPipelineFake(t *testing.T) (*fakes.CircleCI, *testenv.TestEnv) {
 
 var pipelineListFixtures = []map[string]any{
 	{
-		"id":         "pdef-uuid-0001",
-		"name":       "main-pipeline",
-		"created_at": "2024-01-01T00:00:00Z",
-		"config_source": map[string]any{
-			"provider":  "github_app",
-			"file_path": ".circleci/config.yml",
-			"repo":      map[string]any{"external_id": "111111111", "full_name": "myorg/myrepo"},
+		"id": "pdef-uuid-0001",
+		"attributes": map[string]any{
+			"name":       "main-pipeline",
+			"created_at": "2024-01-01T00:00:00Z",
+			"config": map[string]any{
+				"type":      "vcs",
+				"file_path": ".circleci/config.yml",
+				"vcs":       map[string]any{"provider": "github_app", "repo_id": "111111111", "repo_full_name": "myorg/myrepo"},
+			},
+			"checkout": map[string]any{
+				"type": "vcs",
+				"vcs":  map[string]any{"provider": "github_app", "repo_id": "111111111", "repo_full_name": "myorg/myrepo"},
+			},
 		},
-		"checkout_source": map[string]any{
-			"provider": "github_app",
-			"repo":     map[string]any{"external_id": "111111111", "full_name": "myorg/myrepo"},
-		},
+		"references": map[string]any{"project": map[string]any{"id": pipelineProjectID}},
 	},
 	{
-		"id":          "pdef-uuid-0002",
-		"name":        "nightly",
-		"description": "Runs every night",
-		"created_at":  "2024-02-01T00:00:00Z",
-		"config_source": map[string]any{
-			"provider":  "github_app",
-			"file_path": ".circleci/nightly.yml",
-			"repo":      map[string]any{"external_id": "111111111", "full_name": "myorg/myrepo"},
+		"id": "pdef-uuid-0002",
+		"attributes": map[string]any{
+			"name":        "nightly",
+			"description": "Runs every night",
+			"created_at":  "2024-02-01T00:00:00Z",
+			"config": map[string]any{
+				"type":      "vcs",
+				"file_path": ".circleci/nightly.yml",
+				"vcs":       map[string]any{"provider": "github_app", "repo_id": "111111111", "repo_full_name": "myorg/myrepo"},
+			},
+			"checkout": map[string]any{
+				"type": "vcs",
+				"vcs":  map[string]any{"provider": "github_app", "repo_id": "111111111", "repo_full_name": "myorg/myrepo"},
+			},
 		},
-		"checkout_source": map[string]any{
-			"provider": "github_app",
-			"repo":     map[string]any{"external_id": "111111111", "full_name": "myorg/myrepo"},
-		},
+		"references": map[string]any{"project": map[string]any{"id": pipelineProjectID}},
 	},
 }
 
@@ -148,12 +163,12 @@ func TestPipelineCreate(t *testing.T) {
 	t.Run("check request", func(t *testing.T) {
 		assert.Check(t, cmp.DeepEqual(fake.LastRequest(), &httprecorder.Request{
 			Method: http.MethodPost,
-			URL:    url.URL{Path: "/api/v2/projects/" + pipelineProjectID + "/pipeline-definitions"},
+			URL:    url.URL{Path: "/api/v3/pipelines"},
 			Header: http.Header{
 				"Authorization": {"Bearer test-token"},
 				"User-Agent":    {httpcl.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
 			},
-			Body: new(`{"checkout_source":{"provider":"github_app","repo":{"external_id":"987654321"}},"config_source":{"file_path":".circleci/config.yml","provider":"github_app","repo":{"external_id":"987654321"}},"name":"my-pipeline"}`),
+			Body: new(`{"data":{"attributes":{"name":"my-pipeline","config":{"type":"vcs","file_path":".circleci/config.yml","vcs":{"provider":"github_app","repo_id":"987654321"}},"checkout":{"vcs":{"provider":"github_app","repo_id":"987654321"}}},"references":{"project":{"id":"` + pipelineProjectID + `"}}}}`),
 		}, ignoreCommonHeaders))
 	})
 }

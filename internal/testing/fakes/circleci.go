@@ -24,9 +24,11 @@
 package fakes
 
 import (
+	"bytes"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -64,10 +66,10 @@ type CircleCI struct {
 	triggerResponses                  map[string]any          // project slug → trigger response body
 	triggerPipelineRunResponses       map[string]any          // project slug → trigger run response body
 	triggerPipelineRunStatuses        map[string]int          // project slug → HTTP status (default 201)
-	pipelineDefinitions               map[string][]any        // projectID → list of pipeline definition objects
-	createPipelineDefinitionResponses map[string]any          // projectID → response body
-	createTriggerResponses            map[string]any          // "projectID/pipelineDefinitionID" → response body
-	listTriggerResponses              map[string][]any        // "projectID/pipelineDefinitionID" → list of triggers
+	pipelineDefinitions               map[string][]any        // projectID → list of v3 pipeline entities
+	createPipelineDefinitionResponses map[string]any          // projectID → v3 pipeline entity
+	createTriggerResponses            map[string]any          // "projectID/pipelineID" → v3 trigger entity
+	listTriggerResponses              map[string][]any        // "projectID/pipelineID" → list of v3 trigger entities
 
 	// GitHub App state.
 	githubAppInstalled      map[string]bool            // orgID → app installed (200) vs not (404)
@@ -368,10 +370,10 @@ func NewCircleCI(t *testing.T, tokens ...string) *CircleCI {
 	r.Post("/api/v2/project/{vcs}/{org}/{repo}/envvar", f.handleSetEnvVar)
 	r.Delete("/api/v2/project/{vcs}/{org}/{repo}/envvar/{name}", f.handleDeleteEnvVar)
 	r.Get("/api/v2/project/{vcs}/{org}/{repo}", f.handleGetProjectInfo)
-	r.Get("/api/v2/projects/{projectID}/pipeline-definitions", f.handleListPipelineDefinitions)
-	r.Post("/api/v2/projects/{projectID}/pipeline-definitions", f.handleCreatePipelineDefinition)
-	r.Get("/api/v2/projects/{projectID}/pipeline-definitions/{pipelineDefinitionID}/triggers", f.handleListTriggers)
-	r.Post("/api/v2/projects/{projectID}/pipeline-definitions/{pipelineDefinitionID}/triggers", f.handleCreateTrigger)
+	r.Get("/api/v3/pipelines", f.handleListPipelineDefinitions)
+	r.Post("/api/v3/pipelines", f.handleCreatePipelineDefinition)
+	r.Get("/api/v3/triggers", f.handleListTriggers)
+	r.Post("/api/v3/triggers", f.handleCreateTrigger)
 	// GitHub App routes.
 	r.Get("/api/v2/github-app/organization/{orgID}/installation", f.handleGetGitHubAppInstallation)
 	r.Post("/api/v2/github-app/install", f.handleInstallGitHubApp)
@@ -2373,16 +2375,17 @@ func (f *CircleCI) handleResolveProjectBySlug(w http.ResponseWriter, r *http.Req
 	render.JSON(w, r, map[string]any{"data": data, "page": map[string]any{"next": nil, "prev": nil}})
 }
 
-// AddPipelineDefinition registers a pipeline definition for a project, returned by
-// GET /api/v2/projects/{projectID}/pipeline-definitions.
+// AddPipelineDefinition registers a pipeline entity for a project, returned by
+// GET /api/v3/pipelines?filter[project_id]=. def is a v3 data entity
+// ({id, attributes, references}); the fake supplies the collection envelope.
 func (f *CircleCI) AddPipelineDefinition(projectID string, def any) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.pipelineDefinitions[projectID] = append(f.pipelineDefinitions[projectID], def)
 }
 
-// SetCreatePipelineDefinitionResponse registers the response body returned when
-// POST /api/v2/projects/{projectID}/pipeline-definitions is called.
+// SetCreatePipelineDefinitionResponse registers the entity returned when
+// POST /api/v3/pipelines is called with this project in its references.
 // Pass nil to simulate a 404.
 func (f *CircleCI) SetCreatePipelineDefinitionResponse(projectID string, resp any) {
 	f.mu.Lock()
@@ -2390,8 +2393,8 @@ func (f *CircleCI) SetCreatePipelineDefinitionResponse(projectID string, resp an
 	f.createPipelineDefinitionResponses[projectID] = resp
 }
 
-// AddTrigger registers a trigger returned by GET
-// /api/v2/projects/{projectID}/pipeline-definitions/{pipelineDefinitionID}/triggers.
+// AddTrigger registers a trigger entity returned by GET /api/v3/triggers when
+// filtered by this project and pipeline.
 func (f *CircleCI) AddTrigger(projectID, pipelineDefinitionID string, trigger any) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -2399,9 +2402,9 @@ func (f *CircleCI) AddTrigger(projectID, pipelineDefinitionID string, trigger an
 	f.listTriggerResponses[key] = append(f.listTriggerResponses[key], trigger)
 }
 
-// SetCreateTriggerResponse registers the response body returned when POST
-// /api/v2/projects/{projectID}/pipeline-definitions/{pipelineDefinitionID}/triggers
-// is called. Pass nil to simulate a 404.
+// SetCreateTriggerResponse registers the entity returned when POST
+// /api/v3/triggers is called for this project and pipeline. Pass nil to simulate
+// a 404.
 func (f *CircleCI) SetCreateTriggerResponse(projectID, pipelineDefinitionID string, resp any) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -2945,19 +2948,18 @@ func (f *CircleCI) handleDeleteContextRestriction(w http.ResponseWriter, r *http
 }
 
 func (f *CircleCI) handleListPipelineDefinitions(w http.ResponseWriter, r *http.Request) {
-	projectID := chi.URLParam(r, "projectID")
+	projectID := r.URL.Query().Get("filter[project_id]")
 	f.mu.RLock()
 	items := f.pipelineDefinitions[projectID]
 	f.mu.RUnlock()
 
-	if items == nil {
-		items = []any{}
-	}
-	render.JSON(w, r, map[string]any{"items": items})
+	renderV3Collection(w, r, items)
 }
 
 func (f *CircleCI) handleCreatePipelineDefinition(w http.ResponseWriter, r *http.Request) {
-	projectID := chi.URLParam(r, "projectID")
+	// The v3 create takes the owning project in the body's references rather than
+	// the path, so the registered response is keyed off what the client sent.
+	projectID := v3BodyRefID(r, "project")
 	f.mu.RLock()
 	resp, ok := f.createPipelineDefinitionResponses[projectID]
 	f.mu.RUnlock()
@@ -2968,27 +2970,23 @@ func (f *CircleCI) handleCreatePipelineDefinition(w http.ResponseWriter, r *http
 		return
 	}
 	render.Status(r, http.StatusCreated)
-	render.JSON(w, r, resp)
+	render.JSON(w, r, map[string]any{"data": resp})
 }
 
 func (f *CircleCI) handleListTriggers(w http.ResponseWriter, r *http.Request) {
-	projectID := chi.URLParam(r, "projectID")
-	pipelineDefinitionID := chi.URLParam(r, "pipelineDefinitionID")
-	key := projectID + "/" + pipelineDefinitionID
+	q := r.URL.Query()
+	key := q.Get("filter[project_id]") + "/" + q.Get("filter[pipeline_id]")
 	f.mu.RLock()
 	items := f.listTriggerResponses[key]
 	f.mu.RUnlock()
 
-	if items == nil {
-		items = []any{}
-	}
-	render.JSON(w, r, map[string]any{"items": items})
+	renderV3Collection(w, r, items)
 }
 
 func (f *CircleCI) handleCreateTrigger(w http.ResponseWriter, r *http.Request) {
-	projectID := chi.URLParam(r, "projectID")
-	pipelineDefinitionID := chi.URLParam(r, "pipelineDefinitionID")
-	key := projectID + "/" + pipelineDefinitionID
+	// The project stays a query filter on the v3 create, but the parent pipeline
+	// moves into the body's references.
+	key := r.URL.Query().Get("filter[project_id]") + "/" + v3BodyRefID(r, "pipeline")
 	f.mu.RLock()
 	resp, ok := f.createTriggerResponses[key]
 	f.mu.RUnlock()
@@ -2999,7 +2997,45 @@ func (f *CircleCI) handleCreateTrigger(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	render.Status(r, http.StatusCreated)
-	render.JSON(w, r, resp)
+	render.JSON(w, r, map[string]any{"data": resp})
+}
+
+// renderV3Collection writes items as a v3 collection, so an empty set is an empty
+// data array rather than a null.
+func renderV3Collection(w http.ResponseWriter, r *http.Request, items []any) {
+	if items == nil {
+		items = []any{}
+	}
+	render.JSON(w, r, map[string]any{
+		"data": items,
+		"meta": map[string]any{"total_count": len(items)},
+	})
+}
+
+// v3BodyRefID reads data.references.<name>.id out of a v3 create body, restoring
+// the request body for any later reader. It returns "" when the body is absent or
+// not shaped that way, which lands the caller on the fake's 404.
+func v3BodyRefID(r *http.Request, name string) string {
+	if r.Body == nil {
+		return ""
+	}
+	raw, err := io.ReadAll(r.Body)
+	if err != nil {
+		return ""
+	}
+	r.Body = io.NopCloser(bytes.NewReader(raw))
+
+	var body struct {
+		Data struct {
+			References map[string]struct {
+				ID string `json:"id"`
+			} `json:"references"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(raw, &body); err != nil {
+		return ""
+	}
+	return body.Data.References[name].ID
 }
 
 // SetGitHubAppInstalled controls whether GET
