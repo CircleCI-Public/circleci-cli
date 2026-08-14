@@ -139,6 +139,7 @@ type CircleCI struct {
 	components     []DeployComponent         // filtered by org_id and (optionally) project_id
 	compVersions   []DeployComponentVersion  // filtered by component id and (optionally) environment_id
 	deploySettings map[string]DeploySettings // project id → settings entity
+	rollback       *RollbackResult           // response for POST /api/v3/projects/{id}/rollback (nil → 404)
 
 	// Policy state.
 	policyBundles   map[string]map[string]string // "ownerID/ctx" → bundle
@@ -427,6 +428,7 @@ func NewCircleCI(t *testing.T, tokens ...string) *CircleCI {
 	r.Get("/api/v3/projects/{id}", f.handleGetProjectV3)
 	r.Get("/api/v3/projects/{id}/settings", f.handleGetProjectSettingsV3)
 	r.Post("/api/v3/projects/{id}/update-settings", f.handleUpdateProjectSettingsV3)
+	r.Post("/api/v3/projects/{id}/rollback", f.handleRollbackProject)
 	// Run (v3) routes.
 	r.Get("/api/v3/runs", f.handleListMyRunsV3)
 	r.Get("/api/v3/runs/{id}", f.handleGetRunV3)
@@ -3419,6 +3421,75 @@ func (f *CircleCI) handleGetDeploySettings(w http.ResponseWriter, r *http.Reques
 		"id":         settings.ID,
 		"attributes": map[string]any{"auto_cancel_redundant_deploys": settings.AutoCancelRedundantDeploys},
 		"references": map[string]any{"project": map[string]any{"id": settings.ProjectID}},
+	}})
+}
+
+// RollbackResult is what POST /api/v3/projects/{id}/rollback reports. ID is the
+// pipeline run or release-agent command carrying the rollback out and
+// RollbackType ("pipeline" or "agent") says which. Set Status to return that
+// status with a v3 error envelope instead of the entity, so a test can exercise
+// a rejected or conflicting rollback.
+type RollbackResult struct {
+	ID           string
+	RollbackType string
+	Status       int
+	Title        string
+	Detail       string
+}
+
+// SetRollback registers the result of POST /api/v3/projects/{id}/rollback. Until
+// it is called the route answers 404, matching a project with no rollback.
+func (f *CircleCI) SetRollback(result RollbackResult) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.rollback = &result
+}
+
+func (f *CircleCI) handleRollbackProject(w http.ResponseWriter, r *http.Request) {
+	projectID := chi.URLParam(r, "id")
+
+	// Only the ids are read back: they are echoed in the references, and the rest
+	// of the body is asserted through the request recorder.
+	var body struct {
+		ComponentID   string `json:"component_id"`
+		EnvironmentID string `json:"environment_id"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		render.Status(r, http.StatusBadRequest)
+		render.JSON(w, r, map[string]any{"message": "invalid JSON"})
+		return
+	}
+
+	f.mu.RLock()
+	result := f.rollback
+	f.mu.RUnlock()
+
+	if result == nil {
+		render.Status(r, http.StatusNotFound)
+		render.JSON(w, r, map[string]any{"message": "not found"})
+		return
+	}
+	if result.Status != 0 {
+		title := result.Title
+		if title == "" {
+			title = http.StatusText(result.Status)
+		}
+		render.Status(r, result.Status)
+		render.JSON(w, r, map[string]any{"error": map[string]any{
+			"title":  title,
+			"detail": result.Detail,
+		}})
+		return
+	}
+
+	render.JSON(w, r, map[string]any{"data": map[string]any{
+		"id":         result.ID,
+		"attributes": map[string]any{"rollback_type": result.RollbackType},
+		"references": map[string]any{
+			"project":            map[string]any{"id": projectID},
+			"deploy_component":   map[string]any{"id": body.ComponentID},
+			"deploy_environment": map[string]any{"id": body.EnvironmentID},
+		},
 	}})
 }
 
