@@ -26,9 +26,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
 	"strings"
 
 	"github.com/google/uuid"
+
+	"github.com/CircleCI-Public/circleci-cli/internal/httpcl"
 )
 
 // ResourceClass is a CircleCI runner resource class.
@@ -67,9 +70,10 @@ func (c *Client) ListResourceClassesByOrg(ctx context.Context, orgID uuid.UUID) 
 	var resp struct {
 		Items []ResourceClass `json:"items"`
 	}
-	err := c.getV3(ctx, "/runner/resource", &resp,
-		queryParam("org-id", orgID.String()),
-	)
+	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodGet, "/api/v3/runner/resource",
+		httpcl.QueryParam("org-id", orgID.String()),
+		httpcl.JSONDecoder(&resp),
+	))
 	if err != nil {
 		return nil, err
 	}
@@ -83,9 +87,10 @@ func (c *Client) ListResourceClassesByNamespace(ctx context.Context, namespace s
 	var resp struct {
 		Items []ResourceClass `json:"items"`
 	}
-	err := c.getV3(ctx, "/runner/resource", &resp,
-		queryParam("namespace", namespace),
-	)
+	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodGet, "/api/v3/runner/resource",
+		httpcl.QueryParam("namespace", namespace),
+		httpcl.JSONDecoder(&resp),
+	))
 	if err != nil {
 		return nil, err
 	}
@@ -99,7 +104,10 @@ func (c *Client) CreateResourceClass(ctx context.Context, resourceClass, descrip
 		"description":    description,
 	}
 	var rc ResourceClass
-	err := c.postV3(ctx, "/runner/resource", body, &rc)
+	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodPost, "/api/v3/runner/resource",
+		httpcl.Body(body),
+		httpcl.JSONDecoder(&rc),
+	))
 	if err != nil {
 		return nil, err
 	}
@@ -133,9 +141,10 @@ func (c *Client) ResourceClassByName(ctx context.Context, resourceClass string) 
 // DeleteResourceClass deletes a runner resource class by its id, along with any
 // tokens issued for it.
 func (c *Client) DeleteResourceClass(ctx context.Context, id uuid.UUID) error {
-	return c.deleteV3(ctx, "/runner/resource/%s/force",
-		routeParams(id.String()),
-	)
+	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodDelete, "/api/v3/runner/resource/%s/force",
+		httpcl.RouteParams(id.String()),
+	))
+	return err
 }
 
 // ListRunnerTokens returns tokens for the given resource class.
@@ -143,7 +152,10 @@ func (c *Client) ListRunnerTokens(ctx context.Context, resourceClass string) ([]
 	var resp struct {
 		Items []RunnerToken `json:"items"`
 	}
-	err := c.getV3(ctx, "/runner/token", &resp, queryParam("resource-class", resourceClass))
+	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodGet, "/api/v3/runner/token",
+		httpcl.QueryParam("resource-class", resourceClass),
+		httpcl.JSONDecoder(&resp),
+	))
 	if err != nil {
 		return nil, err
 	}
@@ -158,7 +170,10 @@ func (c *Client) CreateRunnerToken(ctx context.Context, resourceClass, nickname 
 		"nickname":       nickname,
 	}
 	var tok RunnerToken
-	err := c.postV3(ctx, "/runner/token", body, &tok)
+	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodPost, "/api/v3/runner/token",
+		httpcl.Body(body),
+		httpcl.JSONDecoder(&tok),
+	))
 	if err != nil {
 		return nil, err
 	}
@@ -167,9 +182,10 @@ func (c *Client) CreateRunnerToken(ctx context.Context, resourceClass, nickname 
 
 // DeleteRunnerToken deletes a runner token by its ID.
 func (c *Client) DeleteRunnerToken(ctx context.Context, tokenID string) error {
-	return c.deleteV3(ctx, "/runner/token/%s",
-		routeParams(tokenID),
-	)
+	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodDelete, "/api/v3/runner/token/%s",
+		httpcl.RouteParams(tokenID),
+	))
+	return err
 }
 
 // ListRunnerInstancesByOrg returns the live runner instances for an
@@ -178,9 +194,10 @@ func (c *Client) ListRunnerInstancesByOrg(ctx context.Context, orgID uuid.UUID) 
 	var resp struct {
 		Items []RunnerInstance `json:"items"`
 	}
-	err := c.getV3(ctx, "/runner", &resp,
-		queryParam("org-id", orgID.String()),
-	)
+	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodGet, "/api/v3/runner",
+		httpcl.QueryParam("org-id", orgID.String()),
+		httpcl.JSONDecoder(&resp),
+	))
 	if err != nil {
 		return nil, err
 	}
@@ -193,10 +210,11 @@ func (c *Client) ListRunnerInstances(ctx context.Context, resourceClass, namespa
 	var resp struct {
 		Items []RunnerInstance `json:"items"`
 	}
-	err := c.getV3(ctx, "/runner", &resp,
-		optionalQueryParam("resource-class", resourceClass),
-		optionalQueryParam("namespace", namespace),
-	)
+	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodGet, "/api/v3/runner",
+		httpcl.OptionalQueryParam("resource-class", resourceClass),
+		httpcl.OptionalQueryParam("namespace", namespace),
+		httpcl.JSONDecoder(&resp),
+	))
 	if err != nil {
 		return nil, err
 	}

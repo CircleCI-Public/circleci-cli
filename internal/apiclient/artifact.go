@@ -54,9 +54,10 @@ type artifactWire struct {
 // using the V3 API.
 func (c *Client) GetJobArtifactsV3(ctx context.Context, jobID string) ([]Artifact, error) {
 	var resp v3List[artifactWire]
-	err := c.getV3(ctx, "/jobs/%s/artifacts", &resp,
-		routeParams(jobID),
-	)
+	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodGet, "/api/v3/jobs/%s/artifacts",
+		httpcl.RouteParams(jobID),
+		httpcl.JSONDecoder(&resp),
+	))
 	if err != nil {
 		return nil, err
 	}

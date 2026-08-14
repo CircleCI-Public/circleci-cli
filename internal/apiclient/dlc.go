@@ -38,7 +38,7 @@ var ErrDLCGone = errors.New("dlc: endpoint no longer available")
 // PurgeDLC purges the Docker Layer Cache for the given project ID.
 func (c *Client) PurgeDLC(ctx context.Context, projectID string) error {
 	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodDelete, "/api/v3/projects/%s/dlc",
-		routeParams(projectID),
+		httpcl.RouteParams(projectID),
 	))
 	he, ok := errors.AsType[*httpcl.HTTPError](err)
 	switch {

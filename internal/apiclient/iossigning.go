@@ -24,8 +24,11 @@ package apiclient
 
 import (
 	"context"
+	"net/http"
 
 	"github.com/google/uuid"
+
+	"github.com/CircleCI-Public/circleci-cli/internal/httpcl"
 )
 
 // The iOS code signing endpoints live under /api/v3/signing. Requests use the
@@ -110,7 +113,11 @@ func (c *Client) UploadIOSCertificate(ctx context.Context, orgID uuid.UUID, file
 		},
 	}
 	var env v3Entity[idEntity]
-	if err := c.postV3(ctx, "/signing/certificates", body, &env); err != nil {
+	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodPost, "/api/v3/signing/certificates",
+		httpcl.Body(body),
+		httpcl.JSONDecoder(&env),
+	))
+	if err != nil {
 		return uuid.Nil, err
 	}
 	return env.Data.ID, nil
@@ -119,7 +126,11 @@ func (c *Client) UploadIOSCertificate(ctx context.Context, orgID uuid.UUID, file
 // ListIOSCertificates returns the certificates stored for the given org.
 func (c *Client) ListIOSCertificates(ctx context.Context, orgID uuid.UUID) ([]IOSCertificate, error) {
 	var env v3List[certEntity]
-	if err := c.getV3(ctx, "/signing/certificates", &env, filterParam("org_id", orgID.String())); err != nil {
+	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodGet, "/api/v3/signing/certificates",
+		filterParam("org_id", orgID.String()),
+		httpcl.JSONDecoder(&env),
+	))
+	if err != nil {
 		return nil, err
 	}
 	certs := make([]IOSCertificate, len(env.Data))
@@ -136,7 +147,10 @@ func (c *Client) ListIOSCertificates(ctx context.Context, orgID uuid.UUID) ([]IO
 // DeleteIOSCertificate deletes a certificate by ID. The server returns 409
 // Conflict if the certificate is referenced by one or more signing configs.
 func (c *Client) DeleteIOSCertificate(ctx context.Context, certID uuid.UUID) error {
-	return c.deleteV3(ctx, "/signing/certificates/%s", routeParams(certID))
+	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodDelete, "/api/v3/signing/certificates/%s",
+		httpcl.RouteParams(certID),
+	))
+	return err
 }
 
 // CreateIOSSigningConfig creates a signing config linking a certificate to one
@@ -155,7 +169,11 @@ func (c *Client) CreateIOSSigningConfig(ctx context.Context, orgID uuid.UUID, na
 		},
 	}
 	var env v3Entity[idEntity]
-	if err := c.postV3(ctx, "/signing/configs", body, &env); err != nil {
+	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodPost, "/api/v3/signing/configs",
+		httpcl.Body(body),
+		httpcl.JSONDecoder(&env),
+	))
+	if err != nil {
 		return uuid.Nil, err
 	}
 	return env.Data.ID, nil
@@ -164,7 +182,11 @@ func (c *Client) CreateIOSSigningConfig(ctx context.Context, orgID uuid.UUID, na
 // ListIOSSigningConfigs returns the signing configs stored for the given org.
 func (c *Client) ListIOSSigningConfigs(ctx context.Context, orgID uuid.UUID) ([]IOSSigningConfig, error) {
 	var env v3List[signingConfigEntity]
-	if err := c.getV3(ctx, "/signing/configs", &env, filterParam("org_id", orgID.String())); err != nil {
+	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodGet, "/api/v3/signing/configs",
+		filterParam("org_id", orgID.String()),
+		httpcl.JSONDecoder(&env),
+	))
+	if err != nil {
 		return nil, err
 	}
 	configs := make([]IOSSigningConfig, len(env.Data))
@@ -183,7 +205,10 @@ func (c *Client) ListIOSSigningConfigs(ctx context.Context, orgID uuid.UUID) ([]
 // DeleteIOSSigningConfig deletes a signing config by ID. The server returns
 // 204 No Content on success.
 func (c *Client) DeleteIOSSigningConfig(ctx context.Context, id uuid.UUID) error {
-	return c.deleteV3(ctx, "/signing/configs/%s", routeParams(id))
+	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodDelete, "/api/v3/signing/configs/%s",
+		httpcl.RouteParams(id),
+	))
+	return err
 }
 
 // UpdateIOSSigningConfigProfile adds or replaces a provisioning profile on an
@@ -197,7 +222,13 @@ func (c *Client) UpdateIOSSigningConfigProfile(ctx context.Context, configID uui
 		"file_name": fileName,
 		"blob":      blob,
 	}
-	return c.postV3NoContent(ctx, "/signing/configs/%s/update-profile", body, routeParams(configID))
+	// No JSONDecoder: the endpoint answers 204 No Content, and decoding an empty
+	// body as JSON would fail with io.EOF.
+	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodPost, "/api/v3/signing/configs/%s/update-profile",
+		httpcl.RouteParams(configID),
+		httpcl.Body(body),
+	))
+	return err
 }
 
 // RemoveIOSSigningConfigProfile removes a provisioning profile from an
@@ -205,5 +236,11 @@ func (c *Client) UpdateIOSSigningConfigProfile(ctx context.Context, configID uui
 // is a no-op.
 func (c *Client) RemoveIOSSigningConfigProfile(ctx context.Context, configID, profileID uuid.UUID) error {
 	body := map[string]any{"profile_id": profileID}
-	return c.postV3NoContent(ctx, "/signing/configs/%s/remove-profile", body, routeParams(configID))
+	// No JSONDecoder: the endpoint answers 204 No Content, and decoding an empty
+	// body as JSON would fail with io.EOF.
+	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodPost, "/api/v3/signing/configs/%s/remove-profile",
+		httpcl.RouteParams(configID),
+		httpcl.Body(body),
+	))
+	return err
 }

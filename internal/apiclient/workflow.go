@@ -24,9 +24,12 @@ package apiclient
 
 import (
 	"context"
+	"net/http"
 	"time"
 
 	"github.com/google/uuid"
+
+	"github.com/CircleCI-Public/circleci-cli/internal/httpcl"
 )
 
 // --- V3 wire types ---
@@ -96,7 +99,11 @@ func (w WorkflowV3) Status() string {
 // GetWorkflowV3 fetches a single workflow by UUID from the V3 API.
 func (c *Client) GetWorkflowV3(ctx context.Context, id uuid.UUID) (*WorkflowV3, error) {
 	var env v3Entity[workflowWire]
-	if err := c.getV3(ctx, "/workflows/%s", &env, routeParams(id)); err != nil {
+	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodGet, "/api/v3/workflows/%s",
+		httpcl.RouteParams(id),
+		httpcl.JSONDecoder(&env),
+	))
+	if err != nil {
 		return nil, err
 	}
 	wf := env.Data.toWorkflowV3()
@@ -106,7 +113,11 @@ func (c *Client) GetWorkflowV3(ctx context.Context, id uuid.UUID) (*WorkflowV3, 
 // GetRunWorkflowsV3 fetches workflows for a run from the V3 API.
 func (c *Client) GetRunWorkflowsV3(ctx context.Context, runID uuid.UUID) ([]WorkflowV3, error) {
 	var resp v3List[workflowWire]
-	if err := c.getV3(ctx, "/workflows", &resp, filterParam("run_id", runID.String())); err != nil {
+	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodGet, "/api/v3/workflows",
+		filterParam("run_id", runID.String()),
+		httpcl.JSONDecoder(&resp),
+	))
+	if err != nil {
 		return nil, err
 	}
 	workflows := make([]WorkflowV3, len(resp.Data))
@@ -133,9 +144,12 @@ func (c *Client) RerunWorkflow(ctx context.Context, id string, fromFailed bool) 
 	var resp v3Entity[struct {
 		ID string `json:"id"`
 	}]
-	if err := c.postV3(ctx, "/workflows/%s/rerun", body, &resp,
-		routeParams(id),
-	); err != nil {
+	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodPost, "/api/v3/workflows/%s/rerun",
+		httpcl.RouteParams(id),
+		httpcl.Body(body),
+		httpcl.JSONDecoder(&resp),
+	))
+	if err != nil {
 		return "", err
 	}
 	return resp.Data.ID, nil
@@ -147,9 +161,11 @@ func (c *Client) CancelWorkflow(ctx context.Context, id uuid.UUID) error {
 	var resp v3Entity[struct {
 		ID uuid.UUID `json:"id"`
 	}]
-	return c.postV3(ctx, "/workflows/%s/cancel", nil, &resp,
-		routeParams(id),
-	)
+	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodPost, "/api/v3/workflows/%s/cancel",
+		httpcl.RouteParams(id),
+		httpcl.JSONDecoder(&resp),
+	))
+	return err
 }
 
 // --- V3 workflow jobs ---
@@ -241,9 +257,10 @@ func effectiveJobPhase(phase string, startedAt *time.Time) string {
 // GetWorkflowJobsV3 returns all jobs for a workflow via the V3 API.
 func (c *Client) GetWorkflowJobsV3(ctx context.Context, workflowID uuid.UUID) ([]WorkflowJobV3, error) {
 	var resp v3List[workflowJobWire]
-	err := c.getV3(ctx, "/jobs", &resp,
+	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodGet, "/api/v3/jobs",
 		filterParam("workflow_id", workflowID.String()),
-	)
+		httpcl.JSONDecoder(&resp),
+	))
 	if err != nil {
 		return nil, err
 	}

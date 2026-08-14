@@ -24,9 +24,12 @@ package apiclient
 
 import (
 	"context"
+	"net/http"
 	"time"
 
 	"github.com/google/uuid"
+
+	"github.com/CircleCI-Public/circleci-cli/internal/httpcl"
 )
 
 // --- V3 wire types ---
@@ -102,7 +105,11 @@ func (e JobResourceUsageExecution) Duration() time.Duration {
 // necessarily mean the job itself is missing.
 func (c *Client) GetJobResourceUsage(ctx context.Context, id uuid.UUID) (*JobResourceUsage, error) {
 	var env v3Entity[jobResourceUsageWire]
-	if err := c.getV3(ctx, "/jobs/%s/resource-usage", &env, routeParams(id)); err != nil {
+	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodGet, "/api/v3/jobs/%s/resource-usage",
+		httpcl.RouteParams(id),
+		httpcl.JSONDecoder(&env),
+	))
+	if err != nil {
 		return nil, err
 	}
 	return env.Data.toJobResourceUsage(), nil

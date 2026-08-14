@@ -55,9 +55,10 @@ type GitHubAppInstallation struct {
 // ErrGitHubAppNotInstalled when the app is not installed (HTTP 404).
 func (c *Client) GetGitHubAppInstallation(ctx context.Context, orgID string) (*GitHubAppInstallation, error) {
 	var resp GitHubAppInstallation
-	err := c.get(ctx, "/github-app/organization/%s/installation", &resp,
-		routeParams(orgID),
-	)
+	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodGet, "/api/v2/github-app/organization/%s/installation",
+		httpcl.RouteParams(orgID),
+		httpcl.JSONDecoder(&resp),
+	))
 	if err != nil {
 		if httpcl.HasStatusCode(err, http.StatusNotFound) {
 			return nil, ErrGitHubAppNotInstalled
@@ -80,7 +81,11 @@ func (c *Client) InitiateGitHubAppInstall(ctx context.Context, orgID, returnURL 
 	var resp struct {
 		RedirectURL string `json:"redirect_url"`
 	}
-	if err := c.post(ctx, "/github-app/install", body, &resp); err != nil {
+	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodPost, "/api/v2/github-app/install",
+		httpcl.Body(body),
+		httpcl.JSONDecoder(&resp),
+	))
+	if err != nil {
 		return "", err
 	}
 	return resp.RedirectURL, nil
@@ -109,11 +114,12 @@ func (c *Client) ListGitHubAppRepositories(ctx context.Context, orgID string, pa
 		Items      []GitHubAppRepository `json:"items"`
 		TotalCount int                   `json:"total_count"`
 	}
-	err := c.get(ctx, "/github-app/organization/%s/repositories", &resp,
-		routeParams(orgID),
-		queryParam("page", strconv.Itoa(page)),
-		queryParam("limit", strconv.Itoa(limit)),
-	)
+	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodGet, "/api/v2/github-app/organization/%s/repositories",
+		httpcl.RouteParams(orgID),
+		httpcl.QueryParam("page", strconv.Itoa(page)),
+		httpcl.QueryParam("limit", strconv.Itoa(limit)),
+		httpcl.JSONDecoder(&resp),
+	))
 	if err != nil {
 		return nil, 0, err
 	}

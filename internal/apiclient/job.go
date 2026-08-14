@@ -166,7 +166,11 @@ func (s JobV3Step) Status() string {
 // GetJobV3 fetches job detail from the V3 API by UUID.
 func (c *Client) GetJobV3(ctx context.Context, id uuid.UUID) (*JobV3, error) {
 	var env v3Entity[jobWire]
-	if err := c.getV3(ctx, "/jobs/%s", &env, routeParams(id)); err != nil {
+	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodGet, "/api/v3/jobs/%s",
+		httpcl.RouteParams(id),
+		httpcl.JSONDecoder(&env),
+	))
+	if err != nil {
 		return nil, err
 	}
 	return env.Data.toJobV3(), nil

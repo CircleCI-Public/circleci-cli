@@ -24,6 +24,9 @@ package apiclient
 
 import (
 	"context"
+	"net/http"
+
+	"github.com/CircleCI-Public/circleci-cli/internal/httpcl"
 )
 
 // V3Environment represents a deploy environment returned by GET /api/v3/deploy/environments.
@@ -53,11 +56,12 @@ func (c *Client) ListEnvironments(ctx context.Context, orgID string, limit int) 
 
 	for {
 		var resp v3List[V3Environment]
-		err := c.getV3(ctx, "/deploy/environments", &resp,
+		_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodGet, "/api/v3/deploy/environments",
 			filterParam("org_id", orgID),
 			pageLimit(limit),
 			pageCursor(cursor),
-		)
+			httpcl.JSONDecoder(&resp),
+		))
 		if err != nil {
 			return nil, err
 		}
@@ -78,7 +82,10 @@ func (c *Client) ListEnvironments(ctx context.Context, orgID string, limit int) 
 // GetEnvironment returns a single deploy environment by ID.
 func (c *Client) GetEnvironment(ctx context.Context, envID string) (*V3Environment, error) {
 	var resp v3Entity[V3Environment]
-	err := c.getV3(ctx, "/deploy/environments/"+envID, &resp)
+	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodGet, "/api/v3/deploy/environments/%s",
+		httpcl.RouteParams(envID),
+		httpcl.JSONDecoder(&resp),
+	))
 	if err != nil {
 		return nil, err
 	}

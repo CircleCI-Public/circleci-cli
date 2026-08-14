@@ -283,12 +283,14 @@ func (c *Client) ListOrbPackages(ctx context.Context, namespaceID string, uncert
 	cursor := ""
 	for {
 		var page v3List[orbPackageListWire]
-		if err := c.getV3(ctx, "/orb/packages", &page,
+		_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodGet, "/api/v3/orb/packages",
 			filterParam("namespace_id", namespaceID),
 			filterParam("certified", certified),
 			filterParam("visibility", visibility),
 			pageCursor(cursor),
-		); err != nil {
+			httpcl.JSONDecoder(&page),
+		))
+		if err != nil {
 			return nil, err
 		}
 		for i := range page.Data {
@@ -305,9 +307,10 @@ func (c *Client) ListOrbPackages(ctx context.Context, namespaceID string, uncert
 // GetOrbPackageByID gets a single orb package by UUID.
 func (c *Client) GetOrbPackageByID(ctx context.Context, id uuid.UUID) (*OrbPackage, error) {
 	var env v3Entity[orbPackageWire]
-	err := c.getV3(ctx, "/orb/packages/%s", &env,
-		routeParams(id),
-	)
+	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodGet, "/api/v3/orb/packages/%s",
+		httpcl.RouteParams(id),
+		httpcl.JSONDecoder(&env),
+	))
 	if httpcl.HasStatusCode(err, http.StatusNotFound) {
 		return nil, fmt.Errorf("%w: %q", ErrOrbNotFound, id)
 	}
@@ -321,9 +324,10 @@ func (c *Client) GetOrbPackageByID(ctx context.Context, id uuid.UUID) (*OrbPacka
 // It first resolves the namespace, then filters orbs by name.
 func (c *Client) GetOrbPackageByName(ctx context.Context, fullName string) (*OrbPackage, error) {
 	var env v3List[orbPackageWire]
-	err := c.getV3(ctx, "/orb/packages", &env,
+	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodGet, "/api/v3/orb/packages",
 		filterParam("name", fullName),
-	)
+		httpcl.JSONDecoder(&env),
+	))
 	if err != nil {
 		return nil, err
 	}
@@ -348,7 +352,10 @@ func (c *Client) CreateOrbPackage(ctx context.Context, req CreateOrbPackageReque
 	wire.Data.References.Namespace.ID = req.NamespaceID
 
 	var env v3Entity[orbPackageWire]
-	err := c.postV3(ctx, "/orb/packages", wire, &env)
+	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodPost, "/api/v3/orb/packages",
+		httpcl.Body(wire),
+		httpcl.JSONDecoder(&env),
+	))
 	if httpcl.HasStatusCode(err, http.StatusNotFound) {
 		return nil, fmt.Errorf("%w: namespace %q", ErrOrbNotFound, req.NamespaceID)
 	}
@@ -361,7 +368,10 @@ func (c *Client) CreateOrbPackage(ctx context.Context, req CreateOrbPackageReque
 // ValidateOrbYAML validates orb YAML. orgID is optional.
 func (c *Client) ValidateOrbYAML(ctx context.Context, yaml, orgID string) (*OrbValidation, error) {
 	var env v3Entity[orbValidateWire]
-	err := c.postV3(ctx, "/orb/packages/validate", orbYAMLBody{YAML: yaml, OrgID: orgID}, &env)
+	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodPost, "/api/v3/orb/packages/validate",
+		httpcl.Body(orbYAMLBody{YAML: yaml, OrgID: orgID}),
+		httpcl.JSONDecoder(&env),
+	))
 	if err != nil {
 		return nil, err
 	}
@@ -375,9 +385,11 @@ func (c *Client) ValidateOrbYAML(ctx context.Context, yaml, orgID string) (*OrbV
 // SetOrbListed sets the listed status of an orb package.
 func (c *Client) SetOrbListed(ctx context.Context, orbID string, listed bool) error {
 	var env v3Entity[orbPackageWire]
-	err := c.postV3(ctx, "/orb/packages/%s/set-listed", orbSetListedBody{Listed: listed}, &env,
-		routeParams(orbID),
-	)
+	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodPost, "/api/v3/orb/packages/%s/set-listed",
+		httpcl.RouteParams(orbID),
+		httpcl.Body(orbSetListedBody{Listed: listed}),
+		httpcl.JSONDecoder(&env),
+	))
 	if httpcl.HasStatusCode(err, http.StatusNotFound) {
 		return fmt.Errorf("%w: %q", ErrOrbNotFound, orbID)
 	}
@@ -387,9 +399,11 @@ func (c *Client) SetOrbListed(ctx context.Context, orbID string, listed bool) er
 // AddOrbToCategory adds an orb to a category.
 func (c *Client) AddOrbToCategory(ctx context.Context, orbID, categoryID string) error {
 	var env v3Entity[orbPackageWire]
-	err := c.postV3(ctx, "/orb/packages/%s/add-category", orbCategoryBody{CategoryID: categoryID}, &env,
-		routeParams(orbID),
-	)
+	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodPost, "/api/v3/orb/packages/%s/add-category",
+		httpcl.RouteParams(orbID),
+		httpcl.Body(orbCategoryBody{CategoryID: categoryID}),
+		httpcl.JSONDecoder(&env),
+	))
 	if httpcl.HasStatusCode(err, http.StatusNotFound) {
 		return fmt.Errorf("%w: %q", ErrOrbNotFound, orbID)
 	}
@@ -399,9 +413,11 @@ func (c *Client) AddOrbToCategory(ctx context.Context, orbID, categoryID string)
 // RemoveOrbFromCategory removes an orb from a category.
 func (c *Client) RemoveOrbFromCategory(ctx context.Context, orbID, categoryID string) error {
 	var env v3Entity[orbPackageWire]
-	err := c.postV3(ctx, "/orb/packages/%s/remove-category", orbCategoryBody{CategoryID: categoryID}, &env,
-		routeParams(orbID),
-	)
+	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodPost, "/api/v3/orb/packages/%s/remove-category",
+		httpcl.RouteParams(orbID),
+		httpcl.Body(orbCategoryBody{CategoryID: categoryID}),
+		httpcl.JSONDecoder(&env),
+	))
 	if httpcl.HasStatusCode(err, http.StatusNotFound) {
 		return fmt.Errorf("%w: %q", ErrOrbNotFound, orbID)
 	}
@@ -415,11 +431,13 @@ func (c *Client) ListOrbVersions(ctx context.Context, orbID, channel string) ([]
 	cursor := ""
 	for {
 		var page v3List[orbVersionWire]
-		if err := c.getV3(ctx, "/orb/versions", &page,
+		_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodGet, "/api/v3/orb/versions",
 			filterParam("orb_id", orbID),
 			filterParam("channel", channel),
 			pageCursor(cursor),
-		); err != nil {
+			httpcl.JSONDecoder(&page),
+		))
+		if err != nil {
 			return nil, err
 		}
 		for i := range page.Data {
@@ -436,9 +454,10 @@ func (c *Client) ListOrbVersions(ctx context.Context, orbID, channel string) ([]
 // GetOrbVersionByRef gets an orb version by its full ref (e.g. "ns/name@1.2.3" or "ns/name@volatile").
 func (c *Client) GetOrbVersionByRef(ctx context.Context, ref string) (*OrbVersion, error) {
 	var env v3List[orbVersionWire]
-	err := c.getV3(ctx, "/orb/versions", &env,
+	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodGet, "/api/v3/orb/versions",
 		filterParam("ref", ref),
-	)
+		httpcl.JSONDecoder(&env),
+	))
 	if err != nil {
 		return nil, err
 	}
@@ -451,9 +470,10 @@ func (c *Client) GetOrbVersionByRef(ctx context.Context, ref string) (*OrbVersio
 // GetOrbVersionByID gets a single orb version by UUID (includes source YAML).
 func (c *Client) GetOrbVersionByID(ctx context.Context, id string) (*OrbVersion, error) {
 	var env v3Entity[orbVersionWire]
-	err := c.getV3(ctx, "/orb/versions/%s", &env,
-		routeParams(id),
-	)
+	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodGet, "/api/v3/orb/versions/%s",
+		httpcl.RouteParams(id),
+		httpcl.JSONDecoder(&env),
+	))
 	if httpcl.HasStatusCode(err, http.StatusNotFound) {
 		return nil, fmt.Errorf("%w: %q", ErrOrbVersionNotFound, id)
 	}
@@ -465,9 +485,10 @@ func (c *Client) GetOrbVersionByID(ctx context.Context, id string) (*OrbVersion,
 
 func (c *Client) GetOrbSource(ctx context.Context, id string) (string, error) {
 	body := ""
-	err := c.getV3String(ctx, "/orb/versions/%s/source", &body,
-		routeParams(id),
-	)
+	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodGet, "/api/v3/orb/versions/%s/source",
+		httpcl.RouteParams(id),
+		httpcl.StringDecoder(&body),
+	))
 	if httpcl.HasStatusCode(err, http.StatusNotFound) {
 		return "", fmt.Errorf("%w: %q", ErrOrbVersionNotFound, id)
 	}
@@ -507,7 +528,10 @@ func (c *Client) PublishOrbVersion(ctx context.Context, req PublishOrbVersionReq
 	wire.Data.Attributes = req
 
 	var env v3Entity[orbVersionWire]
-	err := c.postV3(ctx, "/orb/versions", wire, &env)
+	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodPost, "/api/v3/orb/versions",
+		httpcl.Body(wire),
+		httpcl.JSONDecoder(&env),
+	))
 	if httpcl.HasStatusCode(err, http.StatusNotFound) {
 		return nil, fmt.Errorf("%w: orb %q", ErrOrbNotFound, req.OrbID)
 	}
@@ -521,9 +545,11 @@ func (c *Client) PublishOrbVersion(ctx context.Context, req PublishOrbVersionReq
 // segment must be "major", "minor", or "patch".
 func (c *Client) PromoteOrbVersion(ctx context.Context, versionID, segment string) (*OrbVersion, error) {
 	var env v3Entity[orbVersionWire]
-	err := c.postV3(ctx, "/orb/versions/%s/promote", orbPromoteBody{Segment: segment}, &env,
-		routeParams(versionID),
-	)
+	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodPost, "/api/v3/orb/versions/%s/promote",
+		httpcl.RouteParams(versionID),
+		httpcl.Body(orbPromoteBody{Segment: segment}),
+		httpcl.JSONDecoder(&env),
+	))
 	if httpcl.HasStatusCode(err, http.StatusNotFound) {
 		return nil, fmt.Errorf("%w: version %q", ErrOrbVersionNotFound, versionID)
 	}
@@ -539,7 +565,11 @@ func (c *Client) ListOrbCategories(ctx context.Context) ([]*OrbCategory, error) 
 	cursor := ""
 	for {
 		var page v3List[orbCategoryWire]
-		if err := c.getV3(ctx, "/orb/categories", &page, pageCursor(cursor)); err != nil {
+		_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodGet, "/api/v3/orb/categories",
+			pageCursor(cursor),
+			httpcl.JSONDecoder(&page),
+		))
+		if err != nil {
 			return nil, err
 		}
 		for _, cat := range page.Data {
@@ -556,9 +586,10 @@ func (c *Client) ListOrbCategories(ctx context.Context) ([]*OrbCategory, error) 
 // GetOrbCategoryByName finds a category by exact name.
 func (c *Client) GetOrbCategoryByName(ctx context.Context, name string) (*OrbCategory, error) {
 	var env v3List[orbCategoryWire]
-	err := c.getV3(ctx, "/orb/categories", &env,
+	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodGet, "/api/v3/orb/categories",
 		filterParam("name", name),
-	)
+		httpcl.JSONDecoder(&env),
+	))
 	if err != nil {
 		return nil, err
 	}

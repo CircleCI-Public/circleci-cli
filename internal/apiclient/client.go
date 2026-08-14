@@ -24,7 +24,6 @@
 package apiclient
 
 import (
-	"context"
 	"fmt"
 	"net/http"
 	"runtime"
@@ -35,7 +34,10 @@ import (
 // Client is a CircleCI API client. It is authenticated when Config.Token was
 // set; see Authenticated.
 type Client struct {
-	main  *httpcl.Client // circleci.com/api/v1.1, /api/v2
+	// main is based at the CircleCI host, so requests pass the full path
+	// including the version prefix: /api/v1.1, /api/v2 or /api/v3.
+	main *httpcl.Client
+	// raw has no base URL, for absolute URLs the API hands us (e.g. artifacts).
 	raw   *httpcl.Client
 	token string
 }
@@ -88,76 +90,6 @@ func New(cfg Config) *Client {
 // Authenticated reports whether the client carries an API token.
 func (c *Client) Authenticated() bool { return c.token != "" }
 
-func queryParam(key, val string) func(*httpcl.Request) {
-	return httpcl.QueryParam(key, val)
-}
-
-func optionalQueryParam(key, val string) func(*httpcl.Request) {
-	return httpcl.OptionalQueryParam(key, val)
-}
-
-func routeParams(v ...any) func(*httpcl.Request) {
-	return httpcl.RouteParams(v...)
-}
-
-func (c *Client) get(ctx context.Context, route string, dst any, opts ...func(*httpcl.Request)) error {
-	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodGet, "/api/v2"+route, baseOpts(
-		httpcl.JSONDecoder(dst),
-	).With(opts)...))
-	return err
-}
-
-func (c *Client) getV1(ctx context.Context, route string, dst any, opts ...func(*httpcl.Request)) error {
-	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodGet, "/api/v1.1"+route, baseOpts(
-		httpcl.JSONDecoder(dst),
-	).With(opts)...))
-	return err
-}
-
-func (c *Client) post(ctx context.Context, route string, body, dst any, opts ...func(*httpcl.Request)) error {
-	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodPost, "/api/v2"+route, baseOpts(
-		httpcl.Body(body),
-		httpcl.JSONDecoder(dst),
-	).With(opts)...))
-	return err
-}
-
-func (c *Client) postStatus(ctx context.Context, route string, body, dst any, opts ...func(*httpcl.Request)) (int, error) {
-	return c.main.Call(ctx, httpcl.NewRequest(http.MethodPost, "/api/v2"+route, baseOpts(
-		httpcl.Body(body),
-		httpcl.JSONDecoder(dst),
-	).With(opts)...))
-}
-
-func (c *Client) postV1(ctx context.Context, route string, body, dst any, opts ...func(*httpcl.Request)) error {
-	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodPost, "/api/v1.1"+route, baseOpts(
-		httpcl.Body(body),
-		httpcl.JSONDecoder(dst),
-	).With(opts)...))
-	return err
-}
-
-func (c *Client) put(ctx context.Context, route string, body, dst any, opts ...func(*httpcl.Request)) error {
-	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodPut, "/api/v2"+route, baseOpts(
-		httpcl.Body(body),
-		httpcl.JSONDecoder(dst),
-	).With(opts)...))
-	return err
-}
-
-func (c *Client) patch(ctx context.Context, route string, body, dst any, opts ...func(*httpcl.Request)) error {
-	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodPatch, "/api/v2"+route, baseOpts(
-		httpcl.Body(body),
-		httpcl.JSONDecoder(dst),
-	).With(opts)...))
-	return err
-}
-
-func (c *Client) deleteV2(ctx context.Context, route string, opts ...func(*httpcl.Request)) error {
-	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodDelete, "/api/v2"+route, opts...))
-	return err
-}
-
 type v3Entity[T any] struct {
 	Data T `json:"data"`
 }
@@ -176,64 +108,17 @@ func pageLimit(n int) func(*httpcl.Request) {
 	if n <= 0 {
 		return func(*httpcl.Request) {}
 	}
-	return queryParam("page[limit]", fmt.Sprintf("%d", n))
+	return httpcl.QueryParam("page[limit]", fmt.Sprintf("%d", n))
 }
 
 // pageCursor returns a request option that sets page[cursor].
 // An empty cursor is ignored (first page).
 func pageCursor(cursor string) func(*httpcl.Request) {
-	return optionalQueryParam("page[cursor]", cursor)
+	return httpcl.OptionalQueryParam("page[cursor]", cursor)
 }
 
 // filterParam returns a request option that sets filter[key]=val.
 // An empty val is ignored.
 func filterParam(key, val string) func(*httpcl.Request) {
-	return optionalQueryParam("filter["+key+"]", val)
-}
-
-func (c *Client) getV3(ctx context.Context, route string, dst any, opts ...func(*httpcl.Request)) error {
-	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodGet, "/api/v3"+route, baseOpts(
-		httpcl.JSONDecoder(dst),
-	).With(opts)...))
-	return err
-}
-
-func (c *Client) getV3String(ctx context.Context, route string, dst *string, opts ...func(*httpcl.Request)) error {
-	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodGet, "/api/v3"+route, baseOpts(
-		httpcl.StringDecoder(dst),
-	).With(opts)...))
-	return err
-}
-
-func (c *Client) postV3(ctx context.Context, route string, body, dst any, opts ...func(*httpcl.Request)) error {
-	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodPost, "/api/v3"+route, baseOpts(
-		httpcl.Body(body),
-		httpcl.JSONDecoder(dst),
-	).With(opts)...))
-	return err
-}
-
-func (c *Client) deleteV3(ctx context.Context, route string, opts ...func(*httpcl.Request)) error {
-	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodDelete, "/api/v3"+route, opts...))
-	return err
-}
-
-// postV3NoContent POSTs a body to a v3 route that responds 204 No Content on
-// success. Unlike postV3, no JSONDecoder is attached — decoding an empty body
-// as JSON would fail with io.EOF.
-func (c *Client) postV3NoContent(ctx context.Context, route string, body any, opts ...func(*httpcl.Request)) error {
-	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodPost, "/api/v3"+route, baseOpts(
-		httpcl.Body(body),
-	).With(opts)...))
-	return err
-}
-
-type baseOptions []func(*httpcl.Request)
-
-func baseOpts(opts ...func(*httpcl.Request)) baseOptions {
-	return opts
-}
-
-func (o baseOptions) With(opts []func(*httpcl.Request)) []func(*httpcl.Request) {
-	return append(o, opts...)
+	return httpcl.OptionalQueryParam("filter["+key+"]", val)
 }

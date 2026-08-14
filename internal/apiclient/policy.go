@@ -26,6 +26,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"time"
 
 	"github.com/CircleCI-Public/circleci-cli/internal/httpcl"
@@ -56,14 +57,18 @@ func (c *Client) CreatePolicyBundle(ctx context.Context, ownerID, policyCtx stri
 	var out json.RawMessage
 	var err error
 	if dryRun {
-		err = c.post(ctx, "/owner/%s/context/%s/policy-bundle", body, &out,
-			queryParam("dry", "true"),
+		_, err = c.main.Call(ctx, httpcl.NewRequest(http.MethodPost, "/api/v2/owner/%s/context/%s/policy-bundle",
 			httpcl.RouteParams(ownerID, policyCtx),
-		)
+			httpcl.QueryParam("dry", "true"),
+			httpcl.Body(body),
+			httpcl.JSONDecoder(&out),
+		))
 	} else {
-		err = c.post(ctx, "/owner/%s/context/%s/policy-bundle", body, &out,
+		_, err = c.main.Call(ctx, httpcl.NewRequest(http.MethodPost, "/api/v2/owner/%s/context/%s/policy-bundle",
 			httpcl.RouteParams(ownerID, policyCtx),
-		)
+			httpcl.Body(body),
+			httpcl.JSONDecoder(&out),
+		))
 	}
 	if err != nil {
 		return nil, err
@@ -75,9 +80,10 @@ func (c *Client) CreatePolicyBundle(ctx context.Context, ownerID, policyCtx stri
 // Pass an empty policyName to fetch the entire bundle.
 func (c *Client) FetchPolicyBundle(ctx context.Context, ownerID, policyCtx string) (json.RawMessage, error) {
 	var out json.RawMessage
-	err := c.get(ctx, "/owner/%s/context/%s/policy-bundle", &out,
+	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodGet, "/api/v2/owner/%s/context/%s/policy-bundle",
 		httpcl.RouteParams(ownerID, policyCtx),
-	)
+		httpcl.JSONDecoder(&out),
+	))
 	if err != nil {
 		return nil, err
 	}
@@ -86,9 +92,10 @@ func (c *Client) FetchPolicyBundle(ctx context.Context, ownerID, policyCtx strin
 
 func (c *Client) FetchPolicyBundleWithName(ctx context.Context, ownerID, policyCtx, policyName string) (json.RawMessage, error) {
 	var out json.RawMessage
-	err := c.get(ctx, "/owner/%s/context/%s/policy-bundle/%s", &out,
+	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodGet, "/api/v2/owner/%s/context/%s/policy-bundle/%s",
 		httpcl.RouteParams(ownerID, policyCtx, policyName),
-	)
+		httpcl.JSONDecoder(&out),
+	))
 	if err != nil {
 		return nil, err
 	}
@@ -100,21 +107,22 @@ func (c *Client) FetchPolicyBundleWithName(ctx context.Context, ownerID, policyC
 func (c *Client) GetDecisionLogs(ctx context.Context, ownerID, policyCtx string, req DecisionLogsRequest) ([]json.RawMessage, error) {
 	opts := []func(*httpcl.Request){
 		httpcl.RouteParams(ownerID, policyCtx),
-		optionalQueryParam("status", req.Status),
-		optionalQueryParam("branch", req.Branch),
-		optionalQueryParam("project_id", req.ProjectID),
+		httpcl.OptionalQueryParam("status", req.Status),
+		httpcl.OptionalQueryParam("branch", req.Branch),
+		httpcl.OptionalQueryParam("project_id", req.ProjectID),
 	}
 	if req.After != nil {
-		opts = append(opts, queryParam("after", req.After.Format(time.RFC3339)))
+		opts = append(opts, httpcl.QueryParam("after", req.After.Format(time.RFC3339)))
 	}
 	if req.Before != nil {
-		opts = append(opts, queryParam("before", req.Before.Format(time.RFC3339)))
+		opts = append(opts, httpcl.QueryParam("before", req.Before.Format(time.RFC3339)))
 	}
 	if req.Offset > 0 {
-		opts = append(opts, queryParam("offset", fmt.Sprintf("%d", req.Offset)))
+		opts = append(opts, httpcl.QueryParam("offset", fmt.Sprintf("%d", req.Offset)))
 	}
 	var out []json.RawMessage
-	err := c.get(ctx, "/owner/%s/context/%s/decision", &out, opts...)
+	opts = append(opts, httpcl.JSONDecoder(&out))
+	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodGet, "/api/v2/owner/%s/context/%s/decision", opts...))
 	if err != nil {
 		return nil, err
 	}
@@ -124,14 +132,15 @@ func (c *Client) GetDecisionLogs(ctx context.Context, ownerID, policyCtx string,
 // GetDecisionLog returns a single decision log by ID.
 // When policyBundleOnly is true, returns only the policy bundle snapshot.
 func (c *Client) GetDecisionLog(ctx context.Context, ownerID, policyCtx, decisionID string, policyBundleOnly bool) (json.RawMessage, error) {
-	route := "/owner/%s/context/%s/decision/%s"
+	route := "/api/v2/owner/%s/context/%s/decision/%s"
 	if policyBundleOnly {
 		route += "/policy-bundle"
 	}
 	var out json.RawMessage
-	err := c.get(ctx, route, &out,
+	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodGet, route,
 		httpcl.RouteParams(ownerID, policyCtx, decisionID),
-	)
+		httpcl.JSONDecoder(&out),
+	))
 	if err != nil {
 		return nil, err
 	}
@@ -145,9 +154,11 @@ func (c *Client) MakeDecision(ctx context.Context, ownerID, policyCtx string, in
 		body["metadata"] = metadata
 	}
 	var out json.RawMessage
-	err := c.post(ctx, "/owner/%s/context/%s/decision", body, &out,
+	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodPost, "/api/v2/owner/%s/context/%s/decision",
 		httpcl.RouteParams(ownerID, policyCtx),
-	)
+		httpcl.Body(body),
+		httpcl.JSONDecoder(&out),
+	))
 	if err != nil {
 		return nil, err
 	}
@@ -157,9 +168,10 @@ func (c *Client) MakeDecision(ctx context.Context, ownerID, policyCtx string, in
 // GetPolicySettings retrieves whether policy enforcement is enabled.
 func (c *Client) GetPolicySettings(ctx context.Context, ownerID, policyCtx string) (DecisionSettings, error) {
 	var out DecisionSettings
-	err := c.get(ctx, "/owner/%s/context/%s/decision/settings", &out,
+	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodGet, "/api/v2/owner/%s/context/%s/decision/settings",
 		httpcl.RouteParams(ownerID, policyCtx),
-	)
+		httpcl.JSONDecoder(&out),
+	))
 	if err != nil {
 		return DecisionSettings{}, err
 	}
@@ -169,9 +181,11 @@ func (c *Client) GetPolicySettings(ctx context.Context, ownerID, policyCtx strin
 // SetPolicySettings enables or disables policy enforcement.
 func (c *Client) SetPolicySettings(ctx context.Context, ownerID, policyCtx string, settings DecisionSettings) (DecisionSettings, error) {
 	var out DecisionSettings
-	err := c.patch(ctx, "/owner/%s/context/%s/decision/settings", settings, &out,
+	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodPatch, "/api/v2/owner/%s/context/%s/decision/settings",
 		httpcl.RouteParams(ownerID, policyCtx),
-	)
+		httpcl.Body(settings),
+		httpcl.JSONDecoder(&out),
+	))
 	if err != nil {
 		return DecisionSettings{}, err
 	}

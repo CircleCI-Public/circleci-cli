@@ -24,6 +24,9 @@ package apiclient
 
 import (
 	"context"
+	"net/http"
+
+	"github.com/CircleCI-Public/circleci-cli/internal/httpcl"
 )
 
 // V3DeploySettings represents the deploy settings for a project.
@@ -46,9 +49,10 @@ type V3DeploySettingsRefs struct {
 // GetDeploySettings returns deploy settings for a project.
 func (c *Client) GetDeploySettings(ctx context.Context, projectID string) (*V3DeploySettings, error) {
 	var resp v3Entity[V3DeploySettings]
-	err := c.getV3(ctx, "/deploy/settings", &resp,
+	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodGet, "/api/v3/deploy/settings",
 		filterParam("project_id", projectID),
-	)
+		httpcl.JSONDecoder(&resp),
+	))
 	if err != nil {
 		return nil, err
 	}
