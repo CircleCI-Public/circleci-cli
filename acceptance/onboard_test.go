@@ -391,23 +391,11 @@ func TestOnboard_PostSignup_KeepsExistingProjectRef(t *testing.T) {
 // all-pushes trigger satisfies onboard, not a schedule-only definition.
 func TestOnboard_PostSignup_AddsPushTriggerAlongsideOthers(t *testing.T) {
 	dir, fake, env := onboardRepo(t)
-	fake.AddPipelineDefinition(onboardProjectID, map[string]any{
-		"id":   onboardPipelineDefID,
-		"name": "my-repo",
-		"config_source": map[string]any{
-			"provider": "github_app",
-			"repo":     map[string]any{"external_id": onboardRepoExternalID},
-		},
-	})
+	fake.AddPipelineDefinition(onboardProjectID, onboardPipelineEntity(onboardRepoExternalID))
 	// Only a schedule trigger exists — no push would build anything.
-	fake.AddTrigger(onboardProjectID, onboardPipelineDefID, map[string]any{
-		"id":           "trig-schedule",
-		"event_preset": "schedule",
-	})
-	fake.SetCreateTriggerResponse(onboardProjectID, onboardPipelineDefID, map[string]any{
-		"id":           "trig-uuid-1",
-		"event_preset": "all-pushes",
-	})
+	fake.AddTrigger(onboardProjectID, onboardPipelineDefID, onboardTriggerEntity("trig-schedule", "schedule"))
+	fake.SetCreateTriggerResponse(onboardProjectID, onboardPipelineDefID,
+		onboardTriggerEntity("trig-uuid-1", "all-pushes"))
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
@@ -505,15 +493,15 @@ func TestOnboard_PathArgument_UsesGivenDirectory(t *testing.T) {
 func TestOnboard_PostSignup_FirstPipelineCreated(t *testing.T) {
 	dir, fake, env := onboardRepo(t)
 	fake.SetCreatePipelineDefinitionResponse(onboardProjectID, map[string]any{
-		"id":         onboardPipelineDefID,
-		"name":       "my-repo",
-		"created_at": "2026-07-23T00:00:00Z",
+		"id": onboardPipelineDefID,
+		"attributes": map[string]any{
+			"name":       "my-repo",
+			"created_at": "2026-07-23T00:00:00Z",
+		},
 	})
-	fake.SetCreateTriggerResponse(onboardProjectID, onboardPipelineDefID, map[string]any{
-		"id":           "trig-uuid-1",
-		"created_at":   "2026-07-23T00:00:00Z",
-		"event_preset": "all-pushes",
-	})
+	fake.SetCreateTriggerResponse(onboardProjectID, onboardPipelineDefID,
+		onboardTriggerEntity("trig-uuid-1", "all-pushes"))
+
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
 		Args:    []string{"onboard", "--scan", "--repo-id", onboardRepoExternalID},
@@ -604,18 +592,8 @@ func TestOnboard_PostSignup_Rerun_Idempotent(t *testing.T) {
 		"staging only config.yml would leave the project ID uncommitted")
 
 	// The project now has its pipeline definition and trigger.
-	fake.AddPipelineDefinition(onboardProjectID, map[string]any{
-		"id":   onboardPipelineDefID,
-		"name": "my-repo",
-		"config_source": map[string]any{
-			"provider": "github_app",
-			"repo":     map[string]any{"external_id": "987654321"},
-		},
-	})
-	fake.AddTrigger(onboardProjectID, onboardPipelineDefID, map[string]any{
-		"id":           "trig-uuid-1",
-		"event_preset": "all-pushes",
-	})
+	fake.AddPipelineDefinition(onboardProjectID, onboardPipelineEntity("987654321"))
+	fake.AddTrigger(onboardProjectID, onboardPipelineDefID, onboardTriggerEntity("trig-uuid-1", "all-pushes"))
 
 	second := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
@@ -733,10 +711,7 @@ func TestOnboard_PostSignup_FirstPipeline_RepoNotAccessible(t *testing.T) {
 // exits non-zero: a definition with no trigger will never build.
 func TestOnboard_PostSignup_FirstPipeline_TriggerFails(t *testing.T) {
 	dir, fake, env := onboardRepo(t)
-	fake.SetCreatePipelineDefinitionResponse(onboardProjectID, map[string]any{
-		"id":   onboardPipelineDefID,
-		"name": "my-repo",
-	})
+	fake.SetCreatePipelineDefinitionResponse(onboardProjectID, onboardCreatedPipelineEntity())
 	// No trigger response registered → the trigger create fails.
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
@@ -874,14 +849,47 @@ func onboardRepo(t *testing.T) (string, *fakes.CircleCI, *testenv.TestEnv) {
 // addFirstPipelineResponses registers the create responses for the pipeline
 // definition and all-pushes trigger that onboard wires up on the happy path.
 func addFirstPipelineResponses(fake *fakes.CircleCI) {
-	fake.SetCreatePipelineDefinitionResponse(onboardProjectID, map[string]any{
-		"id":   onboardPipelineDefID,
-		"name": "my-repo",
-	})
-	fake.SetCreateTriggerResponse(onboardProjectID, onboardPipelineDefID, map[string]any{
-		"id":           "trig-uuid-1",
-		"event_preset": "all-pushes",
-	})
+	fake.SetCreatePipelineDefinitionResponse(onboardProjectID, onboardCreatedPipelineEntity())
+	fake.SetCreateTriggerResponse(onboardProjectID, onboardPipelineDefID,
+		onboardTriggerEntity("trig-uuid-1", "all-pushes"))
+}
+
+// onboardCreatedPipelineEntity is the v3 pipeline entity returned when onboard
+// creates a definition.
+func onboardCreatedPipelineEntity() map[string]any {
+	return map[string]any{
+		"id":         onboardPipelineDefID,
+		"attributes": map[string]any{"name": "my-repo"},
+	}
+}
+
+// onboardPipelineEntity is a v3 pipeline entity already attached to repoID, which
+// is what makes a re-run of onboard reuse it instead of creating a second one.
+func onboardPipelineEntity(repoID string) map[string]any {
+	return map[string]any{
+		"id": onboardPipelineDefID,
+		"attributes": map[string]any{
+			"name": "my-repo",
+			"config": map[string]any{
+				"type": "vcs",
+				"vcs":  map[string]any{"provider": "github_app", "repo_id": repoID},
+			},
+		},
+	}
+}
+
+// onboardTriggerEntity is a v3 trigger entity carrying preset as its event filter.
+func onboardTriggerEntity(id, preset string) map[string]any {
+	return map[string]any{
+		"id": id,
+		"attributes": map[string]any{
+			"event": map[string]any{
+				"type":   "vcs",
+				"vcs":    map[string]any{"provider": "github_app"},
+				"filter": map[string]any{"preset": preset},
+			},
+		},
+	}
 }
 
 func onboardStandaloneEnv(t *testing.T, login string) (*fakes.CircleCI, *testenv.TestEnv) {

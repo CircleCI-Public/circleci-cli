@@ -605,16 +605,24 @@ const (
 )
 
 var triggerFixture = map[string]any{
-	"id":         triggerID,
-	"created_at": "2026-01-01T00:00:00Z",
-	"event_source": map[string]any{
-		"provider": "github_app",
-		"repo": map[string]any{
-			"external_id": triggerRepoID,
-			"full_name":   "myorg/myrepo",
+	"id": triggerID,
+	"attributes": map[string]any{
+		"created_at":  "2026-01-01T00:00:00Z",
+		"is_disabled": false,
+		"event": map[string]any{
+			"type": "vcs",
+			"vcs": map[string]any{
+				"provider":       "github_app",
+				"repo_id":        triggerRepoID,
+				"repo_full_name": "myorg/myrepo",
+			},
+			"filter": map[string]any{"preset": "all-pushes"},
 		},
 	},
-	"event_preset": "all-pushes",
+	"references": map[string]any{
+		"project":  map[string]any{"id": triggerProjectID},
+		"pipeline": map[string]any{"id": triggerPipelineDefID},
+	},
 }
 
 func setupTriggerFake(t *testing.T) (*fakes.CircleCI, *testenv.TestEnv) {
@@ -731,12 +739,12 @@ func TestProjectTriggerCreate(t *testing.T) {
 	t.Run("check request", func(t *testing.T) {
 		assert.Check(t, cmp.DeepEqual(fake.LastRequest(), &httprecorder.Request{
 			Method: http.MethodPost,
-			URL:    url.URL{Path: "/api/v2/projects/" + triggerProjectID + "/pipeline-definitions/" + triggerPipelineDefID + "/triggers"},
+			URL:    url.URL{Path: "/api/v3/triggers", RawQuery: "filter%5Bproject_id%5D=" + triggerProjectID},
 			Header: http.Header{
 				"Authorization": {"Bearer test-token"},
 				"User-Agent":    {httpcl.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
 			},
-			Body: new(`{"event_source":{"provider":"github_app","repo":{"external_id":"987654321"}}}`),
+			Body: new(`{"data":{"attributes":{"is_disabled":false,"event":{"type":"vcs","vcs":{"provider":"github_app","repo_id":"987654321"}}},"references":{"pipeline":{"id":"` + triggerPipelineDefID + `"}}}}`),
 		}, ignoreCommonHeaders))
 	})
 }

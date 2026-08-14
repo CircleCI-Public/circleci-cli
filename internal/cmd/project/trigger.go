@@ -445,7 +445,15 @@ func runTriggerCreate(
 		}
 	}
 
-	resp, err := client.CreateTrigger(ctx, resolvedProjectID, pipelineDefinitionID, provider, repoID, eventPreset, configRef, checkoutRef)
+	resp, err := client.CreateTrigger(ctx, apiclient.CreateTriggerInput{
+		ProjectID:            resolvedProjectID,
+		PipelineDefinitionID: pipelineDefinitionID,
+		Provider:             provider,
+		RepoID:               repoID,
+		EventPreset:          eventPreset,
+		ConfigRef:            configRef,
+		CheckoutRef:          checkoutRef,
+	})
 	if err != nil {
 		return cmdutil.APIErr(err, resolvedProjectID, "trigger.create_failed", "Failed to create trigger for project %q.",
 			"Ensure the GitHub App is installed in your repository",

@@ -55,30 +55,121 @@ type PipelineDefinition struct {
 	CheckoutSource *PipelineDefinitionSource `json:"checkout_source,omitempty"`
 }
 
-// ListPipelineDefinitions returns all pipeline definitions for a project.
+// hostedConfigProvider is the one provider whose config lives outside a repo, so
+// it is the only one that maps to a "hosted" rather than a "vcs" config source.
+const hostedConfigProvider = "circleci"
+
+// config.type / checkout.type values on the v3 pipelines endpoints.
+const (
+	sourceTypeVCS    = "vcs"
+	sourceTypeHosted = "hosted"
+)
+
+// vcsAttrs identifies a VCS integration and repository. repo_id is the external
+// repository id as an opaque string — numeric for the GitHub providers, text for
+// providers on the generic schema. repo_full_name is decorative for the GitHub
+// providers but load-bearing for those that address a repo by owner and name.
+type vcsAttrs struct {
+	Provider     string `json:"provider"`
+	RepoID       string `json:"repo_id,omitempty"`
+	RepoFullName string `json:"repo_full_name,omitempty"`
+}
+
+// hostedAttrs identifies a config hosted outside a VCS repo.
+type hostedAttrs struct {
+	Provider string `json:"provider"`
+}
+
+// pipelineConfigAttrs is the config half of a pipeline: a tagged union on Type,
+// where exactly one of VCS/Hosted is populated. FilePath is common to both.
+type pipelineConfigAttrs struct {
+	Type     string       `json:"type"`
+	FilePath string       `json:"file_path"`
+	VCS      *vcsAttrs    `json:"vcs,omitempty"`
+	Hosted   *hostedAttrs `json:"hosted,omitempty"`
+}
+
+// pipelineCheckoutAttrs is the checkout half: a union that today only ever
+// carries the vcs variant.
+type pipelineCheckoutAttrs struct {
+	Type string    `json:"type,omitempty"`
+	VCS  *vcsAttrs `json:"vcs,omitempty"`
+}
+
+// pipelineAttrs is the attributes object of a v3 pipeline entity, used for both
+// the create body and the response.
+type pipelineAttrs struct {
+	Name        string                `json:"name"`
+	Description string                `json:"description,omitempty"`
+	CreatedAt   *time.Time            `json:"created_at,omitempty"`
+	Config      pipelineConfigAttrs   `json:"config"`
+	Checkout    pipelineCheckoutAttrs `json:"checkout"`
+}
+
+// pipelineRefs carries the owning project. On create it is where the project
+// travels; the endpoint takes no project in the path.
+type pipelineRefs struct {
+	Project entityRef `json:"project"`
+}
+
+// entityRef is a reference to another entity by id.
+type entityRef struct {
+	ID string `json:"id"`
+}
+
+// pipelineEntity is the data entity of GET/POST /api/v3/pipelines.
+type pipelineEntity struct {
+	ID         string        `json:"id"`
+	Attributes pipelineAttrs `json:"attributes"`
+	References pipelineRefs  `json:"references"`
+}
+
+// The create body is a narrower document than the entity: the endpoint rejects
+// unknown members, so it must carry no id and no created_at.
+type pipelineCreateAttrs struct {
+	Name        string                `json:"name"`
+	Description string                `json:"description,omitempty"`
+	Config      pipelineConfigAttrs   `json:"config"`
+	Checkout    pipelineCheckoutAttrs `json:"checkout"`
+}
+
+type pipelineCreateData struct {
+	Attributes pipelineCreateAttrs `json:"attributes"`
+	References pipelineRefs        `json:"references"`
+}
+
+// ListPipelineDefinitions returns all pipeline definitions for a project via
+// GET /api/v3/pipelines.
 func (c *Client) ListPipelineDefinitions(ctx context.Context, projectID string) ([]PipelineDefinition, error) {
-	var resp struct {
-		Items []PipelineDefinition `json:"items"`
-	}
-	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodGet, "/api/v2/projects/%s/pipeline-definitions",
-		httpcl.RouteParams(projectID),
+	var resp v3List[pipelineEntity]
+	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodGet, "/api/v3/pipelines",
+		filterParam("project_id", projectID),
 		httpcl.JSONDecoder(&resp),
 	))
 	if err != nil {
 		return nil, err
 	}
-	return resp.Items, nil
+
+	defs := make([]PipelineDefinition, 0, len(resp.Data))
+	for _, e := range resp.Data {
+		defs = append(defs, e.toPipelineDefinition())
+	}
+	return defs, nil
 }
 
 // CreatePipelineDefinitionInput contains all fields for creating a pipeline definition.
+// The RepoFullName fields are required by providers that address a repository by
+// owner and name rather than by id, and ignored by the rest.
 type CreatePipelineDefinitionInput struct {
-	Name             string
-	Description      string
-	ConfigProvider   string
-	ConfigRepoID     string
-	ConfigFilePath   string
-	CheckoutProvider string
-	CheckoutRepoID   string
+	Name                 string
+	Description          string
+	ConfigProvider       string
+	ConfigRepoID         string
+	ConfigRepoFullName   string
+	ConfigFilePath       string
+	CheckoutProvider     string
+	CheckoutRepoID       string
+	CheckoutRepoFullName string
 }
 
 // TriggerPipelineRunInput contains the options for triggering a pipeline run.
@@ -170,44 +261,90 @@ func (c *Client) TriggerPipelineRun(ctx context.Context, projectSlug string, inp
 	}, nil
 }
 
-// CreatePipelineDefinition creates a new pipeline definition for a project.
+// CreatePipelineDefinition creates a new pipeline definition for a project via
+// POST /api/v3/pipelines. The owning project travels in the body's references
+// rather than the path.
 func (c *Client) CreatePipelineDefinition(ctx context.Context, projectID string, input CreatePipelineDefinitionInput) (*PipelineDefinition, error) {
-	configSource := map[string]any{
-		"provider":  input.ConfigProvider,
-		"file_path": input.ConfigFilePath,
+	attrs := pipelineCreateAttrs{
+		Name:        input.Name,
+		Description: input.Description,
+		Config: pipelineConfigAttrs{
+			Type:     sourceTypeVCS,
+			FilePath: input.ConfigFilePath,
+			VCS: &vcsAttrs{
+				Provider:     input.ConfigProvider,
+				RepoID:       input.ConfigRepoID,
+				RepoFullName: input.ConfigRepoFullName,
+			},
+		},
+		Checkout: pipelineCheckoutAttrs{
+			VCS: &vcsAttrs{
+				Provider:     input.CheckoutProvider,
+				RepoID:       input.CheckoutRepoID,
+				RepoFullName: input.CheckoutRepoFullName,
+			},
+		},
 	}
-	if input.ConfigRepoID != "" {
-		configSource["repo"] = map[string]any{
-			"external_id": input.ConfigRepoID,
+	// A config not backed by a repository is the "hosted" variant, which carries a
+	// provider and no repo. The checkout stays a VCS repo either way.
+	if input.ConfigProvider == hostedConfigProvider {
+		attrs.Config = pipelineConfigAttrs{
+			Type:     sourceTypeHosted,
+			FilePath: input.ConfigFilePath,
+			Hosted:   &hostedAttrs{Provider: input.ConfigProvider},
 		}
 	}
 
-	checkoutSource := map[string]any{
-		"provider": input.CheckoutProvider,
-	}
-	if input.CheckoutRepoID != "" {
-		checkoutSource["repo"] = map[string]any{
-			"external_id": input.CheckoutRepoID,
-		}
-	}
+	body := v3Entity[pipelineCreateData]{Data: pipelineCreateData{
+		Attributes: attrs,
+		References: pipelineRefs{Project: entityRef{ID: projectID}},
+	}}
 
-	body := map[string]any{
-		"name":            input.Name,
-		"config_source":   configSource,
-		"checkout_source": checkoutSource,
-	}
-	if input.Description != "" {
-		body["description"] = input.Description
-	}
-
-	var resp PipelineDefinition
-	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodPost, "/api/v2/projects/%s/pipeline-definitions",
-		httpcl.RouteParams(projectID),
+	var resp v3Entity[pipelineEntity]
+	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodPost, "/api/v3/pipelines",
 		httpcl.Body(body),
 		httpcl.JSONDecoder(&resp),
 	))
 	if err != nil {
 		return nil, err
 	}
-	return &resp, nil
+	def := resp.Data.toPipelineDefinition()
+	return &def, nil
+}
+
+// toPipelineDefinition flattens a v3 pipeline entity into the definition shape the
+// commands render: the config and checkout unions become one source struct each,
+// so a hosted config reports its provider with no repo.
+func (e pipelineEntity) toPipelineDefinition() PipelineDefinition {
+	def := PipelineDefinition{
+		ID:          e.ID,
+		Name:        e.Attributes.Name,
+		Description: e.Attributes.Description,
+	}
+	if e.Attributes.CreatedAt != nil {
+		def.CreatedAt = *e.Attributes.CreatedAt
+	}
+
+	cfg := e.Attributes.Config
+	switch {
+	case cfg.Hosted != nil:
+		def.ConfigSource = &PipelineDefinitionSource{Provider: cfg.Hosted.Provider, FilePath: cfg.FilePath}
+	case cfg.VCS != nil:
+		def.ConfigSource = sourceFromVCS(cfg.VCS)
+		def.ConfigSource.FilePath = cfg.FilePath
+	}
+
+	if vcs := e.Attributes.Checkout.VCS; vcs != nil {
+		def.CheckoutSource = sourceFromVCS(vcs)
+	}
+	return def
+}
+
+// sourceFromVCS maps a v3 vcs object onto the provider/repo source shape.
+func sourceFromVCS(vcs *vcsAttrs) *PipelineDefinitionSource {
+	src := &PipelineDefinitionSource{Provider: vcs.Provider}
+	if vcs.RepoID != "" || vcs.RepoFullName != "" {
+		src.Repo = &PipelineDefinitionRepo{ExternalID: vcs.RepoID, FullName: vcs.RepoFullName}
+	}
+	return src
 }
