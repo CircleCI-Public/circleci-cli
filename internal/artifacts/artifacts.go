@@ -40,7 +40,7 @@ import (
 type Entry struct {
 	Path      string `json:"path"`
 	URL       string `json:"url"`
-	NodeIndex int    `json:"node_index"`
+	Execution int    `json:"execution"`
 }
 
 // Client is the subset of apiclient.Client methods we need.
@@ -60,7 +60,7 @@ func ForJob(ctx context.Context, client Client, jobID string) ([]Entry, error) {
 		entries[i] = Entry{
 			Path:      a.Path,
 			URL:       a.URL,
-			NodeIndex: a.NodeIndex,
+			Execution: a.Execution,
 		}
 	}
 	return entries, nil
@@ -75,9 +75,9 @@ func hasMultipleExecutions(entries []Entry) bool {
 	if len(entries) == 0 {
 		return false
 	}
-	first := entries[0].NodeIndex
+	first := entries[0].Execution
 	for _, e := range entries[1:] {
-		if e.NodeIndex != first {
+		if e.Execution != first {
 			return true
 		}
 	}
@@ -101,7 +101,7 @@ func FormatMarkdown(entries []Entry) string {
 
 	seen := map[int]struct{}{}
 	for _, e := range entries {
-		seen[e.NodeIndex] = struct{}{}
+		seen[e.Execution] = struct{}{}
 	}
 	idxs := make([]int, 0, len(seen))
 	for idx := range seen {
@@ -112,7 +112,7 @@ func FormatMarkdown(entries []Entry) string {
 	for _, idx := range idxs {
 		fmt.Fprintf(&md, "## Execution %d\n", idx)
 		for _, e := range entries {
-			if e.NodeIndex == idx {
+			if e.Execution == idx {
 				fmt.Fprintf(&md, "- %s\n", e.Path)
 			}
 		}
@@ -135,7 +135,7 @@ func Download(ctx context.Context, client Client, entries []Entry, dir string) e
 	for _, e := range entries {
 		base := dir
 		if multiExec {
-			base = filepath.Join(dir, ExecDir(e.NodeIndex))
+			base = filepath.Join(dir, ExecDir(e.Execution))
 		}
 		dest := filepath.Join(base, filepath.FromSlash(e.Path))
 

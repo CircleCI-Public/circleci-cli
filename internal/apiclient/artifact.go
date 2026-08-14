@@ -34,7 +34,7 @@ import (
 type Artifact struct {
 	Path      string `json:"path"`
 	URL       string `json:"url"`
-	NodeIndex int    `json:"node_index"`
+	Execution int    `json:"execution"`
 }
 
 // --- V3 wire types ---
@@ -66,7 +66,7 @@ func (c *Client) GetJobArtifactsV3(ctx context.Context, jobID string) ([]Artifac
 		artifacts[i] = Artifact{
 			Path:      w.Attributes.Path,
 			URL:       w.Attributes.URL,
-			NodeIndex: w.Attributes.Execution,
+			Execution: w.Attributes.Execution,
 		}
 	}
 	return artifacts, nil

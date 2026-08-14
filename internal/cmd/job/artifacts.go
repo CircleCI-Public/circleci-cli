@@ -56,7 +56,7 @@ func newArtifactCmd() *cobra.Command {
 			Pass the job UUID to list its artifacts. Use --output to save
 			them to a local directory.
 
-			JSON fields: path, url, node_index
+			JSON fields: path, url, execution
 		`),
 		Example: heredoc.Doc(`
 			# List artifacts for a job
