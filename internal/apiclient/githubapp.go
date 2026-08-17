@@ -24,49 +24,15 @@ package apiclient
 
 import (
 	"context"
-	"errors"
 	"net/http"
 	"strconv"
 
 	"github.com/CircleCI-Public/circleci-cli/internal/httpcl"
 )
 
-// ErrGitHubAppNotInstalled is returned by GetGitHubAppInstallation when the
-// CircleCI GitHub App is not installed for the organization (the endpoint
-// answers 404). Callers use it to branch into the install flow.
-var ErrGitHubAppNotInstalled = errors.New("CircleCI GitHub App is not installed for this organization")
-
-// GitHubAppInstallation describes a CircleCI GitHub App installation for an
-// organization, as returned by
-// GET /api/v2/github-app/organization/{orgID}/installation.
-type GitHubAppInstallation struct {
-	// ID is the GitHub App installation's external (GitHub) ID.
-	ID int64 `json:"id"`
-	// TargetType is "Organization" or "User".
-	TargetType string `json:"target_type"`
-	// Login is the GitHub account the app is installed on.
-	Login string `json:"login"`
-	// RepositorySelection is "all" or "selected" when present.
-	RepositorySelection string `json:"repository_selection,omitempty"`
-}
-
-// GetGitHubAppInstallation reports the CircleCI GitHub App installation for the
-// organization. orgID must be the organization UUID. It returns
-// ErrGitHubAppNotInstalled when the app is not installed (HTTP 404).
-func (c *Client) GetGitHubAppInstallation(ctx context.Context, orgID string) (*GitHubAppInstallation, error) {
-	var resp GitHubAppInstallation
-	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodGet, "/api/v2/github-app/organization/%s/installation",
-		httpcl.RouteParams(orgID),
-		httpcl.JSONDecoder(&resp),
-	))
-	if err != nil {
-		if httpcl.HasStatusCode(err, http.StatusNotFound) {
-			return nil, ErrGitHubAppNotInstalled
-		}
-		return nil, err
-	}
-	return &resp, nil
-}
+// Whether the app is installed for an organization is read from the
+// provider-agnostic connections endpoint rather than a GitHub App specific one:
+// see ListProviderConnections.
 
 // InitiateGitHubAppInstall starts a GitHub App installation for the
 // organization and returns the URL the user should open to complete the

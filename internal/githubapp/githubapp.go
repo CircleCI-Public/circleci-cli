@@ -45,6 +45,11 @@ const (
 	maxRepoPages = 50
 )
 
+// provider is the integration this package drives. It is the value the
+// provider-agnostic connections endpoint reports for a CircleCI GitHub App
+// installation.
+const provider = "github_app"
+
 // EnsureInstalled reports whether the CircleCI GitHub App is installed for the
 // organization, walking the user through a browser-based install when it is not.
 // returnURL is where GitHub redirects after install.
@@ -52,10 +57,12 @@ const (
 // Non-interactive sessions (or noBrowser) print the install URL and return false
 // without waiting. Callers degrade to manual guidance on false or on an error.
 func EnsureInstalled(ctx context.Context, client *apiclient.Client, orgID, returnURL string, noBrowser bool) (bool, error) {
-	if _, err := client.GetGitHubAppInstallation(ctx, orgID); err == nil {
-		return true, nil
-	} else if !errors.Is(err, apiclient.ErrGitHubAppNotInstalled) {
+	installed, err := connected(ctx, client, orgID)
+	if err != nil {
 		return false, err
+	}
+	if installed {
+		return true, nil
 	}
 
 	redirectURL, err := client.InitiateGitHubAppInstall(ctx, orgID, returnURL)
@@ -74,7 +81,7 @@ func EnsureInstalled(ctx context.Context, client *apiclient.Client, orgID, retur
 	}
 
 	sp := iostream.Spinner(ctx, true, "Waiting for GitHub App installation")
-	installed, err := pollInstalled(ctx, client, orgID)
+	installed, err = pollInstalled(ctx, client, orgID)
 	sp.Stop()
 	if err != nil {
 		return false, err
@@ -87,8 +94,28 @@ func EnsureInstalled(ctx context.Context, client *apiclient.Client, orgID, retur
 	return true, nil
 }
 
-// pollInstalled polls the installation endpoint until the app is installed, the
-// timeout elapses, or the context is cancelled.
+// connected reports whether the organization has a connection for this package's
+// provider. An organization with none is answered as an empty list rather than an
+// error, so a non-nil error means the check itself failed — a caller must not read
+// it as "not installed" and send the user into an install flow.
+func connected(ctx context.Context, client *apiclient.Client, orgID string) (bool, error) {
+	conns, err := client.ListProviderConnections(ctx, orgID)
+	if err != nil {
+		return false, err
+	}
+	for _, conn := range conns {
+		// A connection whose provider could not be reached still counts as
+		// installed: ConnectionError describes a degraded read, not a missing
+		// installation.
+		if conn.Provider == provider {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+// pollInstalled polls for the connection until the app is installed, the timeout
+// elapses, or the context is cancelled.
 func pollInstalled(ctx context.Context, client *apiclient.Client, orgID string) (bool, error) {
 	ticker := time.NewTicker(pollInterval)
 	defer ticker.Stop()
@@ -102,14 +129,13 @@ func pollInstalled(ctx context.Context, client *apiclient.Client, orgID string) 
 		case <-timer.C:
 			return false, nil
 		case <-ticker.C:
-			_, err := client.GetGitHubAppInstallation(ctx, orgID)
-			if err == nil {
+			installed, err := connected(ctx, client, orgID)
+			if err != nil {
+				return false, err
+			}
+			if installed {
 				return true, nil
 			}
-			if errors.Is(err, apiclient.ErrGitHubAppNotInstalled) {
-				continue
-			}
-			return false, err
 		}
 	}
 }

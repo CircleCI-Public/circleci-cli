@@ -72,7 +72,7 @@ type CircleCI struct {
 	listTriggerResponses              map[string][]any        // "projectID/pipelineID" → list of v3 trigger entities
 
 	// GitHub App state.
-	githubAppInstalled      map[string]bool            // orgID → app installed (200) vs not (404)
+	providerConnections     map[string][]string        // orgID → connected providers
 	githubAppRepos          map[string][]GitHubAppRepo // orgID → repositories the app can access
 	githubAppInstallResp    any                        // response body for POST /github-app/install
 	rerunResponses          map[string]int             // workflow id → HTTP status to return
@@ -255,7 +255,7 @@ func NewCircleCI(t *testing.T, tokens ...string) *CircleCI {
 		createPipelineDefinitionResponses: map[string]any{},
 		createTriggerResponses:            map[string]any{},
 		listTriggerResponses:              map[string][]any{},
-		githubAppInstalled:                map[string]bool{},
+		providerConnections:               map[string][]string{},
 		githubAppRepos:                    map[string][]GitHubAppRepo{},
 		rerunResponses:                    map[string]int{},
 		rerunNewIDs:                       map[string]string{},
@@ -376,7 +376,7 @@ func NewCircleCI(t *testing.T, tokens ...string) *CircleCI {
 	r.Get("/api/v3/triggers", f.handleListTriggers)
 	r.Post("/api/v3/triggers", f.handleCreateTrigger)
 	// GitHub App routes.
-	r.Get("/api/v2/github-app/organization/{orgID}/installation", f.handleGetGitHubAppInstallation)
+	r.Get("/api/v3/provider/connections", f.handleListProviderConnections)
 	r.Post("/api/v2/github-app/install", f.handleInstallGitHubApp)
 	r.Get("/api/v2/github-app/organization/{orgID}/repositories", f.handleListGitHubAppRepositories)
 	// Policy routes.
@@ -3040,13 +3040,21 @@ func v3BodyRefID(r *http.Request, name string) string {
 	return body.Data.References[name].ID
 }
 
-// SetGitHubAppInstalled controls whether GET
-// /api/v2/github-app/organization/{orgID}/installation returns 200 (installed)
-// or 404 (not installed) for the org.
-func (f *CircleCI) SetGitHubAppInstalled(orgID string, installed bool) {
+// SetProviderConnected controls whether GET /api/v3/provider/connections lists a
+// connection for the org and provider. An org with no connection for a provider
+// reads as not connected, which is how the GitHub App install check spells "not
+// installed".
+func (f *CircleCI) SetProviderConnected(orgID, provider string, connected bool) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	f.githubAppInstalled[orgID] = installed
+
+	providers := slices.DeleteFunc(f.providerConnections[orgID], func(p string) bool {
+		return p == provider
+	})
+	if connected {
+		providers = append(providers, provider)
+	}
+	f.providerConnections[orgID] = providers
 }
 
 // GitHubAppRepo is a stored repository the CircleCI GitHub App can access,
@@ -3092,23 +3100,26 @@ func (f *CircleCI) SetGitHubAppInstallResponse(resp any) {
 	f.githubAppInstallResp = resp
 }
 
-func (f *CircleCI) handleGetGitHubAppInstallation(w http.ResponseWriter, r *http.Request) {
-	orgID := chi.URLParam(r, "orgID")
+func (f *CircleCI) handleListProviderConnections(w http.ResponseWriter, r *http.Request) {
+	orgID := r.URL.Query().Get("filter[org_id]")
 	f.mu.RLock()
-	installed := f.githubAppInstalled[orgID]
+	providers := slices.Clone(f.providerConnections[orgID])
 	f.mu.RUnlock()
 
-	if !installed {
-		render.Status(r, http.StatusNotFound)
-		render.JSON(w, r, map[string]any{"message": "not found"})
-		return
+	// An org with no connections is an empty collection, not a 404.
+	data := make([]any, 0, len(providers))
+	for i, p := range providers {
+		data = append(data, map[string]any{
+			"id": fmt.Sprintf("conn-uuid-%d", i+1),
+			"attributes": map[string]any{
+				"provider":             p,
+				"external_id":          "12345678",
+				"login":                "my-org",
+				"repository_selection": "all",
+			},
+		})
 	}
-	render.JSON(w, r, map[string]any{
-		"id":                   12345678,
-		"target_type":          "Organization",
-		"login":                "my-org",
-		"repository_selection": "all",
-	})
+	renderV3Collection(w, r, data)
 }
 
 func (f *CircleCI) handleInstallGitHubApp(w http.ResponseWriter, r *http.Request) {
