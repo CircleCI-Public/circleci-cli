@@ -74,7 +74,7 @@ type CircleCI struct {
 	// GitHub App state.
 	providerConnections     map[string][]string        // orgID → connected providers
 	githubAppRepos          map[string][]GitHubAppRepo // orgID → repositories the app can access
-	githubAppInstallResp    any                        // response body for POST /github-app/install
+	connectionSetupResp     any                        // response body for POST /provider/connections/setup
 	rerunResponses          map[string]int             // workflow id → HTTP status to return
 	rerunNewIDs             map[string]string          // workflow id → id of the workflow its rerun creates
 	rerunFromFailed         map[string]bool            // workflow id → is_from_failed as the request actually set it
@@ -377,7 +377,7 @@ func NewCircleCI(t *testing.T, tokens ...string) *CircleCI {
 	r.Post("/api/v3/triggers", f.handleCreateTrigger)
 	// GitHub App routes.
 	r.Get("/api/v3/provider/connections", f.handleListProviderConnections)
-	r.Post("/api/v2/github-app/install", f.handleInstallGitHubApp)
+	r.Post("/api/v3/provider/connections/setup", f.handleSetupProviderConnection)
 	r.Get("/api/v2/github-app/organization/{orgID}/repositories", f.handleListGitHubAppRepositories)
 	// Policy routes.
 	r.Post("/api/v2/owner/{ownerID}/context/{policyCtx}/policy-bundle", f.handleCreatePolicyBundle)
@@ -3092,12 +3092,13 @@ func gitHubAppRepoEntity(repo GitHubAppRepo) map[string]any {
 	return m
 }
 
-// SetGitHubAppInstallResponse registers the body returned by POST
-// /api/v2/github-app/install.
-func (f *CircleCI) SetGitHubAppInstallResponse(resp any) {
+// SetProviderConnectionSetupResponse registers the body returned by POST
+// /api/v3/provider/connections/setup. Pass a body whose next_step is not
+// "redirect" to exercise a flow the CLI cannot finish.
+func (f *CircleCI) SetProviderConnectionSetupResponse(resp any) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	f.githubAppInstallResp = resp
+	f.connectionSetupResp = resp
 }
 
 func (f *CircleCI) handleListProviderConnections(w http.ResponseWriter, r *http.Request) {
@@ -3122,13 +3123,18 @@ func (f *CircleCI) handleListProviderConnections(w http.ResponseWriter, r *http.
 	renderV3Collection(w, r, data)
 }
 
-func (f *CircleCI) handleInstallGitHubApp(w http.ResponseWriter, r *http.Request) {
+func (f *CircleCI) handleSetupProviderConnection(w http.ResponseWriter, r *http.Request) {
 	f.mu.RLock()
-	resp := f.githubAppInstallResp
+	resp := f.connectionSetupResp
 	f.mu.RUnlock()
 
 	if resp == nil {
-		resp = map[string]any{"redirect_url": "https://github.com/apps/circleci/installations/new?state=test"}
+		resp = map[string]any{"data": map[string]any{
+			"attributes": map[string]any{
+				"next_step": "redirect",
+				"url":       "https://github.com/apps/circleci/installations/new?state=test",
+			},
+		}}
 	}
 	render.JSON(w, r, resp)
 }

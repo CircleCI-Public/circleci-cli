@@ -152,9 +152,21 @@ func TestResolveRepoID(t *testing.T) {
 // can assert the install flow was not entered.
 func connectionsServer(t *testing.T, providers ...string) (*apiclient.Client, *[]string) {
 	t.Helper()
+	return connectionsServerWithSetup(t, map[string]any{
+		"next_step": "redirect",
+		"url":       "https://github.com/apps/circleci/installations/new?state=test",
+	}, providers...)
+}
+
+// connectionsServerWithSetup serves the connections list, one connection per
+// provider named, and answers a setup call with setupAttrs. The paths it was asked
+// for are recorded so a test can assert whether an install was started.
+func connectionsServerWithSetup(t *testing.T, setupAttrs any, providers ...string) (*apiclient.Client, *[]string) {
+	t.Helper()
 
 	var paths []string
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/api/v3/provider/connections", func(w http.ResponseWriter, r *http.Request) {
 		paths = append(paths, r.URL.Path)
 		data := make([]map[string]any, 0, len(providers))
 		for _, p := range providers {
@@ -165,7 +177,16 @@ func connectionsServer(t *testing.T, providers ...string) (*apiclient.Client, *[
 		}
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(map[string]any{"data": data})
-	}))
+	})
+	mux.HandleFunc("/api/v3/provider/connections/setup", func(w http.ResponseWriter, r *http.Request) {
+		paths = append(paths, r.URL.Path)
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"data": map[string]any{"attributes": setupAttrs},
+		})
+	})
+
+	srv := httptest.NewServer(mux)
 	t.Cleanup(srv.Close)
 
 	return apiclient.New(apiclient.Config{BaseURL: srv.URL, Token: "test-token"}), &paths
@@ -195,12 +216,30 @@ func TestEnsureInstalled(t *testing.T) {
 	})
 
 	t.Run("no connections sends the user to install", func(t *testing.T) {
-		client, _ := connectionsServer(t)
+		client, paths := connectionsServer(t)
 
 		// noBrowser prints the URL and returns rather than polling.
 		installed, err := githubapp.EnsureInstalled(testCtx(), client, "org-uuid", "https://app.circleci.com/x", true)
 
 		assert.NilError(t, err)
+		assert.Check(t, !installed)
+		assert.Check(t, cmp.DeepEqual(*paths, []string{
+			"/api/v3/provider/connections",
+			"/api/v3/provider/connections/setup",
+		}), "an absent connection must start one")
+	})
+
+	t.Run("a setup the CLI cannot finish is reported", func(t *testing.T) {
+		// Registering an app from a manifest is a browser flow with no terminal
+		// equivalent, so it must surface rather than open an empty URL.
+		client, _ := connectionsServerWithSetup(t, map[string]any{
+			"next_step":   "register",
+			"state_token": "tok",
+		})
+
+		installed, err := githubapp.EnsureInstalled(testCtx(), client, "org-uuid", "https://app.circleci.com/x", true)
+
+		assert.Check(t, err != nil, "a register step has no CLI path and must not pass silently")
 		assert.Check(t, !installed)
 	})
 

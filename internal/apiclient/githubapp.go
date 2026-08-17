@@ -30,32 +30,10 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/internal/httpcl"
 )
 
-// Whether the app is installed for an organization is read from the
-// provider-agnostic connections endpoint rather than a GitHub App specific one:
-// see ListProviderConnections.
-
-// InitiateGitHubAppInstall starts a GitHub App installation for the
-// organization and returns the URL the user should open to complete the
-// install on GitHub. orgID must be the organization UUID; returnURL is where
-// GitHub redirects after the install completes and must be an app.circleci.com
-// URL.
-func (c *Client) InitiateGitHubAppInstall(ctx context.Context, orgID, returnURL string) (string, error) {
-	body := map[string]any{
-		"org_id":     orgID,
-		"return_url": returnURL,
-	}
-	var resp struct {
-		RedirectURL string `json:"redirect_url"`
-	}
-	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodPost, "/api/v2/github-app/install",
-		httpcl.Body(body),
-		httpcl.JSONDecoder(&resp),
-	))
-	if err != nil {
-		return "", err
-	}
-	return resp.RedirectURL, nil
-}
+// Both halves of the install handshake — whether the app is installed for an
+// organization, and starting an install — go through the provider-agnostic
+// connections endpoints: see ListProviderConnections and
+// SetupProviderConnection.
 
 // GitHubAppRepository is a repository the CircleCI GitHub App can access, as
 // returned by GET /api/v2/github-app/organization/{orgID}/repositories.

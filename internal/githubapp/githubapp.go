@@ -28,6 +28,7 @@ package githubapp
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strconv"
 	"strings"
 	"time"
@@ -65,7 +66,7 @@ func EnsureInstalled(ctx context.Context, client *apiclient.Client, orgID, retur
 		return true, nil
 	}
 
-	redirectURL, err := client.InitiateGitHubAppInstall(ctx, orgID, returnURL)
+	redirectURL, err := installURL(ctx, client, orgID, returnURL)
 	if err != nil {
 		return false, err
 	}
@@ -92,6 +93,25 @@ func EnsureInstalled(ctx context.Context, client *apiclient.Client, orgID, retur
 	}
 	iostream.Printf(ctx, "%s GitHub App installed\n", iostream.SymbolOK(ctx))
 	return true, nil
+}
+
+// installURL starts a connection for this package's provider and returns the URL
+// the user has to open to finish it.
+//
+// The setup call answers with what has to happen next. A redirect is the case
+// this flow handles: CircleCI's app is registered with the provider already, so
+// the user only approves it. Anything else — today, registering an app from a
+// manifest — is a browser flow the CLI cannot complete, so it is reported rather
+// than silently opening nothing.
+func installURL(ctx context.Context, client *apiclient.Client, orgID, returnURL string) (string, error) {
+	setup, err := client.SetupProviderConnection(ctx, orgID, provider, returnURL)
+	if err != nil {
+		return "", err
+	}
+	if setup.NextStep != apiclient.ConnectionNextStepRedirect || setup.URL == "" {
+		return "", fmt.Errorf("cannot start the install from here: the connection needs %q", setup.NextStep)
+	}
+	return setup.URL, nil
 }
 
 // connected reports whether the organization has a connection for this package's

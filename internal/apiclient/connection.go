@@ -54,6 +54,70 @@ type ProviderConnection struct {
 	ConnectionError string
 }
 
+// Next steps a connection setup can call for. Redirect is the case the CLI can
+// drive: CircleCI already has an app registered with the provider, so the user
+// only has to approve it. Register means no app exists yet and one has to be
+// registered from a manifest, which is a browser flow the CLI cannot complete.
+const (
+	ConnectionNextStepRedirect = "redirect"
+	ConnectionNextStepRegister = "register"
+)
+
+// ProviderConnectionSetup is where to send a user to finish connecting a
+// provider, as returned by POST /api/v3/provider/connections/setup. Nothing is
+// connected when it is returned: the connection only exists once the user
+// completes the flow at the provider.
+type ProviderConnectionSetup struct {
+	// NextStep is what has to happen next, one of the ConnectionNextStep values.
+	NextStep string
+	// URL is where to send the user. Present when NextStep is redirect.
+	URL string
+	// StateToken ties the provider's callback back to this setup. Present when
+	// NextStep is register.
+	StateToken string
+}
+
+// connectionSetupAttrs is the attributes object of a setup response. The manifest
+// that accompanies a register step is not modelled: the CLI cannot drive an app
+// registration, so it has nothing to do with it.
+type connectionSetupAttrs struct {
+	NextStep   string `json:"next_step"`
+	URL        string `json:"url,omitempty"`
+	StateToken string `json:"state_token,omitempty"`
+}
+
+// SetupProviderConnection starts connecting a provider to an organization.
+// orgID must be the organization UUID; returnURL is where the provider sends the
+// user once the flow completes.
+//
+// Every call mints a fresh, hour-long state token, so this is not idempotent:
+// call it when a user is about to be sent to the provider, not to probe.
+func (c *Client) SetupProviderConnection(ctx context.Context, orgID, provider, returnURL string) (*ProviderConnectionSetup, error) {
+	body := map[string]any{
+		"type":       "vcs",
+		"vcs":        map[string]any{"provider": provider},
+		"return_url": returnURL,
+	}
+
+	var resp v3Entity[struct {
+		Attributes connectionSetupAttrs `json:"attributes"`
+	}]
+	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodPost, "/api/v3/provider/connections/setup",
+		filterParam("org_id", orgID),
+		httpcl.Body(body),
+		httpcl.JSONDecoder(&resp),
+	))
+	if err != nil {
+		return nil, err
+	}
+
+	return &ProviderConnectionSetup{
+		NextStep:   resp.Data.Attributes.NextStep,
+		URL:        resp.Data.Attributes.URL,
+		StateToken: resp.Data.Attributes.StateToken,
+	}, nil
+}
+
 // connectionAttrs is the attributes object of a v3 provider connection entity.
 type connectionAttrs struct {
 	Provider            string `json:"provider"`

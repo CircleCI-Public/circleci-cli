@@ -768,7 +768,7 @@ func TestOnboard_PostSignup_GitHubAppInstall_ReturnURL(t *testing.T) {
 
 	var returnURLs []string
 	for _, req := range fake.AllRequests() {
-		if req.Method != http.MethodPost || req.URL.Path != "/api/v2/github-app/install" {
+		if req.Method != http.MethodPost || req.URL.Path != "/api/v3/provider/connections/setup" {
 			continue
 		}
 		var body struct {
