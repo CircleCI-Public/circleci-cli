@@ -47,6 +47,7 @@ func NewDeployCmd() *cobra.Command {
 		newListCmd(),
 		newOpenCmd(),
 		newInitCmd(),
+		newRollbackCmd(),
 		newSettingsCmd(),
 	)
 

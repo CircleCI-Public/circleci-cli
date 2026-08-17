@@ -1,0 +1,17 @@
+Usage:  circleci deploy rollback <target-version> [flags]
+
+Flags:
+      --checkout-ref string   Git ref the rollback pipeline checks out
+      --component string      Deploy component name or ID (required)
+      --config-ref string     Git ref the rollback pipeline's config is read from
+      --environment string    Deploy environment name or ID (required)
+  -f, --force                 skip confirmation prompt
+      --from string           Version being replaced; defaults to the latest deployed
+  -h, --help                  help for rollback
+      --jq string             Process values from the response using jq syntax
+      --json                  Output as JSON
+      --namespace string      Namespace scoping the component (default "default")
+      --param stringArray     Rollback pipeline parameter as key=value (repeatable)
+      --project string        Project slug (e.g. gh/org/repo); defaults to git remote
+      --reason string         Why the rollback was requested; recorded in the audit log
+  

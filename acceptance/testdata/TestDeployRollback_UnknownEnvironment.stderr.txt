@@ -1,0 +1,5 @@
+error: No deploy environment named "no-such-environment" in this organization.
+
+Suggestions:
+  • Use 'circleci deploy environment list' to see the organization's environments
+  • Or pass the environment ID instead of its name

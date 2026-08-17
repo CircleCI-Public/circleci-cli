@@ -1,0 +1,5 @@
+error: web-frontend has no recorded version in production, so there is nothing to roll back.
+
+Suggestions:
+  • Pass the currently deployed version with --from
+  • Use 'circleci deploy version list a0000000-0000-4000-8000-000000c00001' to see recorded versions

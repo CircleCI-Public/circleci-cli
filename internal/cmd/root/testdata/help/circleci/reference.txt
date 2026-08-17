@@ -1752,6 +1752,40 @@ GitLab remotes.
 - Open the deploys page for a specific project: 
   `circleci deploy open --project gh/myorg/myrepo`
 
+#### `circleci deploy rollback <target-version> [flags]`
+
+Roll back a deployed component to an earlier version
+
+Roll back a deployed component to an earlier version. --from must name
+the version currently deployed; omit it to use the latest deployed one.
+
+JSON fields: id, rollback_type, project_id, component_id, environment_id
+
+| Flag                    | Description                                                                       |
+| ----------------------- | --------------------------------------------------------------------------------- |
+| `--checkout-ref string` | Git ref the rollback pipeline checks out                                          |
+| `--component string`    | Deploy component name or ID (required)                                            |
+| `--config-ref string`   | Git ref the rollback pipeline's config is read from                               |
+| `--environment string`  | Deploy environment name or ID (required)                                          |
+| `-f, --force`           | skip confirmation prompt                                                          |
+| `--from string`         | Version being replaced; defaults to the latest deployed                           |
+| `--jq string`           | Process values from the response using jq syntax (see `circleci help formatting`) |
+| `--json`                | Output as JSON                                                                    |
+| `--namespace string`    | Namespace scoping the component (default "default")                               |
+| `--param stringArray`   | Rollback pipeline parameter as key=value (repeatable)                             |
+| `--project string`      | Project slug (e.g. gh/org/repo); defaults to git remote                           |
+| `--reason string`       | Why the rollback was requested; recorded in the audit log                         |
+
+
+**Examples:**
+
+- Roll production back to 1.2.0 (with confirmation): 
+  `circleci deploy rollback 1.2.0 --component web-frontend --environment production`
+- Assert the version being replaced, and skip the prompt: 
+  `circleci deploy rollback 1.2.0 --component web-frontend --environment production --from 1.3.0 --force`
+- Roll back with a reason and a rollback-pipeline parameter: 
+  `circleci deploy rollback 1.2.0 --component web-frontend --environment production --reason "bad release" --param notify=true`
+
 #### `circleci deploy settings [flags]`
 
 Get deploy settings for a project

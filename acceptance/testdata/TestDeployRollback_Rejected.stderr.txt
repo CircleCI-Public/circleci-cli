@@ -1,0 +1,6 @@
+error: CircleCI rejected the rollback of web-frontend in production from 1.9.9 to 1.2.0.
+Invalid version: 1.9.9 is not the version deployed to production
+
+Suggestions:
+  • --from must name the version currently deployed
+  • Use 'circleci deploy version list a0000000-0000-4000-8000-000000c00001 --environment a0000000-0000-4000-8000-000000e00001' to see recorded versions

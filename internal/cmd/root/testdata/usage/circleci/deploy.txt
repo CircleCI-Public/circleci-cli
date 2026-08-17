@@ -6,5 +6,6 @@ Available commands:
   init
   list
   open
+  rollback
   settings
   version

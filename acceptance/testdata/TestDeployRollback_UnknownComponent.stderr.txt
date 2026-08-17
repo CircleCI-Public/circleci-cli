@@ -1,0 +1,5 @@
+error: No deploy component named "no-such-component" in this project.
+
+Suggestions:
+  • Use 'circleci deploy component list' to see the project's components
+  • Or pass the component ID instead of its name

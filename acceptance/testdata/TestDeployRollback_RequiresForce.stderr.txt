@@ -1,0 +1,4 @@
+error: Rolling back web-frontend in production from 1.3.0 to 1.2.0 changes what is deployed.
+
+Suggestions:
+  • Pass --force (-f) to skip this prompt in non-interactive mode
