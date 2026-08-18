@@ -146,3 +146,76 @@ func TestResolveRepoID(t *testing.T) {
 		assert.Equal(t, id, "")
 	})
 }
+
+// connectionsServer serves the provider connections endpoint, returning one
+// connection per provider named, and records the paths it was asked for so a test
+// can assert the install flow was not entered.
+func connectionsServer(t *testing.T, providers ...string) (*apiclient.Client, *[]string) {
+	t.Helper()
+
+	var paths []string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		paths = append(paths, r.URL.Path)
+		data := make([]map[string]any, 0, len(providers))
+		for _, p := range providers {
+			data = append(data, map[string]any{
+				"id":         "conn-" + p,
+				"attributes": map[string]any{"provider": p, "login": "myorg"},
+			})
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]any{"data": data})
+	}))
+	t.Cleanup(srv.Close)
+
+	return apiclient.New(apiclient.Config{BaseURL: srv.URL, Token: "test-token"}), &paths
+}
+
+func TestEnsureInstalled(t *testing.T) {
+	t.Run("an existing connection needs no install", func(t *testing.T) {
+		client, paths := connectionsServer(t, "github_app")
+
+		installed, err := githubapp.EnsureInstalled(testCtx(), client, "org-uuid", "https://app.circleci.com/x", true)
+
+		assert.NilError(t, err)
+		assert.Check(t, installed)
+		assert.Check(t, cmp.DeepEqual(*paths, []string{"/api/v3/provider/connections"}),
+			"an installed app must not start an install")
+	})
+
+	t.Run("another provider's connection does not count", func(t *testing.T) {
+		// Only the app's own provider means installed; a different integration on the
+		// same org must still send the user through the install.
+		client, _ := connectionsServer(t, "github_oauth")
+
+		installed, err := githubapp.EnsureInstalled(testCtx(), client, "org-uuid", "https://app.circleci.com/x", true)
+
+		assert.NilError(t, err)
+		assert.Check(t, !installed)
+	})
+
+	t.Run("no connections sends the user to install", func(t *testing.T) {
+		client, _ := connectionsServer(t)
+
+		// noBrowser prints the URL and returns rather than polling.
+		installed, err := githubapp.EnsureInstalled(testCtx(), client, "org-uuid", "https://app.circleci.com/x", true)
+
+		assert.NilError(t, err)
+		assert.Check(t, !installed)
+	})
+
+	t.Run("a failed check is an error, not a missing install", func(t *testing.T) {
+		// Reporting "not installed" here would walk the user into an install flow to
+		// fix a problem that is not a missing installation.
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusInternalServerError)
+		}))
+		t.Cleanup(srv.Close)
+		client := apiclient.New(apiclient.Config{BaseURL: srv.URL, Token: "test-token"})
+
+		installed, err := githubapp.EnsureInstalled(testCtx(), client, "org-uuid", "https://app.circleci.com/x", true)
+
+		assert.Check(t, err != nil, "a 500 from the connections endpoint must surface")
+		assert.Check(t, !installed)
+	})
+}

@@ -521,7 +521,7 @@ func TestOnboard_PostSignup_FirstPipeline_GitHubAppResolvesRepo(t *testing.T) {
 	dir, fake, env := onboardRepo(t)
 	// GitHub App is installed for the org and can access the repo, so the repo's
 	// external ID is resolved automatically — no --repo-id needed.
-	fake.SetGitHubAppInstalled(onboardOrgID, true)
+	fake.SetProviderConnected(onboardOrgID, "github_app", true)
 	fake.AddGitHubAppRepository(onboardOrgID, fakes.GitHubAppRepo{
 		ID:            987654321,
 		RepoFullName:  "myorg/my-repo",
@@ -554,7 +554,7 @@ func TestOnboard_PostSignup_FirstPipeline_GitHubAppResolvesRepo(t *testing.T) {
 // name — and no API maps a project name to its ID within an org.
 func TestOnboard_PostSignup_Rerun_Idempotent(t *testing.T) {
 	dir, fake, env := onboardRepo(t)
-	fake.SetGitHubAppInstalled(onboardOrgID, true)
+	fake.SetProviderConnected(onboardOrgID, "github_app", true)
 	fake.AddGitHubAppRepository(onboardOrgID, fakes.GitHubAppRepo{
 		ID:           987654321,
 		RepoFullName: "myorg/my-repo",
@@ -687,7 +687,7 @@ func TestOnboard_PostSignup_ProjectNameConflict(t *testing.T) {
 func TestOnboard_PostSignup_FirstPipeline_RepoNotAccessible(t *testing.T) {
 	dir, fake, env := onboardRepo(t)
 	// App is installed, but the repo the user is in was not granted to it.
-	fake.SetGitHubAppInstalled(onboardOrgID, true)
+	fake.SetProviderConnected(onboardOrgID, "github_app", true)
 	fake.AddGitHubAppRepository(onboardOrgID, fakes.GitHubAppRepo{
 		ID:           111,
 		RepoFullName: "myorg/some-other-repo",
@@ -735,7 +735,7 @@ func TestOnboard_PostSignup_FirstPipeline_MissingPrerequisiteSucceeds(t *testing
 	dir, fake, env := onboardRepo(t)
 	// The GitHub App is installed but has not been granted this repository, so the
 	// external ID cannot be resolved and no pipeline request is ever made.
-	fake.SetGitHubAppInstalled(onboardOrgID, true)
+	fake.SetProviderConnected(onboardOrgID, "github_app", true)
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
 		Args:    []string{"onboard", "--scan"},
