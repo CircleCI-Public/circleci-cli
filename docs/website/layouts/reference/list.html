@@ -16,6 +16,14 @@
 
   <div class="layout">
     <aside class="sidebar">
+      <div class="toc-filter">
+        <div class="toc-filter-wrap">
+          <input type="search" id="toc-filter" class="toc-filter-input"
+                 placeholder="Filter" aria-label="Filter"
+                 autocomplete="off" spellcheck="false">
+          <span class="toc-filter-hint" aria-hidden="true">⌘/</span>
+        </div>
+      </div>
       {{/* Build the command nav from the page's heading tree. The page has two
            top-level sections ("Getting started" and "Reference"); under
            Reference the commands are grouped (CI / Management / User / ...), so
@@ -37,9 +45,6 @@
     </div>
   </div>
 
-  {{/* Progressive enhancement: open/close already works without JS via the
-       checkbox. This just closes the mobile nav after a link is chosen or on
-       Escape, so it doesn't stay covering the content. */}}
   <script>
     (function () {
       var toggle = document.getElementById('nav-toggle');
@@ -50,6 +55,67 @@
       });
       document.addEventListener('keydown', function (e) {
         if (e.key === 'Escape') toggle.checked = false;
+      });
+
+      var input = document.getElementById('toc-filter');
+      if (!input) return;
+
+      // Show the platform-appropriate shortcut hint.
+      var hint = document.querySelector('.toc-filter-hint');
+      if (hint) {
+        var isMac = /mac/i.test((navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || '');
+        hint.textContent = isMac ? '⌘/' : 'Ctrl+/';
+      }
+
+      input.addEventListener('input', function () {
+        var q = input.value.trim().toLowerCase();
+        var items = toc.querySelectorAll('li');
+
+        if (!q) {
+          items.forEach(function (li) { li.hidden = false; });
+          return;
+        }
+
+        // Hide everything, then reveal matching items and their ancestors.
+        items.forEach(function (li) { li.hidden = true; });
+
+        toc.querySelectorAll('a[data-depth]').forEach(function (a) {
+          if (a.textContent.trim().toLowerCase().indexOf(q) === -1) return;
+
+          var depth = parseInt(a.dataset.depth);
+          var li = a.closest('li');
+
+          // Show the matched item and walk up to reveal its ancestor <li>s.
+          while (li && li !== toc) {
+            li.hidden = false;
+            li = li.parentElement && li.parentElement.closest('li');
+          }
+
+          // For non-section-header matches, also expand the full subtree so
+          // sibling subcommands stay visible alongside the matched one.
+          if (depth >= 2) {
+            a.closest('li').querySelectorAll('li').forEach(function (child) {
+              child.hidden = false;
+            });
+          }
+        });
+      });
+
+      // Clear on Escape when the filter has focus.
+      input.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') {
+          input.value = '';
+          input.dispatchEvent(new Event('input'));
+        }
+      });
+
+      // Cmd+/ (Mac) or Ctrl+/ (Windows/Linux) focuses the filter.
+      document.addEventListener('keydown', function (e) {
+        if (e.key === '/' && (e.metaKey || e.ctrlKey)) {
+          e.preventDefault();
+          input.focus();
+          input.select();
+        }
       });
     })();
   </script>
