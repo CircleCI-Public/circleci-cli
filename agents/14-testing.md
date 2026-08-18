@@ -7,8 +7,6 @@ Use `gotest.tools/v3/assert` for test assertions:
 - **Use `assert.Assert` / `assert.NilError` as gates** — only when failure means
   the remaining assertions are pointless or unsafe (e.g. a nil pointer would
   panic, or a missing resource means nothing else can be verified)
-- **Do not call functions or methods** directly inside the assertion; always use
-  a temporary variable
 - **Use `cmp` comparisons** from `gotest.tools/v3/assert/cmp` for semantic
   matchers over raw boolean expressions
 
@@ -56,32 +54,6 @@ corresponding `cmp` comparison:
 
 Note: `assert.Assert` must be called from the goroutine running the test
 function. `assert.Check` is safe to call from any goroutine.
-
-## Temporary variable rule
-
-Never pass a function or method call directly as an assertion argument. Always
-capture the result in a variable first. This applies to all calls, including
-error-returning functions, getters, and string conversions.
-
-```go
-// ❌ BAD
-assert.NilError(t, os.WriteFile(path, data, perm))
-assert.Check(t, cmp.Equal(st.Code(), codes.NotFound))
-assert.Check(t, cmp.Len(registry.List(), 0))
-
-// ✅ GOOD
-err := os.WriteFile(path, data, perm)
-assert.NilError(t, err)
-
-stCode := st.Code()
-assert.Check(t, cmp.Equal(stCode, codes.NotFound))
-
-sandboxes := registry.List()
-assert.Check(t, cmp.Len(sandboxes, 0))
-```
-
-Type conversions (`int32(x)`, `string(b)`) and built-in functions (`len`) are
-exempt from this rule.
 
 ## Message argument
 

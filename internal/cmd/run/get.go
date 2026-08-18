@@ -23,12 +23,15 @@
 package run
 
 import (
+	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
+	"unicode/utf8"
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/MakeNowJust/heredoc"
@@ -36,10 +39,12 @@ import (
 	"github.com/spf13/cobra"
 	"golang.org/x/sync/errgroup"
 
+	"github.com/CircleCI-Public/circleci-cli/clikit/browser"
 	clierrors "github.com/CircleCI-Public/circleci-cli/clikit/errors"
 	"github.com/CircleCI-Public/circleci-cli/clikit/iostream"
 	"github.com/CircleCI-Public/circleci-cli/clikit/mdtable"
 	"github.com/CircleCI-Public/circleci-cli/internal/apiclient"
+	"github.com/CircleCI-Public/circleci-cli/internal/artifacts"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmd/job"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmd/workflow"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmdutil"
@@ -463,6 +468,13 @@ func runGetInteractive(ctx context.Context, client *apiclient.Client, projectSlu
 		FetchStepStdout:  stepStdout(client),
 		FetchStepStderr:  stepStderr(client),
 		FetchFailedTests: failedTestItems(client),
+		// The artifact browser: list, view, download, open. Every one of these is
+		// optional to the flow; supplying them all is what lights up the whole
+		// browser.
+		FetchArtifacts:       artifactItems(client),
+		FetchArtifactContent: artifactContent(client),
+		DownloadArtifacts:    downloadArtifacts(client),
+		OpenArtifactURL:      browser.OpenURL,
 		RenderRunSummary: func(ctx context.Context, runID uuid.UUID) (string, error) {
 			r, err := client.GetRunV3(ctx, runID)
 			if err != nil {
@@ -524,6 +536,88 @@ func runGetInteractive(ctx context.Context, client *apiclient.Client, projectSlu
 		return nil
 	default:
 		return nil
+	}
+}
+
+// artifactItems returns a fetch closure for the run-get flow's artifact browser:
+// it lists a job's artifacts as browsable paths.
+func artifactItems(client *apiclient.Client) func(context.Context, uuid.UUID) ([]ui.RunGetArtifactItem, error) {
+	return func(ctx context.Context, jobID uuid.UUID) ([]ui.RunGetArtifactItem, error) {
+		entries, err := artifacts.ForJob(ctx, client, jobID.String())
+		if err != nil {
+			return nil, apiErr(err, jobID.String())
+		}
+		items := make([]ui.RunGetArtifactItem, len(entries))
+		for i, e := range entries {
+			items[i] = ui.RunGetArtifactItem{Path: e.Path, URL: e.URL, Execution: e.Execution}
+		}
+		return items, nil
+	}
+}
+
+// maxArtifactPreview caps how much of an artifact is pulled in to be viewed. An
+// artifact can be a multi-gigabyte build output, and the whole thing is held in
+// memory — re-wrapped on every resize for text, decoded and scaled for an image —
+// so a browse action must not be able to pull one down in full. 8 MiB clears any
+// screenshot while keeping a stray log file from filling memory; past it the
+// browser says so and points at the download key.
+const maxArtifactPreview = 8 << 20 // 8 MiB
+
+// artifactContent returns the closure the browser uses to view one artifact,
+// reporting whether the bytes are displayable text. Images are recognised by the
+// UI (which renders them as a block mosaic), so this only has to say whether the
+// bytes are safe to page verbatim.
+func artifactContent(client *apiclient.Client) func(context.Context, ui.RunGetArtifactItem) ([]byte, bool, error) {
+	return func(ctx context.Context, item ui.RunGetArtifactItem) ([]byte, bool, error) {
+		w := &cappedBuffer{limit: maxArtifactPreview}
+		if err := client.DownloadArtifact(ctx, item.URL, w); err != nil {
+			if errors.Is(err, errArtifactTooLarge) {
+				return nil, false, fmt.Errorf("%s is over %d MiB — too large to view, press d to download it",
+					item.Path, maxArtifactPreview>>20)
+			}
+			return nil, false, apiErr(err, item.Path)
+		}
+		data := w.buf.Bytes()
+		return data, displayableText(data), nil
+	}
+}
+
+// errArtifactTooLarge aborts a preview download once it passes the cap. It
+// travels back through the transport's io.Copy, so the transfer stops rather than
+// buffering a file no one is going to look at.
+var errArtifactTooLarge = errors.New("artifact is larger than the preview limit")
+
+// cappedBuffer accumulates up to limit bytes and then fails the write.
+type cappedBuffer struct {
+	buf   bytes.Buffer
+	limit int
+}
+
+func (w *cappedBuffer) Write(p []byte) (int, error) {
+	if w.buf.Len()+len(p) > w.limit {
+		return 0, errArtifactTooLarge
+	}
+	return w.buf.Write(p)
+}
+
+// displayableText reports whether data can be shown in the pager: valid UTF-8
+// with no NUL byte. Empty content counts as text, so an empty artifact opens to
+// an empty page rather than looking like a binary.
+func displayableText(data []byte) bool {
+	return utf8.Valid(data) && !bytes.ContainsRune(data, 0)
+}
+
+// downloadArtifacts returns the closure the browser's download key uses. Each
+// item's path is the one the browser displayed, so DownloadPaths writes it
+// verbatim rather than re-deriving a layout from the subset it was handed; the
+// path-traversal guard is shared with "circleci artifact --output".
+func downloadArtifacts(client *apiclient.Client) func(context.Context, []ui.RunGetArtifactItem, string) error {
+	return func(ctx context.Context, items []ui.RunGetArtifactItem, dir string) error {
+		entries := make([]artifacts.Entry, len(items))
+		for i, item := range items {
+			entries[i] = artifacts.Entry{Path: item.Path, URL: item.URL, Execution: item.Execution}
+		}
+		return artifacts.DownloadPaths(ctx, client, entries, dir)
 	}
 }
 

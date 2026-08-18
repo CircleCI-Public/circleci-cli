@@ -23,10 +23,16 @@
 package acceptance_test
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"image"
+	"image/color"
+	"image/png"
 	"net/http"
 	"net/url"
+	"os"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"testing"
@@ -464,6 +470,11 @@ const (
 	// back a step" (except on the first picker, where it quits).
 	keyEsc = "\x1b"
 	keyUp  = "\x1b[A"
+	// keyTop is the picker's "jump to the first row" key. Selecting a leading
+	// job-wide option by counting ups from the cursor's landing row breaks
+	// whenever an option is added, so these tests jump to the top and count down
+	// from there instead.
+	keyTop = "g"
 	// keyCtrlC is the ETX byte; in raw mode the picker decodes it as ctrl+c and
 	// quits the whole flow.
 	keyCtrlC = "\x03"
@@ -555,6 +566,20 @@ func setupRunGetInteractiveFake(t *testing.T) *testenv.TestEnv {
 		}},
 	})
 
+	// Artifacts for the "Artifacts" meta option, nested so the browser has a
+	// directory to descend into, with bodies registered so a download and a view
+	// both resolve.
+	fake.AddJobArtifactsV3(irunJob1ID,
+		fakes.Artifact{Path: "coverage.out", URL: fake.URL() + "/artifacts/coverage.out"},
+		fakes.Artifact{Path: "reports/junit/results.xml", URL: fake.URL() + "/artifacts/results.xml"},
+		fakes.Artifact{Path: "reports/summary.txt", URL: fake.URL() + "/artifacts/summary.txt"},
+		fakes.Artifact{Path: "screenshots/login.png", URL: fake.URL() + "/artifacts/login.png"},
+	)
+	fake.AddStaticFile("/artifacts/coverage.out", "mode: set\ntotal: 91.2%\n")
+	fake.AddStaticFile("/artifacts/login.png", string(gradientPNG(t, 120, 60)))
+	fake.AddStaticFile("/artifacts/results.xml", "<testsuite/>\n")
+	fake.AddStaticFile("/artifacts/summary.txt", "2 failed\n")
+
 	// A parallel job (parallelism 2): execution 0 succeeded, execution 1 failed.
 	deployStep := func(outcome string, exit int) []fakes.JobStep {
 		return []fakes.JobStep{
@@ -632,11 +657,18 @@ func drillToExecutionPicker(t *testing.T, console *expect.Console) {
 // pinning the project and branch so the flow does not depend on a git remote.
 func startRunGetInteractive(t *testing.T, env *testenv.TestEnv) *expect.Console {
 	t.Helper()
+	return startRunGetInteractiveIn(t, env, t.TempDir())
+}
+
+// startRunGetInteractiveIn is startRunGetInteractive in a given working
+// directory, for the tests that assert on what the flow wrote to disk.
+func startRunGetInteractiveIn(t *testing.T, env *testenv.TestEnv, workDir string) *expect.Console {
+	t.Helper()
 	return binary.RunCLIInteractive(t, binary.RunOpts{
 		Binary:  binaryPath,
 		Args:    []string{"run", "get", "--project", testSlug, "--branch", "main"},
 		Env:     env.Environ(),
-		WorkDir: t.TempDir(),
+		WorkDir: workDir,
 	})
 }
 
@@ -683,9 +715,8 @@ func TestRunGet_Interactive_JobReport(t *testing.T) {
 	console := startRunGetInteractive(t, env)
 	drillToStepPicker(t, console)
 
-	// Cursor starts on the failed step (index 5, below the four meta options);
-	// five ups reach the first option, "Job report (summary)".
-	_, err := console.Send(keyUp + keyUp + keyUp + keyUp + keyUp + "\r")
+	// "Job report (summary)" is the first of the leading job-wide options.
+	_, err := console.Send(keyTop + "\r")
 	assert.NilError(t, err)
 
 	_, err = console.ExpectString(irunWfID)
@@ -703,9 +734,8 @@ func TestRunGet_Interactive_FullOutputReport(t *testing.T) {
 	console := startRunGetInteractive(t, env)
 	drillToStepPicker(t, console)
 
-	// Cursor starts on the failed step (index 5, below the four meta options);
-	// four ups reach the second option, "Full job report (including step output)".
-	_, err := console.Send(keyUp + keyUp + keyUp + keyUp + "\r")
+	// "Full job report (including step output)" is the second option.
+	_, err := console.Send(keyTop + keyDown + "\r")
 	assert.NilError(t, err)
 
 	_, err = console.ExpectString("FAILURE: 2 tests failed")
@@ -764,9 +794,8 @@ func TestRunGet_Interactive_FailedTests(t *testing.T) {
 	console := startRunGetInteractive(t, env)
 	drillToStepPicker(t, console)
 
-	// Cursor starts on the failed step (index 5); three ups reach the third
-	// option, "Failed tests".
-	_, err := console.Send(keyUp + keyUp + keyUp + "\r")
+	// "Failed tests" is the third option.
+	_, err := console.Send(keyTop + keyDown + keyDown + "\r")
 	assert.NilError(t, err)
 
 	// The failed-test picker lists the one failing test (passing tests excluded).
@@ -785,14 +814,14 @@ func TestRunGet_Interactive_FailedTests(t *testing.T) {
 }
 
 // TestRunGet_Interactive_ResourceUsage picks the "Resource usage" meta option and
-// confirms the CPU and memory charts page in-flow. It is the last of the four
-// options, so two ups from the failed step (index 5) reach it.
+// confirms the CPU and memory charts page in-flow. It is the fourth of the
+// leading job-wide options.
 func TestRunGet_Interactive_ResourceUsage(t *testing.T) {
 	env := setupRunGetInteractiveFake(t)
 	console := startRunGetInteractive(t, env)
 	drillToStepPicker(t, console)
 
-	_, err := console.Send(keyUp + keyUp + "\r")
+	_, err := console.Send(keyTop + keyDown + keyDown + keyDown + "\r")
 	assert.NilError(t, err)
 
 	// The job saturated its 4 cores, which only the usage report says.
@@ -833,6 +862,129 @@ func TestRunGet_Interactive_ParallelExecution(t *testing.T) {
 	assert.NilError(t, err)
 }
 
+// TestRunGet_Interactive_Artifacts drives the artifact browser end to end against
+// the real binary: it filters with "/", downloads a directory to ./artifacts, and
+// views a file in the pager. Artifacts are the fifth of the leading job-wide
+// options.
+//
+// Every esc is followed by an ExpectString before the next key is sent: a lone
+// ESC arriving immediately before another byte is decoded as alt+<key>, so the
+// wait for the repaint is what keeps the two apart.
+func TestRunGet_Interactive_Artifacts(t *testing.T) {
+	env := setupRunGetInteractiveFake(t)
+	workDir := t.TempDir()
+	console := startRunGetInteractiveIn(t, env, workDir)
+	drillToStepPicker(t, console)
+
+	assert.Assert(t, t.Run("the tree opens at the root, directories first", func(t *testing.T) {
+		_, err := console.Send(keyTop + keyDown + keyDown + keyDown + keyDown + "\r")
+		assert.NilError(t, err)
+		_, err = console.ExpectString("reports/  (2 files)")
+		assert.NilError(t, err)
+	}))
+
+	assert.Assert(t, t.Run("/ filters recursively, esc clears it", func(t *testing.T) {
+		_, err := console.Send("/xml")
+		assert.NilError(t, err)
+		_, err = console.ExpectString("reports/junit/results.xml")
+		assert.NilError(t, err)
+		_, err = console.Send(keyEsc)
+		assert.NilError(t, err)
+		_, err = console.ExpectString("coverage.out")
+		assert.NilError(t, err)
+	}))
+
+	assert.Assert(t, t.Run("d asks, then takes every file under the directory", func(t *testing.T) {
+		_, err := console.Send("d")
+		assert.NilError(t, err)
+		_, err = console.ExpectString("[y/N]")
+		assert.NilError(t, err)
+		_, err = console.Send("y")
+		assert.NilError(t, err)
+		_, err = console.ExpectString("Downloaded 2 files")
+		assert.NilError(t, err)
+	}))
+
+	assert.Assert(t, t.Run("a text file opens in the pager", func(t *testing.T) {
+		_, err := console.Send("\r")
+		assert.NilError(t, err)
+		_, err = console.ExpectString("summary.txt")
+		assert.NilError(t, err)
+		_, err = console.Send(keyDown + "\r")
+		assert.NilError(t, err)
+		_, err = console.ExpectString("2 failed")
+		assert.NilError(t, err)
+	}))
+
+	assert.Assert(t, t.Run("esc leaves the pager for the browser, still inside reports/", func(t *testing.T) {
+		_, err := console.Send(keyEsc)
+		assert.NilError(t, err)
+		_, err = console.ExpectString("junit/  (1 file)")
+		assert.NilError(t, err)
+		_, err = console.Send(keyCtrlC)
+		assert.NilError(t, err)
+	}))
+
+	t.Run("both files landed under ./artifacts, keeping their artifact paths", func(t *testing.T) {
+		body, err := os.ReadFile(filepath.Join(workDir, "artifacts", "reports", "junit", "results.xml"))
+		assert.NilError(t, err)
+		assert.Check(t, cmp.Equal(string(body), "<testsuite/>\n"))
+
+		body, err = os.ReadFile(filepath.Join(workDir, "artifacts", "reports", "summary.txt"))
+		assert.NilError(t, err)
+		assert.Check(t, cmp.Equal(string(body), "2 failed\n"))
+	})
+}
+
+// TestRunGet_Interactive_ArtifactImage confirms an image artifact is rendered in
+// the terminal by the real binary: the footer names the format and pixel size, and
+// the frame carries block glyphs rather than the file's bytes.
+func TestRunGet_Interactive_ArtifactImage(t *testing.T) {
+	env := setupRunGetInteractiveFake(t)
+	console := startRunGetInteractive(t, env)
+	drillToStepPicker(t, console)
+
+	assert.Assert(t, t.Run("open the artifact browser", func(t *testing.T) {
+		_, err := console.Send(keyTop + keyDown + keyDown + keyDown + keyDown + "\r")
+		assert.NilError(t, err)
+		_, err = console.ExpectString("screenshots/  (1 file)")
+		assert.NilError(t, err)
+	}))
+
+	assert.Assert(t, t.Run("filter to the image and open it", func(t *testing.T) {
+		// The filtered row is a file, so one enter commits the pattern and the next
+		// views it.
+		_, err := console.Send("/png")
+		assert.NilError(t, err)
+		_, err = console.ExpectString("screenshots/login.png")
+		assert.NilError(t, err)
+		_, err = console.Send("\r\r")
+		assert.NilError(t, err)
+	}))
+
+	t.Run("the pager footer names the format and pixel size", func(t *testing.T) {
+		_, err := console.ExpectString("png 120×60")
+		assert.NilError(t, err)
+		_, err = console.Send(keyCtrlC)
+		assert.NilError(t, err)
+	})
+}
+
+// gradientPNG encodes a w×h gradient PNG, so a rendering has something to vary
+// over rather than one flat color.
+func gradientPNG(t *testing.T, w, h int) []byte {
+	t.Helper()
+	img := image.NewRGBA(image.Rect(0, 0, w, h))
+	for y := range h {
+		for x := range w {
+			img.Set(x, y, color.RGBA{R: uint8(x * 255 / w), G: uint8(y * 255 / h), B: 90, A: 255})
+		}
+	}
+	var buf bytes.Buffer
+	assert.NilError(t, png.Encode(&buf, img))
+	return buf.Bytes()
+}
+
 // TestRunGet_Interactive_ParallelJobReport confirms the job summaries live on the
 // execution picker for a parallel job: picking "Job report (summary)" there
 // prints the short job summary (which lists the workflow ID).
@@ -841,9 +993,8 @@ func TestRunGet_Interactive_ParallelJobReport(t *testing.T) {
 	console := startRunGetInteractive(t, env)
 	drillToExecutionPicker(t, console)
 
-	// Cursor starts on the failed Execution 1 (index 5, below the four meta
-	// options); five ups reach the first option, "Job report (summary)".
-	_, err := console.Send(keyUp + keyUp + keyUp + keyUp + keyUp + "\r")
+	// "Job report (summary)" is the first of the leading job-wide options.
+	_, err := console.Send(keyTop + "\r")
 	assert.NilError(t, err)
 
 	_, err = console.ExpectString(irunWfID)

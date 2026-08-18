@@ -25,6 +25,10 @@ package ui_test
 import (
 	"bytes"
 	"context"
+	"errors"
+	"image"
+	"image/color"
+	"image/png"
 	"runtime"
 	"strings"
 	"testing"
@@ -68,6 +72,11 @@ var (
 	keyHelp   = tea.KeyPressMsg{Code: '?', Text: "?"}
 	keySlash  = tea.KeyPressMsg{Code: '/', Text: "/"}
 	keyRight  = tea.KeyPressMsg{Code: tea.KeyRight}
+	keyLeft   = tea.KeyPressMsg{Code: tea.KeyLeft}
+	keyD      = tea.KeyPressMsg{Code: 'd', Text: "d"}
+	keyO      = tea.KeyPressMsg{Code: 'o', Text: "o"}
+	keyY      = tea.KeyPressMsg{Code: 'y', Text: "y"}
+	keyN      = tea.KeyPressMsg{Code: 'n', Text: "n"}
 )
 
 // teaTimeout bounds every wait on a teatest program in this package. It is a
@@ -1226,4 +1235,517 @@ func TestRunGetFlow_ResourceUsagePager(t *testing.T) {
 		tm.Send(keyEsc)
 		assert.Check(t, cmp.Contains(flowSnapshot(t, tm), "Select a step"))
 	}))
+}
+
+// waitForFrame blocks until the flow's current frame contains s, polling
+// snapshots rather than reading the output stream. bubbletea repaints only what
+// changed between frames, so a line that is still on screen (a title, a row that
+// did not move) may never appear in the stream again — waitForOutput would hang
+// on it even though the screen reads correctly.
+func waitForFrame(t *testing.T, tm *teatest.TestModel, s string) {
+	t.Helper()
+	deadline := time.Now().Add(teaTimeout)
+	for {
+		if frame := flowSnapshot(t, tm); strings.Contains(frame, s) {
+			return
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("frame never contained %q after %s; last frame:\n%s", s, teaTimeout, flowSnapshot(t, tm))
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+}
+
+// --- the artifact browser ---
+
+// artifactFlow is the set of artifact stubs a browser test wires up. A nil field
+// means "the caller did not supply this closure", which is exactly how the flow
+// decides which keys to offer.
+type artifactFlow struct {
+	items    []ui.RunGetArtifactItem
+	fetchErr error
+	// content is the bytes a view returns, text whether they are displayable.
+	content     []byte
+	contentText bool
+	contentErr  error
+	// downloaded records what a download was asked to write, and downloadErr the
+	// error it reports.
+	downloaded  *[]ui.RunGetArtifactItem
+	downloadDir *string
+	downloadErr error
+	opened      *string
+	// jobIcon is the picked job's status glyph — a finished job is what makes the
+	// artifacts option appear at all.
+	jobIcon string
+	// noContent and noDownload drop the respective closures, so the flow sees them
+	// as unwired.
+	noContent  bool
+	noDownload bool
+	noOpen     bool
+}
+
+func artifactItem(path string) ui.RunGetArtifactItem {
+	return ui.RunGetArtifactItem{Path: path, URL: "https://artifacts.example/" + path}
+}
+
+// newArtifactsFlow builds a single-execution flow whose run → workflow → job
+// chain leads to a step picker offering the artifacts option.
+func newArtifactsFlow(f artifactFlow) ui.RunGetFlowModel {
+	icon := f.jobIcon
+	if icon == "" {
+		icon = "✓"
+	}
+	opts := ui.RunGetFlowOptions{
+		Runs:          []ui.RunGetItem{runItem("aaaaaaa [main] - now")},
+		CurrentBranch: "main",
+		FetchWorkflows: func(context.Context, uuid.UUID) ([]ui.RunGetItem, error) {
+			return []ui.RunGetItem{{ID: uuid.New(), Icon: "✓", Label: "build"}}, nil
+		},
+		FetchJobs: func(context.Context, uuid.UUID) ([]ui.RunGetItem, error) {
+			return []ui.RunGetItem{{ID: uuid.New(), Icon: icon, Label: "test"}}, nil
+		},
+		FetchExecutions: func(context.Context, uuid.UUID) ([]ui.RunGetExecution, error) {
+			return []ui.RunGetExecution{{Index: 0, Steps: []ui.RunGetStepItem{
+				{Label: "run tests", Icon: "✗", Execution: 0, StepNum: 101},
+			}}}, nil
+		},
+		FetchArtifacts: func(context.Context, uuid.UUID) ([]ui.RunGetArtifactItem, error) {
+			return f.items, f.fetchErr
+		},
+	}
+	if !f.noContent {
+		opts.FetchArtifactContent = func(context.Context, ui.RunGetArtifactItem) ([]byte, bool, error) {
+			return f.content, f.contentText, f.contentErr
+		}
+	}
+	if !f.noDownload {
+		opts.DownloadArtifacts = func(_ context.Context, items []ui.RunGetArtifactItem, dir string) error {
+			if f.downloaded != nil {
+				*f.downloaded = items
+			}
+			if f.downloadDir != nil {
+				*f.downloadDir = dir
+			}
+			return f.downloadErr
+		}
+	}
+	if !f.noOpen {
+		opts.OpenArtifactURL = func(url string) error {
+			if f.opened != nil {
+				*f.opened = url
+			}
+			return nil
+		}
+	}
+	return ui.NewRunGetFlow(context.Background(), opts)
+}
+
+// driveToArtifacts navigates run → workflow → job to the step picker and opens
+// the artifacts option. The cursor lands on the failed step, which sits just
+// below the five meta rows, so one keyUp reaches "Artifacts" (the last of them).
+func driveToArtifacts(t *testing.T, tm *teatest.TestModel) {
+	t.Helper()
+	tm.Send(keyEnt) // select the only run
+	waitForOutput(t, tm, "See all workflows")
+	tm.Send(keyDown)
+	tm.Send(keyEnt) // select "build"
+	waitForOutput(t, tm, "All jobs in workflow")
+	tm.Send(keyDown)
+	tm.Send(keyEnt) // select "test"
+	waitForOutput(t, tm, "Artifacts (browse and download files)")
+	tm.Send(keyUp)  // failed step → "Artifacts"
+	tm.Send(keyEnt) // open the browser
+}
+
+var browsePaths = []ui.RunGetArtifactItem{
+	artifactItem("coverage.out"),
+	artifactItem("reports/junit/results.xml"),
+	artifactItem("reports/summary.txt"),
+}
+
+// TestRunGetFlow_ArtifactBrowse walks the browser: the tree opens at the root
+// with directories first, → descends, ← comes back, and esc at the root returns
+// to the picker that offered it.
+func TestRunGetFlow_ArtifactBrowse(t *testing.T) {
+	tm := startFlow(t, newArtifactsFlow(artifactFlow{items: browsePaths}))
+
+	assert.Assert(t, t.Run("the tree opens at the root", func(t *testing.T) {
+		driveToArtifacts(t, tm)
+		waitForFrame(t, tm, "Artifacts /")
+		v := flowSnapshot(t, tm)
+		assert.Check(t, cmp.Contains(v, "reports/  (2 files)"))
+		assert.Check(t, cmp.Contains(v, "coverage.out"))
+		assert.Check(t, cmp.Contains(v, "d download"))
+		assert.Check(t, cmp.Contains(v, "o browser"))
+	}))
+
+	assert.Assert(t, t.Run("→ descends into a directory", func(t *testing.T) {
+		tm.Send(keyRight)
+		waitForFrame(t, tm, "Artifacts /reports")
+		v := flowSnapshot(t, tm)
+		assert.Check(t, cmp.Contains(v, "junit/  (1 file)"))
+		assert.Check(t, cmp.Contains(v, "summary.txt"))
+	}))
+
+	assert.Assert(t, t.Run("← comes back out", func(t *testing.T) {
+		tm.Send(keyLeft)
+		assert.Check(t, cmp.Contains(flowSnapshot(t, tm), "Artifacts /"))
+	}))
+
+	assert.Assert(t, t.Run("esc at the root returns to the step picker", func(t *testing.T) {
+		tm.Send(keyEsc)
+		assert.Check(t, cmp.Contains(flowSnapshot(t, tm), "Select a step"))
+	}))
+}
+
+// TestRunGetFlow_ArtifactFilter drives the "/" filter: it narrows the listing
+// recursively from the current directory, and esc clears it before esc leaves.
+func TestRunGetFlow_ArtifactFilter(t *testing.T) {
+	tm := startFlow(t, newArtifactsFlow(artifactFlow{items: browsePaths}))
+	driveToArtifacts(t, tm)
+	waitForFrame(t, tm, "Artifacts /")
+
+	assert.Assert(t, t.Run("typing narrows the listing", func(t *testing.T) {
+		tm.Send(keySlash)
+		tm.Send(tea.KeyPressMsg{Code: 'x', Text: "x"})
+		tm.Send(tea.KeyPressMsg{Code: 'm', Text: "m"})
+		tm.Send(tea.KeyPressMsg{Code: 'l', Text: "l"})
+		waitForFrame(t, tm, "1 match")
+		v := flowSnapshot(t, tm)
+		assert.Check(t, cmp.Contains(v, "reports/junit/results.xml"))
+		assert.Check(t, !strings.Contains(v, "coverage.out"))
+	}))
+
+	assert.Assert(t, t.Run("enter commits the filter", func(t *testing.T) {
+		tm.Send(keyEnt)
+		assert.Check(t, cmp.Contains(flowSnapshot(t, tm), "/xml"))
+	}))
+
+	assert.Assert(t, t.Run("esc clears the filter, keeping the browser open", func(t *testing.T) {
+		tm.Send(keyEsc)
+		v := flowSnapshot(t, tm)
+		assert.Check(t, cmp.Contains(v, "coverage.out"))
+		assert.Check(t, !strings.Contains(v, "/xml"))
+	}))
+}
+
+// TestRunGetFlow_ArtifactViewInPager opens a text artifact in the pager, and
+// confirms esc returns to the browser rather than the step picker.
+func TestRunGetFlow_ArtifactViewInPager(t *testing.T) {
+	tm := startFlow(t, newArtifactsFlow(artifactFlow{
+		items:       browsePaths,
+		content:     []byte("mode: set\ntotal coverage 91.2%"),
+		contentText: true,
+	}))
+	driveToArtifacts(t, tm)
+	waitForFrame(t, tm, "Artifacts /")
+
+	assert.Assert(t, t.Run("enter on a file pages its content", func(t *testing.T) {
+		tm.Send(keyDown) // reports/ → coverage.out
+		tm.Send(keyEnt)
+		waitForFrame(t, tm, "total coverage 91.2%")
+	}))
+
+	assert.Assert(t, t.Run("esc returns to the browser", func(t *testing.T) {
+		tm.Send(keyEsc)
+		assert.Check(t, cmp.Contains(flowSnapshot(t, tm), "Artifacts /"))
+	}))
+}
+
+// TestRunGetFlow_ArtifactImageRendered confirms an image artifact is drawn in the
+// pager as a block mosaic rather than refused as binary, named in the footer, and
+// fitted to the window so it needs no scrolling — a mosaic keeps mosaic's trailing
+// newline otherwise, which costs a row and scrolls at every terminal size.
+func TestRunGetFlow_ArtifactImageRendered(t *testing.T) {
+	tm := startFlow(t, newArtifactsFlow(artifactFlow{
+		items:   []ui.RunGetArtifactItem{artifactItem("screenshots/login.png")},
+		content: flowTestPNG(t, 120, 60),
+		// An image is not text: the flow classifies it from the bytes, so the text
+		// flag being false must not stop it rendering.
+		contentText: false,
+	}))
+	driveToArtifacts(t, tm)
+	waitForFrame(t, tm, "Artifacts /")
+
+	assert.Assert(t, t.Run("the image renders, named in the footer", func(t *testing.T) {
+		tm.Send(keyRight) // into screenshots/
+		tm.Send(keyEnt)   // view login.png
+		waitForFrame(t, tm, "png 120×60")
+		frame := flowSnapshot(t, tm)
+		assert.Check(t, strings.ContainsAny(frame, "▀▄█▌▐"), "no block glyphs in %q", frame)
+		assert.Check(t, !strings.Contains(frame, "not text"))
+	}))
+
+	assert.Assert(t, t.Run("it fits the window, so nothing scrolls", func(t *testing.T) {
+		// The pager reports its scroll position: 100% with the viewport still at the
+		// top means every row is already on screen.
+		assert.Check(t, cmp.Contains(flowSnapshot(t, tm), "100%"))
+	}))
+
+	assert.Assert(t, t.Run("a resize re-renders it to fit again", func(t *testing.T) {
+		tm.Send(tea.WindowSizeMsg{Width: 40, Height: 12})
+		waitForFrame(t, tm, "png 120×60")
+		frame := flowSnapshot(t, tm)
+		assert.Check(t, cmp.Contains(frame, "100%"))
+		for _, row := range mosaicRows(frame) {
+			assert.Check(t, ansi.StringWidth(row) <= 40, "image row wider than the terminal: %q", row)
+		}
+	}))
+
+	assert.Assert(t, t.Run("esc returns to the browser", func(t *testing.T) {
+		tm.Send(keyEsc)
+		waitForFrame(t, tm, "Artifacts /screenshots")
+	}))
+}
+
+// TestRunGetFlow_ArtifactBinaryNotPaged confirms a file that is not displayable
+// text is never paged: the browser says so and points at the download key.
+func TestRunGetFlow_ArtifactBinaryNotPaged(t *testing.T) {
+	tm := startFlow(t, newArtifactsFlow(artifactFlow{
+		items:       []ui.RunGetArtifactItem{artifactItem("build/app.bin")},
+		content:     []byte{0x7f, 'E', 'L', 'F'},
+		contentText: false,
+	}))
+	driveToArtifacts(t, tm)
+	waitForFrame(t, tm, "Artifacts /")
+
+	t.Run("the browser names the file and points at the download key", func(t *testing.T) {
+		tm.Send(keyRight) // into build/
+		tm.Send(keyEnt)   // open app.bin
+		waitForFrame(t, tm, "not text or a supported image")
+		v := flowSnapshot(t, tm)
+		assert.Check(t, cmp.Contains(v, "press d to download"))
+		assert.Check(t, cmp.Contains(v, "app.bin"))
+	})
+}
+
+// TestRunGetFlow_ArtifactDownload confirms the download key confirms first, then
+// writes the whole highlighted directory to ./artifacts and reports the outcome.
+func TestRunGetFlow_ArtifactDownload(t *testing.T) {
+	var got []ui.RunGetArtifactItem
+	var dir string
+	tm := startFlow(t, newArtifactsFlow(artifactFlow{
+		items:       browsePaths,
+		downloaded:  &got,
+		downloadDir: &dir,
+	}))
+	driveToArtifacts(t, tm)
+	waitForFrame(t, tm, "Artifacts /")
+
+	assert.Assert(t, t.Run("d asks before writing anything", func(t *testing.T) {
+		tm.Send(keyD)
+		waitForFrame(t, tm, "[y/N]")
+		v := flowSnapshot(t, tm)
+		assert.Check(t, cmp.Contains(v, "Download 2 files from reports/ to ./artifacts?"))
+		assert.Check(t, cmp.Equal(len(got), 0))
+	}))
+
+	assert.Assert(t, t.Run("y downloads the directory", func(t *testing.T) {
+		tm.Send(keyY)
+		waitForFrame(t, tm, "Downloaded 2 files to ./artifacts")
+		assert.Check(t, cmp.DeepEqual(artifactItemPaths(got), []string{
+			"reports/junit/results.xml",
+			"reports/summary.txt",
+		}))
+		assert.Check(t, cmp.Equal(dir, "./artifacts"))
+	}))
+}
+
+// TestRunGetFlow_ArtifactDownloadCancelled confirms answering no writes nothing.
+func TestRunGetFlow_ArtifactDownloadCancelled(t *testing.T) {
+	var got []ui.RunGetArtifactItem
+	tm := startFlow(t, newArtifactsFlow(artifactFlow{items: browsePaths, downloaded: &got}))
+	driveToArtifacts(t, tm)
+	waitForFrame(t, tm, "Artifacts /")
+
+	t.Run("answering no writes nothing", func(t *testing.T) {
+		tm.Send(keyD)
+		waitForFrame(t, tm, "[y/N]")
+		tm.Send(keyN)
+		waitForFrame(t, tm, "Download cancelled")
+		assert.Check(t, cmp.Equal(len(got), 0))
+	})
+}
+
+// TestRunGetFlow_ArtifactDownloadError reports a failed download in the browser
+// rather than ending the flow.
+func TestRunGetFlow_ArtifactDownloadError(t *testing.T) {
+	tm := startFlow(t, newArtifactsFlow(artifactFlow{
+		items:       browsePaths,
+		downloadErr: errors.New("disk full"),
+	}))
+	driveToArtifacts(t, tm)
+	waitForFrame(t, tm, "Artifacts /")
+
+	t.Run("the failure is reported in the browser, which stays open", func(t *testing.T) {
+		tm.Send(keyD)
+		waitForFrame(t, tm, "[y/N]")
+		tm.Send(keyY)
+		waitForFrame(t, tm, "disk full")
+		assert.Check(t, cmp.Contains(flowSnapshot(t, tm), "Artifacts /"))
+	})
+}
+
+// TestRunGetFlow_ArtifactOpenInBrowser confirms "o" opens the highlighted file's
+// URL, and that a directory row says why it cannot.
+func TestRunGetFlow_ArtifactOpenInBrowser(t *testing.T) {
+	var opened string
+	tm := startFlow(t, newArtifactsFlow(artifactFlow{items: browsePaths, opened: &opened}))
+	driveToArtifacts(t, tm)
+	waitForFrame(t, tm, "Artifacts /")
+
+	assert.Assert(t, t.Run("a directory has no URL of its own", func(t *testing.T) {
+		tm.Send(keyO)
+		waitForFrame(t, tm, "Only a file can be opened in a browser")
+		assert.Check(t, cmp.Equal(opened, ""))
+	}))
+
+	assert.Assert(t, t.Run("a file opens", func(t *testing.T) {
+		tm.Send(keyDown) // reports/ → coverage.out
+		tm.Send(keyO)
+		waitForFrame(t, tm, "Opened coverage.out in your browser")
+		assert.Check(t, cmp.Equal(opened, "https://artifacts.example/coverage.out"))
+	}))
+}
+
+// TestRunGetFlow_ArtifactsPerExecution confirms a job whose artifacts span
+// parallel executions groups them under one directory per execution, mirroring
+// what a download writes to disk.
+func TestRunGetFlow_ArtifactsPerExecution(t *testing.T) {
+	var got []ui.RunGetArtifactItem
+	tm := startFlow(t, newArtifactsFlow(artifactFlow{
+		items: []ui.RunGetArtifactItem{
+			{Path: "junit.xml", URL: "https://artifacts.example/0/junit.xml", Execution: 0},
+			{Path: "junit.xml", URL: "https://artifacts.example/3/junit.xml", Execution: 3},
+		},
+		downloaded: &got,
+	}))
+	driveToArtifacts(t, tm)
+	waitForFrame(t, tm, "Artifacts /")
+
+	assert.Assert(t, t.Run("the root lists one directory per execution", func(t *testing.T) {
+		v := flowSnapshot(t, tm)
+		assert.Check(t, cmp.Contains(v, "exec-0000/  (1 file)"))
+		assert.Check(t, cmp.Contains(v, "exec-0003/  (1 file)"))
+	}))
+
+	assert.Assert(t, t.Run("a download from one execution keeps its directory", func(t *testing.T) {
+		// Otherwise the two same-named files would collide on disk.
+		tm.Send(keyDown) // exec-0000 → exec-0003
+		tm.Send(keyD)
+		waitForFrame(t, tm, "[y/N]")
+		tm.Send(keyY)
+		waitForFrame(t, tm, "Downloaded 1 file to ./artifacts")
+		assert.Check(t, cmp.DeepEqual(artifactItemPaths(got), []string{"exec-0003/junit.xml"}))
+	}))
+}
+
+// TestRunGetFlow_ArtifactsEmpty confirms a job that produced no artifacts opens a
+// browser that explains itself, with esc back to the picker.
+func TestRunGetFlow_ArtifactsEmpty(t *testing.T) {
+	tm := startFlow(t, newArtifactsFlow(artifactFlow{}))
+	driveToArtifacts(t, tm)
+
+	assert.Assert(t, t.Run("the browser explains itself", func(t *testing.T) {
+		waitForFrame(t, tm, "This job produced no artifacts")
+	}))
+
+	t.Run("esc returns to the picker that offered it", func(t *testing.T) {
+		tm.Send(keyEsc)
+		assert.Check(t, cmp.Contains(flowSnapshot(t, tm), "Select a step"))
+	})
+}
+
+// TestRunGetFlow_ArtifactsFetchError shows a failed listing in the browser rather
+// than ending the flow, so esc still gets the user back.
+func TestRunGetFlow_ArtifactsFetchError(t *testing.T) {
+	tm := startFlow(t, newArtifactsFlow(artifactFlow{fetchErr: errors.New("artifacts unavailable")}))
+	driveToArtifacts(t, tm)
+
+	assert.Assert(t, t.Run("the error shows in the browser", func(t *testing.T) {
+		waitForFrame(t, tm, "artifacts unavailable")
+	}))
+
+	t.Run("esc still gets back to the picker", func(t *testing.T) {
+		tm.Send(keyEsc)
+		assert.Check(t, cmp.Contains(flowSnapshot(t, tm), "Select a step"))
+	})
+}
+
+// TestRunGetFlow_ArtifactsOptionNeedsFinishedJob confirms the option is offered
+// only for a job that has finished: a running job has no artifacts to browse.
+func TestRunGetFlow_ArtifactsOptionNeedsFinishedJob(t *testing.T) {
+	tm := startFlow(t, newArtifactsFlow(artifactFlow{items: browsePaths, jobIcon: "●"}))
+
+	assert.Assert(t, t.Run("drill into the running job", func(t *testing.T) {
+		tm.Send(keyEnt)
+		waitForFrame(t, tm, "See all workflows")
+		tm.Send(keyDown)
+		tm.Send(keyEnt)
+		waitForFrame(t, tm, "All jobs in workflow")
+		tm.Send(keyDown)
+		tm.Send(keyEnt)
+		waitForFrame(t, tm, "Select a step")
+	}))
+
+	t.Run("the step picker offers the summaries but no artifacts row", func(t *testing.T) {
+		v := flowSnapshot(t, tm)
+		assert.Check(t, cmp.Contains(v, "Resource usage"))
+		assert.Check(t, !strings.Contains(v, "Artifacts"), "artifacts offered for an unfinished job")
+	})
+}
+
+// TestRunGetFlow_ArtifactActionKeysFollowOptions confirms the footer advertises
+// only the actions the caller wired up.
+func TestRunGetFlow_ArtifactActionKeysFollowOptions(t *testing.T) {
+	tm := startFlow(t, newArtifactsFlow(artifactFlow{
+		items:      browsePaths,
+		noDownload: true,
+		noOpen:     true,
+	}))
+	driveToArtifacts(t, tm)
+	waitForFrame(t, tm, "Artifacts /")
+
+	t.Run("the footer omits the actions the caller did not wire up", func(t *testing.T) {
+		v := flowSnapshot(t, tm)
+		assert.Check(t, cmp.Contains(v, "/ search"))
+		assert.Check(t, !strings.Contains(v, "d download"), "download offered with no downloader")
+		assert.Check(t, !strings.Contains(v, "o browser"), "browser offered with no opener")
+	})
+}
+
+// mosaicRows returns the image rows of a pager frame: the lines carrying block
+// glyphs, with the frame's right-hand padding stripped. lipgloss pads every line
+// of a frame to the width of its widest block — which is the footer's key hints,
+// not the image — so the padding has to go before a row can be measured.
+func mosaicRows(frame string) []string {
+	var rows []string
+	for _, line := range strings.Split(frame, "\n") {
+		if strings.ContainsAny(line, "▀▄█▌▐") {
+			rows = append(rows, strings.TrimRight(line, " "))
+		}
+	}
+	return rows
+}
+
+// flowTestPNG encodes a w×h gradient PNG for the image-viewing test.
+func flowTestPNG(t *testing.T, w, h int) []byte {
+	t.Helper()
+	img := image.NewRGBA(image.Rect(0, 0, w, h))
+	for y := range h {
+		for x := range w {
+			img.Set(x, y, color.RGBA{R: uint8(x * 255 / w), G: uint8(y * 255 / h), B: 90, A: 255})
+		}
+	}
+	var buf bytes.Buffer
+	assert.NilError(t, png.Encode(&buf, img))
+	return buf.Bytes()
+}
+
+func artifactItemPaths(items []ui.RunGetArtifactItem) []string {
+	out := make([]string, len(items))
+	for i, item := range items {
+		out[i] = item.Path
+	}
+	return out
 }

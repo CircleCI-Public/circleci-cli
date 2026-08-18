@@ -59,6 +59,11 @@ var (
 	KeyTop      = key.NewBinding(key.WithKeys("g", "home"))
 	KeyBottom   = key.NewBinding(key.WithKeys("G", "end"))
 
+	// Horizontal movement. The file tree descends into a directory with right (or
+	// l) and ascends with left (or h), the vim-style pair matching k/j above.
+	KeyRight = key.NewBinding(key.WithKeys("right", "l"))
+	KeyLeft  = key.NewBinding(key.WithKeys("left", "h"))
+
 	// Search "/" prompt editing. History recall is arrow-only (not KeyUp/KeyDown)
 	// so k/j are typed into the pattern as literal text instead of recalling.
 	KeyBackspace = key.NewBinding(key.WithKeys("backspace"))
@@ -78,6 +83,16 @@ var (
 	BindRefresh = key.NewBinding(key.WithKeys("r"), key.WithHelp("r", "refresh"))
 	BindHelp    = key.NewBinding(key.WithKeys("?"), key.WithHelp("?", "help"))
 	BindQuit    = key.NewBinding(key.WithKeys("q"), key.WithHelp("q", "quit"))
+
+	// Actions a host can offer on a file-tree row.
+	BindDownload    = key.NewBinding(key.WithKeys("d"), key.WithHelp("d", "download"))
+	BindOpenBrowser = key.NewBinding(key.WithKeys("o"), key.WithHelp("o", "browser"))
+
+	// File-tree navigation. Open covers both the enter and right keystrokes since
+	// they do the same thing on a tree row — descend into a directory, or open a
+	// file.
+	BindOpen    = key.NewBinding(key.WithKeys("enter", "right", "l"), key.WithHelp("⏎/→", "open"))
+	BindUpLevel = key.NewBinding(key.WithKeys("left", "h"), key.WithHelp("←", "up"))
 )
 
 // Footer-only display bindings. The two esc variants exist because esc reads as
