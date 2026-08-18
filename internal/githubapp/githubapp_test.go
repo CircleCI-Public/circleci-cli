@@ -45,40 +45,33 @@ func testCtx() context.Context {
 	return iostream.Testing(context.Background())
 }
 
-// pagedReposServer serves the GitHub App repositories endpoint, returning at
-// most two items per page regardless of the requested limit, so the pagination
-// loop in ResolveRepoID is exercised across multiple pages.
+// pagedReposServer serves the provider repositories endpoint, returning at most
+// two items per page regardless of the requested limit, so the pagination loop in
+// ResolveRepoID is exercised across multiple pages. The cursor it mints is the
+// index of the next repository to return.
 func pagedReposServer(t *testing.T, fullNames []string) *apiclient.Client {
 	t.Helper()
 
-	type repo struct {
-		ID       int64  `json:"id"`
-		FullName string `json:"repo_full_name"`
-	}
-	all := make([]repo, len(fullNames))
-	for i, fn := range fullNames {
-		all[i] = repo{ID: int64(i + 1), FullName: fn}
-	}
-
 	const pageSize = 2
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		page, _ := strconv.Atoi(r.URL.Query().Get("page"))
-		if page < 1 {
-			page = 1
+		start, _ := strconv.Atoi(r.URL.Query().Get("page[cursor]"))
+		end := min(start+pageSize, len(fullNames))
+
+		data := make([]map[string]any, 0, end-start)
+		for i := start; i < end; i++ {
+			data = append(data, map[string]any{"attributes": map[string]any{
+				"repo_id":        strconv.Itoa(i + 1),
+				"repo_full_name": fullNames[i],
+				"provider":       "github_app",
+			}})
 		}
-		start := (page - 1) * pageSize
-		end := start + pageSize
-		if start > len(all) {
-			start = len(all)
-		}
-		if end > len(all) {
-			end = len(all)
+
+		page := map[string]any{"next": nil}
+		if end < len(fullNames) {
+			page["next"] = strconv.Itoa(end)
 		}
 		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(map[string]any{
-			"items":       all[start:end],
-			"total_count": len(all),
-		})
+		_ = json.NewEncoder(w).Encode(map[string]any{"data": data, "page": page})
 	}))
 	t.Cleanup(srv.Close)
 
@@ -93,16 +86,16 @@ func pagedReposServer(t *testing.T, fullNames []string) *apiclient.Client {
 // access, then re-run — can never help, because the next run searches the same
 // bounded prefix.
 func TestResolveRepoID_PageCap(t *testing.T) {
-	// A server that always has more pages: total_count never gets satisfied, so
-	// the loop can only end by hitting its cap.
+	// A server that always hands back another cursor, so the walk can only end by
+	// hitting its cap.
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(map[string]any{
-			"items": []map[string]any{
-				{"id": 1, "repo_full_name": "myorg/filler-a"},
-				{"id": 2, "repo_full_name": "myorg/filler-b"},
+			"data": []map[string]any{
+				{"attributes": map[string]any{"repo_id": "1", "repo_full_name": "myorg/filler-a"}},
+				{"attributes": map[string]any{"repo_id": "2", "repo_full_name": "myorg/filler-b"}},
 			},
-			"total_count": 1_000_000,
+			"page": map[string]any{"next": "more"},
 		})
 	}))
 	t.Cleanup(srv.Close)

@@ -29,7 +29,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strconv"
 	"strings"
 	"time"
 
@@ -166,9 +165,9 @@ func pollInstalled(ctx context.Context, client *apiclient.Client, orgID string) 
 // grant access and re-run, searches the same bounded prefix again.
 var ErrTooManyRepositories = errors.New("too many repositories to search for a match")
 
-// ResolveRepoID returns the external (numeric) ID of repoFullName ("owner/repo")
-// among the repositories the GitHub App can access for the organization. The
-// endpoint offers no name filter, so the list has to be walked.
+// ResolveRepoID returns the provider's ID for repoFullName ("owner/repo") among
+// the repositories the organization's connection can reach. The endpoint offers no
+// name filter, so the list has to be walked.
 //
 // It returns "" with no error only when the whole list was examined and held no
 // match; hitting the page cap first returns ErrTooManyRepositories.
@@ -177,21 +176,23 @@ func ResolveRepoID(ctx context.Context, client *apiclient.Client, orgID, repoFul
 		return "", nil
 	}
 
-	seen := 0
-	for page := 1; page <= maxRepoPages; page++ {
-		repos, total, err := client.ListGitHubAppRepositories(ctx, orgID, page, repoPageLimit)
+	cursor := ""
+	for range maxRepoPages {
+		repos, next, err := client.ListProviderRepositories(ctx, orgID, provider, cursor, repoPageLimit)
 		if err != nil {
 			return "", err
 		}
 		for _, r := range repos {
 			if strings.EqualFold(r.FullName, repoFullName) {
-				return strconv.FormatInt(r.ID, 10), nil
+				return r.ID, nil
 			}
 		}
-		seen += len(repos)
-		if len(repos) == 0 || (total > 0 && seen >= total) {
-			return "", nil // whole list examined, genuinely no match
+		// An absent next cursor is the end of the list, so the walk was complete and
+		// the repository genuinely is not there.
+		if next == "" {
+			return "", nil
 		}
+		cursor = next
 	}
 	return "", ErrTooManyRepositories
 }

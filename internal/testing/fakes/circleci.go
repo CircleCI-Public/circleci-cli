@@ -72,14 +72,14 @@ type CircleCI struct {
 	listTriggerResponses              map[string][]any        // "projectID/pipelineID" → list of v3 trigger entities
 
 	// GitHub App state.
-	providerConnections     map[string][]string        // orgID → connected providers
-	githubAppRepos          map[string][]GitHubAppRepo // orgID → repositories the app can access
-	connectionSetupResp     any                        // response body for POST /provider/connections/setup
-	rerunResponses          map[string]int             // workflow id → HTTP status to return
-	rerunNewIDs             map[string]string          // workflow id → id of the workflow its rerun creates
-	rerunFromFailed         map[string]bool            // workflow id → is_from_failed as the request actually set it
-	cancelResponses         map[string]int             // workflow id → HTTP status to return
-	pipelineCancelResponses map[string]int             // pipeline id → HTTP status to return
+	providerConnections     map[string][]string       // orgID → connected providers
+	providerRepos           map[string][]ProviderRepo // orgID → repositories the connection can reach
+	connectionSetupResp     any                       // response body for POST /provider/connections/setup
+	rerunResponses          map[string]int            // workflow id → HTTP status to return
+	rerunNewIDs             map[string]string         // workflow id → id of the workflow its rerun creates
+	rerunFromFailed         map[string]bool           // workflow id → is_from_failed as the request actually set it
+	cancelResponses         map[string]int            // workflow id → HTTP status to return
+	pipelineCancelResponses map[string]int            // pipeline id → HTTP status to return
 
 	// Job (v3) state.
 	jobsV3             map[string]JobV3         // job UUID → job detail entity
@@ -256,7 +256,7 @@ func NewCircleCI(t *testing.T, tokens ...string) *CircleCI {
 		createTriggerResponses:            map[string]any{},
 		listTriggerResponses:              map[string][]any{},
 		providerConnections:               map[string][]string{},
-		githubAppRepos:                    map[string][]GitHubAppRepo{},
+		providerRepos:                     map[string][]ProviderRepo{},
 		rerunResponses:                    map[string]int{},
 		rerunNewIDs:                       map[string]string{},
 		rerunFromFailed:                   map[string]bool{},
@@ -378,7 +378,7 @@ func NewCircleCI(t *testing.T, tokens ...string) *CircleCI {
 	// GitHub App routes.
 	r.Get("/api/v3/provider/connections", f.handleListProviderConnections)
 	r.Post("/api/v3/provider/connections/setup", f.handleSetupProviderConnection)
-	r.Get("/api/v2/github-app/organization/{orgID}/repositories", f.handleListGitHubAppRepositories)
+	r.Get("/api/v3/provider/repositories", f.handleListProviderRepositories)
 	// Policy routes.
 	r.Post("/api/v2/owner/{ownerID}/context/{policyCtx}/policy-bundle", f.handleCreatePolicyBundle)
 	r.Get("/api/v2/owner/{ownerID}/context/{policyCtx}/policy-bundle", f.handleFetchPolicyBundle)
@@ -3057,39 +3057,47 @@ func (f *CircleCI) SetProviderConnected(orgID, provider string, connected bool) 
 	f.providerConnections[orgID] = providers
 }
 
-// GitHubAppRepo is a stored repository the CircleCI GitHub App can access,
-// served by the org repositories endpoint. DefaultBranch renders only when set.
-type GitHubAppRepo struct {
-	ID            int
+// ProviderRepo is a stored repository an org's provider connection can reach,
+// served by the provider repositories endpoint. DefaultBranch renders only when
+// set, and Provider defaults to github_app.
+type ProviderRepo struct {
+	ID            string
 	RepoFullName  string
 	RepoName      string
 	Owner         string
 	DefaultBranch string
 	Private       bool
+	Provider      string
 }
 
-// AddGitHubAppRepository registers a repository returned by GET
-// /api/v2/github-app/organization/{orgID}/repositories.
-func (f *CircleCI) AddGitHubAppRepository(orgID string, repo GitHubAppRepo) {
+// AddProviderRepository registers a repository returned by GET
+// /api/v3/provider/repositories for the org.
+func (f *CircleCI) AddProviderRepository(orgID string, repo ProviderRepo) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	f.githubAppRepos[orgID] = append(f.githubAppRepos[orgID], repo)
+	f.providerRepos[orgID] = append(f.providerRepos[orgID], repo)
 }
 
-// gitHubAppRepoEntity renders a stored GitHubAppRepo as its wire object,
-// including default_branch only when set.
-func gitHubAppRepoEntity(repo GitHubAppRepo) map[string]any {
-	m := map[string]any{
-		"id":             repo.ID,
+// providerRepoEntity renders a stored ProviderRepo as its v3 data entity,
+// including default_branch only when set. A repository carries no entity id: it is
+// identified by the provider's own id, in the attributes.
+func providerRepoEntity(repo ProviderRepo) map[string]any {
+	provider := repo.Provider
+	if provider == "" {
+		provider = "github_app"
+	}
+	attrs := map[string]any{
+		"repo_id":        repo.ID,
 		"repo_full_name": repo.RepoFullName,
 		"repo_name":      repo.RepoName,
 		"owner":          repo.Owner,
-		"private":        repo.Private,
+		"is_private":     repo.Private,
+		"provider":       provider,
 	}
 	if repo.DefaultBranch != "" {
-		m["default_branch"] = repo.DefaultBranch
+		attrs["default_branch"] = repo.DefaultBranch
 	}
-	return m
+	return map[string]any{"attributes": attrs}
 }
 
 // SetProviderConnectionSetupResponse registers the body returned by POST
@@ -3139,17 +3147,54 @@ func (f *CircleCI) handleSetupProviderConnection(w http.ResponseWriter, r *http.
 	render.JSON(w, r, resp)
 }
 
-func (f *CircleCI) handleListGitHubAppRepositories(w http.ResponseWriter, r *http.Request) {
-	orgID := chi.URLParam(r, "orgID")
+// handleListProviderRepositories serves one cursor-delimited page. The cursor is
+// the index of the next repository to return, so a test that registers more
+// repositories than the requested limit exercises the caller's paging.
+func (f *CircleCI) handleListProviderRepositories(w http.ResponseWriter, r *http.Request) {
+	q := r.URL.Query()
+	orgID := q.Get("filter[org_id]")
+	provider := q.Get("filter[provider]")
+
 	f.mu.RLock()
-	repos := f.githubAppRepos[orgID]
+	stored := slices.Clone(f.providerRepos[orgID])
 	f.mu.RUnlock()
 
-	items := make([]any, 0, len(repos))
-	for _, repo := range repos {
-		items = append(items, gitHubAppRepoEntity(repo))
+	repos := make([]ProviderRepo, 0, len(stored))
+	for _, repo := range stored {
+		if provider == "" || providerOrDefault(repo) == provider {
+			repos = append(repos, repo)
+		}
 	}
-	render.JSON(w, r, map[string]any{"items": items, "total_count": len(items)})
+
+	start, _ := strconv.Atoi(q.Get("page[cursor]"))
+	limit, err := strconv.Atoi(q.Get("page[limit]"))
+	if err != nil || limit <= 0 {
+		limit = 100
+	}
+	end := min(start+limit, len(repos))
+	if start > len(repos) {
+		start = len(repos)
+	}
+
+	data := make([]any, 0, end-start)
+	for _, repo := range repos[start:end] {
+		data = append(data, providerRepoEntity(repo))
+	}
+
+	page := map[string]any{"next": nil}
+	if end < len(repos) {
+		page["next"] = strconv.Itoa(end)
+	}
+	render.JSON(w, r, map[string]any{"data": data, "page": page})
+}
+
+// providerOrDefault reports a stored repository's provider, defaulting to the
+// GitHub App so fixtures need not name it.
+func providerOrDefault(repo ProviderRepo) string {
+	if repo.Provider == "" {
+		return "github_app"
+	}
+	return repo.Provider
 }
 
 func (f *CircleCI) handleGetProjectInfo(w http.ResponseWriter, r *http.Request) {
