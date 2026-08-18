@@ -25,6 +25,7 @@ package ui
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"runtime"
 	"strings"
 	"time"
@@ -114,9 +115,33 @@ and Created (filter runs by how long ago they were created — pick an age, or
 | ` + "`r`" + ` | Reset the filters (current branch, all statuses, all dates) |
 | ` + "`esc`" + ` | Cancel and return to the run picker |
 
+## The artifact browser
+
+Offered as ` + "`Artifacts`" + ` on a job that has finished. Files are shown as a
+directory tree, one level at a time; a job with parallel executions groups them
+under an ` + "`exec-0000/`" + ` directory per execution.
+
+| Key | Action |
+| --- | --- |
+| ` + "`⏎` / `→`" + ` | View the highlighted file, or descend into a directory |
+| ` + "`←`" + ` | Go back up a directory |
+| ` + "`/`" + ` | Filter everything below the current directory (regular expression, smart case) |
+| ` + "`d`" + ` | Download the highlighted file, or every file under the highlighted directory |
+| ` + "`o`" + ` | Open the highlighted file in a browser |
+| ` + "`r`" + ` | Re-fetch the artifact list |
+| ` + "`esc`" + ` | Clear the filter, else go up a directory, else return to the picker |
+
+Text files open in the pager. Images (PNG, JPEG, GIF, WebP, BMP, TIFF) are drawn
+in the terminal as colored block glyphs, fitted to the window; the footer names the
+format and pixel size. Anything else — or a file over 8 MiB — is not shown, and the
+browser says so.
+
+Downloads go to ` + "`./artifacts`" + `, keeping each file's artifact path — the same
+place and layout as ` + "`circleci artifact <job-id> --output ./artifacts`" + `.
+
 ## Pager
 
-When paging through markdown, step or test output:
+When paging through markdown, step, test or artifact output:
 
 | Key | Action |
 | --- | --- |
@@ -135,12 +160,12 @@ const (
 	runGetJobOutputLabel     = "Full job report (including step output)"
 	runGetFailedTestsLabel   = "Failed tests"
 	runGetResourceUsageLabel = "Resource usage (CPU and memory charts)"
+	runGetArtifactsLabel     = "Artifacts (browse and download files)"
 
-	// runGetMetaCount is the number of leading job-summary options (job report,
-	// full output report, failed tests, resource usage). They sit on the first
-	// picker after the job: the step picker for a single-execution job, or the
-	// execution picker otherwise.
-	runGetMetaCount = 4
+	// runGetArtifactDir is where the browser's download key writes, relative to
+	// the working directory — the same destination and layout as
+	// "circleci artifact <job-id> --output ./artifacts", so the two agree.
+	runGetArtifactDir = "./artifacts"
 
 	// runGetMetaGlyph fills the icon column for the leading "see all" / "all
 	// jobs" summary options. They carry no status, so rather than leave a blank
@@ -159,7 +184,34 @@ const (
 	// drawn in. Like the other meta glyphs it is muted, so it does not read as a
 	// status symbol on the rows below.
 	runGetResourceUsageGlyph = "▃"
+
+	// runGetArtifactsGlyph marks the "artifacts" option: a muted empty square,
+	// reading as a file rather than a status. It stays outside the status glyph
+	// vocabulary in statusIconStyle for the same reason as the other meta glyphs.
+	runGetArtifactsGlyph = "□"
 )
+
+// metaKind identifies one of the leading job-wide options that head the first
+// picker after a job — the execution picker for a parallel job, else the step
+// picker. Which of them are offered varies (artifacts only for a finished job
+// with a fetcher), so both pickers build their rows from metaOptions rather than
+// a fixed list, and dispatch on the kind rather than a row index.
+type metaKind int
+
+const (
+	metaJobReport metaKind = iota
+	metaJobOutput
+	metaFailedTests
+	metaResourceUsage
+	metaArtifacts
+)
+
+// metaOption is one such row: what it does, and how it presents.
+type metaOption struct {
+	kind  metaKind
+	label string
+	icon  string
+}
 
 // RunGetAction is the terminal choice the user reached in the run-get flow.
 type RunGetAction int
@@ -229,6 +281,16 @@ type RunGetTestItem struct {
 	Message string
 }
 
+// RunGetArtifactItem is one artifact file a job produced: the path it was stored
+// under, the URL it can be fetched from, and the parallel execution that made it.
+// It mirrors internal/artifacts.Entry, keeping this package independent of the
+// API client like the rest of the flow's item types.
+type RunGetArtifactItem struct {
+	Path      string
+	URL       string
+	Execution int
+}
+
 // RunGetExecution is one parallel execution of a job, carrying its steps. When a
 // job's parallelism is greater than one the flow inserts an execution picker
 // before the step picker; with a single execution that picker is skipped.
@@ -292,6 +354,23 @@ type RunGetFlowOptions struct {
 	// with RunGetActionShowJob / RunGetActionShowJobOutput instead.
 	RenderJobSummary func(ctx context.Context, jobID uuid.UUID) (string, error)
 	RenderJobOutput  func(ctx context.Context, jobID uuid.UUID) (string, error)
+	// FetchArtifacts lists a job's artifacts for the artifact browser. When nil the
+	// "artifacts" option is not offered at all. FetchArtifactContent reads one
+	// artifact for viewing in the pager, reporting whether it is displayable text
+	// (the caller decides: it applies the size cap and the binary sniff, since it
+	// owns the transport). DownloadArtifacts writes the given artifacts under dir,
+	// preserving their paths; when nil the download key is not offered.
+	// OpenArtifactURL opens an artifact's URL in a browser; when nil that key is
+	// not offered either.
+	//
+	// The items handed to DownloadArtifacts carry the path the browser displayed
+	// (which for a job with parallel executions includes the per-execution
+	// directory), so what lands on disk mirrors what was on screen for any subset
+	// of the job's artifacts.
+	FetchArtifacts       func(ctx context.Context, jobID uuid.UUID) ([]RunGetArtifactItem, error)
+	FetchArtifactContent func(ctx context.Context, item RunGetArtifactItem) (data []byte, text bool, err error)
+	DownloadArtifacts    func(ctx context.Context, items []RunGetArtifactItem, dir string) error
+	OpenArtifactURL      func(url string) error
 	// RenderResourceUsage returns the job's CPU and memory usage report as
 	// markdown for the "resource usage" option, paged in-flow like the summaries
 	// above. When nil the option quits with RunGetActionShowResourceUsage
@@ -556,6 +635,10 @@ const (
 	runGetStageSummaryPager
 	runGetStageLoadingTests
 	runGetStageTestSelect
+	runGetStageLoadingArtifacts
+	runGetStageArtifactBrowse
+	runGetStageLoadingArtifactFile
+	runGetStageDownloadingArtifacts
 	runGetStageRunFilter
 	runGetStageHelp
 	runGetStageDone
@@ -697,6 +780,24 @@ type RunGetFlowModel struct {
 	// helpReturnStage is the picker esc/q returns to when it is dismissed. help is
 	// the zero value (unusable) when RenderMarkdown is nil, in which case "?" is
 	// inert.
+	// pagerImage holds the raw bytes of an image artifact being viewed, and
+	// pagerImageLabel names it for the pager footer. Non-nil means the pager is
+	// showing a mosaic rendering rather than text, so a resize re-renders it at the
+	// new size instead of re-wrapping lines.
+	pagerImage      []byte
+	pagerImageLabel string
+
+	// The artifact browser: the fetched list, the tree that renders it, the note
+	// line carrying the last action's outcome, and the picker esc returns to.
+	// artifactConfirm holds the files a pending "d" would download, awaiting y/N —
+	// non-nil means the confirmation is on screen.
+	artifacts            []RunGetArtifactItem
+	artifactTree         components.FileTreeModel
+	artifactNote         string
+	artifactConfirm      []RunGetArtifactItem
+	artifactConfirmLabel string
+	artifactReturnStage  runGetStage
+
 	help            components.HelpModel
 	helpReturnStage runGetStage
 
@@ -731,6 +832,20 @@ type (
 	runGetTestsMsg struct {
 		items []RunGetTestItem
 		err   error
+	}
+	runGetArtifactsMsg struct {
+		items []RunGetArtifactItem
+		err   error
+	}
+	runGetArtifactFileMsg struct {
+		item RunGetArtifactItem
+		data []byte
+		text bool
+		err  error
+	}
+	runGetArtifactActionMsg struct {
+		note string
+		err  error
 	}
 	runGetSummaryMsg struct {
 		md          string
@@ -825,6 +940,12 @@ func (m RunGetFlowModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.onExecutions(msg)
 	case runGetTestsMsg:
 		return m.onTests(msg)
+	case runGetArtifactsMsg:
+		return m.onArtifacts(msg)
+	case runGetArtifactFileMsg:
+		return m.onArtifactFile(msg)
+	case runGetArtifactActionMsg:
+		return m.onArtifactAction(msg)
 	case runGetSummaryMsg:
 		return m.onSummary(msg)
 	case runGetStepStdoutMsg:
@@ -835,6 +956,13 @@ func (m RunGetFlowModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.onStepPoll(msg)
 	}
 
+	return m.updateStage(msg)
+}
+
+// updateStage hands a message to the handler for the current stage. It is
+// separate from Update so that method stays a readable message router as the
+// stage set grows.
+func (m RunGetFlowModel) updateStage(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch m.stage {
 	case runGetStageRunSelect:
 		return m.updateRunSelect(msg)
@@ -848,6 +976,8 @@ func (m RunGetFlowModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.updateStepSelect(msg)
 	case runGetStageTestSelect:
 		return m.updateTestSelect(msg)
+	case runGetStageArtifactBrowse:
+		return m.updateArtifactBrowse(msg)
 	case runGetStageRunFilter:
 		return m.updateRunFilter(msg)
 	case runGetStageStepPager:
@@ -856,7 +986,9 @@ func (m RunGetFlowModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.updateSummaryPager(msg)
 	case runGetStageHelp:
 		return m.updateHelp(msg)
-	case runGetStageLoadingRuns, runGetStageLoadingWorkflows, runGetStageLoadingJobs, runGetStageLoadingExecutions, runGetStageLoadingStep, runGetStageLoadingSummary, runGetStageLoadingTests:
+	case runGetStageLoadingRuns, runGetStageLoadingWorkflows, runGetStageLoadingJobs, runGetStageLoadingExecutions,
+		runGetStageLoadingStep, runGetStageLoadingSummary, runGetStageLoadingTests, runGetStageLoadingArtifacts,
+		runGetStageLoadingArtifactFile, runGetStageDownloadingArtifacts:
 		// ctrl+c can still abort while a fetch is in flight.
 		if k, ok := msg.(tea.KeyPressMsg); ok && key.Matches(k, components.KeyCtrlC) {
 			return m.quit(RunGetResult{Action: RunGetActionCancel})
@@ -884,7 +1016,10 @@ func (m RunGetFlowModel) loading() bool {
 		m.stage == runGetStageLoadingExecutions ||
 		m.stage == runGetStageLoadingStep ||
 		m.stage == runGetStageLoadingSummary ||
-		m.stage == runGetStageLoadingTests
+		m.stage == runGetStageLoadingTests ||
+		m.stage == runGetStageLoadingArtifacts ||
+		m.stage == runGetStageLoadingArtifactFile ||
+		m.stage == runGetStageDownloadingArtifacts
 }
 
 // quit records the result and switches to the done stage, whose empty View
@@ -1305,6 +1440,7 @@ func (m RunGetFlowModel) returnFromTestSelect() RunGetFlowModel {
 // step-output pager.
 func (m *RunGetFlowModel) openTestMessage(message string) {
 	m.pagerEpoch++
+	m.pagerImage = nil
 	m.pagerFetching = false
 	m.pagerTerminal = true
 	m.pagerStderrDone = true
@@ -1317,6 +1453,350 @@ func (m *RunGetFlowModel) openTestMessage(message string) {
 	m.syncPager()
 	m.pager = m.pager.GotoTop()
 	m.stage = runGetStageStepPager
+}
+
+// enterArtifacts begins loading the job's artifacts for the browser, remembering
+// which picker (returnStage) offered the option so esc at the tree's root routes
+// back there.
+func (m RunGetFlowModel) enterArtifacts(returnStage runGetStage) (tea.Model, tea.Cmd) {
+	m.artifactReturnStage = returnStage
+	m.artifactNote = ""
+	m.stage = runGetStageLoadingArtifacts
+	m.loadingLabel = "Fetching artifacts"
+	return m, m.loadingCmd(m.cmdFetchArtifacts())
+}
+
+// onArtifacts builds the browser from the fetched list. A fetch error is shown as
+// a note above an empty tree rather than ending the program: the artifacts are a
+// side trip from the picker, and esc still gets the user back.
+func (m RunGetFlowModel) onArtifacts(msg runGetArtifactsMsg) (tea.Model, tea.Cmd) {
+	m.artifacts = msg.items
+	if msg.err != nil {
+		m.artifacts = nil
+		m.artifactNote = theme.ErrorStyle.Render("✗ " + msg.err.Error())
+	}
+	m.artifactConfirm = nil
+	m.artifactTree = m.newArtifactTree()
+	m.stage = runGetStageArtifactBrowse
+	return m, nil
+}
+
+// updateArtifactBrowse drives the artifact browser. Moving around, descending and
+// the whole "/" filter interaction belong to the tree component; this binds the
+// lifecycle and action keys it leaves alone. Key handling is gated on the tree's
+// "/" prompt being closed, so a "d" typed into a pattern is text rather than a
+// download.
+func (m RunGetFlowModel) updateArtifactBrowse(msg tea.Msg) (tea.Model, tea.Cmd) {
+	if k, ok := msg.(tea.KeyPressMsg); ok && !m.artifactTree.Searching() {
+		// A pending download owns the keyboard until it is answered.
+		if m.artifactConfirm != nil {
+			return m.artifactConfirmKey(k)
+		}
+		switch {
+		case key.Matches(k, components.KeyCtrlC):
+			return m.quit(RunGetResult{Action: RunGetActionCancel})
+		case key.Matches(k, components.KeyEsc):
+			// esc unwinds one thing at a time: the filter, then the directory, then
+			// the browser itself.
+			switch {
+			case m.artifactTree.FilterActive():
+				m.artifactTree = m.artifactTree.ClearFilter()
+			case !m.artifactTree.AtRoot():
+				m.artifactTree = m.artifactTree.Ascend()
+			default:
+				return m.returnFromArtifacts(), nil
+			}
+			return m, nil
+		case key.Matches(k, components.BindRefresh):
+			m.stage = runGetStageLoadingArtifacts
+			m.loadingLabel = "Refreshing artifacts"
+			return m, m.loadingCmd(m.cmdFetchArtifacts())
+		case key.Matches(k, components.BindHelp):
+			return m.openHelp(runGetStageArtifactBrowse)
+		case key.Matches(k, components.BindDownload) && m.opts.DownloadArtifacts != nil:
+			return m.askArtifactDownload(), nil
+		case key.Matches(k, components.BindOpenBrowser) && m.opts.OpenArtifactURL != nil:
+			return m.openArtifactInBrowser()
+		}
+	}
+
+	updated, cmd := m.artifactTree.Update(msg)
+	m.artifactTree = updated
+	if !m.artifactTree.Done() {
+		return m, cmd
+	}
+	item, ok := m.artifactTree.Selected().Ref.(RunGetArtifactItem)
+	m.artifactTree = m.artifactTree.ClearSelection()
+	if !ok {
+		return m, cmd
+	}
+	return m.openArtifactFile(item)
+}
+
+// returnFromArtifacts rebuilds and shows whichever picker offered the artifacts
+// option: the execution picker for a parallel job, else the step picker.
+func (m RunGetFlowModel) returnFromArtifacts() RunGetFlowModel {
+	if m.artifactReturnStage == runGetStageExecutionSelect {
+		m.executionSelect = m.newExecutionSelect()
+		m.stage = runGetStageExecutionSelect
+	} else {
+		m.stepSelect = m.newStepSelect()
+		m.stage = runGetStageStepSelect
+	}
+	return m
+}
+
+// openArtifactFile fetches one artifact for the pager. Without a content fetcher
+// there is nothing to page, so opening a file offers to download it instead —
+// more use than an error for a file the user has just asked to see.
+func (m RunGetFlowModel) openArtifactFile(item RunGetArtifactItem) (tea.Model, tea.Cmd) {
+	if m.opts.FetchArtifactContent == nil {
+		if m.opts.DownloadArtifacts == nil {
+			return m, nil
+		}
+		return m.confirmArtifactDownload([]RunGetArtifactItem{item}, item.Path), nil
+	}
+	m.stage = runGetStageLoadingArtifactFile
+	m.loadingLabel = "Fetching " + item.Path
+	return m, m.loadingCmd(m.cmdFetchArtifactFile(item))
+}
+
+// onArtifactFile shows a fetched artifact in the pager, or explains why it is not
+// being shown: a fetch error, or a file that is not displayable text. Binary
+// content is never paged — it would spray control bytes over the terminal — so the
+// note points at the download key instead.
+func (m RunGetFlowModel) onArtifactFile(msg runGetArtifactFileMsg) (tea.Model, tea.Cmd) {
+	m.stage = runGetStageArtifactBrowse
+	if msg.err != nil {
+		return m.noteArtifacts(theme.ErrorStyle.Render("✗ " + msg.err.Error())), nil
+	}
+	// An image is drawn as a block mosaic; text is paged as-is. The image check
+	// comes first because image bytes are not text, so the text flag says nothing
+	// useful about them.
+	if format, w, h, ok := components.ImageInfo(msg.data); ok {
+		m.openArtifactImage(msg.data, fmt.Sprintf("%s %d×%d", format, w, h))
+		return m, nil
+	}
+	if !msg.text {
+		return m.noteArtifacts(theme.WarningStyle.Render(
+			fmt.Sprintf("%s is not text or a supported image — press d to download it", msg.item.Path))), nil
+	}
+	m.openArtifactContent(msg.data)
+	return m, nil
+}
+
+// openArtifactContent loads an artifact's bytes into the pager as static content
+// and shows it from the top, with esc set to return to the tree. The bytes are
+// shown raw so any ANSI colors in a log survive, matching the step-output pager.
+func (m *RunGetFlowModel) openArtifactContent(data []byte) {
+	m.pagerEpoch++
+	m.pagerFetching = false
+	m.pagerTerminal = true
+	m.pagerStderrDone = true
+	m.pagerImage = nil
+	m.pagerBuf = data
+	m.pagerOffset = int64(len(data))
+	m.pagerReturnStage = runGetStageArtifactBrowse
+	m.pager = m.pager.ResetSearch()
+	m.syncPager()
+	m.pager = m.pager.GotoTop()
+	m.stage = runGetStageStepPager
+}
+
+// openArtifactImage shows an image artifact in the pager as a block mosaic —
+// Unicode block glyphs colored per half-cell — fitted to the terminal. label
+// names the format and pixel size for the footer. The bytes are kept so a resize
+// can re-render at the new size (a mosaic cannot be re-wrapped like text).
+func (m *RunGetFlowModel) openArtifactImage(data []byte, label string) {
+	m.pagerEpoch++
+	m.pagerFetching = false
+	m.pagerTerminal = true
+	m.pagerStderrDone = true
+	m.pagerBuf = nil
+	m.pagerOffset = 0
+	m.pagerImage = data
+	m.pagerImageLabel = label
+	m.pagerReturnStage = runGetStageArtifactBrowse
+	m.pager = m.pager.ResetSearch()
+	m.syncPagerImage()
+	m.pager = m.pager.GotoTop()
+	m.stage = runGetStageStepPager
+}
+
+// syncPagerImage renders the held image to the pager at the current terminal
+// size, fitting it within the rows the viewport has so a screenshot arrives whole
+// rather than needing to be scrolled. A rendering error (an unreadable file, no
+// room) is shown in the pager in place of the image.
+func (m *RunGetFlowModel) syncPagerImage() {
+	if m.width > 0 && m.height > 0 {
+		m.pager = m.pager.SetSize(m.width, m.height)
+	}
+	out, err := components.RenderImage(m.pagerImage, m.width, m.height-components.PagerFooterHeight)
+	if err != nil {
+		out = theme.WarningStyle.Render("Could not render this image: " + err.Error())
+	}
+	m.pager = m.pager.SetContent(out)
+}
+
+// askArtifactDownload prepares the download the cursor row stands for: the one
+// file, or every file beneath the highlighted directory.
+func (m RunGetFlowModel) askArtifactDownload() RunGetFlowModel {
+	entries := m.artifactTree.HighlightedEntries()
+	items := make([]RunGetArtifactItem, 0, len(entries))
+	for _, e := range entries {
+		if item, ok := e.Ref.(RunGetArtifactItem); ok {
+			// The browsed path is where the file lands on disk, so the download
+			// mirrors the tree even for a subset of a parallel job's artifacts.
+			item.Path = e.Path
+			items = append(items, item)
+		}
+	}
+	if len(items) == 0 {
+		return m.noteArtifacts(theme.HelperStyle.Render("Nothing to download here."))
+	}
+	return m.confirmArtifactDownload(items, m.artifactTree.HighlightedLabel())
+}
+
+// confirmArtifactDownload puts the y/N question on screen, naming what would be
+// written and where. Downloading writes to the working directory, so it is never
+// done on a single keystroke.
+func (m RunGetFlowModel) confirmArtifactDownload(items []RunGetArtifactItem, label string) RunGetFlowModel {
+	m.artifactConfirm = items
+	m.artifactConfirmLabel = label
+	m.artifactNote = ""
+	return m.syncArtifactTree()
+}
+
+// artifactConfirmKey answers the pending download question: y starts it, anything
+// else (n, esc) drops it.
+func (m RunGetFlowModel) artifactConfirmKey(k tea.KeyPressMsg) (tea.Model, tea.Cmd) {
+	items := m.artifactConfirm
+	m.artifactConfirm = nil
+	if !key.Matches(k, components.KeyYes) {
+		return m.noteArtifacts(theme.HelperStyle.Render("Download cancelled.")), nil
+	}
+	m.stage = runGetStageDownloadingArtifacts
+	m.loadingLabel = fmt.Sprintf("Downloading %s to %s", fileWord(len(items)), runGetArtifactDir)
+	return m, m.loadingCmd(m.cmdDownloadArtifacts(items))
+}
+
+// openArtifactInBrowser opens the highlighted file's artifact URL. A directory
+// row has no URL of its own, so it says as much rather than opening something
+// arbitrary.
+func (m RunGetFlowModel) openArtifactInBrowser() (tea.Model, tea.Cmd) {
+	if m.artifactTree.HighlightedIsDir() {
+		return m.noteArtifacts(theme.HelperStyle.Render("Only a file can be opened in a browser.")), nil
+	}
+	entries := m.artifactTree.HighlightedEntries()
+	if len(entries) != 1 {
+		return m, nil
+	}
+	item, ok := entries[0].Ref.(RunGetArtifactItem)
+	if !ok {
+		return m, nil
+	}
+	return m, m.cmdOpenArtifactURL(item)
+}
+
+// onArtifactAction records the outcome of a download or a browser open in the
+// note line above the tree.
+func (m RunGetFlowModel) onArtifactAction(msg runGetArtifactActionMsg) (tea.Model, tea.Cmd) {
+	m.stage = runGetStageArtifactBrowse
+	if msg.err != nil {
+		return m.noteArtifacts(theme.ErrorStyle.Render("✗ " + msg.err.Error())), nil
+	}
+	return m.noteArtifacts(theme.SuccessStyle.Render("✓ " + msg.note)), nil
+}
+
+// noteArtifacts sets the browser's note line and returns to it.
+func (m RunGetFlowModel) noteArtifacts(note string) RunGetFlowModel {
+	m.artifactNote = note
+	m.stage = runGetStageArtifactBrowse
+	return m.syncArtifactTree()
+}
+
+// syncArtifactTree pushes the current note (or the pending confirmation, which
+// takes its place) into the tree, keeping its directory, cursor and filter.
+func (m RunGetFlowModel) syncArtifactTree() RunGetFlowModel {
+	m.artifactTree = m.artifactTree.WithNote(m.artifactNoteLine()).WithHeight(m.height)
+	return m
+}
+
+// artifactNoteLine is the line shown above the rows: the pending download
+// question when one is open, otherwise the last action's outcome.
+func (m RunGetFlowModel) artifactNoteLine() string {
+	if m.artifactConfirm == nil {
+		return m.artifactNote
+	}
+	what := m.artifactConfirmLabel
+	if len(m.artifactConfirm) > 1 {
+		what = fmt.Sprintf("%s from %s", fileWord(len(m.artifactConfirm)), m.artifactConfirmLabel+"/")
+	}
+	return theme.AccentStyle.Render(fmt.Sprintf("Download %s to %s? ", what, runGetArtifactDir)) +
+		theme.HelperStyle.Render("[y/N]")
+}
+
+// newArtifactTree builds the browser over the fetched artifacts. When they span
+// more than one parallel execution the paths are prefixed with a per-execution
+// directory, mirroring the layout a download writes to disk, so the browser and
+// the files that land locally agree.
+func (m RunGetFlowModel) newArtifactTree() components.FileTreeModel {
+	multi := artifactsSpanExecutions(m.artifacts)
+	entries := make([]components.FileTreeEntry, 0, len(m.artifacts))
+	for _, a := range m.artifacts {
+		path := a.Path
+		if multi {
+			path = fmt.Sprintf("exec-%04d/%s", a.Execution, path)
+		}
+		entries = append(entries, components.FileTreeEntry{Path: path, Ref: a})
+	}
+	return components.NewFileTree("Artifacts", entries).
+		WithKeys(m.artifactKeys()...).
+		WithNote(m.artifactNoteLine()).
+		WithEmptyNote(theme.HelperStyle.Render("This job produced no artifacts.")).
+		WithHeight(m.height)
+}
+
+// artifactKeys is the browser's footer hint set: the tree's own navigation, plus
+// whichever actions the caller wired up.
+func (m RunGetFlowModel) artifactKeys() []key.Binding {
+	keys := []key.Binding{
+		components.BindMove,
+		components.BindOpen,
+		components.BindUpLevel,
+		components.BindSearch,
+	}
+	if m.opts.DownloadArtifacts != nil {
+		keys = append(keys, components.BindDownload)
+	}
+	if m.opts.OpenArtifactURL != nil {
+		keys = append(keys, components.BindOpenBrowser)
+	}
+	return append(keys, components.BindRefresh, components.BindBack)
+}
+
+// artifactsSpanExecutions reports whether the artifacts come from more than one
+// parallel execution, which is what decides whether the tree (and a download)
+// groups them per execution.
+func artifactsSpanExecutions(items []RunGetArtifactItem) bool {
+	if len(items) == 0 {
+		return false
+	}
+	first := items[0].Execution
+	for _, a := range items[1:] {
+		if a.Execution != first {
+			return true
+		}
+	}
+	return false
+}
+
+// fileWord renders a file count for a prompt or a note, singular where it matters.
+func fileWord(n int) string {
+	if n == 1 {
+		return "1 file"
+	}
+	return fmt.Sprintf("%d files", n)
 }
 
 // updateExecutionSelect handles the execution picker, shown only when a job has
@@ -1347,21 +1827,13 @@ func (m RunGetFlowModel) updateExecutionSelect(msg tea.Msg) (tea.Model, tea.Cmd)
 	}
 
 	sel := m.executionSelect.Selected()
-	switch sel {
-	case 0: // "job report" — short summary, all executions (esc → execution picker)
-		return m.openSummary(m.opts.RenderJobSummary, m.jobID, runGetStageExecutionSelect,
-			"Fetching job report", RunGetResult{Action: RunGetActionShowJob, JobID: m.jobID})
-	case 1: // "full output report" — every step's output, all executions
-		return m.openSummary(m.opts.RenderJobOutput, m.jobID, runGetStageExecutionSelect,
-			"Fetching job output", RunGetResult{Action: RunGetActionShowJobOutput, JobID: m.jobID})
-	case 2: // "failed tests" — open the failed-test picker
-		return m.enterFailedTests(runGetStageExecutionSelect)
-	case 3: // "resource usage" — CPU/memory charts, all executions
-		return m.openSummary(m.opts.RenderResourceUsage, m.jobID, runGetStageExecutionSelect,
-			"Fetching resource usage", RunGetResult{Action: RunGetActionShowResourceUsage, JobID: m.jobID})
+	// The leading rows are the job-wide options (all executions); the rest are
+	// the executions themselves.
+	if meta := m.metaOptions(); sel < len(meta) {
+		return m.openMetaOption(meta[sel].kind, runGetStageExecutionSelect)
 	}
 	m.executionCursor = sel
-	return m.enterStepSelect(m.executions[sel-runGetMetaCount]), nil
+	return m.enterStepSelect(m.executions[sel-len(m.metaOptions())]), nil
 }
 
 // updateStepSelect handles the step picker. esc returns to the execution picker
@@ -1404,18 +1876,8 @@ func (m RunGetFlowModel) updateStepSelect(msg tea.Msg) (tea.Model, tea.Cmd) {
 	picked := m.stepSelect.Selected()
 	sel := picked
 	if meta := m.stepMetaCount(); meta > 0 {
-		switch sel {
-		case 0: // "job report" — short summary (esc → step picker)
-			return m.openSummary(m.opts.RenderJobSummary, m.jobID, runGetStageStepSelect,
-				"Fetching job report", RunGetResult{Action: RunGetActionShowJob, JobID: m.jobID})
-		case 1: // "full output report" — every step's output
-			return m.openSummary(m.opts.RenderJobOutput, m.jobID, runGetStageStepSelect,
-				"Fetching job output", RunGetResult{Action: RunGetActionShowJobOutput, JobID: m.jobID})
-		case 2: // "failed tests" — open the failed-test picker
-			return m.enterFailedTests(runGetStageStepSelect)
-		case 3: // "resource usage" — CPU/memory charts
-			return m.openSummary(m.opts.RenderResourceUsage, m.jobID, runGetStageStepSelect,
-				"Fetching resource usage", RunGetResult{Action: RunGetActionShowResourceUsage, JobID: m.jobID})
+		if sel < meta {
+			return m.openMetaOption(m.metaOptions()[sel].kind, runGetStageStepSelect)
 		}
 		sel -= meta
 	}
@@ -1437,6 +1899,7 @@ func (m RunGetFlowModel) updateStepSelect(msg tea.Msg) (tea.Model, tea.Cmd) {
 // poll from a previous stream). It returns the first fetch command.
 func (m *RunGetFlowModel) startStepStream() tea.Cmd {
 	m.pagerEpoch++
+	m.pagerImage = nil
 	m.pagerBuf = nil
 	m.pagerOffset = 0
 	m.pagerTerminal = false
@@ -1569,19 +2032,37 @@ func (m RunGetFlowModel) updateStepPager(msg tea.Msg) (tea.Model, tea.Cmd) {
 			// remembered cursor (stepCursor / testCursor) resumes on the opened row.
 			m.pagerEpoch++
 			m.pagerFetching = false
-			if m.pagerReturnStage == runGetStageTestSelect {
-				m.testSelect = m.newTestSelect()
-				m.stage = runGetStageTestSelect
-			} else {
-				m.stepSelect = m.newStepSelect()
-				m.stage = runGetStageStepSelect
-			}
-			return m, nil
+			return m.leavePager(), nil
 		}
 	}
 	var cmd tea.Cmd
 	m.pager, cmd = m.pager.Update(msg)
+	if _, ok := msg.(tea.WindowSizeMsg); ok && m.pagerImage != nil {
+		// A mosaic is sized in cells, so a resize means rendering the image again
+		// rather than re-wrapping what is on screen. m.width/m.height already hold
+		// the new size — Update records them before dispatching.
+		m.syncPagerImage()
+	}
 	return m, cmd
+}
+
+// leavePager returns to whichever picker opened the pager, rebuilding it where it
+// has to be rebuilt. The remembered cursor (stepCursor / testCursor) resumes on
+// the opened row; the artifact tree is kept whole, so its directory, cursor and
+// filter survive the trip through the pager.
+func (m RunGetFlowModel) leavePager() RunGetFlowModel {
+	if m.pagerReturnStage == runGetStageTestSelect {
+		m.testSelect = m.newTestSelect()
+		m.stage = runGetStageTestSelect
+		return m
+	}
+	if m.pagerReturnStage == runGetStageArtifactBrowse {
+		m.stage = runGetStageArtifactBrowse
+		return m
+	}
+	m.stepSelect = m.newStepSelect()
+	m.stage = runGetStageStepSelect
+	return m
 }
 
 // openSummary begins loading a summary (run, workflow or job) for the in-flow
@@ -1717,9 +2198,13 @@ func (m RunGetFlowModel) buildView() tea.View {
 		return m.stepSelect.View()
 	case runGetStageTestSelect:
 		return m.testSelect.View()
+	case runGetStageArtifactBrowse:
+		return m.artifactTree.View()
 	case runGetStageRunFilter:
 		return m.filter.View()
-	case runGetStageLoadingRuns, runGetStageLoadingWorkflows, runGetStageLoadingJobs, runGetStageLoadingExecutions, runGetStageLoadingStep, runGetStageLoadingSummary, runGetStageLoadingTests:
+	case runGetStageLoadingRuns, runGetStageLoadingWorkflows, runGetStageLoadingJobs, runGetStageLoadingExecutions,
+		runGetStageLoadingStep, runGetStageLoadingSummary, runGetStageLoadingTests, runGetStageLoadingArtifacts,
+		runGetStageLoadingArtifactFile, runGetStageDownloadingArtifacts:
 		label := theme.HelperStyle.Render(m.loadingLabel)
 		if m.opts.Animate {
 			label = m.spin.View() + " " + label
@@ -1745,7 +2230,12 @@ func (m RunGetFlowModel) buildView() tea.View {
 // indicator leads the footer.
 func (m RunGetFlowModel) stepPagerView() tea.View {
 	status := ""
-	if !m.pagerTerminal {
+	switch {
+	case m.pagerImage != nil:
+		// Naming the format and pixel size makes it plain that the blocks on screen
+		// are a rendering of an image, not the file's contents.
+		status = theme.AccentStyle.Render(m.pagerImageLabel) + "  "
+	case !m.pagerTerminal:
 		status = theme.AccentStyle.Render("streaming…") + "  "
 	}
 	return m.pager.View(status)
@@ -1906,10 +2396,13 @@ func (m RunGetFlowModel) jobItemStyle(i int) lipgloss.Style {
 }
 
 func (m RunGetFlowModel) newExecutionSelect() components.SelectModel {
-	labels := make([]string, 0, len(m.executions)+runGetMetaCount)
-	icons := make([]string, 0, len(m.executions)+runGetMetaCount)
-	labels = append(labels, runGetJobReportLabel, runGetJobOutputLabel, runGetFailedTestsLabel, runGetResourceUsageLabel)
-	icons = append(icons, m.metaIcon(), m.metaIcon(), m.failedTestsIcon(), m.resourceUsageIcon())
+	meta := m.metaOptions()
+	labels := make([]string, 0, len(m.executions)+len(meta))
+	icons := make([]string, 0, len(m.executions)+len(meta))
+	for _, o := range meta {
+		labels = append(labels, o.label)
+		icons = append(icons, o.icon)
+	}
 	for _, e := range m.executions {
 		labels = append(labels, e.Label)
 		icons = append(icons, colorizeStatusIcon(e.Icon, m.opts.Color))
@@ -1927,7 +2420,7 @@ func (m RunGetFlowModel) newExecutionSelect() components.SelectModel {
 func (m RunGetFlowModel) firstFailedExecutionCursor() int {
 	for i, e := range m.executions {
 		if e.Icon == "✗" || e.Icon == "!" {
-			return i + runGetMetaCount
+			return i + len(m.metaOptions())
 		}
 	}
 	return 0
@@ -1938,8 +2431,10 @@ func (m RunGetFlowModel) newStepSelect() components.SelectModel {
 	labels := make([]string, 0, len(m.steps)+meta)
 	icons := make([]string, 0, len(m.steps)+meta)
 	if meta > 0 {
-		labels = append(labels, runGetJobReportLabel, runGetJobOutputLabel, runGetFailedTestsLabel, runGetResourceUsageLabel)
-		icons = append(icons, m.metaIcon(), m.metaIcon(), m.failedTestsIcon(), m.resourceUsageIcon())
+		for _, o := range m.metaOptions() {
+			labels = append(labels, o.label)
+			icons = append(icons, o.icon)
+		}
 	}
 	for _, s := range m.steps {
 		labels = append(labels, s.Label)
@@ -1980,14 +2475,72 @@ func (m RunGetFlowModel) newTestSelect() components.SelectModel {
 		WithHeight(m.height)
 }
 
-// stepMetaCount is how many leading job-summary options the step picker carries:
-// the two summaries when it is the first picker after the job (single
+// metaOptions are the leading job-wide rows for the first picker after the job,
+// in display order. The four summaries are always offered; artifacts are added
+// only when the caller supplied a fetcher and the job has finished, since a job
+// that is still queued or running has no artifacts to browse.
+func (m RunGetFlowModel) metaOptions() []metaOption {
+	opts := []metaOption{
+		{metaJobReport, runGetJobReportLabel, m.metaIcon()},
+		{metaJobOutput, runGetJobOutputLabel, m.metaIcon()},
+		{metaFailedTests, runGetFailedTestsLabel, m.failedTestsIcon()},
+		{metaResourceUsage, runGetResourceUsageLabel, m.resourceUsageIcon()},
+	}
+	if m.opts.FetchArtifacts != nil && m.jobFinished() {
+		opts = append(opts, metaOption{metaArtifacts, runGetArtifactsLabel, m.artifactsIcon()})
+	}
+	return opts
+}
+
+// jobFinished reports whether the picked job has reached a terminal state, read
+// from the status glyph its picker row carries. A job that has not started also
+// names its status in Pending, which rules it out on its own.
+func (m RunGetFlowModel) jobFinished() bool {
+	if m.jobCursor < 1 || m.jobCursor > len(m.jobs) {
+		return false
+	}
+	job := m.jobs[m.jobCursor-1]
+	if job.Pending != "" {
+		return false
+	}
+	switch job.Icon {
+	case "✓", "✗", "!", "⊘":
+		return true
+	default:
+		return false
+	}
+}
+
+// openMetaOption acts on one of the leading job-wide options. returnStage is the
+// picker that offered it, so esc from whatever the option opens comes back
+// there rather than to a fixed level.
+func (m RunGetFlowModel) openMetaOption(kind metaKind, returnStage runGetStage) (tea.Model, tea.Cmd) {
+	switch kind {
+	case metaJobReport:
+		return m.openSummary(m.opts.RenderJobSummary, m.jobID, returnStage,
+			"Fetching job report", RunGetResult{Action: RunGetActionShowJob, JobID: m.jobID})
+	case metaJobOutput:
+		return m.openSummary(m.opts.RenderJobOutput, m.jobID, returnStage,
+			"Fetching job output", RunGetResult{Action: RunGetActionShowJobOutput, JobID: m.jobID})
+	case metaFailedTests:
+		return m.enterFailedTests(returnStage)
+	case metaResourceUsage:
+		return m.openSummary(m.opts.RenderResourceUsage, m.jobID, returnStage,
+			"Fetching resource usage", RunGetResult{Action: RunGetActionShowResourceUsage, JobID: m.jobID})
+	case metaArtifacts:
+		return m.enterArtifacts(returnStage)
+	}
+	return m, nil
+}
+
+// stepMetaCount is how many leading job-wide options the step picker carries:
+// every one of them when it is the first picker after the job (single
 // execution), or zero when an execution picker already hosted them.
 func (m RunGetFlowModel) stepMetaCount() int {
 	if len(m.executions) > 1 {
 		return 0
 	}
-	return runGetMetaCount
+	return len(m.metaOptions())
 }
 
 // firstFailedStepCursor returns the picker index of the first failed/errored
@@ -2083,6 +2636,12 @@ func statusIconStyle(symbol string) (lipgloss.Style, bool) {
 	}
 }
 
+// artifactsIcon is the glyph for the "artifacts" option, muted like the other
+// meta glyphs so it does not read as a status symbol.
+func (m RunGetFlowModel) artifactsIcon() string {
+	return m.mutedGlyph(runGetArtifactsGlyph)
+}
+
 // --- commands ---
 
 // cmdFetchRuns fetches the runs for the scope at scopeIdx filtered by the status
@@ -2142,6 +2701,46 @@ func (m RunGetFlowModel) cmdFetchTests() tea.Cmd {
 		}
 		items, err := fn(ctx, jobID)
 		return runGetTestsMsg{items: items, err: err}
+	}
+}
+
+// cmdFetchArtifacts lists the current job's artifacts for the browser.
+func (m RunGetFlowModel) cmdFetchArtifacts() tea.Cmd {
+	jobID := m.jobID
+	return func() tea.Msg {
+		items, err := m.opts.FetchArtifacts(m.ctx, jobID)
+		return runGetArtifactsMsg{items: items, err: err}
+	}
+}
+
+// cmdFetchArtifactFile reads one artifact for the pager. Whether the bytes are
+// displayable text is the caller's call, since it owns the size cap and the
+// transport.
+func (m RunGetFlowModel) cmdFetchArtifactFile(item RunGetArtifactItem) tea.Cmd {
+	return func() tea.Msg {
+		data, text, err := m.opts.FetchArtifactContent(m.ctx, item)
+		return runGetArtifactFileMsg{item: item, data: data, text: text, err: err}
+	}
+}
+
+// cmdDownloadArtifacts writes the given artifacts under the download directory.
+func (m RunGetFlowModel) cmdDownloadArtifacts(items []RunGetArtifactItem) tea.Cmd {
+	return func() tea.Msg {
+		err := m.opts.DownloadArtifacts(m.ctx, items, runGetArtifactDir)
+		return runGetArtifactActionMsg{
+			note: fmt.Sprintf("Downloaded %s to %s", fileWord(len(items)), runGetArtifactDir),
+			err:  err,
+		}
+	}
+}
+
+// cmdOpenArtifactURL opens one artifact in a browser.
+func (m RunGetFlowModel) cmdOpenArtifactURL(item RunGetArtifactItem) tea.Cmd {
+	return func() tea.Msg {
+		return runGetArtifactActionMsg{
+			note: "Opened " + item.Path + " in your browser",
+			err:  m.opts.OpenArtifactURL(item.URL),
+		}
 	}
 }
 

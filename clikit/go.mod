@@ -12,10 +12,12 @@ require (
 	github.com/NimbleMarkets/ntcharts/v2 v2.2.0
 	github.com/charmbracelet/x/ansi v0.11.7
 	github.com/charmbracelet/x/exp/teatest/v2 v2.0.0-20260629091435-9c70f75e26a4
+	github.com/charmbracelet/x/mosaic v0.0.0-20260816001655-68d539dca504
 	github.com/charmbracelet/x/term v0.2.2
 	github.com/cli/browser v1.3.0
 	github.com/itchyny/gojq v0.12.19
 	github.com/pete-woods/go-expect v0.1.4
+	golang.org/x/image v0.44.0
 	golang.org/x/sys v0.47.0
 	gotest.tools/v3 v3.5.2
 )
@@ -53,5 +55,5 @@ require (
 	golang.org/x/exp v0.0.0-20231006140011-7918f672742d // indirect
 	golang.org/x/net v0.39.0 // indirect
 	golang.org/x/sync v0.22.0 // indirect
-	golang.org/x/text v0.24.0 // indirect
+	golang.org/x/text v0.40.0 // indirect
 )

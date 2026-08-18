@@ -43,10 +43,12 @@ require (
 require (
 	charm.land/log/v2 v2.0.0 // indirect
 	github.com/NimbleMarkets/ntcharts/v2 v2.2.0 // indirect
+	github.com/charmbracelet/x/mosaic v0.0.0-20260816001655-68d539dca504 // indirect
 	github.com/charmbracelet/x/term v0.2.2 // indirect
 	github.com/cli/browser v1.3.0 // indirect
 	github.com/itchyny/gojq v0.12.19 // indirect
 	github.com/lrstanley/bubblezone/v2 v2.0.0 // indirect
+	golang.org/x/image v0.44.0 // indirect
 )
 
 require (

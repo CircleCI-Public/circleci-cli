@@ -123,21 +123,33 @@ func FormatMarkdown(entries []Entry) string {
 // Download fetches each entry's artifact and writes it under dir, preserving
 // the artifact's Path as the relative file path. When entries span multiple
 // execution indices, each execution's artifacts are placed under a
-// subdirectory named by the index (e.g. dir/0/path, dir/3/path).
+// subdirectory named by the index (e.g. dir/exec-0000/path, dir/exec-0003/path).
 func Download(ctx context.Context, client Client, entries []Entry, dir string) error {
-	multiExec := hasMultipleExecutions(entries)
+	if !hasMultipleExecutions(entries) {
+		return DownloadPaths(ctx, client, entries, dir)
+	}
+	laid := make([]Entry, len(entries))
+	for i, e := range entries {
+		laid[i] = e
+		laid[i].Path = ExecDir(e.Execution) + "/" + strings.TrimPrefix(e.Path, "/")
+	}
+	return DownloadPaths(ctx, client, laid, dir)
+}
 
+// DownloadPaths fetches each entry's artifact and writes it at dir/<Path>,
+// applying no layout of its own — the caller has already put whatever structure
+// it wants in each Path. Use it when the destination layout is decided elsewhere
+// (the run-get artifact browser downloads exactly the paths it displayed, for any
+// subset of a job's artifacts); use Download to have the per-execution grouping
+// derived from the entries themselves.
+func DownloadPaths(ctx context.Context, client Client, entries []Entry, dir string) error {
 	// cleanDir is the canonical form of the download root with a trailing
 	// separator.  We recompute it once outside the loop rather than on every
 	// iteration.
 	cleanDir := filepath.Clean(dir) + string(os.PathSeparator)
 
 	for _, e := range entries {
-		base := dir
-		if multiExec {
-			base = filepath.Join(dir, ExecDir(e.Execution))
-		}
-		dest := filepath.Join(base, filepath.FromSlash(e.Path))
+		dest := filepath.Join(dir, filepath.FromSlash(e.Path))
 
 		// Path-traversal guard: artifact paths come from the CircleCI API
 		// response and are not under our control.  filepath.Join resolves
