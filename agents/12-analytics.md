@@ -1,5 +1,20 @@
 # Analytics and Telemetry
 
+**Rules**
+
+1. **Document exactly what is collected**, in the README, in help text and on a
+   linked page — a user must never have to read source to find out.
+2. **Collect the minimum**: which commands ran, error *types*, version, OS/arch.
+3. **Never collect** file paths or names, argument or flag values, environment
+   variable names or values, hostnames, IPs, or anything else identifying.
+4. **Always allow opt-out**, and honour the cross-tool signals as well as your own:
+   `CIRCLE_NO_TELEMETRY`, `NO_ANALYTICS`, `DO_NOT_TRACK`, and `CI`.
+5. **Telemetry is asynchronous, fire-and-forget, and swallows its own errors.** It
+   must never block a command or surface a failure to the user.
+6. **Collect nothing before consent** where telemetry is opt-in.
+
+---
+
 Telemetry can provide valuable insight into how your tool is used. It can also erode user trust if done poorly. The rules here are straightforward: be transparent, collect minimally, and always allow opt-out.
 
 ---

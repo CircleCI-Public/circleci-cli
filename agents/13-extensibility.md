@@ -1,5 +1,24 @@
 # Extensibility and Lifecycle Hooks
 
+**Rules**
+
+1. **Cross-cutting behaviour belongs in a lifecycle hook, not copied into every
+   command** — auth checks, update notifications, analytics, config loading.
+2. **Know what each hook point is for**: `init` (setup, config, telemetry start),
+   `preparse`, `prerun` (validation that applies everywhere), `postrun`
+   (analytics and cleanup — **only fires on success**), `command_not_found` (typo
+   suggestions and renamed commands).
+3. **Keep hooks lightweight.** They run on every invocation, including `--help` and
+   `--version`; anything slow is async and cached.
+4. **An optional hook swallows its own errors.** A failed update check must never
+   stop the user's command.
+5. **Assume no ordering between hooks** from different plugins — they can run
+   concurrently, so keep them independent.
+6. **Cleanup that must always run goes in `init` plus a signal handler**, never in
+   `postrun`.
+
+---
+
 For CLIs that support plugins or need shared cross-cutting behaviour across many commands, a lifecycle hook system is the standard pattern. Hooks let plugins extend the CLI at specific points without modifying core code.
 
 ---

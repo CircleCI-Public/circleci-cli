@@ -1,5 +1,19 @@
 # The Basics
 
+**Rules**
+
+1. **Use an argument parsing library** (cobra here) — never hand-rolled parsing.
+2. **Exit `0` on success, non-zero on every failure**; `2` for bad arguments. Map
+   your important failure modes to documented codes — in this repo they live in
+   `clikit/errors/exitcodes.go`.
+3. **Primary output goes to stdout**, machine-readable output included. It is what
+   a pipe captures.
+4. **Messages, status, warnings and errors go to stderr**, so they stay visible to
+   a human without corrupting a pipe.
+5. **Never hang on an empty stdin TTY** — show help and exit instead.
+
+---
+
 These are the non-negotiable foundations. Every CLI should get these right before worrying about anything else.
 
 ---

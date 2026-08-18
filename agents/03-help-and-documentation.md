@@ -1,5 +1,27 @@
 # Help and Documentation
 
+**Rules**
+
+1. **`--help` must fit 40 lines; design for 35.** Usage, Arguments, the *complete*
+   flag table and 3+ examples all fit inside the budget. Enforced per command by
+   `TestHelp` in `internal/cmd/root/usage_test.go`.
+2. **Prose is what yields**, in this order: delete what the flag table already
+   says, then what `## Arguments` already says, cap `Long` at ~6 lines, cap
+   examples at 5 (3 is the floor).
+3. **Prose worth keeping moves to a help topic** (`internal/cmd/root/help_topic.go`),
+   which is exempt from the budget. There is no separate web copy: `Long` also
+   feeds the docs site, `llms.txt`, the man page and the MCP tool description.
+4. **Two documentation levels for every command and flag**: a one-line summary that
+   never wraps, and a full description shown only in that command's `--help`.
+5. **Lead with examples**, simple → complex, and **show every flag's default**.
+6. **Show concise help, never an error or a hang,** when a command that needs
+   arguments is run without them.
+7. **Suggest corrections, never auto-correct** a typo'd command or flag.
+8. **`-h` always means help** — never overload it.
+9. **Group flags into named sections** once a command has more than ~8.
+
+---
+
 Good help text is often the difference between a tool that gets adopted and one that gets abandoned. Users should be able to orient themselves entirely from within the terminal.
 
 ---

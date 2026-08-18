@@ -20,6 +20,13 @@
 //
 // SPDX-License-Identifier: MIT
 
+// STYLE NOTE: this file drives runFilterDialog by calling Update directly, which
+// predates the rule in agents/14-testing.md that component-level tests go through
+// github.com/charmbracelet/x/exp/teatest/v2. It is exempted by name in
+// internal/conventions — a file to convert, not a style to copy. For the current
+// pattern see run_get_flow_test.go (flowHarness) or
+// clikit/ui/components/filetree_test.go (treeHarness).
+
 package ui
 
 import (
