@@ -4948,6 +4948,18 @@ Run diagnostics to check your test suite setup
 
 `<suite-name>` is the name of the test suite to run, matching a suite defined in .circleci/test-suites.yml.
 
+#### `circleci testsuite impact [flags]`
+
+(experimental) Explore test impact data: which files impact a test, and which tests a file impacts
+
+| Flag                 | Description                                  |
+| -------------------- | -------------------------------------------- |
+| `--test ATOM`        | Print the files impacting this test atom     |
+| `--file PATH`        | Print the test atoms impacted by this file   |
+| `--key KEY`          | Impact data key to read (default default)    |
+| `--before-version N` | Restrict the impact data to versions below N |
+
+
 ## Additional Commands
 
 ### `circleci api <path> [flags]`
