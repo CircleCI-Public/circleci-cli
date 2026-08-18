@@ -10,8 +10,9 @@ A new CircleCI CLI built from scratch in Go + Cobra, targeting exemplary CLI des
 
 ## Critical rules — read before writing any command
 
-These are the seven design decisions that must not be violated. They exist because the
-current circleci CLI got them wrong, and this project exists to fix them.
+These are the eight design decisions that must not be violated. The first seven exist
+because the current circleci CLI got them wrong, and this project exists to fix them; the
+eighth exists because the rest of the guidance is worthless if nobody opens it.
 
 **1. Every data-returning command gets `--json` with field enumeration in `--help`.**
 No exceptions. Consistent JSON coverage is the #1 differentiator between a scripting
@@ -46,13 +47,25 @@ budget; `Long` is what yields. Enforced per command by `TestHelp` in
 `internal/cmd/root/usage_test.go` — see [agents/03-help-and-documentation.md](agents/03-help-and-documentation.md)
 for how to trim.
 
+**8. Open the guideline file before writing the code it governs.**
+The table below maps a kind of work to the file that governs it. It is not a reading list to
+consult when something looks unclear — a row is a precondition: if you are about to do the
+thing on the left, you read the file on the right *first*. Read the file, not its headings; the
+rules are in the prose. Inferring a convention from neighbouring code instead is how the wrong
+pattern spreads — several files in this tree predate a rule and are marked as such. Two rules
+are enforced by tests rather than by review: `TestHelp` in `internal/cmd/root/usage_test.go`
+(rule 7) and `internal/conventions` (the testing rules). A green build is not evidence you
+followed the others.
+
 ---
 
 ## Design guidelines
 
 The normative design guidelines live in [`agents/`](agents/README.md). **Read the linked file
 before you write the code it governs** — not after, and not only at review time. Each line below
-is a trigger: if you are about to do the thing on the left, open the file on the right first.
+is a trigger: if you are about to do the thing on the left, open the file on the right first
+(rule 8 above). Every `agents/` file opens with its rules in short form, so its first screen is
+enough to know what binds you; the rest of the file is the reasoning and the examples.
 
 | If you are about to… | Read first |
 |---|---|
@@ -65,7 +78,8 @@ is a trigger: if you are about to do the thing on the left, open the file on the
 | Add a flag or positional argument | [agents/06-arguments-and-flags.md](agents/06-arguments-and-flags.md) |
 | Add a prompt, spinner, or TUI flow | [agents/07-interactivity.md](agents/07-interactivity.md) |
 | Add or restructure a subcommand | [agents/08-subcommands.md](agents/08-subcommands.md) |
-| Write or change tests | [agents/14-testing.md](agents/14-testing.md) |
+| Write or change **any** test — including one test in a file of many | [agents/14-testing.md](agents/14-testing.md) |
+| Write an implementation plan into `agents/` | [agents/plan-template.md](agents/plan-template.md) |
 
 Consult when the topic comes up: [agents/09-robustness.md](agents/09-robustness.md) ·
 [agents/10-configuration-and-env.md](agents/10-configuration-and-env.md) ·
@@ -232,7 +246,10 @@ internal/
 ├── telemetry/            Segment event sender + background delegate + receiver/.
 ├── agent/                Detect() — identifies the calling AI agent / MCP host so telemetry
 │                         attributes tool-call subprocesses correctly.
-└── bulkhead/             Runs a slice of work with bounded parallelism.
+├── bulkhead/             Runs a slice of work with bounded parallelism.
+└── conventions/          Tests enforcing this repo's own house rules (currently the testing
+                          rules from agents/14-testing.md), with allowlists naming the files
+                          that predate them. No production code.
 ```
 
 `iostream`, `errors`, `mdtable`, `jq`, `jsoncolor`, `browser`, `closer`, `ui/components` and

@@ -1,5 +1,33 @@
 # Robustness
 
+**Rules**
+
+1. **Validate everything before doing any work** — arguments, flag values, file
+   permissions, credentials. A failure after partial work is worse than a failure
+   before it.
+2. **Fail fast, and say how far you got.** Don't carry on past an error and leave
+   inconsistent state.
+3. **Be idempotent where you can.** Setup, init and install commands especially;
+   where you can't, document it and require confirmation.
+4. **Handle SIGINT, SIGTERM and SIGPIPE.** Ctrl+C cleans up and exits non-zero;
+   SIGTERM shuts down gracefully; a broken pipe (`… | head -5`) exits cleanly with
+   no error.
+5. **Every required setting that can have a sensible default has one**, documented
+   in help.
+6. **Handle the awkward inputs**: empty files, unicode and leading-dash names,
+   missing optional files, inputs too large to hold in memory, read-only
+   filesystems.
+7. **Resolve configuration flags > env vars > project config > user config >
+   defaults** — see [10-configuration-and-env.md](./10-configuration-and-env.md).
+8. **Mark state formally** (`beta`, `deprecated`) rather than writing it into a
+   description, and a deprecation names its replacement, its removal version and a
+   migration example.
+9. **Don't break backward compatibility casually.** Output formats and flag
+   semantics are an interface scripts depend on: deprecate, warn, then remove.
+10. **Test the error paths**, not just the happy one.
+
+---
+
 Robustness is both objective (the tool actually handles edge cases correctly) and subjective (the tool *feels* solid). Users should never be surprised by unexpected behavior.
 
 ---

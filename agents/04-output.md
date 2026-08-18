@@ -1,5 +1,26 @@
 # Output
 
+**Rules**
+
+1. **Detect the TTY, and check stdout and stderr independently.** Human formatting
+   when a terminal is attached; plain, unanimated output when it is not. In this
+   repo that decision belongs to `iostream.Streams`, never a raw `os.Stdout` check.
+2. **Every data-returning command gets `--json`**, pretty-printed, on stdout.
+3. **`--json` suppresses all human output**, errors included — the only thing on
+   stdout is the JSON.
+4. **Report state changes.** An action command that changes something must say what
+   changed; silence is only golden for scripts.
+5. **Colour carries meaning, never decoration**, and is disabled when there is no
+   TTY, when `NO_COLOR` is set, when `TERM=dumb`, or when `--no-color` is passed.
+6. **Progress indicators go to stderr and only inside a TTY** — a re-rendering bar
+   turns a CI log into a Christmas tree.
+7. **Don't go silent for 10+ seconds.** Periodic status beats an unexplained pause.
+8. **Make cross-boundary actions explicit** — file writes and network calls the
+   user didn't ask for.
+9. **Keep output grep-parseable** for commands whose job is to display data.
+
+---
+
 Output design is where the human-first principle becomes most visible. The goal is output that's clear to humans by default, but degrades gracefully for machines.
 
 ---

@@ -1,5 +1,30 @@
 # Errors
 
+**Rules**
+
+1. **Every error is the structured type in `clikit/errors`** — never `fmt.Errorf`
+   in a handler. It carries `code`, `title`, `message`, `suggestions[]` and `ref`.
+2. **Return `error`, never `*clierrors.CLIError`,** from any function that can
+   return nil: a typed nil in an `error` interface is not nil, which silently
+   breaks `if err != nil` and `assert.NilError`. Use the concrete type only for
+   locals and builder chains.
+3. **Answer three questions**: what happened, why, and what to do next. One
+   concrete action per suggestion.
+4. **All errors go to stderr**, and **every failure exits non-zero** with a code
+   from `clikit/errors/exitcodes.go` — document a new code there before using it.
+5. **Validate input before doing any work**, and say what was wrong with what was
+   given: `--timeout must be a positive integer (got: "fast")`.
+6. **Hide stack traces by default**; expose them behind `--debug` / an env var.
+7. **Structured errors when `--json` is active**, on stderr.
+8. **Suggest corrections for typos, never auto-correct.**
+9. **Never fail silently, never print an exception verbatim, never exit `0` after
+   an error.**
+
+Test assertions match a `CLIError`'s `message`, never its `title` — see
+[14-testing.md](./14-testing.md).
+
+---
+
 Error messages are one of the highest-value parts of a CLI. A good error message turns a frustrating dead-end into a clear path forward.
 
 ---

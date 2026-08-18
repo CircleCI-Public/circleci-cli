@@ -1,6 +1,32 @@
 # Philosophy
 
-CLI design is guided by eight core principles. These aren't rules to follow mechanically — they're lenses for making judgment calls when the right answer isn't obvious.
+**The nine principles** — in short form, so the whole set is visible at once. Each
+has a section below with the reasoning; read those when a trade-off is close.
+
+1. **Human-first design.** Optimise for the human at the terminal; composability is
+   opt-in (`--json`, pipes), not paid for by usability.
+2. **Simple parts that work together.** Standard streams, exit codes, signals,
+   plain text — good alone, good in a pipeline.
+3. **Consistency.** Follow the conventions of tools users already know. Break one
+   only deliberately, with a reason, and consistently within this tool.
+4. **Say just enough.** Confirm what happened, surface what needs acting on, stay
+   out of the way when scripted. Non-JSON output is markdown, via the helper in
+   `iostream`.
+5. **Ease of discovery.** Help text, examples and error suggestions should let a
+   user orient without leaving the terminal.
+6. **Conversation as the norm.** Suggest corrections, clarify state, confirm
+   dangerous actions, show what happened.
+7. **Robustness.** Handle errors gracefully, be idempotent, don't surprise. Keep
+   implementations simple — complexity breeds fragility.
+8. **Empathy.** Anticipate mistakes, explain in human terms, suggest the next step,
+   never silently do the wrong thing.
+9. **Transparency.** Every action the command takes must be visible. Implicit steps
+   — file writes, network calls, credential lookups the user didn't ask for — are
+   dangerous and erode trust.
+
+---
+
+CLI design is guided by these nine core principles. These aren't rules to follow mechanically — they're lenses for making judgment calls when the right answer isn't obvious.
 
 ---
 

@@ -1,5 +1,26 @@
 # Naming and Distribution
 
+**Rules**
+
+1. **Command names are lowercase, short, hyphen-separated**, descriptive of purpose,
+   and never shadow a standard UNIX tool.
+2. **Semantic versioning, with `--version` / `-V`** exposing the version plus build
+   context (Go version, OS/arch, commit, build time), and git tags matching.
+3. **Ship through the package managers users actually have**, plus direct binary
+   downloads for anyone who can't use one, and keep installation to a single
+   command.
+4. **Provide shell completion** for bash, zsh and fish.
+5. **Update notices never block, never touch stdout, and go quiet when they can't
+   help** — no TTY on either stream, CI, agents/MCP, no token, dev builds, or
+   opted out. They run in the background during `PersistentPreRunE` and are drained
+   in `PersistentPostRunE`, which only runs on success, so a notice never lands on
+   top of an error. Implementation in `internal/update`.
+6. **Stay channel-agnostic in user-facing upgrade text.** This CLI ships through
+   seven channels, so link the release page rather than naming one package
+   manager's upgrade command.
+
+---
+
 How you name your command and how you distribute it affects whether users can find, install, and remember your tool.
 
 ---

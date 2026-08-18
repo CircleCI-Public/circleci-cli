@@ -1,4 +1,61 @@
-# Test Assertions
+# Testing
+
+**Rules** — the whole of this file in short form. Read the rest for the reasoning
+and the examples.
+
+1. **Component-level tests drive the model through
+   `github.com/charmbracelet/x/exp/teatest/v2`** — never by calling `Update`
+   directly. Enforced by `TestUIComponentTestsUseTeatest` in
+   `internal/conventions`.
+2. **Break a test into `t.Run` groupings** rather than comment-delimited blocks of
+   setup and assertions. Enforced for long tests by
+   `TestUITestsGroupWithSubtests` in `internal/conventions`.
+3. **Prefer `assert.Check`**; use `assert.Assert` / `assert.NilError` only as
+   gates, where continuing would be pointless or unsafe.
+4. **Use `cmp` comparisons** from `gotest.tools/v3/assert/cmp` over raw booleans —
+   they print the values on failure.
+5. **Named assertion functions are fatal** (`assert.Equal`, `assert.DeepEqual`,
+   `assert.ErrorContains`, …). Use `assert.Check(t, cmp.X(...))` for the
+   non-fatal equivalent.
+6. **End-to-end tests go in `acceptance/`**, running the compiled binary via
+   `internal/testing/binary` against a fake from `internal/testing/fakes`.
+7. **Assert command output with `golden.String`**, and never hand-write a golden
+   file — regenerate with `task test -- ./acceptance/... -update`.
+8. **Assert on a `CLIError`'s `Message`, never its `Title`** — only the message
+   reaches stderr.
+
+---
+
+## Which kind of test
+
+| Testing | Where | How |
+|---|---|---|
+| A reusable component (`clikit/ui/components`) | `<component>_test.go` beside it | teatest: run the model as a program, send keys, assert on frames and state |
+| A flow (`internal/ui`) | `<flow>_test.go` beside it | teatest, usually with a small harness that answers a snapshot/probe message from inside the program loop |
+| A command end to end | `acceptance/` | `binary.RunCLI` (or `binary.RunCLIInteractive`) against `fakes.NewCircleCI` |
+| Pure business logic, renderers, helpers | beside the code | plain table-driven tests; there is no program loop to drive |
+
+**Why teatest and not a direct `Update` call.** A model called directly never sees
+the program loop: message ordering, the commands its `Update` returns, resize
+handling and the renderer are all bypassed — which is where the interesting bugs
+are. Driving it as a program also exercises the same path a user hits.
+
+A component's `Update` never returns `tea.Quit` (the host flow decides when it is
+done), so wrap it in a harness that quits on request. Two patterns are already in
+the tree: `selectHarness` in `clikit/ui/components/select_test.go` (quits when the
+model reports `Done`), and `treeHarness` in `filetree_test.go` plus `flowHarness`
+in `internal/ui/run_get_flow_test.go` (answer a probe/snapshot message from inside
+the loop, so the program keeps running and every key sent beforehand is known to
+have been applied).
+
+Note that a bubbletea renderer emits only what changed between frames, so a line
+that is still on screen may never appear in the output stream again. Wait on the
+model's own frames (`waitForFrame` in `internal/ui/run_get_flow_test.go`) rather
+than the accumulated output when asserting on something that may not have moved.
+
+---
+
+## Test Assertions
 
 Use `gotest.tools/v3/assert` for test assertions:
 
@@ -15,10 +72,15 @@ expression, a `cmp.Comparison`, or an `error`.
 
 ## Document in code rather than comments
 
-Prefer to break up the tests into meaningful groupings using `t.Run`. This offers some advantages:
+Break up the tests into meaningful groupings using `t.Run` rather than leaving
+comments over blocks of setup and assertions. This offers some advantages:
 - It groups the output of the specific assertions, setup, etc together.
 - The timings for those groups are automatically recorded.
 - The purpose of the groups is logged clearly in the test output, without needing to read the code.
+
+Where later groups depend on earlier ones — a sequence of keys driving a flow —
+gate them: `assert.Assert(t, t.Run("...", func(t *testing.T) { ... }))` stops the
+test rather than running the remaining phases against the wrong screen.
 
 ## Assert vs Check
 

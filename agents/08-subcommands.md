@@ -1,5 +1,27 @@
 # Subcommands
 
+**Rules**
+
+1. **Maximum two levels of nesting.** Three levels means restructuring or adding a
+   top-level alias — the alias is the primary user-facing command and the deep path
+   is a thin wrapper over the same business logic. Four levels must never occur.
+2. **Pick noun-first or verb-first and never mix them.** This repo is noun-first
+   (`context secret set`), so related operations cluster under their resource.
+3. **Every group command sets `RunE: cmdutil.GroupRunE` and
+   `FParseErrWhitelist{UnknownFlags: true}`.** Without both, an unknown subcommand
+   exits 0 (indistinguishable from success) and an unknown flag after it produces a
+   misleading "unknown flag" diagnosis.
+4. **Use one naming vocabulary throughout** — not `list` here and `ls` there — and
+   follow the conventional verbs (`create`, `delete`, `list`, `get`, `update`,
+   `init`, `run`).
+5. **Every subcommand carries its own `--help`**, and the root lists the
+   subcommands with the most-used first.
+6. **Don't add a subcommand just to namespace a flag.**
+7. **Be clear about global versus subcommand flags** — global before the
+   subcommand, specific after.
+
+---
+
 Subcommands let you group related functionality under a single tool. Used well, they create an intuitive namespace. Used poorly, they create a confusing maze.
 
 ---

@@ -1,5 +1,34 @@
 # Arguments and Flags
 
+**Rules**
+
+1. **Prefer flags to positional arguments.** One positional is fine, two is
+   questionable, three is never. Flags are self-documenting and can be added
+   without breaking existing invocations.
+2. **Follow the standard flag names** (`-h/--help`, `-v/--verbose`, `-q/--quiet`,
+   `-f/--force`, `-n/--dry-run`, `-o/--output`, `-c/--config`, …) and never
+   overload `-h`.
+3. **Provide both short and long forms** for common flags; support `-abc` grouping
+   and both `--flag=value` and `--flag value`.
+4. **A flag that takes a value always requires one** — no context-dependent
+   optional values.
+5. **Declare flags as typed** (int, URL, file, enum) so the parser validates before
+   the command runs, and **document every default** in help text.
+6. **Declare flag relationships** (depends-on, mutually exclusive, exactly-one) at
+   the flag level rather than checking them in the handler.
+7. **Flag descriptions are lowercase, concise, no trailing period.**
+8. **Basic functionality works with no flags.** Flags modify behaviour; they are
+   not the gate to it.
+9. **Booleans default to false** and are enabled by presence; use `--no-x` to
+   disable something on by default.
+10. **Support `--` passthrough** for commands that wrap a child process, and let a
+    sensitive flag read its value from stdin (`--token -`) to keep it out of shell
+    history.
+11. **Give major flags an environment-variable equivalent**, declared with the flag
+    so help documents it — see [10-configuration-and-env.md](./10-configuration-and-env.md).
+
+---
+
 Arguments and flags are the primary interface between your user and your command. Getting the conventions right makes your tool feel familiar; getting them wrong creates constant friction.
 
 ---

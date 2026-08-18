@@ -1,5 +1,29 @@
 # Configuration and Environment Variables
 
+**Rules**
+
+1. **Resolve configuration in one order, always**: CLI flags > environment
+   variables > project config > user config > built-in defaults.
+2. **Follow XDG for file locations** and document every path that is searched. In
+   this repo that is `~/.config/circleci/config.yml` via `internal/config`.
+3. **Environment variables are `UPPERCASE_WITH_UNDERSCORES`, prefixed with the
+   program name**, and mirror their flag: `--api-key` → `CIRCLE_TOKEN`-style
+   naming, consistent with what already exists.
+4. **Honour the cross-tool standards** — `NO_COLOR`, `TERM=dumb`, `CI`, `EDITOR`,
+   `PAGER`, `LANG`/`LC_ALL` — rather than inventing an equivalent.
+5. **Document every variable the tool reads.** In this repo the authoritative list
+   is the `circleci help environment` topic, so adding a user-facing variable means
+   updating that topic, not just a table.
+6. **Never read the environment directly from a command.** Auth, host and telemetry
+   go through `internal/config`; anything about the terminal goes through
+   `iostream.Streams`.
+7. **Never put secrets in a config file that could be committed.** Take them from
+   the environment, a flag, a permissions-protected credentials file or the system
+   keychain, and when one is missing say exactly how to supply it.
+8. **Provide `--config`** so an alternative file can be used side-by-side or in CI.
+
+---
+
 Configuration lets users set persistent defaults so they don't have to repeat themselves. Environment variables bridge configuration and scripting. Together they make your tool adaptable without being complicated.
 
 ---

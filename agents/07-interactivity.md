@@ -1,5 +1,31 @@
 # Interactivity
 
+**Rules**
+
+1. **Spec the flag interface first, then add prompts on top.** A prompt is a
+   first-time-user affordance, never the primary interface, and must never be
+   *required* — every prompt has a flag that answers it.
+2. **Confirm before anything destructive or irreversible**, naming what will
+   change, with the safe answer as the default: `[y/N]`.
+3. **Support `--force` to skip confirmation and `--dry-run` to preview.**
+4. **Missing required input prompts in a TTY and errors outside one**, listing the
+   flags that would have supplied it. Optional input gets a default, not a prompt.
+5. **Never prompt for something the user already expressed via flags**, and never
+   prompt for every optional setting.
+6. **Build interactive flows with bubbletea**: the program lives in `internal/ui`,
+   reusable components in `clikit/ui/components`, and standard
+   `charm.land/bubbles/v2` components are preferred over new ones.
+7. **Show defaults in brackets, mask secrets, and validate on entry** (re-prompt
+   rather than accepting and failing later).
+8. **Interactivity must be switch-off-able** — flags, `CI=true`, or the
+   no-interactive environment variable; in this repo that decision comes from
+   `iostream.Streams`, never a direct env read.
+
+Testing: component-level tests go through teatest — see
+[14-testing.md](./14-testing.md), the single source of truth for testing rules.
+
+---
+
 Interactive prompts help humans but break automation. The key is knowing when to be interactive and when to get out of the way.
 
 ---
@@ -91,8 +117,9 @@ Re-usable components should be in the `clikit/ui/components` package.
 
 Standard components from `charm.land/bubbles/v2` should be preferred over custom ones from scratch.
 
-Detailed component-level tests should be written using the `github.com/charmbracelet/x/exp/teatest/v2` package, while
-higher level end-to-end tests go in the regular `acceptance` package, using the test runner from `internal/testing/binary`.
+For how to test any of this — component-level tests through teatest, end-to-end
+tests in `acceptance/` — see [14-testing.md](./14-testing.md). It is the single
+source of truth for testing rules; don't rely on finding them here.
 
 ### Be clear and direct
 State exactly what you're asking for. Don't use vague prompts like "Value:".
