@@ -2,6 +2,9 @@ Usage:  circleci run trigger [flags]
 
 Flags:
   -b, --branch string           Branch to trigger (defaults to current branch)
+      --config-branch string    Config branch for the pipeline definition (defaults to checkout branch)
+      --config-tag string       Config tag for the pipeline definition
+      --definition-id string    Pipeline definition ID (UUID) to trigger
   -h, --help                    help for trigger
       --jq string               Process values from the response using jq syntax
       --json                    Output as JSON

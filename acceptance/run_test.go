@@ -1568,6 +1568,45 @@ func TestRunTrigger_NoToken(t *testing.T) {
 	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 }
 
+func TestRunTrigger_DefinitionID(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	slug := watchSlug
+	defID := "d1000000-0000-4000-8000-000000000001"
+	fake.SetTriggerPipelineRunResponse(slug, map[string]any{
+		"id":         "new-run-uuid",
+		"state":      "created",
+		"number":     44,
+		"created_at": time.Now().UTC().Format(time.RFC3339),
+	})
+
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"run", "trigger", "--project", slug, "--branch", "main", "--definition-id", defID},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+
+	t.Run("check request", func(t *testing.T) {
+		parts := strings.SplitN(slug, "/", 3)
+		assert.Check(t, cmp.DeepEqual(fake.LastRequest(), &httprecorder.Request{
+			Method: http.MethodPost,
+			URL:    url.URL{Path: "/api/v2/project/" + parts[0] + "/" + parts[1] + "/" + parts[2] + "/pipeline/run"},
+			Header: http.Header{
+				"Authorization": {"Bearer test-token"},
+				"User-Agent":    {httpcl.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
+			},
+			Body: new(`{"checkout":{"branch":"main"},"config":{"branch":"main"},"definition_id":"` + defID + `"}`),
+		}, ignoreCommonHeaders))
+	})
+}
+
 // --- arg whitespace trimming (tested via run get; trimming lives in PersistentPreRunE) ---
 
 func TestArgWhitespaceTrimmed(t *testing.T) {
