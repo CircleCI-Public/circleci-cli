@@ -521,14 +521,24 @@ func watchFinalResult(ctx context.Context, state runGetOutput, runID uuid.UUID, 
 	}
 }
 
+// failedJobLogSuggestions builds one runnable suggestion per failed job. The
+// job UUID is already in the state we just rendered, so it is interpolated
+// into the command rather than left as a placeholder the user has to resolve.
+// A job that arrived without an ID falls back to the placeholder — a nil UUID
+// would produce a command that looks copy-pasteable but cannot work.
 func failedJobLogSuggestions(state runGetOutput) []string {
 	var suggestions []string
 	for _, wf := range state.Workflows {
 		for _, j := range wf.Jobs {
-			if j.Outcome == "failed" {
-				suggestions = append(suggestions,
-					fmt.Sprintf("View logs for failed job %q: circleci job get <job-id>", j.Name))
+			if j.Outcome != "failed" {
+				continue
 			}
+			id := "<job-id>"
+			if j.ID != uuid.Nil {
+				id = j.ID.String()
+			}
+			suggestions = append(suggestions,
+				fmt.Sprintf("View logs for failed job %q: circleci job get %s", j.Name, id))
 		}
 	}
 	return suggestions
