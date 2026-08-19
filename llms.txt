@@ -845,13 +845,12 @@ JSON fields: id, number, state, created_at
 Watch a run until it completes
 
 Monitor a CircleCI run and block until it reaches a terminal state. Without
-arguments, watches the latest run for the current branch.
+arguments, watches the latest run for the current branch. A terminal gets a
+live table of workflows and jobs; piped or in CI, each change prints a line.
 
-Exit code reflects the result: 0 all workflows succeeded, 1 one or more
-failed, 6 cancelled, 8 timed out.
-
-With --sha, polls for up to 2 minutes for a run matching that commit to
-appear — useful immediately after git push.
+Exit code reflects the result: 0 all workflows succeeded, 1 one or more failed,
+6 cancelled, 8 timed out. With --sha, polls for up to 2 minutes for a run
+matching that commit to appear — useful immediately after git push.
 
 | Flag                  | Description                                                            |
 | --------------------- | ---------------------------------------------------------------------- |
