@@ -194,7 +194,11 @@ func TestRunWatch_Failed_SuggestsJobLogs(t *testing.T) {
 
 	assert.Equal(t, result.ExitCode, 1, "stderr: %s", result.Stderr)
 	assert.Check(t, cmp.Contains(result.Stderr, `"integration-test"`), "stderr: %s", result.Stderr)
-	assert.Check(t, cmp.Contains(result.Stderr, "circleci job get <job-id>"), "stderr: %s", result.Stderr)
+	// The suggestion carries the failed job's real UUID, not a placeholder, so
+	// it can be pasted straight into a shell.
+	assert.Check(t, cmp.Contains(result.Stderr,
+		"circleci job get d0000000-0000-4000-8000-00000000f001"), "stderr: %s", result.Stderr)
+	assert.Check(t, !strings.Contains(result.Stderr, "<job-id>"), "stderr: %s", result.Stderr)
 }
 
 // --- cancelled run → exit 6 ---
@@ -288,6 +292,8 @@ func TestRunWatch_FailFast(t *testing.T) {
 	assert.Equal(t, result.ExitCode, 1, "stderr: %s", result.Stderr)
 	assert.Check(t, cmp.Contains(result.Stderr, "failing job"), "stderr: %s", result.Stderr)
 	assert.Check(t, cmp.Contains(result.Stderr, "integration-test"), "stderr: %s", result.Stderr)
+	assert.Check(t, cmp.Contains(result.Stderr,
+		"circleci job get d0000000-0000-4000-8000-00000000f001"), "stderr: %s", result.Stderr)
 }
 
 // --- watch timeout while run still running → exit 8 ---
