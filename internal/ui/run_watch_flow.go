@@ -168,7 +168,9 @@ type (
 		state RunWatchState
 		err   error
 	}
-	runWatchClockMsg struct{}
+	// runWatchClockMsg carries the generation of the chain that armed it, so a
+	// tick from a superseded schedule is dropped rather than acted on.
+	runWatchClockMsg struct{ gen int }
 )
 
 // runWatchKeys is the footer key hint set: poll again now, or stop watching.
@@ -212,6 +214,14 @@ type RunWatchFlowModel struct {
 	nextPoll time.Time
 	polling  bool
 
+	// clockGen identifies the live clock chain. Arming a clock supersedes the
+	// outstanding one, and a tick that arrives from an older generation is
+	// ignored — so anything that changes the schedule can re-arm freely without
+	// leaving a second chain running behind it. That is the bug this flow shipped
+	// with: a poll timer abandoned by "r" fired anyway, and from then on the run
+	// refreshed at twice the cadence its own countdown showed.
+	clockGen int
+
 	done   bool
 	result RunWatchResult
 }
@@ -239,7 +249,10 @@ func NewRunWatchFlow(ctx context.Context, opts RunWatchFlowOptions) RunWatchFlow
 func (m RunWatchFlowModel) Result() RunWatchResult { return m.result }
 
 func (m RunWatchFlowModel) Init() tea.Cmd {
-	cmds := []tea.Cmd{m.cmdFetch(), m.cmdClock()}
+	// Init cannot alter the model, so the first clock is armed at the generation
+	// the model already carries; every later arm supersedes it.
+	clock := tea.Tick(m.clockDelay(), func(time.Time) tea.Msg { return runWatchClockMsg{gen: m.clockGen} })
+	cmds := []tea.Cmd{m.cmdFetch(), clock}
 	if m.opts.Animate {
 		cmds = append(cmds, m.spin.Tick)
 	}
@@ -259,7 +272,7 @@ func (m RunWatchFlowModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.onState(msg)
 
 	case runWatchClockMsg:
-		return m.onClock()
+		return m.onClock(msg)
 
 	case spinner.TickMsg:
 		if m.done {
@@ -273,12 +286,10 @@ func (m RunWatchFlowModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 // onClock advances the display and, when the wait has expired, starts the next
-// poll. Polling rides on the clock rather than a timer of its own so there is
-// only ever one schedule in play: a timer left over from a wait the user cut
-// short with "r" used to fire anyway, adding a second polling chain that made
-// the run refresh at twice the cadence the countdown showed.
-func (m RunWatchFlowModel) onClock() (tea.Model, tea.Cmd) {
-	if m.done {
+// poll. Polling rides on the clock rather than a timer of its own, so the poll
+// can only ever happen once the countdown on screen has actually run out.
+func (m RunWatchFlowModel) onClock(msg runWatchClockMsg) (tea.Model, tea.Cmd) {
+	if m.done || msg.gen != m.clockGen {
 		return m, nil
 	}
 	if m.timedOut() {
@@ -287,9 +298,11 @@ func (m RunWatchFlowModel) onClock() (tea.Model, tea.Cmd) {
 	}
 	if m.waitExpired() {
 		next, fetch := m.beginPoll()
-		return next, tea.Batch(fetch, next.cmdClock())
+		next, clock := next.armClock()
+		return next, tea.Batch(fetch, clock)
 	}
-	return m, m.cmdClock()
+	next, clock := m.armClock()
+	return next, clock
 }
 
 // waitExpired reports whether the scheduled wait has run out. A fetch already in
@@ -315,15 +328,14 @@ func (m RunWatchFlowModel) onKey(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 		// again, so go back to the tightest cadence.
 		m.nextWait = m.opts.PollInterval
 		next, fetch := m.beginPoll()
-		return next, fetch
+		next, clock := next.armClock()
+		return next, tea.Batch(fetch, clock)
 	}
 	return m, nil
 }
 
 // beginPoll marks a fetch as in flight — the countdown has nothing left to count
-// down to — and returns the command that runs it. It deliberately leaves the
-// clock alone: exactly one clock chain runs, armed at start-up and re-armed by
-// each tick, so neither a poll nor a keypress can add a second one.
+// down to — and returns the command that runs it.
 func (m RunWatchFlowModel) beginPoll() (RunWatchFlowModel, tea.Cmd) {
 	m.polling = true
 	m.nextPoll = time.Time{}
@@ -363,9 +375,11 @@ func (m RunWatchFlowModel) onState(msg runWatchStateMsg) (tea.Model, tea.Cmd) {
 	m.wait = m.nextWait
 	m.nextPoll = time.Now().Add(m.wait)
 	m.nextWait = min(m.nextWait+m.opts.PollInterval, m.opts.MaxPollInterval)
-	// No clock command: the one chain is already ticking, and it is what notices
-	// this wait expiring.
-	return m, nil
+	// Re-arm rather than leave it to the outstanding tick, which was aimed at a
+	// schedule that predates this wait: a wait shorter than the time left on that
+	// tick would otherwise not be noticed until it landed.
+	next, clock := m.armClock()
+	return next, clock
 }
 
 // quit stamps the elapsed time onto the result and ends the program. The view
@@ -396,8 +410,13 @@ func (m RunWatchFlowModel) cmdFetch() tea.Cmd {
 	}
 }
 
-func (m RunWatchFlowModel) cmdClock() tea.Cmd {
-	return tea.Tick(m.clockDelay(), func(time.Time) tea.Msg { return runWatchClockMsg{} })
+// armClock schedules the next clock tick and supersedes the outstanding one (see
+// clockGen). Every path that ends a tick or moves the schedule arms a new clock;
+// nothing else has to reason about how many are in flight.
+func (m RunWatchFlowModel) armClock() (RunWatchFlowModel, tea.Cmd) {
+	m.clockGen++
+	gen := m.clockGen
+	return m, tea.Tick(m.clockDelay(), func(time.Time) tea.Msg { return runWatchClockMsg{gen: gen} })
 }
 
 // clockDelay is how long to wait before the next redraw: until whichever figure
