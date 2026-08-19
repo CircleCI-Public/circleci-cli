@@ -23,6 +23,7 @@
 package run
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/google/uuid"
@@ -82,4 +83,51 @@ func TestFailedJobLogSuggestions(t *testing.T) {
 
 		assert.Check(t, is.Len(failedJobLogSuggestions(state), 0))
 	})
+}
+
+// TestApplyWatchColor_NoColor verifies that all symbols are returned unchanged
+// when colour output is disabled.
+func TestApplyWatchColor_NoColor(t *testing.T) {
+	for _, sym := range []string{"✓", "✗", "●", "○", "⊘", "!", "•", "unknown"} {
+		t.Run(sym, func(t *testing.T) {
+			assert.Check(t, is.Equal(applyWatchColor(false, sym), sym))
+		})
+	}
+}
+
+// TestApplyWatchColor_SuccessIsGreen verifies ✓ gets the green (colour 42) style.
+func TestApplyWatchColor_SuccessIsGreen(t *testing.T) {
+	got := applyWatchColor(true, "✓")
+	assert.Check(t, is.Contains(got, "✓"), "rendered string must contain the glyph")
+	assert.Check(t, strings.Contains(got, "42"),
+		"success symbol should use green (256-colour 42), got: %q", got)
+	assert.Check(t, got != "✓", "coloured output should differ from the raw symbol")
+}
+
+// TestApplyWatchColor_FailureIsRed verifies ✗ gets the red (colour 196) style.
+func TestApplyWatchColor_FailureIsRed(t *testing.T) {
+	got := applyWatchColor(true, "✗")
+	assert.Check(t, is.Contains(got, "✗"), "rendered string must contain the glyph")
+	assert.Check(t, strings.Contains(got, "196"),
+		"failure symbol should use red (256-colour 196), got: %q", got)
+}
+
+// TestApplyWatchColor_YellowSymbols verifies that in-progress / pending /
+// canceled symbols all get the yellow (colour 220) style.
+func TestApplyWatchColor_YellowSymbols(t *testing.T) {
+	for _, sym := range []string{"●", "○", "⊘", "!"} {
+		t.Run(sym, func(t *testing.T) {
+			got := applyWatchColor(true, sym)
+			assert.Check(t, is.Contains(got, sym), "rendered string must contain the glyph")
+			assert.Check(t, strings.Contains(got, "220"),
+				"symbol %q should use yellow (256-colour 220), got: %q", sym, got)
+		})
+	}
+}
+
+// TestApplyWatchColor_PassthroughUnknown verifies that symbols without a
+// specific colour mapping are returned unchanged even when colour is enabled.
+func TestApplyWatchColor_PassthroughUnknown(t *testing.T) {
+	assert.Check(t, is.Equal(applyWatchColor(true, "•"), "•"))
+	assert.Check(t, is.Equal(applyWatchColor(true, "?"), "?"))
 }
