@@ -144,6 +144,79 @@ func TestRunWatch_Latest(t *testing.T) {
 	assert.Check(t, cmp.Contains(result.Stderr, "succeeded"), "stderr: %s", result.Stderr)
 }
 
+// --- dynamic config: setup succeeded but the continued config failed validation →
+// the error is recorded on the run itself (no continued workflow object) → exit 1 ---
+
+func TestRunWatch_DynamicConfig_RunLevelConfigError(t *testing.T) {
+	runID := "f0000000-0000-4000-8000-00000000dc01"
+	setupWfID := "b0000000-0000-4000-8000-0000000dc001"
+
+	v3Run := fakeRunV3(runID, watchProjectID, "ended", "errored", "main", "abc1234def5678")
+	v3Run["attributes"].(map[string]any)["errors"] = []map[string]any{
+		{"type": "config_validation_error", "message": "Continued workflow config is invalid: bad yaml"},
+	}
+
+	fake := fakes.NewCircleCI(t)
+	addProjectBySlug(fake, watchSlug, watchProjectID)
+	fake.AddRunV3(runID, watchProjectID, v3Run)
+	fake.AddRun(runID, fakeRun(runID, 80, "created", watchSlug, "main"))
+	fake.AddProjectRuns(watchSlug, fakeRun(runID, 80, "created", watchSlug, "main"))
+	// Only the setup workflow exists; the continued workflow was never created.
+	fake.AddRunWorkflowsV3(runID,
+		fakeWorkflowV3(setupWfID, "setup", runID, watchProjectID, "ended", "succeeded"),
+	)
+	fake.AddWorkflowJobsV3(setupWfID, fakeJobV3("d0000000-0000-4000-8000-0000000dc001", "generate-config", setupWfID, watchProjectID))
+
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"run", "watch", "80", "--project", watchSlug},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 1, "stderr: %s", result.Stderr)
+	assert.Check(t, cmp.Contains(result.Stderr, "failed"), "stderr: %s", result.Stderr)
+	assert.Check(t, cmp.Contains(result.Stderr, "Continued workflow config is invalid"), "stderr: %s", result.Stderr)
+}
+
+// --- dynamic config: setup succeeded but continued workflow has a not_run outcome → exit 1 ---
+
+func TestRunWatch_DynamicConfig_ContinuedWorkflowNotRun(t *testing.T) {
+	runID := "f0000000-0000-4000-8000-00000000dc02"
+	setupWfID := "b0000000-0000-4000-8000-0000000dc002"
+	continuedWfID := "b0000000-0000-4000-8000-0000000dc003"
+
+	fake := fakes.NewCircleCI(t)
+	addProjectBySlug(fake, watchSlug, watchProjectID)
+	fake.AddRunV3(runID, watchProjectID, fakeRunV3(runID, watchProjectID, "ended", "errored", "main", "abc1234def5678"))
+	fake.AddRun(runID, fakeRun(runID, 81, "created", watchSlug, "main"))
+	fake.AddProjectRuns(watchSlug, fakeRun(runID, 81, "created", watchSlug, "main"))
+	fake.AddRunWorkflowsV3(runID,
+		fakeWorkflowV3(setupWfID, "setup", runID, watchProjectID, "ended", "succeeded"),
+		fakeWorkflowV3(continuedWfID, "continue", runID, watchProjectID, "ended", "not_run"),
+	)
+	fake.AddWorkflowJobsV3(setupWfID, fakeJobV3("d0000000-0000-4000-8000-0000000dc002", "generate-config", setupWfID, watchProjectID))
+	fake.AddWorkflowJobsV3(continuedWfID)
+
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"run", "watch", "81", "--project", watchSlug},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 1, "stderr: %s", result.Stderr)
+	assert.Check(t, cmp.Contains(result.Stderr, "failed"), "stderr: %s", result.Stderr)
+}
+
 // --- failed run → exit 1 ---
 
 func TestRunWatch_Failed(t *testing.T) {
