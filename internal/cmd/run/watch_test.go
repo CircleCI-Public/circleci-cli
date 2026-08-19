@@ -23,13 +23,20 @@
 package run
 
 import (
-	"strings"
 	"testing"
 
 	"github.com/google/uuid"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
+
+	"github.com/CircleCI-Public/circleci-cli/internal/ui"
 )
+
+// watchStateWith builds a ui.RunWatchState from workflow name → jobs, the shape
+// both watch paths hand to the result reporters.
+func watchStateWith(workflows ...ui.RunWatchWorkflow) ui.RunWatchState {
+	return ui.RunWatchState{Workflows: workflows}
+}
 
 // TestFailedJobLogSuggestions verifies the suggestion attached to a failed run
 // names a job the user can actually fetch: the UUID is interpolated from the
@@ -39,13 +46,13 @@ func TestFailedJobLogSuggestions(t *testing.T) {
 	otherID := uuid.MustParse("d0000000-0000-4000-8000-00000000f003")
 
 	t.Run("interpolates the failed job's id", func(t *testing.T) {
-		state := runGetOutput{Workflows: []workflowOutput{{
+		state := watchStateWith(ui.RunWatchWorkflow{
 			Name: "build",
-			Jobs: []jobOutput{
-				{ID: uuid.MustParse("d0000000-0000-4000-8000-00000000f002"), Name: "lint", Outcome: "succeeded"},
-				{ID: jobID, Name: "test-service", Outcome: "failed"},
+			Jobs: []ui.RunWatchJob{
+				{ID: uuid.MustParse("d0000000-0000-4000-8000-00000000f002"), Name: "lint"},
+				{ID: jobID, Name: "test-service", Failed: true},
 			},
-		}}}
+		})
 
 		assert.Check(t, is.DeepEqual(failedJobLogSuggestions(state), []string{
 			`View logs for failed job "test-service": circleci job get ` + jobID.String(),
@@ -53,10 +60,10 @@ func TestFailedJobLogSuggestions(t *testing.T) {
 	})
 
 	t.Run("one suggestion per failed job across workflows", func(t *testing.T) {
-		state := runGetOutput{Workflows: []workflowOutput{
-			{Name: "build", Jobs: []jobOutput{{ID: jobID, Name: "test-service", Outcome: "failed"}}},
-			{Name: "deploy", Jobs: []jobOutput{{ID: otherID, Name: "publish", Outcome: "failed"}}},
-		}}
+		state := watchStateWith(
+			ui.RunWatchWorkflow{Name: "build", Jobs: []ui.RunWatchJob{{ID: jobID, Name: "test-service", Failed: true}}},
+			ui.RunWatchWorkflow{Name: "deploy", Jobs: []ui.RunWatchJob{{ID: otherID, Name: "publish", Failed: true}}},
+		)
 
 		assert.Check(t, is.DeepEqual(failedJobLogSuggestions(state), []string{
 			`View logs for failed job "test-service": circleci job get ` + jobID.String(),
@@ -65,10 +72,10 @@ func TestFailedJobLogSuggestions(t *testing.T) {
 	})
 
 	t.Run("falls back to the placeholder for a job with no id", func(t *testing.T) {
-		state := runGetOutput{Workflows: []workflowOutput{{
+		state := watchStateWith(ui.RunWatchWorkflow{
 			Name: "build",
-			Jobs: []jobOutput{{Name: "test-service", Outcome: "failed"}},
-		}}}
+			Jobs: []ui.RunWatchJob{{Name: "test-service", Failed: true}},
+		})
 
 		assert.Check(t, is.DeepEqual(failedJobLogSuggestions(state), []string{
 			`View logs for failed job "test-service": circleci job get <job-id>`,
@@ -76,58 +83,58 @@ func TestFailedJobLogSuggestions(t *testing.T) {
 	})
 
 	t.Run("no suggestions when nothing failed", func(t *testing.T) {
-		state := runGetOutput{Workflows: []workflowOutput{{
+		state := watchStateWith(ui.RunWatchWorkflow{
 			Name: "build",
-			Jobs: []jobOutput{{ID: jobID, Name: "test-service", Outcome: "succeeded"}},
-		}}}
+			Jobs: []ui.RunWatchJob{{ID: jobID, Name: "test-service"}},
+		})
 
 		assert.Check(t, is.Len(failedJobLogSuggestions(state), 0))
 	})
 }
 
-// TestApplyWatchColor_NoColor verifies that all symbols are returned unchanged
-// when colour output is disabled.
-func TestApplyWatchColor_NoColor(t *testing.T) {
-	for _, sym := range []string{"✓", "✗", "●", "○", "⊘", "!", "•", "unknown"} {
-		t.Run(sym, func(t *testing.T) {
-			assert.Check(t, is.Equal(applyWatchColor(false, sym), sym))
-		})
-	}
-}
+// TestWatchState verifies the adapter from a polled run to the watch table's
+// rows: statuses come from the emoji-free symbol/word pair, a failed job is
+// flagged for --failfast, and the run only reads as done once every workflow has
+// ended.
+func TestWatchState(t *testing.T) {
+	jobID := uuid.MustParse("d0000000-0000-4000-8000-00000000f001")
 
-// TestApplyWatchColor_SuccessIsGreen verifies ✓ gets the green (colour 42) style.
-func TestApplyWatchColor_SuccessIsGreen(t *testing.T) {
-	got := applyWatchColor(true, "✓")
-	assert.Check(t, is.Contains(got, "✓"), "rendered string must contain the glyph")
-	assert.Check(t, strings.Contains(got, "42"),
-		"success symbol should use green (256-colour 42), got: %q", got)
-	assert.Check(t, got != "✓", "coloured output should differ from the raw symbol")
-}
+	t.Run("maps phases to glyphs and words", func(t *testing.T) {
+		state := watchState(runGetOutput{Workflows: []workflowOutput{{
+			Name: "build", Phase: "ended", Outcome: "succeeded", Duration: "1m2s",
+			Jobs: []jobOutput{{ID: jobID, Name: "test", Phase: "started", Type: "build"}},
+		}}})
 
-// TestApplyWatchColor_FailureIsRed verifies ✗ gets the red (colour 196) style.
-func TestApplyWatchColor_FailureIsRed(t *testing.T) {
-	got := applyWatchColor(true, "✗")
-	assert.Check(t, is.Contains(got, "✗"), "rendered string must contain the glyph")
-	assert.Check(t, strings.Contains(got, "196"),
-		"failure symbol should use red (256-colour 196), got: %q", got)
-}
+		assert.Assert(t, is.Len(state.Workflows, 1))
+		wf := state.Workflows[0]
+		assert.Check(t, is.Equal(wf.Symbol, "✓"))
+		assert.Check(t, is.Equal(wf.Status, "succeeded"))
+		assert.Check(t, is.Equal(wf.Duration, "1m2s"))
 
-// TestApplyWatchColor_YellowSymbols verifies that in-progress / pending /
-// canceled symbols all get the yellow (colour 220) style.
-func TestApplyWatchColor_YellowSymbols(t *testing.T) {
-	for _, sym := range []string{"●", "○", "⊘", "!"} {
-		t.Run(sym, func(t *testing.T) {
-			got := applyWatchColor(true, sym)
-			assert.Check(t, is.Contains(got, sym), "rendered string must contain the glyph")
-			assert.Check(t, strings.Contains(got, "220"),
-				"symbol %q should use yellow (256-colour 220), got: %q", sym, got)
-		})
-	}
-}
+		assert.Assert(t, is.Len(wf.Jobs, 1))
+		assert.Check(t, is.Equal(wf.Jobs[0].Symbol, "●"))
+		assert.Check(t, is.Equal(wf.Jobs[0].Status, "running"))
+		assert.Check(t, is.Equal(wf.Jobs[0].Type, "build"))
+		assert.Check(t, !wf.Jobs[0].Failed)
+	})
 
-// TestApplyWatchColor_PassthroughUnknown verifies that symbols without a
-// specific colour mapping are returned unchanged even when colour is enabled.
-func TestApplyWatchColor_PassthroughUnknown(t *testing.T) {
-	assert.Check(t, is.Equal(applyWatchColor(true, "•"), "•"))
-	assert.Check(t, is.Equal(applyWatchColor(true, "?"), "?"))
+	t.Run("flags a failed job and the run's outcome", func(t *testing.T) {
+		state := watchState(runGetOutput{Workflows: []workflowOutput{{
+			Name: "build", Phase: "ended", Outcome: "failed",
+			Jobs: []jobOutput{{ID: jobID, Name: "test", Phase: "ended", Outcome: "failed"}},
+		}}})
+
+		assert.Check(t, state.Done)
+		assert.Check(t, is.Equal(state.Outcome, "failed"))
+		assert.Check(t, is.Len(state.FailedJobs(), 1))
+	})
+
+	t.Run("is not done while a workflow is still running", func(t *testing.T) {
+		state := watchState(runGetOutput{Workflows: []workflowOutput{
+			{Name: "build", Phase: "ended", Outcome: "succeeded"},
+			{Name: "deploy", Phase: "started"},
+		}})
+
+		assert.Check(t, !state.Done)
+	})
 }

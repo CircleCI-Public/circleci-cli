@@ -703,7 +703,7 @@ func executionItems(client *apiclient.Client) func(context.Context, uuid.UUID) (
 		for i, exec := range j.Executions {
 			label := fmt.Sprintf("Execution %*d", idxW, exec.Index)
 			if d, ok := executionDuration(exec); ok {
-				label += " - " + formatElapsed(d)
+				label += " - " + ui.FormatElapsed(d)
 			}
 			execs[i] = ui.RunGetExecution{
 				Index: exec.Index,
@@ -811,7 +811,7 @@ func stepRows(exec apiclient.JobV3Execution) []ui.RunGetStepItem {
 		// in the duration column rather than a blank gap.
 		dur := "~"
 		if s.StoppedAt != nil {
-			dur = formatElapsed(s.StoppedAt.Sub(s.StartedAt))
+			dur = ui.FormatElapsed(s.StoppedAt.Sub(s.StartedAt))
 		}
 		numW = max(numW, len(num))
 		durW = max(durW, len(dur))
@@ -902,7 +902,7 @@ func buildOutput(r *apiclient.RunV3, workflows []apiclient.WorkflowV3, wfJobs []
 		}
 		var dur string
 		if w.EndedAt != nil {
-			dur = formatElapsed(w.EndedAt.Sub(w.CreatedAt))
+			dur = ui.FormatElapsed(w.EndedAt.Sub(w.CreatedAt))
 		}
 		wflows[i] = workflowOutput{
 			ID:             w.ID,

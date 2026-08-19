@@ -31,17 +31,17 @@ import (
 	"strings"
 	"time"
 
-	"charm.land/lipgloss/v2"
+	tea "charm.land/bubbletea/v2"
 	"github.com/MakeNowJust/heredoc"
 	"github.com/google/uuid"
 	"github.com/spf13/cobra"
 
 	clierrors "github.com/CircleCI-Public/circleci-cli/clikit/errors"
 	"github.com/CircleCI-Public/circleci-cli/clikit/iostream"
-	"github.com/CircleCI-Public/circleci-cli/clikit/ui/theme"
 	"github.com/CircleCI-Public/circleci-cli/internal/apiclient"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmdutil"
 	"github.com/CircleCI-Public/circleci-cli/internal/gitremote"
+	"github.com/CircleCI-Public/circleci-cli/internal/ui"
 )
 
 // defaultSHAWaitDuration is the maximum time to wait for a run matching a
@@ -79,13 +79,12 @@ func newWatchCmd() *cobra.Command {
 		},
 		Long: heredoc.Doc(`
 			Monitor a CircleCI run and block until it reaches a terminal state. Without
-			arguments, watches the latest run for the current branch.
+			arguments, watches the latest run for the current branch. A terminal gets a
+			live table of workflows and jobs; piped or in CI, each change prints a line.
 
-			Exit code reflects the result: 0 all workflows succeeded, 1 one or more
-			failed, 6 cancelled, 8 timed out.
-
-			With --sha, polls for up to 2 minutes for a run matching that commit to
-			appear — useful immediately after git push.
+			Exit code reflects the result: 0 all workflows succeeded, 1 one or more failed,
+			6 cancelled, 8 timed out. With --sha, polls for up to 2 minutes for a run
+			matching that commit to appear — useful immediately after git push.
 		`),
 		Example: heredoc.Doc(`
 			# Watch the latest run on the current branch
@@ -202,6 +201,13 @@ func runWatch(ctx context.Context, client *apiclient.Client, args []string, proj
 		displayBranch = branch
 	}
 
+	// An interactive terminal gets the live table, which names the run in its own
+	// header. Everywhere else — piped, redirected, or CI — the run is announced on
+	// one line and progress is reported a line at a time.
+	if iostream.IsInteractive(ctx) {
+		return watchInteractive(ctx, client, r.ID, displayBranch, timeout, failFast)
+	}
+
 	iostream.ErrPrintf(ctx, "Watching run %s (%s)\n\n", r.ID, displayBranch)
 
 	return watchUntilDone(ctx, client, r.ID, timeout, failFast)
@@ -264,90 +270,145 @@ func waitForRunBySHA(ctx context.Context, client *apiclient.Client, projectSlug,
 	}
 }
 
-// watchUntilDone polls the given run until all workflows reach a terminal
-// state or the timeout elapses.
+// watchInteractive runs the watch as a bubbletea program (see
+// ui.RunWatchFlowModel): a live table of workflows and jobs on stderr, redrawn
+// in place, that ends itself when the run does. The program only collects the
+// outcome; the summary line and exit code are decided here, by the same
+// functions the non-interactive path uses, so both agree on what a failed run
+// looks like.
+func watchInteractive(ctx context.Context, client *apiclient.Client, runID uuid.UUID, branch string, timeout time.Duration, failFast bool) error {
+	model := ui.NewRunWatchFlow(ctx, ui.RunWatchFlowOptions{
+		RunID:    runID,
+		Branch:   branch,
+		Color:    iostream.ColorEnabled(ctx),
+		Animate:  iostream.SpinnerEnabled(ctx),
+		FailFast: failFast,
+		Timeout:  timeout,
+		Fetch: func(ctx context.Context) (ui.RunWatchState, error) {
+			state, err := fetchWatchState(ctx, client, runID)
+			if err != nil {
+				return ui.RunWatchState{}, err
+			}
+			return watchState(state), nil
+		},
+	})
+
+	final, err := tea.NewProgram(model,
+		tea.WithContext(ctx),
+		tea.WithInput(iostream.In(ctx)),
+		tea.WithOutput(iostream.Err(ctx)),
+	).Run()
+	if err != nil {
+		// A SIGINT that arrived as a signal rather than a keystroke, or a
+		// cancelled context, ends the program with one of bubbletea's terminal
+		// errors. That is the user stopping the watch, not the watch failing.
+		if errors.Is(err, tea.ErrInterrupted) || errors.Is(err, tea.ErrProgramKilled) ||
+			errors.Is(err, context.Canceled) {
+			return watchInterrupted()
+		}
+		return clierrors.New("run.watch_display_failed", "Failed to display the run",
+			err.Error()).WithExitCode(clierrors.ExitGeneralError)
+	}
+
+	res := final.(ui.RunWatchFlowModel).Result()
+
+	// Separate the table the program left on screen from the summary line.
+	iostream.ErrPrintf(ctx, "\n")
+
+	switch {
+	case res.Cancelled:
+		return watchInterrupted()
+	case res.Err != nil:
+		return clierrors.New("api.error", "API error while watching run", res.Err.Error()).
+			WithExitCode(clierrors.ExitAPIError)
+	case res.TimedOut:
+		return watchTimedOut(runID, timeout)
+	case res.FailFast:
+		return watchFailFastResult(ctx, res.State, runID, res.Elapsed)
+	default:
+		return watchFinalResult(ctx, res.State, runID, res.Elapsed)
+	}
+}
+
+// watchUntilDone polls the given run until all workflows reach a terminal state
+// or the timeout elapses, printing one line per observed change. This is the
+// non-interactive path: no cursor movement, so the output survives being piped
+// to a file or a CI log.
 func watchUntilDone(ctx context.Context, client *apiclient.Client, runID uuid.UUID, timeout time.Duration, failFast bool) error {
 	deadline := time.Now().Add(timeout)
 	start := time.Now()
-	tty := iostream.IsTerminal(ctx)
 
-	var prevLines int
 	var prevFingerprint string
-	pollInterval := 5 * time.Second
+	pollInterval := ui.RunWatchPollInterval
 
 	for {
-		state, err := fetchWatchState(ctx, client, runID)
+		raw, err := fetchWatchState(ctx, client, runID)
 		if err != nil {
 			if errors.Is(err, context.Canceled) {
-				if tty {
-					iostream.ErrPrintf(ctx, "\n")
-				}
 				return watchInterrupted()
 			}
 			return clierrors.New("api.error", "API error while watching run", err.Error()).
 				WithExitCode(clierrors.ExitAPIError)
 		}
 
+		state := watchState(raw)
 		elapsed := time.Since(start)
-		fingerprint := watchFingerprint(state)
-		changed := fingerprint != prevFingerprint
 
-		if tty {
-			if prevLines > 0 {
-				_, _ = fmt.Fprintf(iostream.Err(ctx), "\033[%dA\033[J", prevLines)
-			}
-			prevLines = printWatchTable(ctx, state, elapsed)
-		} else if changed {
+		if fingerprint := watchFingerprint(state); fingerprint != prevFingerprint {
 			printWatchLine(ctx, state, elapsed)
+			prevFingerprint = fingerprint
 		}
-		prevFingerprint = fingerprint
 
-		if allWorkflowsDone(state.Workflows) {
-			if tty && prevLines > 0 {
-				_, _ = fmt.Fprintf(iostream.Err(ctx), "\033[%dA\033[J", prevLines)
-				printWatchTableFinal(ctx, state)
-				iostream.ErrPrintf(ctx, "\n")
-			}
+		switch {
+		case state.Done:
 			return watchFinalResult(ctx, state, runID, elapsed)
-		}
-
-		if failFast && hasFailedJob(state) {
-			if tty && prevLines > 0 {
-				_, _ = fmt.Fprintf(iostream.Err(ctx), "\033[%dA\033[J", prevLines)
-				printWatchTableFinal(ctx, state)
-				iostream.ErrPrintf(ctx, "\n")
-			}
+		case failFast && len(state.FailedJobs()) > 0:
 			return watchFailFastResult(ctx, state, runID, elapsed)
-		}
-
-		if time.Now().After(deadline) {
-			iostream.ErrPrintf(ctx, "\n")
-			return clierrors.New("run.timeout", "Watch timed out",
-				fmt.Sprintf("Run %s did not complete within %s.", runID, timeout)).
-				WithExitCode(clierrors.ExitTimeout)
+		case time.Now().After(deadline):
+			return watchTimedOut(runID, timeout)
 		}
 
 		if err := sleepOrCancel(ctx, pollInterval); err != nil {
-			if tty {
-				iostream.ErrPrintf(ctx, "\n")
-			}
 			return watchInterrupted()
 		}
-		if pollInterval < 30*time.Second {
-			pollInterval += 5 * time.Second
+		if pollInterval < ui.RunWatchMaxPollInterval {
+			pollInterval += ui.RunWatchPollInterval
 		}
 	}
 }
 
-func hasFailedJob(state runGetOutput) bool {
-	for _, wf := range state.Workflows {
-		for _, j := range wf.Jobs {
-			if j.Outcome == "failed" {
-				return true
-			}
-		}
+// watchState adapts one poll of run state to the rows the watch table draws,
+// plus the two questions both watch paths ask of it: is the run over, and how
+// did it end. The status glyph and word come from the single-width
+// PhaseOutcomeSymbol/PhaseOutcomeText pair rather than PhaseOutcomeStatus, whose
+// emoji shortcodes only render when passed through markdown.
+func watchState(state runGetOutput) ui.RunWatchState {
+	out := ui.RunWatchState{
+		Workflows: make([]ui.RunWatchWorkflow, 0, len(state.Workflows)),
+		Done:      allWorkflowsDone(state.Workflows),
+		Outcome:   deriveDisplayStatus(state),
 	}
-	return false
+	for _, wf := range state.Workflows {
+		row := ui.RunWatchWorkflow{
+			Name:     wf.Name,
+			Symbol:   apiclient.PhaseOutcomeSymbol(wf.Phase, wf.Outcome, wf.CurrentOutcome),
+			Status:   apiclient.PhaseOutcomeText(wf.Phase, wf.Outcome, wf.CurrentOutcome),
+			Duration: wf.Duration,
+			Jobs:     make([]ui.RunWatchJob, 0, len(wf.Jobs)),
+		}
+		for _, j := range wf.Jobs {
+			row.Jobs = append(row.Jobs, ui.RunWatchJob{
+				ID:     j.ID,
+				Name:   j.Name,
+				Symbol: apiclient.PhaseOutcomeSymbol(j.Phase, j.Outcome, j.CurrentOutcome),
+				Status: apiclient.PhaseOutcomeText(j.Phase, j.Outcome, j.CurrentOutcome),
+				Type:   j.Type,
+				Failed: j.Outcome == "failed",
+			})
+		}
+		out.Workflows = append(out.Workflows, row)
+	}
+	return out
 }
 
 func sleepOrCancel(ctx context.Context, d time.Duration) error {
@@ -365,6 +426,12 @@ func watchInterrupted() *clierrors.CLIError {
 	return clierrors.New("run.interrupted", "Watch interrupted",
 		"Stopped watching before the run completed. The run is still active in CircleCI.").
 		WithExitCode(clierrors.ExitCancelled)
+}
+
+func watchTimedOut(runID uuid.UUID, timeout time.Duration) *clierrors.CLIError {
+	return clierrors.New("run.timeout", "Watch timed out",
+		fmt.Sprintf("Run %s did not complete within %s.", runID, timeout)).
+		WithExitCode(clierrors.ExitTimeout)
 }
 
 // fetchWatchState retrieves the current run state including all workflows
@@ -401,158 +468,66 @@ func allWorkflowsDone(workflows []workflowOutput) bool {
 	return true
 }
 
-func watchFingerprint(state runGetOutput) string {
+// watchFingerprint summarises the statuses in a poll, so the non-interactive
+// path can print a line only when something actually moved.
+func watchFingerprint(state ui.RunWatchState) string {
 	var b strings.Builder
 	for _, wf := range state.Workflows {
 		b.WriteString(wf.Name)
 		b.WriteByte('=')
-		b.WriteString(wf.Phase)
-		b.WriteByte('/')
-		b.WriteString(wf.Outcome)
+		b.WriteString(wf.Status)
 		b.WriteByte(';')
 		for _, j := range wf.Jobs {
 			b.WriteString(j.Name)
 			b.WriteByte('=')
-			b.WriteString(j.Phase)
-			b.WriteByte('/')
-			b.WriteString(j.Outcome)
+			b.WriteString(j.Status)
 			b.WriteByte(';')
 		}
 	}
 	return b.String()
 }
 
-func printWatchTable(ctx context.Context, state runGetOutput, elapsed time.Duration) int {
-	lines := 0
-	for _, wf := range state.Workflows {
-		wfSym, wfWord := watchStatusParts(ctx, wf.Phase, wf.Outcome, wf.CurrentOutcome)
-		if wf.Duration != "" {
-			iostream.ErrPrintf(ctx, "  %-28s  %s %-10s  %s\n", wf.Name, wfSym, wfWord, wf.Duration)
-		} else {
-			iostream.ErrPrintf(ctx, "  %-28s  %s %s\n", wf.Name, wfSym, wfWord)
-		}
-		lines++
-		for _, j := range wf.Jobs {
-			jSym, jWord := watchStatusParts(ctx, j.Phase, j.Outcome, j.CurrentOutcome)
-			iostream.ErrPrintf(ctx, "    %-30s  %s %-10s  %s\n", j.Name, jSym, jWord, j.Type)
-			lines++
-		}
-	}
-	iostream.ErrPrintf(ctx, "\n  Elapsed: %s\n", formatElapsed(elapsed))
-	lines += 2
-	return lines
-}
-
-// applyWatchColor applies the watch-table colour palette to symbol when color
-// is true, returning the ANSI-styled string. When color is false the symbol is
-// returned unchanged. Factored out of colorizeWatchSymbol so the mapping can be
-// tested without a real TTY context.
-//
-// Palette (mirrors run get / the TUI picker):
-//
-//	✓           → green  (theme.ColorSuccess / 42)
-//	✗           → red    (theme.ColorError   / 196)
-//	● ○ ⊘ !     → yellow (theme.ColorWarning / 220)
-//	everything else → unchanged
-func applyWatchColor(color bool, symbol string) string {
-	if !color {
-		return symbol
-	}
-	var style lipgloss.Style
-	switch symbol {
-	case "✓":
-		style = theme.SuccessStyle
-	case "✗":
-		style = theme.ErrorStyle
-	case "●", "○", "⊘", "!":
-		style = theme.WarningStyle
-	default:
-		return symbol
-	}
-	return style.Render(symbol)
-}
-
-// colorizeWatchSymbol applies the watch-table colour palette to symbol when
-// colour output is enabled in ctx, returning the ANSI-styled string or the
-// plain symbol when colour is disabled.
-func colorizeWatchSymbol(ctx context.Context, symbol string) string {
-	return applyWatchColor(iostream.ColorEnabled(ctx), symbol)
-}
-
-// watchStatusParts renders a phase/outcome as a coloured status glyph and word
-// for watch's raw terminal output — e.g. ("<green>✓</green>", "succeeded").
-// PhaseOutcomeStatus prefixes a width-2 status emoji ("✅ succeeded"); watch
-// lays out fixed-width columns, so it uses the single-width
-// PhaseOutcomeSymbol/PhaseOutcomeText pair instead — as the interactive pickers
-// and watch's own result lines already do. The symbol is returned separately so
-// callers can pad the (ASCII) word into a fixed-width column without the
-// glyph's multi-byte width throwing off the alignment.
-func watchStatusParts(ctx context.Context, phase, outcome, currentOutcome string) (symbol, word string) {
-	sym := apiclient.PhaseOutcomeSymbol(phase, outcome, currentOutcome)
-	return colorizeWatchSymbol(ctx, sym),
-		apiclient.PhaseOutcomeText(phase, outcome, currentOutcome)
-}
-
-func printWatchTableFinal(ctx context.Context, state runGetOutput) {
-	for _, wf := range state.Workflows {
-		wfSym, wfWord := watchStatusParts(ctx, wf.Phase, wf.Outcome, wf.CurrentOutcome)
-		if wf.Duration != "" {
-			iostream.ErrPrintf(ctx, "  %-28s  %s %-10s  %s\n", wf.Name, wfSym, wfWord, wf.Duration)
-		} else {
-			iostream.ErrPrintf(ctx, "  %-28s  %s %s\n", wf.Name, wfSym, wfWord)
-		}
-		for _, j := range wf.Jobs {
-			jSym, jWord := watchStatusParts(ctx, j.Phase, j.Outcome, j.CurrentOutcome)
-			iostream.ErrPrintf(ctx, "    %-30s  %s %-10s  %s\n", j.Name, jSym, jWord, j.Type)
-		}
-	}
-}
-
-func printWatchLine(ctx context.Context, state runGetOutput, elapsed time.Duration) {
+func printWatchLine(ctx context.Context, state ui.RunWatchState, elapsed time.Duration) {
 	parts := make([]string, 0, len(state.Workflows))
 	for _, wf := range state.Workflows {
-		parts = append(parts, fmt.Sprintf("%s=%s", wf.Name, apiclient.PhaseOutcomeText(wf.Phase, wf.Outcome, wf.CurrentOutcome)))
+		parts = append(parts, fmt.Sprintf("%s=%s", wf.Name, wf.Status))
 	}
-	iostream.ErrPrintf(ctx, "[%s]  %s\n", formatElapsed(elapsed), strings.Join(parts, "  "))
+	iostream.ErrPrintf(ctx, "[%s]  %s\n", ui.FormatElapsed(elapsed), strings.Join(parts, "  "))
 }
 
-func watchFailFastResult(ctx context.Context, state runGetOutput, runID uuid.UUID, elapsed time.Duration) error {
+func watchFailFastResult(ctx context.Context, state ui.RunWatchState, runID uuid.UUID, elapsed time.Duration) error {
 	names := failedJobNames(state)
 	iostream.ErrPrintf(ctx, "%s Run %s has failing job(s): %s — exiting (%s)\n",
-		iostream.SymbolFail(ctx), runID, strings.Join(names, ", "), formatElapsed(elapsed))
+		iostream.SymbolFail(ctx), runID, strings.Join(names, ", "), ui.FormatElapsed(elapsed))
 	return clierrors.New("run.failed", "Run failed",
 		fmt.Sprintf("Run %s has %d failing job(s); exiting due to --failfast.", runID, len(names))).
 		WithSuggestions(failedJobLogSuggestions(state)...).
 		WithExitCode(clierrors.ExitGeneralError)
 }
 
-func failedJobNames(state runGetOutput) []string {
-	var names []string
-	for _, wf := range state.Workflows {
-		for _, j := range wf.Jobs {
-			if j.Outcome == "failed" {
-				names = append(names, j.Name)
-			}
-		}
+func failedJobNames(state ui.RunWatchState) []string {
+	failed := state.FailedJobs()
+	names := make([]string, 0, len(failed))
+	for _, j := range failed {
+		names = append(names, j.Name)
 	}
 	return names
 }
 
-func watchFinalResult(ctx context.Context, state runGetOutput, runID uuid.UUID, elapsed time.Duration) error {
-	status := deriveDisplayStatus(state)
-	switch status {
+func watchFinalResult(ctx context.Context, state ui.RunWatchState, runID uuid.UUID, elapsed time.Duration) error {
+	switch state.Outcome {
 	case "succeeded":
 		iostream.ErrPrintf(ctx, "%s Run %s succeeded (%s)\n",
-			iostream.SymbolOK(ctx), runID, formatElapsed(elapsed))
+			iostream.SymbolOK(ctx), runID, ui.FormatElapsed(elapsed))
 		return nil
 	case "canceled":
-		iostream.ErrPrintf(ctx, "Run %s was cancelled (%s)\n", runID, formatElapsed(elapsed))
+		iostream.ErrPrintf(ctx, "Run %s was cancelled (%s)\n", runID, ui.FormatElapsed(elapsed))
 		return clierrors.New("run.cancelled", "Run cancelled",
 			fmt.Sprintf("Run %s was cancelled.", runID)).
 			WithExitCode(clierrors.ExitCancelled)
 	default:
 		iostream.ErrPrintf(ctx, "%s Run %s failed (%s)\n",
-			iostream.SymbolFail(ctx), runID, formatElapsed(elapsed))
+			iostream.SymbolFail(ctx), runID, ui.FormatElapsed(elapsed))
 		return clierrors.New("run.failed", "Run failed",
 			fmt.Sprintf("Run %s failed.", runID)).
 			WithSuggestions(failedJobLogSuggestions(state)...).
@@ -565,35 +540,16 @@ func watchFinalResult(ctx context.Context, state runGetOutput, runID uuid.UUID, 
 // into the command rather than left as a placeholder the user has to resolve.
 // A job that arrived without an ID falls back to the placeholder — a nil UUID
 // would produce a command that looks copy-pasteable but cannot work.
-func failedJobLogSuggestions(state runGetOutput) []string {
-	var suggestions []string
-	for _, wf := range state.Workflows {
-		for _, j := range wf.Jobs {
-			if j.Outcome != "failed" {
-				continue
-			}
-			id := "<job-id>"
-			if j.ID != uuid.Nil {
-				id = j.ID.String()
-			}
-			suggestions = append(suggestions,
-				fmt.Sprintf("View logs for failed job %q: circleci job get %s", j.Name, id))
+func failedJobLogSuggestions(state ui.RunWatchState) []string {
+	failed := state.FailedJobs()
+	suggestions := make([]string, 0, len(failed))
+	for _, j := range failed {
+		id := "<job-id>"
+		if j.ID != uuid.Nil {
+			id = j.ID.String()
 		}
+		suggestions = append(suggestions,
+			fmt.Sprintf("View logs for failed job %q: circleci job get %s", j.Name, id))
 	}
 	return suggestions
-}
-
-func formatElapsed(d time.Duration) string {
-	d = d.Round(time.Second)
-	h := int(d.Hours())
-	m := int(d.Minutes()) % 60
-	s := int(d.Seconds()) % 60
-	switch {
-	case h > 0:
-		return fmt.Sprintf("%dh%dm%ds", h, m, s)
-	case m > 0:
-		return fmt.Sprintf("%dm%ds", m, s)
-	default:
-		return fmt.Sprintf("%ds", s)
-	}
 }
