@@ -9,6 +9,9 @@ Trigger a new run
 | Flag                      | Description                                                                       |
 | ------------------------- | --------------------------------------------------------------------------------- |
 | `-b, --branch string`     | Branch to trigger (defaults to current branch)                                    |
+| `--config-branch string`  | Config branch for the pipeline definition (defaults to checkout branch)           |
+| `--config-tag string`     | Config tag for the pipeline definition                                            |
+| `--definition-id string`  | Pipeline definition ID (UUID) to trigger                                          |
 | `--jq string`             | Process values from the response using jq syntax (see `circleci help formatting`) |
 | `--json`                  | Output as JSON                                                                    |
 | `--parameter stringArray` | Run parameter as key=value (repeatable)                                           |
@@ -24,18 +27,14 @@ Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `ci
   `circleci run trigger --branch main`
 - Trigger with run parameters: 
   `circleci run trigger --parameter deploy_env=staging --parameter run_e2e=true`
-- Output the triggered run as JSON: 
-  `circleci run trigger --json`
+- Trigger a specific pipeline definition (config branch defaults to current branch): 
+  `circleci run trigger --definition-id <uuid> --config-branch main`
 
 ## Details
 
-Trigger a new run for a CircleCI project.
-
-The project and branch are inferred from the current git repository
-unless overridden with --project or --branch.
-
-Pass run parameters with --parameter. Values are parsed as
-booleans (true/false), integers, or strings.
+Trigger a new run for a CircleCI project. Project and branch are
+inferred from the git remote unless set via --project/--branch.
+Parameter values are coerced to booleans, integers, or strings.
 
 JSON fields: id, number, state, created_at
 

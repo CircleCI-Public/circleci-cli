@@ -40,23 +40,22 @@ import (
 
 func newTriggerCmd() *cobra.Command {
 	var (
-		projectSlug string
-		branch      string
-		params      []string
-		jsonOut     bool
+		projectSlug  string
+		branch       string
+		definitionID string
+		configBranch string
+		configTag    string
+		params       []string
+		jsonOut      bool
 	)
 
 	cmd := &cobra.Command{
 		Use:   "trigger",
 		Short: "Trigger a new run",
 		Long: heredoc.Doc(`
-			Trigger a new run for a CircleCI project.
-
-			The project and branch are inferred from the current git repository
-			unless overridden with --project or --branch.
-
-			Pass run parameters with --parameter. Values are parsed as
-			booleans (true/false), integers, or strings.
+			Trigger a new run for a CircleCI project. Project and branch are
+			inferred from the git remote unless set via --project/--branch.
+			Parameter values are coerced to booleans, integers, or strings.
 
 			JSON fields: id, number, state, created_at
 		`),
@@ -70,8 +69,8 @@ func newTriggerCmd() *cobra.Command {
 			# Trigger with run parameters
 			$ circleci run trigger --parameter deploy_env=staging --parameter run_e2e=true
 
-			# Output the triggered run as JSON
-			$ circleci run trigger --json
+			# Trigger a specific pipeline definition (config branch defaults to current branch)
+			$ circleci run trigger --definition-id <uuid> --config-branch main
 		`),
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -80,12 +79,15 @@ func newTriggerCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return runTrigger(ctx, client, projectSlug, branch, params, jsonOut)
+			return runTrigger(ctx, client, projectSlug, branch, definitionID, configBranch, configTag, params, jsonOut)
 		},
 	}
 
 	cmd.Flags().StringVar(&projectSlug, "project", "", "Project slug (e.g. gh/org/repo); defaults to git remote")
 	cmd.Flags().StringVarP(&branch, "branch", "b", "", "Branch to trigger (defaults to current branch)")
+	cmd.Flags().StringVar(&definitionID, "definition-id", "", "Pipeline definition ID (UUID) to trigger")
+	cmd.Flags().StringVar(&configBranch, "config-branch", "", "Config branch for the pipeline definition (defaults to checkout branch)")
+	cmd.Flags().StringVar(&configTag, "config-tag", "", "Config tag for the pipeline definition")
 	cmd.Flags().StringArrayVar(&params, "parameter", nil, "Run parameter as key=value (repeatable)")
 	cmdutil.AddJSONFlag(cmd, &jsonOut)
 	cmdutil.AddJQFlag(cmd)
@@ -100,7 +102,7 @@ type triggerJSONOutput struct {
 	CreatedAt string `json:"created_at"`
 }
 
-func runTrigger(ctx context.Context, client *apiclient.Client, projectSlug, branch string, params []string, jsonOut bool) error {
+func runTrigger(ctx context.Context, client *apiclient.Client, projectSlug, branch, definitionID, configBranch, configTag string, params []string, jsonOut bool) error {
 	effectiveBranch := branch
 	if projectSlug == "" || effectiveBranch == "" {
 		info, err := gitremote.Detect()
@@ -121,6 +123,34 @@ func runTrigger(ctx context.Context, client *apiclient.Client, projectSlug, bran
 			err.Error()).
 			WithSuggestions("Parameters must be in key=value form, e.g. --parameter deploy_env=staging").
 			WithExitCode(clierrors.ExitBadArguments)
+	}
+
+	if definitionID != "" {
+		effectiveConfigBranch := configBranch
+		if effectiveConfigBranch == "" && configTag == "" {
+			effectiveConfigBranch = effectiveBranch
+		}
+		resp, err := client.TriggerPipelineRun(ctx, projectSlug, apiclient.TriggerPipelineRunInput{
+			DefinitionID:   definitionID,
+			ConfigBranch:   effectiveConfigBranch,
+			ConfigTag:      configTag,
+			CheckoutBranch: effectiveBranch,
+			Parameters:     parsedParams,
+		})
+		if err != nil {
+			return apiErr(err, projectSlug)
+		}
+		if jsonOut {
+			out := triggerJSONOutput{
+				ID:        resp.ID,
+				Number:    int64(resp.Number),
+				State:     resp.State,
+				CreatedAt: resp.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
+			}
+			return iostream.PrintJSON(ctx, out)
+		}
+		iostream.Printf(ctx, "Triggered run #%d (%s) on %s\n", resp.Number, resp.ID, effectiveBranch)
+		return nil
 	}
 
 	resp, err := client.TriggerPipeline(ctx, projectSlug, effectiveBranch, parsedParams)
