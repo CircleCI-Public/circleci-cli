@@ -31,12 +31,14 @@ import (
 	"strings"
 	"time"
 
+	"charm.land/lipgloss/v2"
 	"github.com/MakeNowJust/heredoc"
 	"github.com/google/uuid"
 	"github.com/spf13/cobra"
 
 	clierrors "github.com/CircleCI-Public/circleci-cli/clikit/errors"
 	"github.com/CircleCI-Public/circleci-cli/clikit/iostream"
+	"github.com/CircleCI-Public/circleci-cli/clikit/ui/theme"
 	"github.com/CircleCI-Public/circleci-cli/internal/apiclient"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmdutil"
 	"github.com/CircleCI-Public/circleci-cli/internal/gitremote"
@@ -423,7 +425,7 @@ func watchFingerprint(state runGetOutput) string {
 func printWatchTable(ctx context.Context, state runGetOutput, elapsed time.Duration) int {
 	lines := 0
 	for _, wf := range state.Workflows {
-		wfSym, wfWord := watchStatusParts(wf.Phase, wf.Outcome, wf.CurrentOutcome)
+		wfSym, wfWord := watchStatusParts(ctx, wf.Phase, wf.Outcome, wf.CurrentOutcome)
 		if wf.Duration != "" {
 			iostream.ErrPrintf(ctx, "  %-28s  %s %-10s  %s\n", wf.Name, wfSym, wfWord, wf.Duration)
 		} else {
@@ -431,7 +433,7 @@ func printWatchTable(ctx context.Context, state runGetOutput, elapsed time.Durat
 		}
 		lines++
 		for _, j := range wf.Jobs {
-			jSym, jWord := watchStatusParts(j.Phase, j.Outcome, j.CurrentOutcome)
+			jSym, jWord := watchStatusParts(ctx, j.Phase, j.Outcome, j.CurrentOutcome)
 			iostream.ErrPrintf(ctx, "    %-30s  %s %-10s  %s\n", j.Name, jSym, jWord, j.Type)
 			lines++
 		}
@@ -441,29 +443,66 @@ func printWatchTable(ctx context.Context, state runGetOutput, elapsed time.Durat
 	return lines
 }
 
-// watchStatusParts renders a phase/outcome as a plain status glyph and word for
-// watch's raw terminal output — e.g. ("✓", "succeeded"). PhaseOutcomeStatus
-// prefixes a width-2 status emoji ("✅ succeeded"); watch lays out fixed-width
-// columns, so it uses the single-width PhaseOutcomeSymbol/PhaseOutcomeText pair
-// instead — as the interactive pickers and watch's own result lines already do.
-// The symbol is returned separately so callers can pad the (ASCII) word into a
-// fixed-width column without the glyph's multi-byte width throwing off the
-// alignment.
-func watchStatusParts(phase, outcome, currentOutcome string) (symbol, word string) {
-	return apiclient.PhaseOutcomeSymbol(phase, outcome, currentOutcome),
+// applyWatchColor applies the watch-table colour palette to symbol when color
+// is true, returning the ANSI-styled string. When color is false the symbol is
+// returned unchanged. Factored out of colorizeWatchSymbol so the mapping can be
+// tested without a real TTY context.
+//
+// Palette (mirrors run get / the TUI picker):
+//
+//	✓           → green  (theme.ColorSuccess / 42)
+//	✗           → red    (theme.ColorError   / 196)
+//	● ○ ⊘ !     → yellow (theme.ColorWarning / 220)
+//	everything else → unchanged
+func applyWatchColor(color bool, symbol string) string {
+	if !color {
+		return symbol
+	}
+	var style lipgloss.Style
+	switch symbol {
+	case "✓":
+		style = theme.SuccessStyle
+	case "✗":
+		style = theme.ErrorStyle
+	case "●", "○", "⊘", "!":
+		style = theme.WarningStyle
+	default:
+		return symbol
+	}
+	return style.Render(symbol)
+}
+
+// colorizeWatchSymbol applies the watch-table colour palette to symbol when
+// colour output is enabled in ctx, returning the ANSI-styled string or the
+// plain symbol when colour is disabled.
+func colorizeWatchSymbol(ctx context.Context, symbol string) string {
+	return applyWatchColor(iostream.ColorEnabled(ctx), symbol)
+}
+
+// watchStatusParts renders a phase/outcome as a coloured status glyph and word
+// for watch's raw terminal output — e.g. ("<green>✓</green>", "succeeded").
+// PhaseOutcomeStatus prefixes a width-2 status emoji ("✅ succeeded"); watch
+// lays out fixed-width columns, so it uses the single-width
+// PhaseOutcomeSymbol/PhaseOutcomeText pair instead — as the interactive pickers
+// and watch's own result lines already do. The symbol is returned separately so
+// callers can pad the (ASCII) word into a fixed-width column without the
+// glyph's multi-byte width throwing off the alignment.
+func watchStatusParts(ctx context.Context, phase, outcome, currentOutcome string) (symbol, word string) {
+	sym := apiclient.PhaseOutcomeSymbol(phase, outcome, currentOutcome)
+	return colorizeWatchSymbol(ctx, sym),
 		apiclient.PhaseOutcomeText(phase, outcome, currentOutcome)
 }
 
 func printWatchTableFinal(ctx context.Context, state runGetOutput) {
 	for _, wf := range state.Workflows {
-		wfSym, wfWord := watchStatusParts(wf.Phase, wf.Outcome, wf.CurrentOutcome)
+		wfSym, wfWord := watchStatusParts(ctx, wf.Phase, wf.Outcome, wf.CurrentOutcome)
 		if wf.Duration != "" {
 			iostream.ErrPrintf(ctx, "  %-28s  %s %-10s  %s\n", wf.Name, wfSym, wfWord, wf.Duration)
 		} else {
 			iostream.ErrPrintf(ctx, "  %-28s  %s %s\n", wf.Name, wfSym, wfWord)
 		}
 		for _, j := range wf.Jobs {
-			jSym, jWord := watchStatusParts(j.Phase, j.Outcome, j.CurrentOutcome)
+			jSym, jWord := watchStatusParts(ctx, j.Phase, j.Outcome, j.CurrentOutcome)
 			iostream.ErrPrintf(ctx, "    %-30s  %s %-10s  %s\n", j.Name, jSym, jWord, j.Type)
 		}
 	}
