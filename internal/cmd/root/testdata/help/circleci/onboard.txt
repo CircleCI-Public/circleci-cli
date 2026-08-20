@@ -10,12 +10,12 @@ Guided onboarding: generate config, sign up, connect project
 
 ## Flags
 
-| Flag               | Description                                                |
-| ------------------ | ---------------------------------------------------------- |
-| `--no-browser`     | Print the signup URL instead of opening a browser          |
-| `--repo-id string` | Numeric repository ID, if the GitHub App cannot resolve it |
-| `--scan`           | Skip prompt: set up this repo on CircleCI                  |
-| `--signup`         | Skip prompt: sign up for CircleCI                          |
+| Flag               | Description                                                 |
+| ------------------ | ----------------------------------------------------------- |
+| `--no-browser`     | Print the signup URL instead of opening a browser           |
+| `--repo-id string` | Repository ID, if it cannot be resolved from the git remote |
+| `--scan`           | Skip prompt: set up this repo on CircleCI                   |
+| `--signup`         | Skip prompt: sign up for CircleCI                           |
 
 Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `circleci --help`.
 

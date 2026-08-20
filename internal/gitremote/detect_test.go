@@ -424,3 +424,56 @@ func TestDetectFromRemote_Worktree(t *testing.T) {
 		assert.Check(t, cmp.Equal(info.DefaultBranch, "main"))
 	})
 }
+
+// TestRefFromRemote pins the parse that resolves an integration from a remote.
+// Unlike SlugFromRemote it must not reject a host CircleCI has no slug segment
+// for: that is the normal case for an integration whose repositories are
+// addressed by id.
+func TestRefFromRemote(t *testing.T) {
+	cases := []struct {
+		name  string
+		url   string
+		want  RemoteRef
+		isErr bool
+	}{
+		{
+			name: "https",
+			url:  "https://github.com/acme/web.git",
+			want: RemoteRef{Host: "github.com", Owner: "acme", Repo: "web"},
+		},
+		{
+			name: "scp-style ssh",
+			url:  "git@github.com:acme/web.git",
+			want: RemoteRef{Host: "github.com", Owner: "acme", Repo: "web"},
+		},
+		{
+			name: "ssh protocol",
+			url:  "ssh://git@github.com/acme/web.git",
+			want: RemoteRef{Host: "github.com", Owner: "acme", Repo: "web"},
+		},
+		{
+			name: "host with no slug form is still parsed",
+			url:  "https://git.example.com/acme/web.git",
+			want: RemoteRef{Host: "git.example.com", Owner: "acme", Repo: "web"},
+		},
+		{
+			name: "without the .git suffix",
+			url:  "https://git.example.com/acme/web",
+			want: RemoteRef{Host: "git.example.com", Owner: "acme", Repo: "web"},
+		},
+		{name: "not a remote URL", url: "nonsense", isErr: true},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := refFromRemote(tc.url)
+			if tc.isErr {
+				assert.Check(t, err != nil, "expected an error for %q", tc.url)
+				return
+			}
+			assert.NilError(t, err)
+			assert.Check(t, cmp.Equal(got, tc.want))
+			assert.Check(t, cmp.Equal(got.FullName(), tc.want.Owner+"/"+tc.want.Repo))
+		})
+	}
+}

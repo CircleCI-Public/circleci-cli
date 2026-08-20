@@ -103,6 +103,6 @@ func NewOnboardCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&noBrowser, "no-browser", false, "Print the signup URL instead of opening a browser")
 	cmd.Flags().BoolVar(&scan, "scan", false, "Skip prompt: set up this repo on CircleCI")
 	cmd.Flags().BoolVar(&signup, "signup", false, "Skip prompt: sign up for CircleCI")
-	cmd.Flags().StringVar(&repoID, "repo-id", "", "Numeric repository ID, if the GitHub App cannot resolve it")
+	cmd.Flags().StringVar(&repoID, "repo-id", "", "Repository ID, if it cannot be resolved from the git remote")
 	return cmd
 }

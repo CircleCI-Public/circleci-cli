@@ -20,10 +20,13 @@
 //
 // SPDX-License-Identifier: MIT
 
-// Package githubapp drives the CircleCI GitHub App onboarding steps: checking
-// whether the app is installed for an organization, walking the user through a
-// browser-based install, and resolving a repository's external ID.
-package githubapp
+// Package providerconn drives the onboarding steps that depend on an
+// integration: checking whether an organization is connected to one, walking the
+// user through a browser-based install, and resolving a repository's id.
+//
+// Every function takes the integration as a provider.Provider, so supporting
+// another one is a registry entry rather than a change here.
+package providerconn
 
 import (
 	"context"
@@ -35,6 +38,7 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/clikit/browser"
 	"github.com/CircleCI-Public/circleci-cli/clikit/iostream"
 	"github.com/CircleCI-Public/circleci-cli/internal/apiclient"
+	"github.com/CircleCI-Public/circleci-cli/internal/provider"
 )
 
 const (
@@ -45,19 +49,20 @@ const (
 	maxRepoPages = 50
 )
 
-// provider is the integration this package drives. It is the value the
-// provider-agnostic connections endpoint reports for a CircleCI GitHub App
-// installation.
-const provider = "github_app"
-
-// EnsureInstalled reports whether the CircleCI GitHub App is installed for the
-// organization, walking the user through a browser-based install when it is not.
-// returnURL is where GitHub redirects after install.
+// EnsureConnected reports whether the organization is connected to p, walking the
+// user through a browser-based install when it is not. returnURL is where the
+// provider returns the browser once the install completes.
 //
 // Non-interactive sessions (or noBrowser) print the install URL and return false
 // without waiting. Callers degrade to manual guidance on false or on an error.
-func EnsureInstalled(ctx context.Context, client *apiclient.Client, orgID, returnURL string, noBrowser bool) (bool, error) {
-	installed, err := connected(ctx, client, orgID)
+func EnsureConnected(
+	ctx context.Context,
+	client *apiclient.Client,
+	p provider.Provider,
+	orgID, returnURL string,
+	noBrowser bool,
+) (bool, error) {
+	installed, err := connected(ctx, client, p, orgID)
 	if err != nil {
 		return false, err
 	}
@@ -65,45 +70,47 @@ func EnsureInstalled(ctx context.Context, client *apiclient.Client, orgID, retur
 		return true, nil
 	}
 
-	redirectURL, err := installURL(ctx, client, orgID, returnURL)
+	redirectURL, err := installURL(ctx, client, p, orgID, returnURL)
 	if err != nil {
 		return false, err
 	}
 
 	if noBrowser || !iostream.IsInteractive(ctx) {
-		iostream.Printf(ctx, "\nInstall the CircleCI GitHub App to connect your repository:\n%s\n", redirectURL)
+		iostream.Printf(ctx, "\nInstall %s to connect your repository:\n%s\n", p.Install, redirectURL)
 		return false, nil
 	}
 
-	iostream.Printf(ctx, "\nOpening your browser to install the CircleCI GitHub App...\n")
+	iostream.Printf(ctx, "\nOpening your browser to install %s...\n", p.Install)
 	if err := browser.OpenURLOrPrint(iostream.Err(ctx), redirectURL); err != nil {
 		iostream.Printf(ctx, "Open this URL to install the app:\n%s\n", redirectURL)
 	}
 
-	sp := iostream.Spinner(ctx, true, "Waiting for GitHub App installation")
-	installed, err = pollInstalled(ctx, client, orgID)
+	sp := iostream.Spinner(ctx, true, "Waiting for "+p.Short+" installation")
+	installed, err = pollInstalled(ctx, client, p, orgID)
 	sp.Stop()
 	if err != nil {
 		return false, err
 	}
 	if !installed {
-		iostream.ErrPrintf(ctx, "%s Timed out waiting for the GitHub App installation.\n", iostream.SymbolWarn(ctx))
+		iostream.ErrPrintf(ctx, "%s Timed out waiting for the %s installation.\n", iostream.SymbolWarn(ctx), p.Short)
 		return false, nil
 	}
-	iostream.Printf(ctx, "%s GitHub App installed\n", iostream.SymbolOK(ctx))
+	iostream.Printf(ctx, "%s %s installed\n", iostream.SymbolOK(ctx), p.Short)
 	return true, nil
 }
 
-// installURL starts a connection for this package's provider and returns the URL
-// the user has to open to finish it.
+// installURL starts a connection to p and returns the URL the user has to open to
+// finish it.
 //
 // The setup call answers with what has to happen next. A redirect is the case
 // this flow handles: CircleCI's app is registered with the provider already, so
 // the user only approves it. Anything else — today, registering an app from a
 // manifest — is a browser flow the CLI cannot complete, so it is reported rather
 // than silently opening nothing.
-func installURL(ctx context.Context, client *apiclient.Client, orgID, returnURL string) (string, error) {
-	setup, err := client.SetupProviderConnection(ctx, orgID, provider, returnURL)
+func installURL(
+	ctx context.Context, client *apiclient.Client, p provider.Provider, orgID, returnURL string,
+) (string, error) {
+	setup, err := client.SetupProviderConnection(ctx, orgID, p.Name, returnURL)
 	if err != nil {
 		return "", err
 	}
@@ -113,11 +120,11 @@ func installURL(ctx context.Context, client *apiclient.Client, orgID, returnURL 
 	return setup.URL, nil
 }
 
-// connected reports whether the organization has a connection for this package's
-// provider. An organization with none is answered as an empty list rather than an
-// error, so a non-nil error means the check itself failed — a caller must not read
-// it as "not installed" and send the user into an install flow.
-func connected(ctx context.Context, client *apiclient.Client, orgID string) (bool, error) {
+// connected reports whether the organization has a connection to p. An
+// organization with none is answered as an empty list rather than an error, so a
+// non-nil error means the check itself failed — a caller must not read it as "not
+// installed" and send the user into an install flow.
+func connected(ctx context.Context, client *apiclient.Client, p provider.Provider, orgID string) (bool, error) {
 	conns, err := client.ListProviderConnections(ctx, orgID)
 	if err != nil {
 		return false, err
@@ -126,7 +133,7 @@ func connected(ctx context.Context, client *apiclient.Client, orgID string) (boo
 		// A connection whose provider could not be reached still counts as
 		// installed: ConnectionError describes a degraded read, not a missing
 		// installation.
-		if conn.Provider == provider {
+		if conn.Provider == p.Name {
 			return true, nil
 		}
 	}
@@ -135,7 +142,7 @@ func connected(ctx context.Context, client *apiclient.Client, orgID string) (boo
 
 // pollInstalled polls for the connection until the app is installed, the timeout
 // elapses, or the context is cancelled.
-func pollInstalled(ctx context.Context, client *apiclient.Client, orgID string) (bool, error) {
+func pollInstalled(ctx context.Context, client *apiclient.Client, p provider.Provider, orgID string) (bool, error) {
 	ticker := time.NewTicker(pollInterval)
 	defer ticker.Stop()
 	timer := time.NewTimer(pollTimeout)
@@ -148,7 +155,7 @@ func pollInstalled(ctx context.Context, client *apiclient.Client, orgID string) 
 		case <-timer.C:
 			return false, nil
 		case <-ticker.C:
-			installed, err := connected(ctx, client, orgID)
+			installed, err := connected(ctx, client, p, orgID)
 			if err != nil {
 				return false, err
 			}
@@ -161,24 +168,26 @@ func pollInstalled(ctx context.Context, client *apiclient.Client, orgID string) 
 
 // ErrTooManyRepositories reports that the search hit its page cap before examining
 // every repository, so the target may well be accessible. Callers must not report it
-// as "the app cannot access that repository" — the advice that follows from that,
-// grant access and re-run, searches the same bounded prefix again.
+// as "the integration cannot access that repository" — the advice that follows from
+// that, grant access and re-run, searches the same bounded prefix again.
 var ErrTooManyRepositories = errors.New("too many repositories to search for a match")
 
-// ResolveRepoID returns the provider's ID for repoFullName ("owner/repo") among
-// the repositories the organization's connection can reach. The endpoint offers no
+// ResolveRepoID returns p's ID for repoFullName ("owner/repo") among the
+// repositories the organization's connection to p can reach. The endpoint offers no
 // name filter, so the list has to be walked.
 //
 // It returns "" with no error only when the whole list was examined and held no
 // match; hitting the page cap first returns ErrTooManyRepositories.
-func ResolveRepoID(ctx context.Context, client *apiclient.Client, orgID, repoFullName string) (string, error) {
+func ResolveRepoID(
+	ctx context.Context, client *apiclient.Client, p provider.Provider, orgID, repoFullName string,
+) (string, error) {
 	if repoFullName == "" {
 		return "", nil
 	}
 
 	cursor := ""
 	for range maxRepoPages {
-		repos, next, err := client.ListProviderRepositories(ctx, orgID, provider, cursor, repoPageLimit)
+		repos, next, err := client.ListProviderRepositories(ctx, orgID, p.Name, cursor, repoPageLimit)
 		if err != nil {
 			return "", err
 		}

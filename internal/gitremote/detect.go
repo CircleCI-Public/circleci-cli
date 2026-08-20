@@ -231,25 +231,62 @@ func SlugFromRemote(remoteURL string) (string, error) {
 	return slugFromRemote(remoteURL)
 }
 
-func slugFromRemote(remoteURL string) (string, error) {
+// RemoteRef identifies a repository as its remote URL names it, before any
+// mapping onto CircleCI's own vocabulary.
+type RemoteRef struct {
+	// Host is the remote's host, e.g. "github.com".
+	Host string
+	// Owner and Repo name the repository, e.g. "acme" and "web".
+	Owner, Repo string
+}
+
+// FullName is the "owner/repo" form the provider APIs use as a repository key.
+func (r RemoteRef) FullName() string {
+	if r.Owner == "" || r.Repo == "" {
+		return ""
+	}
+	return r.Owner + "/" + r.Repo
+}
+
+// DetectRemoteRefIn reads the origin remote of the repository containing dir and
+// returns what the URL says, without requiring the host to be one CircleCI has a
+// slug form for.
+//
+// This is the parse to use when a caller resolves the integration itself (see
+// internal/provider). DetectFromRemoteIn is the slug-producing path, and it
+// rejects any host that has no slug segment.
+func DetectRemoteRefIn(dir string) (_ RemoteRef, err error) {
+	repo, err := openRepoIn(dir)
+	if err != nil {
+		return RemoteRef{}, fmt.Errorf("could not read git remote: %w", err)
+	}
+	defer closer.ErrorHandler(repo, &err)
+
+	remoteURL, err := gitOriginURL(repo)
+	if err != nil {
+		return RemoteRef{}, fmt.Errorf("could not read git remote: %w", err)
+	}
+	return refFromRemote(remoteURL)
+}
+
+// refFromRemote parses a git remote URL into its host, owner and repository.
+func refFromRemote(remoteURL string) (RemoteRef, error) {
 	remoteURL = strings.TrimSpace(remoteURL)
 
-	if m := sshRemote.FindStringSubmatch(remoteURL); m != nil {
-		host, org, repo := m[1], m[2], m[3]
-		return buildSlug(host, org, repo)
+	for _, re := range []*regexp.Regexp{sshRemote, sshProtoRemote, httpsRemote} {
+		if m := re.FindStringSubmatch(remoteURL); m != nil {
+			return RemoteRef{Host: m[1], Owner: m[2], Repo: m[3]}, nil
+		}
 	}
+	return RemoteRef{}, fmt.Errorf("unrecognised git remote URL format: %q", remoteURL)
+}
 
-	if m := sshProtoRemote.FindStringSubmatch(remoteURL); m != nil {
-		host, org, repo := m[1], m[2], m[3]
-		return buildSlug(host, org, repo)
+func slugFromRemote(remoteURL string) (string, error) {
+	ref, err := refFromRemote(remoteURL)
+	if err != nil {
+		return "", err
 	}
-
-	if m := httpsRemote.FindStringSubmatch(remoteURL); m != nil {
-		host, org, repo := m[1], m[2], m[3]
-		return buildSlug(host, org, repo)
-	}
-
-	return "", fmt.Errorf("unrecognised git remote URL format: %q", remoteURL)
+	return buildSlug(ref.Host, ref.Owner, ref.Repo)
 }
 
 func buildSlug(host, org, repo string) (string, error) {
