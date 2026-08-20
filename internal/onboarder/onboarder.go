@@ -241,19 +241,24 @@ func postSignupGuidance(ctx context.Context, dir string, opts Options) error {
 		}
 
 		created, err := client.CreateProject(ctx, vcs, orgName, name)
-		if err != nil {
-			if httpcl.HasStatusCode(err, http.StatusConflict) {
-				iostream.ErrPrintf(ctx, "%s A project named %q already exists in %s.\n",
-					iostream.SymbolWarn(ctx), name, selectedOrg.Slug)
-				printLinkGuidance(ctx, dir, selectedOrg.Slug)
+		switch {
+		case httpcl.HasStatusCode(err, http.StatusConflict):
+			// The name is taken, which on a re-run is this checkout's own project from
+			// an earlier attempt. Adopting it is what makes onboard resumable: the rest
+			// of the flow skips whatever already exists, so continuing gets the user to
+			// a working pipeline where stopping to fetch an ID by hand does not.
+			proj = adoptExistingProject(ctx, client, dir, selectedOrg, name)
+			if proj == nil {
 				return nil
 			}
+		case err != nil:
 			iostream.ErrPrintf(ctx, "%s Could not create project: %s\n", iostream.SymbolWarn(ctx), err)
 			return stopWithGuidance(ctx)
+		default:
+			proj = created
+			iostream.Printf(ctx, "%s Project created: %s\n", iostream.SymbolOK(ctx), proj.Name)
+			writeProjectRef(ctx, dir, proj)
 		}
-		proj = created
-		iostream.Printf(ctx, "%s Project created: %s\n", iostream.SymbolOK(ctx), proj.Name)
-		writeProjectRef(ctx, dir, proj)
 	} else {
 		iostream.Printf(ctx, "%s Using existing project: %s\n", iostream.SymbolOK(ctx), proj.Name)
 	}
@@ -362,6 +367,53 @@ func refreshConfig(ctx context.Context, opts Options) context.Context {
 		return ctx
 	}
 	return cmdutil.WithConfig(ctx, cfg)
+}
+
+// adoptExistingProject resolves the project that already holds name in the
+// organization, records it for this checkout, and returns it so the flow can carry
+// on into pipeline setup. A nil result means the caller should stop, with the
+// reason already reported.
+//
+// The name is the only handle available: a CircleCI-native project's slug carries
+// opaque IDs, so it cannot be built from what the user typed. Its UUIDs can be
+// turned back into a slug though, which is what hydrates the rest of the record.
+func adoptExistingProject(
+	ctx context.Context,
+	client *apiclient.Client,
+	workDir string,
+	selectedOrg *apiclient.Collaboration,
+	name string,
+) *apiclient.ProjectInfo {
+	// Only a project this organization holds can be adopted. When it cannot be
+	// resolved — the name belongs to an organization the caller cannot read, say —
+	// the manual route is still the way through, so it is reported as before rather
+	// than guessed at.
+	existing, err := client.GetProjectByName(ctx, selectedOrg.ID, name)
+	if err != nil {
+		reportUnresolvedConflict(ctx, workDir, selectedOrg, name)
+		return nil
+	}
+
+	proj, err := client.GetProjectInfo(ctx, projectref.SlugFor(existing.OrgID.String(), existing.ID.String()))
+	if err != nil {
+		reportUnresolvedConflict(ctx, workDir, selectedOrg, name)
+		return nil
+	}
+
+	iostream.Printf(ctx, "%s Using existing project: %s\n", iostream.SymbolOK(ctx), proj.Name)
+	writeProjectRef(ctx, workDir, proj)
+	return proj
+}
+
+// reportUnresolvedConflict explains a name collision onboard could not resolve and
+// points at the command that fixes it. The project exists but this checkout cannot
+// be pointed at it without its ID.
+func reportUnresolvedConflict(
+	ctx context.Context, workDir string, selectedOrg *apiclient.Collaboration, name string,
+) {
+	iostream.ErrPrintf(ctx, "%s A project named %q already exists in %s.\n",
+		iostream.SymbolWarn(ctx), name, selectedOrg.Slug)
+	printLinkGuidance(ctx, workDir, selectedOrg.Slug)
 }
 
 // resolveLinkedProject returns the project recorded in .circleci/info.yml, or nil
