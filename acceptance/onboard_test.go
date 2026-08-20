@@ -840,8 +840,15 @@ func TestOnboard_PostSignup_CreateFails(t *testing.T) {
 // isolated environment pointed at it.
 func onboardRepo(t *testing.T) (string, *fakes.CircleCI, *testenv.TestEnv) {
 	t.Helper()
+	return onboardRepoWithRemote(t, "https://github.com/myorg/my-repo.git")
+}
+
+// onboardRepoWithRemote is onboardRepo for a checkout whose origin is remoteURL,
+// which is what decides the integration onboard resolves.
+func onboardRepoWithRemote(t *testing.T, remoteURL string) (string, *fakes.CircleCI, *testenv.TestEnv) {
+	t.Helper()
 	dir := t.TempDir()
-	initGitRepoWithRemote(t, dir, "https://github.com/myorg/my-repo.git")
+	initGitRepoWithRemote(t, dir, remoteURL)
 	fake, env := onboardStandaloneEnv(t, "testuser")
 	return dir, fake, env
 }
@@ -996,4 +1003,23 @@ func normalizeOnboardOutput(stdout, dir string) string {
 	stdout = strings.ReplaceAll(stdout, dir, "<DIR>")
 	stdout = strings.ReplaceAll(stdout, `\`, `/`)
 	return stdout
+}
+
+// TestOnboard_PostSignup_FirstPipeline_UnclaimedHost pins that a remote no
+// integration owns is reported rather than sent through one that cannot help.
+func TestOnboard_PostSignup_FirstPipeline_UnclaimedHost(t *testing.T) {
+	dir, _, env := onboardRepoWithRemote(t, "https://gitlab.com/myorg/my-repo.git")
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"onboard", "--scan"},
+		Env:     env.Environ(),
+		WorkDir: dir,
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, cmp.Contains(result.Stderr, "is not on a provider CircleCI can look up"))
+	assert.Check(t, cmp.Contains(result.Stderr, "--repo-id"))
+	assert.Check(t, !strings.Contains(result.Stdout, "Pipeline definition created"),
+		"no definition should be created without a resolved repository")
 }

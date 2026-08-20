@@ -4582,12 +4582,12 @@ Guided onboarding: generate config, sign up, connect project
 Prompts for repo setup or signup unless --scan or --signup is given. Writes a
 starter config if the repo has none, creates the project, adds a push trigger.
 
-| Flag               | Description                                                |
-| ------------------ | ---------------------------------------------------------- |
-| `--no-browser`     | Print the signup URL instead of opening a browser          |
-| `--repo-id string` | Numeric repository ID, if the GitHub App cannot resolve it |
-| `--scan`           | Skip prompt: set up this repo on CircleCI                  |
-| `--signup`         | Skip prompt: sign up for CircleCI                          |
+| Flag               | Description                                                 |
+| ------------------ | ----------------------------------------------------------- |
+| `--no-browser`     | Print the signup URL instead of opening a browser           |
+| `--repo-id string` | Repository ID, if it cannot be resolved from the git remote |
+| `--scan`           | Skip prompt: set up this repo on CircleCI                   |
+| `--signup`         | Skip prompt: sign up for CircleCI                           |
 
 
 **Arguments:**

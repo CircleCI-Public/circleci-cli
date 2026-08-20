@@ -20,7 +20,7 @@
 //
 // SPDX-License-Identifier: MIT
 
-package githubapp_test
+package providerconn_test
 
 import (
 	"context"
@@ -36,13 +36,24 @@ import (
 
 	"github.com/CircleCI-Public/circleci-cli/clikit/iostream"
 	"github.com/CircleCI-Public/circleci-cli/internal/apiclient"
-	"github.com/CircleCI-Public/circleci-cli/internal/githubapp"
+	"github.com/CircleCI-Public/circleci-cli/internal/provider"
+	"github.com/CircleCI-Public/circleci-cli/internal/providerconn"
 )
 
 // testCtx returns a context wired with test IO streams, which the API client's
 // debug logging requires.
 func testCtx() context.Context {
 	return iostream.Testing(context.Background())
+}
+
+// githubApp is the registry entry these cases are written against. Resolving it
+// from a remote host rather than constructing one keeps the tests honest about
+// what ships.
+func githubApp(t *testing.T) provider.Provider {
+	t.Helper()
+	p, ok := provider.ForHost("github.com")
+	assert.Assert(t, ok, "github.com must resolve to an integration")
+	return p
 }
 
 // pagedReposServer serves the provider repositories endpoint, returning at most
@@ -101,10 +112,10 @@ func TestResolveRepoID_PageCap(t *testing.T) {
 	t.Cleanup(srv.Close)
 	client := apiclient.New(apiclient.Config{BaseURL: srv.URL, Token: "test-token"})
 
-	id, err := githubapp.ResolveRepoID(testCtx(), client, "org-1", "myorg/needle")
+	id, err := providerconn.ResolveRepoID(testCtx(), client, githubApp(t), "org-1", "myorg/needle")
 
 	assert.Check(t, cmp.Equal(id, ""))
-	assert.Check(t, errors.Is(err, githubapp.ErrTooManyRepositories),
+	assert.Check(t, errors.Is(err, providerconn.ErrTooManyRepositories),
 		"hitting the page cap must be distinguishable from an absent repository, got: %v", err)
 }
 
@@ -113,28 +124,28 @@ func TestResolveRepoID(t *testing.T) {
 
 	t.Run("matches a repo on a later page", func(t *testing.T) {
 		client := pagedReposServer(t, repos)
-		id, err := githubapp.ResolveRepoID(testCtx(), client, "org-uuid", "myorg/c")
+		id, err := providerconn.ResolveRepoID(testCtx(), client, githubApp(t), "org-uuid", "myorg/c")
 		assert.NilError(t, err)
 		assert.Equal(t, id, "3")
 	})
 
 	t.Run("matches case-insensitively", func(t *testing.T) {
 		client := pagedReposServer(t, repos)
-		id, err := githubapp.ResolveRepoID(testCtx(), client, "org-uuid", "MYORG/TARGET")
+		id, err := providerconn.ResolveRepoID(testCtx(), client, githubApp(t), "org-uuid", "MYORG/TARGET")
 		assert.NilError(t, err)
 		assert.Equal(t, id, "4")
 	})
 
 	t.Run("returns empty when not found", func(t *testing.T) {
 		client := pagedReposServer(t, repos)
-		id, err := githubapp.ResolveRepoID(testCtx(), client, "org-uuid", "myorg/missing")
+		id, err := providerconn.ResolveRepoID(testCtx(), client, githubApp(t), "org-uuid", "myorg/missing")
 		assert.NilError(t, err)
 		assert.Equal(t, id, "")
 	})
 
 	t.Run("returns empty for a blank name without calling the API", func(t *testing.T) {
 		client := pagedReposServer(t, repos)
-		id, err := githubapp.ResolveRepoID(testCtx(), client, "org-uuid", "")
+		id, err := providerconn.ResolveRepoID(testCtx(), client, githubApp(t), "org-uuid", "")
 		assert.NilError(t, err)
 		assert.Equal(t, id, "")
 	})
@@ -185,11 +196,11 @@ func connectionsServerWithSetup(t *testing.T, setupAttrs any, providers ...strin
 	return apiclient.New(apiclient.Config{BaseURL: srv.URL, Token: "test-token"}), &paths
 }
 
-func TestEnsureInstalled(t *testing.T) {
+func TestEnsureConnected(t *testing.T) {
 	t.Run("an existing connection needs no install", func(t *testing.T) {
 		client, paths := connectionsServer(t, "github_app")
 
-		installed, err := githubapp.EnsureInstalled(testCtx(), client, "org-uuid", "https://app.circleci.com/x", true)
+		installed, err := providerconn.EnsureConnected(testCtx(), client, githubApp(t), "org-uuid", "https://app.circleci.com/x", true)
 
 		assert.NilError(t, err)
 		assert.Check(t, installed)
@@ -202,7 +213,7 @@ func TestEnsureInstalled(t *testing.T) {
 		// same org must still send the user through the install.
 		client, _ := connectionsServer(t, "github_oauth")
 
-		installed, err := githubapp.EnsureInstalled(testCtx(), client, "org-uuid", "https://app.circleci.com/x", true)
+		installed, err := providerconn.EnsureConnected(testCtx(), client, githubApp(t), "org-uuid", "https://app.circleci.com/x", true)
 
 		assert.NilError(t, err)
 		assert.Check(t, !installed)
@@ -212,7 +223,7 @@ func TestEnsureInstalled(t *testing.T) {
 		client, paths := connectionsServer(t)
 
 		// noBrowser prints the URL and returns rather than polling.
-		installed, err := githubapp.EnsureInstalled(testCtx(), client, "org-uuid", "https://app.circleci.com/x", true)
+		installed, err := providerconn.EnsureConnected(testCtx(), client, githubApp(t), "org-uuid", "https://app.circleci.com/x", true)
 
 		assert.NilError(t, err)
 		assert.Check(t, !installed)
@@ -230,7 +241,7 @@ func TestEnsureInstalled(t *testing.T) {
 			"state_token": "tok",
 		})
 
-		installed, err := githubapp.EnsureInstalled(testCtx(), client, "org-uuid", "https://app.circleci.com/x", true)
+		installed, err := providerconn.EnsureConnected(testCtx(), client, githubApp(t), "org-uuid", "https://app.circleci.com/x", true)
 
 		assert.Check(t, err != nil, "a register step has no CLI path and must not pass silently")
 		assert.Check(t, !installed)
@@ -245,7 +256,7 @@ func TestEnsureInstalled(t *testing.T) {
 		t.Cleanup(srv.Close)
 		client := apiclient.New(apiclient.Config{BaseURL: srv.URL, Token: "test-token"})
 
-		installed, err := githubapp.EnsureInstalled(testCtx(), client, "org-uuid", "https://app.circleci.com/x", true)
+		installed, err := providerconn.EnsureConnected(testCtx(), client, githubApp(t), "org-uuid", "https://app.circleci.com/x", true)
 
 		assert.Check(t, err != nil, "a 500 from the connections endpoint must surface")
 		assert.Check(t, !installed)
