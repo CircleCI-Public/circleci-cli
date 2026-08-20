@@ -44,8 +44,11 @@ import (
 // opaque short IDs rather than names, mirroring a real CircleCI-native project,
 // whose slug the API will not accept in name form.
 const (
-	onboardOrgID          = "org-uuid-1234"
-	onboardProjectID      = "proj-uuid-5678"
+	// The org and project IDs are real UUIDs: the v3 entities the CLI decodes type
+	// them as such, so a placeholder string would fail to parse rather than fail an
+	// assertion.
+	onboardOrgID          = "a0000000-0000-4000-8000-00000000d001"
+	onboardProjectID      = "a0000000-0000-4000-8000-00000000d002"
 	onboardPipelineDefID  = "pdef-uuid-1"
 	onboardRepoExternalID = "123456789"
 )
@@ -565,7 +568,7 @@ func TestOnboard_PostSignup_Rerun_Idempotent(t *testing.T) {
 	// The second run looks the project up by the slug projectref derives from the
 	// recorded UUIDs. The real API accepts that form and canonicalises it to the
 	// short-ID slug.
-	fake.AddProjectInfo("circleci/org-uuid-1234/proj-uuid-5678", fakes.ProjectInfo{
+	fake.AddProjectInfo("circleci/"+onboardOrgID+"/"+onboardProjectID, fakes.ProjectInfo{
 		ID:               onboardProjectID,
 		Slug:             "circleci/Org1234ShortId/Proj5678ShortId",
 		Name:             "my-repo",
@@ -659,11 +662,11 @@ func TestOnboard_PostSignup_LinkedProjectInAnotherOrg(t *testing.T) {
 	assert.Check(t, !strings.Contains(result.Stderr, "409"), "stderr should not leak an HTTP status")
 }
 
-// TestOnboard_PostSignup_ProjectNameConflict covers a name collision that onboard
-// cannot resolve: the org already has a project with this name, but the checkout
-// has no .circleci/info.yml recording its ID. Since a project cannot be looked up
-// by name, onboard points at `circleci project link` rather than reporting a raw
-// HTTP conflict.
+// TestOnboard_PostSignup_ProjectNameConflict covers a name collision onboard
+// cannot resolve: the create is rejected, and the name resolves to no project this
+// organization holds — someone else's project, or one the caller cannot read. There
+// is nothing to adopt, so onboard points at `circleci project link` rather than
+// reporting a raw HTTP conflict.
 func TestOnboard_PostSignup_ProjectNameConflict(t *testing.T) {
 	dir, fake, env := onboardRepo(t)
 	fake.SetCreateProjectConflict()
@@ -682,6 +685,55 @@ func TestOnboard_PostSignup_ProjectNameConflict(t *testing.T) {
 	// No raw HTTP internals for a conflict the user can resolve with one command.
 	assert.Check(t, !strings.Contains(result.Stderr, "409"), "stderr should not leak an HTTP status")
 	assert.Check(t, !strings.Contains(result.Stderr, "/api/v2/"), "stderr should not leak an API path")
+}
+
+// TestOnboard_PostSignup_ProjectNameConflict_Resumes pins that a re-run picks up
+// where an interrupted one left off. The org already holds the project onboard
+// would create, so it adopts it and carries on into pipeline setup instead of
+// sending the user to copy an ID out of the UI.
+func TestOnboard_PostSignup_ProjectNameConflict_Resumes(t *testing.T) {
+	dir, fake, env := onboardRepo(t)
+	fake.SetCreateProjectConflict()
+	fake.AddProjectBySlug("circleci/myorg/my-repo", onboardProjectID, "my-repo", onboardOrgID)
+	// Adopting it hydrates the record from the slug its UUIDs build, which is the
+	// only handle available once the name is taken.
+	fake.AddProjectInfo("circleci/"+onboardOrgID+"/"+onboardProjectID, fakes.ProjectInfo{
+		ID:               onboardProjectID,
+		Slug:             "circleci/myorg/my-repo",
+		Name:             "my-repo",
+		OrganizationName: "myorg",
+		OrganizationSlug: "circleci/myorg",
+		OrganizationID:   onboardOrgID,
+	})
+	fake.SetProviderConnected(onboardOrgID, "github_app", true)
+	fake.AddProviderRepository(onboardOrgID, fakes.ProviderRepo{
+		ID:           "987654321",
+		RepoFullName: "myorg/my-repo",
+		RepoName:     "my-repo",
+		Owner:        "myorg",
+	})
+	addFirstPipelineResponses(fake)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"onboard", "--scan"},
+		Env:     env.Environ(),
+		WorkDir: dir,
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, cmp.Contains(result.Stdout, "Using existing project: my-repo"))
+	assert.Check(t, cmp.Contains(result.Stdout, "Pipeline definition created"))
+	assert.Check(t, cmp.Contains(result.Stdout, "Trigger created: all-pushes"))
+	// The hand-off this replaces: no ID to copy, no second command to run.
+	assert.Check(t, !strings.Contains(result.Stdout, "circleci project link"),
+		"an adopted project needs no manual link step")
+	assert.Check(t, !strings.Contains(result.Stderr, "409"), "stderr should not leak an HTTP status")
+
+	// Recorded, so the next run resolves the project before attempting a create.
+	body, err := os.ReadFile(filepath.Join(dir, ".circleci", "info.yml"))
+	assert.NilError(t, err)
+	assert.Check(t, strings.Contains(string(body), onboardProjectID), "info.yml: %s", body)
 }
 
 func TestOnboard_PostSignup_FirstPipeline_RepoNotAccessible(t *testing.T) {

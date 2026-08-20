@@ -91,9 +91,16 @@ func (i *Info) EffectiveSlug() string {
 		return ""
 	}
 	if strings.HasPrefix(i.Project.Slug, "circleci/") && i.Project.ID != "" && i.Organization.ID != "" {
-		return "circleci/" + i.Organization.ID + "/" + i.Project.ID
+		return SlugFor(i.Organization.ID, i.Project.ID)
 	}
 	return i.Project.Slug
+}
+
+// SlugFor builds the slug of a CircleCI-native project from its organization and
+// project IDs. The API accepts UUIDs in place of the compact IDs a slug usually
+// carries, which is what lets a caller holding only IDs address the project.
+func SlugFor(orgID, projectID string) string {
+	return "circleci/" + orgID + "/" + projectID
 }
 
 // ErrNotFound is returned by Read when no info file exists.
