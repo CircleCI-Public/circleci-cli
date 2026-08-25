@@ -198,6 +198,32 @@ func TestRunWatchFlow_Table(t *testing.T) {
 	})
 }
 
+// TestRunWatchFlow_PendingNote confirms the table says why it is still being
+// watched once every workflow has ended — the state a dynamic-config run sits in
+// between its setup workflow ending and the continued workflow appearing, where
+// nothing on screen moves again until the run itself ends.
+func TestRunWatchFlow_PendingNote(t *testing.T) {
+	t.Run("shown while the run outlives its workflows", func(t *testing.T) {
+		state := doneState()
+		state.Done = false
+		state.AllWorkflowsEnded = true
+		fetch, _ := fetchStatic(state)
+		tm := startWatch(t, ui.RunWatchFlowOptions{Branch: "main", Fetch: fetch})
+
+		waitForOutput(t, tm, "All workflows have ended")
+		assert.Check(t, cmp.Contains(flowSnapshot(t, tm),
+			"All workflows have ended; waiting for the run itself to finish."))
+	})
+
+	t.Run("absent while a workflow is still going", func(t *testing.T) {
+		fetch, _ := fetchStatic(runningState())
+		tm := startWatch(t, ui.RunWatchFlowOptions{Branch: "main", Fetch: fetch})
+
+		waitForOutput(t, tm, "build-and-test")
+		assert.Check(t, !strings.Contains(flowSnapshot(t, tm), "All workflows have ended"))
+	})
+}
+
 // TestRunWatchFlow_Footer confirms the footer reports elapsed time, when the next
 // poll lands, and the two live keys. The countdown is what makes the table read
 // as live between polls.

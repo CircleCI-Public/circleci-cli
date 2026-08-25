@@ -52,6 +52,17 @@ func runFailureReport(ctx context.Context, client *apiclient.Client, r *apiclien
 
 	var out strings.Builder
 
+	// The run's own errors first: a config the platform would not compile has no
+	// failed step to report, so without these the report for a dynamic-config run
+	// whose continued config was rejected would be empty.
+	if len(r.Errors) > 0 {
+		out.WriteString("## run errors\n\n")
+		for _, e := range r.Errors {
+			fmt.Fprintf(&out, "- %s: %s\n", e.Type, strings.TrimSpace(e.Message))
+		}
+		out.WriteString("\n")
+	}
+
 	for _, wf := range workflows {
 		wfWritten := false
 
