@@ -583,7 +583,7 @@ func TestConfigValidate_UsesV3Compile(t *testing.T) {
 	attrs, _ := data["attributes"].(map[string]any)
 	assert.Assert(t, attrs != nil)
 	assert.Check(t, cmp.Equal(attrs["config"], testConfigYAML))
-	assert.Check(t, cmp.Equal(attrs["enable_next_preview"], true))
+	assert.Check(t, cmp.Equal(attrs["should_preview_next"], true))
 	_, hasValues := attrs["pipeline_values"]
 	assert.Check(t, hasValues, "expected locally fabricated pipeline_values")
 	assert.Check(t, cmp.DeepEqual(data["references"], map[string]any{
