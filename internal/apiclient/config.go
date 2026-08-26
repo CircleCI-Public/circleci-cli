@@ -74,7 +74,7 @@ type compileV3Data struct {
 
 type compileV3Attributes struct {
 	Config             string         `json:"config"`
-	EnableNextPreview  bool           `json:"enable_next_preview,omitempty"`
+	ShouldPreviewNext  bool           `json:"should_preview_next,omitempty"`
 	PipelineParameters map[string]any `json:"pipeline_parameters,omitempty"`
 	PipelineValues     map[string]any `json:"pipeline_values,omitempty"`
 }
@@ -120,7 +120,7 @@ func (c *Client) Compile(ctx context.Context, in CompileInput) (*CompileResult, 
 		Data: compileV3Data{
 			Attributes: compileV3Attributes{
 				Config:             in.ConfigYAML,
-				EnableNextPreview:  in.PreviewNext,
+				ShouldPreviewNext:  in.PreviewNext,
 				PipelineParameters: in.PipelineParameters,
 				PipelineValues:     in.PipelineValues,
 			},

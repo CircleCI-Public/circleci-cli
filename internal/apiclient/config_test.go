@@ -93,7 +93,7 @@ func TestClient_Compile(t *testing.T) {
 			"data": map[string]any{
 				"attributes": map[string]any{
 					"config":              "version: 2.1",
-					"enable_next_preview": true,
+					"should_preview_next": true,
 				},
 				"references": map[string]any{
 					"org": map[string]any{"id": testCompileOrgID},
