@@ -4951,12 +4951,13 @@ Run diagnostics to check your test suite setup
 
 (experimental) Explore test impact data: which files impact a test, and which tests a file impacts
 
-| Flag                 | Description                                  |
-| -------------------- | -------------------------------------------- |
-| `--test ATOM`        | Print the files impacting this test atom     |
-| `--file PATH`        | Print the test atoms impacted by this file   |
-| `--key KEY`          | Impact data key to read (default default)    |
-| `--before-version N` | Restrict the impact data to versions below N |
+| Flag                  | Description                                                      |
+| --------------------- | ---------------------------------------------------------------- |
+| `--test ATOM`         | Print the files impacting this test atom                         |
+| `--file PATH`         | Print the test atoms impacted by this file                       |
+| `--key KEY`           | Impact data key to read (default default)                        |
+| `--sort name\|impact` | Order by name, or by impact: most connected first (default name) |
+| `--before-version N`  | Restrict the impact data to versions below N                     |
 
 
 ## Additional Commands
