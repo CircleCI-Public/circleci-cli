@@ -411,14 +411,20 @@ func (c *Client) GetJobStdout(ctx context.Context, jobID uuid.UUID, execution, s
 // GetJobStdoutCondensed fetches a step's stdout condensed to its most
 // error-relevant lines (noisy/repetitive output filtered out server-side).
 // The endpoint returns raw text (octet-stream).
-func (c *Client) GetJobStdoutCondensed(ctx context.Context, jobID uuid.UUID, execution, stepNum int) ([]byte, error) {
+// caller identifies the CLI flow making the request (e.g. "circleci-cli/job-output-get");
+// when non-empty it is forwarded as CircleCI-Caller so llmops-service can attribute usage.
+func (c *Client) GetJobStdoutCondensed(ctx context.Context, jobID uuid.UUID, execution, stepNum int, caller string) ([]byte, error) {
 	var output []byte
-	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodGet, "/api/v3/jobs/%s/stdout/condensed",
+	opts := []func(*httpcl.Request){
 		httpcl.RouteParams(jobID),
 		filterParam("execution", strconv.Itoa(execution)),
 		filterParam("step_num", strconv.Itoa(stepNum)),
 		httpcl.BytesDecoder(&output),
-	))
+	}
+	if caller != "" {
+		opts = append(opts, httpcl.Header("CircleCI-Caller", caller))
+	}
+	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodGet, "/api/v3/jobs/%s/stdout/condensed", opts...))
 	if err != nil {
 		return nil, err
 	}

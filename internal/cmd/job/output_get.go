@@ -164,7 +164,7 @@ func writeOutput(out io.Writer, b []byte, strip bool) {
 }
 
 func runOutputGetCondensed(ctx context.Context, client *apiclient.Client, jobID uuid.UUID, execution, stepNum int) error {
-	condensed, err := client.GetJobStdoutCondensed(ctx, jobID, execution, stepNum)
+	condensed, err := client.GetJobStdoutCondensed(ctx, jobID, execution, stepNum, "circleci-cli/job-output-get")
 	if err != nil {
 		subject := fmt.Sprintf("step %d of job %s", stepNum, jobID)
 		return cmdutil.APIErr(err, subject, "job.output_not_found",
