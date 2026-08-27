@@ -4957,7 +4957,7 @@ Run diagnostics to check your test suite setup
 | `--file PATH`         | Print the test atoms impacted by this file                       |
 | `--key KEY`           | Impact data key to read (default default)                        |
 | `--sort name\|impact` | Order by name, or by impact: most connected first (default name) |
-| `--before-version N`  | Restrict the impact data to versions below N                     |
+| `--version N`         | Fetch a specific version of impact data instead of the latest    |
 
 
 ## Additional Commands
