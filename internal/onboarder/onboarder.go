@@ -824,7 +824,7 @@ func displayPreamble(ctx context.Context, dir string) error {
 		[]string{
 			"Generate a starter .circleci/config.yml",
 			"Sign you up for CircleCI",
-			"Create your project and connect it to GitHub",
+			"Create your project and connect your repository",
 			"Set up your first pipeline trigger",
 		},
 	)
