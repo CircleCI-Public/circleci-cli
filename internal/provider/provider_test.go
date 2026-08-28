@@ -41,6 +41,7 @@ func TestForHost(t *testing.T) {
 		// A subdomain belongs to the same integration, so regional and enterprise
 		// hosts resolve without their own registry entry.
 		{name: "subdomain", host: "eu.github.com", want: "github_app"},
+		{name: "subdomain of another integration", host: "eu.origin.cursor.com", want: "origin"},
 		{name: "unclaimed host", host: "gitlab.com", want: ""},
 		// A host that merely ends with the same letters must not match: matching on
 		// a bare suffix would hand notgithub.com to the GitHub App.
@@ -71,6 +72,9 @@ func TestRegistryIsUsable(t *testing.T) {
 			assert.Check(t, p.Short != "", "Short names the integration in progress output")
 			assert.Check(t, p.Install != "", "Install is the subject of the install prompt")
 			assert.Check(t, len(p.Hosts) > 0, "an integration with no hosts can never be resolved from a remote")
+			// A missing page sends the browser to the app root after an install, which
+			// reads as a finish line while the terminal is still waiting.
+			assert.Check(t, p.InstalledPath != "", "InstalledPath is where an install returns the browser")
 		})
 	}
 }

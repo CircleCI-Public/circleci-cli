@@ -832,7 +832,7 @@ func TestOnboard_PostSignup_GitHubAppInstall_ReturnURL(t *testing.T) {
 
 	assert.Assert(t, cmp.Len(returnURLs, 1))
 	assert.Check(t, strings.HasSuffix(returnURLs[0], "/cli/github-app-installed"),
-		"return_url should land on the page that points back at the terminal, got %q", returnURLs[0])
+		"return_url should land on the page that names the integration and points back at the terminal, got %q", returnURLs[0])
 	assert.Check(t, !strings.Contains(returnURLs[0], "/pipelines/"),
 		"the project's pipelines page reads as a finish line in the browser, got %q", returnURLs[0])
 }
@@ -1055,6 +1055,66 @@ func normalizeOnboardOutput(stdout, dir string) string {
 	stdout = strings.ReplaceAll(stdout, dir, "<DIR>")
 	stdout = strings.ReplaceAll(stdout, `\`, `/`)
 	return stdout
+}
+
+// TestOnboard_PostSignup_FirstPipeline_ResolvesRepoOnSecondProvider pins that the
+// integration comes from the checkout's remote rather than being assumed.
+//
+// The remote is on a host a different integration owns, so every provider-shaped
+// value has to follow from it: the connection that is checked, the repository list
+// that is searched, and the provider written into the pipeline definition and
+// trigger.
+func TestOnboard_PostSignup_FirstPipeline_ResolvesRepoOnSecondProvider(t *testing.T) {
+	dir, fake, env := onboardRepoWithRemote(t, "https://origin.cursor.com/circleci/soc-test-repo.git")
+
+	fake.SetProviderConnected(onboardOrgID, "origin", true)
+	fake.AddProviderRepository(onboardOrgID, fakes.ProviderRepo{
+		ID:            "repo_01fake",
+		RepoFullName:  "circleci/soc-test-repo",
+		RepoName:      "soc-test-repo",
+		Owner:         "circleci",
+		DefaultBranch: "main",
+		Provider:      "origin",
+	})
+	addFirstPipelineResponses(fake)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"onboard", "--scan"},
+		Env:     env.Environ(),
+		WorkDir: dir,
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, cmp.Contains(result.Stdout, "Found repository circleci/soc-test-repo"))
+	assert.Check(t, cmp.Contains(result.Stdout, "Pipeline definition created"))
+	assert.Check(t, cmp.Contains(result.Stdout, "Trigger created: all-pushes"))
+
+	t.Run("writes carry the remote's provider and repository", func(t *testing.T) {
+		var defBody, trigBody string
+		for _, req := range fake.AllRequests() {
+			if req.Method != http.MethodPost || req.Body == nil {
+				continue
+			}
+			switch req.URL.Path {
+			case "/api/v3/pipelines":
+				defBody = *req.Body
+			case "/api/v3/triggers":
+				trigBody = *req.Body
+			}
+		}
+
+		assert.Assert(t, defBody != "", "no pipeline definition was created")
+		assert.Check(t, strings.Contains(defBody, `"provider":"origin"`), "definition body: %s", defBody)
+		// The full name is load-bearing for an integration that addresses a
+		// repository by owner and name, so it has to travel on the write.
+		assert.Check(t, strings.Contains(defBody, `"repo_full_name":"circleci/soc-test-repo"`), "definition body: %s", defBody)
+		assert.Check(t, strings.Contains(defBody, `"repo_id":"repo_01fake"`), "definition body: %s", defBody)
+
+		assert.Assert(t, trigBody != "", "no trigger was created")
+		assert.Check(t, strings.Contains(trigBody, `"provider":"origin"`), "trigger body: %s", trigBody)
+		assert.Check(t, strings.Contains(trigBody, `"repo_full_name":"circleci/soc-test-repo"`), "trigger body: %s", trigBody)
+	})
 }
 
 // TestOnboard_PostSignup_FirstPipeline_UnclaimedHost pins that a remote no
