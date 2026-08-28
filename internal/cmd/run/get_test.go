@@ -174,6 +174,38 @@ func TestRunItemLabel(t *testing.T) {
 
 // TestErrorSummary verifies a run error is condensed to a single short line: its
 // first sentence, capped, falling back to the type when the message is empty.
+// TestDeriveDisplayStatus covers the overall status a run is reported with: its
+// workflows decide it, except when the run carries errors of its own — a config
+// the platform would not compile, or the rejected continuation of a
+// dynamic-config run, which the API reports as a succeeded run with a succeeded
+// setup workflow.
+func TestDeriveDisplayStatus(t *testing.T) {
+	t.Run("succeeded workflows are a succeeded run", func(t *testing.T) {
+		status := deriveDisplayStatus(runGetOutput{
+			Phase: "ended", CurrentOutcome: "succeeded",
+			Workflows: []workflowOutput{{Name: "build", Phase: "ended", Outcome: "succeeded"}},
+		})
+
+		assert.Check(t, is.Equal(status, "succeeded"))
+	})
+
+	t.Run("a rejected continuation fails the run its setup workflow succeeded in", func(t *testing.T) {
+		status := deriveDisplayStatus(runGetOutput{
+			Phase: "ended", CurrentOutcome: "succeeded",
+			Errors:    []errorOutput{{Type: "config", Message: "Cannot find a definition for job named release"}},
+			Workflows: []workflowOutput{{Name: "setup", Phase: "ended", Outcome: "succeeded"}},
+		})
+
+		assert.Check(t, is.Equal(status, "failed"))
+	})
+
+	t.Run("a run with no workflows is described by its own phase and outcome", func(t *testing.T) {
+		status := deriveDisplayStatus(runGetOutput{Phase: "ended", CurrentOutcome: "errored"})
+
+		assert.Check(t, is.Equal(status, "⚠️ errored"))
+	})
+}
+
 func TestErrorSummary(t *testing.T) {
 	assert.Check(t, is.Equal(errorSummary(apiclient.RunError{
 		Type: "config-fetch", Message: "No config found. See the docs.",
