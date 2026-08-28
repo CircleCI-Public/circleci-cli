@@ -269,11 +269,7 @@ func postSignupGuidance(ctx context.Context, dir string, opts Options) error {
 		iostream.Printf(ctx, "  Pipelines: %s\n", pipelinesURL)
 	}
 
-	// Where the provider returns the browser after an install. Landing on the
-	// project's own page reads as a finish line, in the browser, while the rest of
-	// setup is still waiting back in the terminal.
-	returnURL := cmdutil.GitHubAppInstalledURL(appURL)
-	return setupFirstPipeline(ctx, client, returnURL, proj, remote, opts)
+	return setupFirstPipeline(ctx, client, appURL, proj, remote, opts)
 }
 
 // selectOrg picks the organization to create the project in, returning nil when
@@ -503,8 +499,8 @@ func writeProjectRef(ctx context.Context, workDir string, proj *apiclient.Projec
 // attempted, so onboard prints the next step and succeeds. A request the API
 // rejected is a real error: it leaves the project half-configured, and a definition
 // with no trigger will never build.
-func setupFirstPipeline(ctx context.Context, client *apiclient.Client, returnURL string, proj *apiclient.ProjectInfo, remote gitremote.RemoteRef, opts Options) error {
-	repoID, p := resolveRepoID(ctx, client, returnURL, proj, remote, opts)
+func setupFirstPipeline(ctx context.Context, client *apiclient.Client, appURL string, proj *apiclient.ProjectInfo, remote gitremote.RemoteRef, opts Options) error {
+	repoID, p := resolveRepoID(ctx, client, appURL, proj, remote, opts)
 	if repoID == "" {
 		// No external ID, so there is nothing to attach a definition to.
 		trackOnboard(ctx, "onboard_project_setup", map[string]any{"outcome": "skipped_no_repo_id"})
@@ -633,7 +629,7 @@ func ensureTrigger(
 func resolveRepoID(
 	ctx context.Context,
 	client *apiclient.Client,
-	returnURL string,
+	appURL string,
 	proj *apiclient.ProjectInfo,
 	remote gitremote.RemoteRef,
 	opts Options,
@@ -660,6 +656,12 @@ func resolveRepoID(
 		iostream.ErrPrintf(ctx, "  Re-run with --repo-id <id> to set up the pipeline.\n")
 		return "", p
 	}
+
+	// Where the provider returns the browser after an install. Landing on the
+	// project's own page reads as a finish line, in the browser, while the rest of
+	// setup is still waiting back in the terminal, so each integration has a page
+	// that says so.
+	returnURL := cmdutil.InstalledURL(appURL, p.InstalledPath)
 
 	installed, err := providerconn.EnsureConnected(ctx, client, p, proj.OrganizationID, returnURL, opts.NoBrowser)
 	if err != nil {
