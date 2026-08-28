@@ -1,0 +1,82 @@
+{{- /* Cookie consent (Cookiebot) + a Segment page event. The tracking code
+       itself is assets/js/analytics.js; this partial supplies its values and
+       wraps it in a consent-gated script tag.
+
+       Cookiebot runs in MANUAL blocking mode and the tracking script is marked
+       type="text/plain" with data-cookieconsent, so Cookiebot rewrites and runs
+       it only once the visitor grants statistics consent. Manual mode is
+       deliberate — Cookiebot's automatic mode gates only what it recognises by
+       signature, which left this snippet ungated in testing, and it has blanked
+       pages elsewhere by intercepting first-party scripts. Please do not switch
+       it to "auto".
+
+       Because the gate is the tag markup and not load order, uc.js can load
+       async: a text/plain script waits to be rewritten however late Cookiebot
+       arrives, so nothing blocks first render.
+
+       Tagging the script this way also makes it fail safe: a text/plain script
+       can only run if Cookiebot rewrites it, so if Cookiebot never initialises
+       nothing is collected, rather than collecting without consent.
+
+       Neither key is a secret — a Segment write key is a public client-side
+       identifier, and both are already served in circleci.com's HTML. They live
+       in hugo.toml so a built site always carries them.
+
+       Emitted only for a production build served from the baseURL host, so
+       `hugo server`, CI artifact previews and forks stay silent instead of
+       writing noise into the production analytics source.
+
+       PREREQUISITE: the site's domain must be configured in Cookiebot. Until it
+       is, no consent banner renders and, per the fail-safe above, nothing is
+       collected. */ -}}
+
+{{- if hugo.IsProduction -}}
+  {{- $cookiebotId := "" -}}
+  {{- $writeKey := "" -}}
+  {{- with site.Params.analytics -}}
+    {{- $cookiebotId = .cookiebotId | default "" -}}
+    {{- $writeKey = .segmentWriteKey | default "" -}}
+  {{- end -}}
+
+  {{- with $cookiebotId }}
+  <script id="Cookiebot" src="https://consent.cookiebot.com/uc.js" data-cbid="{{ . }}" data-blockingmode="manual" type="text/javascript" async></script>
+  {{- end }}
+
+  {{- with $writeKey -}}
+    {{- /* Page names are kebab-case: "cli-home", "cli-reference". Values are
+           jsonify'd so they reach the JS already quoted — the script body is
+           emitted as safeHTML, because Go's template escaper rejects a
+           text/plain script body, so nothing else quotes them. */ -}}
+    {{- $pageName := cond $.IsHome "cli-home" (printf "cli-%s" (path.Base $.RelPermalink)) -}}
+    {{- /* These values are interpolated into an inline script that is emitted
+           with safeHTML, so a "<" in any of them could close the script tag
+           early and escape into HTML. Escaping it is not durable — a "\u003c"
+           is decoded straight back to "<" by the JS minifier below, which is a
+           legal JS transformation that happens to be unsafe when the JS is
+           inline. So reject the character outright: every value here comes from
+           repo config or a page path today, and a build failure is a better
+           answer than a silently unsafe page if that ever changes. */ -}}
+    {{- $host := (urls.Parse site.BaseURL).Hostname -}}
+    {{- range (slice $writeKey $pageName $host) -}}
+      {{- if strings.Contains . "<" -}}
+        {{- errorf "analytics.html: %q contains \"<\", which could close the inline script tag" . -}}
+      {{- end -}}
+    {{- end -}}
+    {{- $context := dict
+      "writeKey" ($writeKey | jsonify)
+      "pageName" ($pageName | jsonify)
+      "host" ($host | jsonify) -}}
+    {{- with resources.Get "js/analytics.js" -}}
+      {{- /* The target path is per-page on purpose: it is the cache key for the
+             executed template, so a constant name would serve the first page's
+             page_name to every other page. Nothing is published — only
+             .Content is read — so these names never reach the built site.
+
+             Minified here rather than by the site-wide --minify pass, which
+             skips scripts whose type it does not recognise as JS. */ -}}
+      {{- $target := printf "js/analytics-%s.js" $pageName -}}
+      {{- $js := . | resources.ExecuteAsTemplate $target $context | minify -}}
+      {{- printf `<script type="text/plain" data-cookieconsent="statistics">%s</script>` $js.Content | safeHTML }}
+    {{- end -}}
+  {{- end }}
+{{- end -}}
