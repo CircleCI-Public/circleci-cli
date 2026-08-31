@@ -293,6 +293,44 @@ func TestRecordTelemetry(t *testing.T) {
 	})
 }
 
+func TestTrackKnownID(t *testing.T) {
+	t.Run("does not panic on a context without WithKnownIDs", func(t *testing.T) {
+		// e.g. a unit test of some other command handler that builds its own
+		// bare context without going through root.go's bootstrapping.
+		cmdutil.TrackKnownID(context.Background(), cmdutil.KeyRunID, uuid.MustParse(instanceID))
+	})
+
+	t.Run("reaches the command_invocation event's properties under the given key, and skips uuid.Nil", func(t *testing.T) {
+		recorder, client := newTelemetry(t)
+		id := uuid.MustParse(instanceID)
+
+		cmd := &cobra.Command{
+			Use: "get",
+			RunE: func(cmd *cobra.Command, args []string) error {
+				ctx := cmd.Context()
+				cmdutil.TrackKnownID(ctx, cmdutil.KeyRunID, id)
+				cmdutil.TrackKnownID(ctx, cmdutil.KeyWorkflowID, uuid.Nil) // must not appear below
+				return nil
+			},
+		}
+		ctx := cmdutil.WithKnownIDs(cmdutil.WithTelemetry(context.Background(), client))
+		cmd.SetContext(ctx)
+		cmdutil.RecordTelemetry(cmd)
+
+		assert.NilError(t, cmd.RunE(cmd, nil))
+		assert.NilError(t, client.Close())
+
+		tracks := recorder.Tracks()
+		assert.Check(t, cmp.Len(tracks, 1))
+		if len(tracks) != 1 {
+			return
+		}
+		assert.Check(t, cmp.Equal(tracks[0].Properties["run_id"], id.String()))
+		_, hasWorkflowID := tracks[0].Properties["workflow_id"]
+		assert.Check(t, !hasWorkflowID, "uuid.Nil must not produce a workflow_id property")
+	})
+}
+
 func TestRecordTelemetryForSubcommands(t *testing.T) {
 	t.Run("instruments nested subcommands", func(t *testing.T) {
 		recorder, client := newTelemetry(t)

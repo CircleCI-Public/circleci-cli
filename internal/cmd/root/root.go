@@ -172,6 +172,7 @@ func NewRootCmd(version string) *cobra.Command {
 		}
 
 		ctx = cmdutil.WithTelemetry(ctx, tc)
+		ctx = cmdutil.WithKnownIDs(ctx)
 
 		cmd.SetContext(ctx)
 

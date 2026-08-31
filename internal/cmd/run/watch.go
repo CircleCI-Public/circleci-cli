@@ -196,6 +196,8 @@ func runWatch(ctx context.Context, client *apiclient.Client, args []string, proj
 		r = &runs[0]
 	}
 
+	cmdutil.TrackKnownID(ctx, cmdutil.KeyRunID, r.ID)
+
 	displayBranch := r.Branch
 	if displayBranch == "" {
 		displayBranch = branch

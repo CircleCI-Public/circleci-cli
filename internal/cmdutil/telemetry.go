@@ -23,14 +23,86 @@
 package cmdutil
 
 import (
+	"context"
 	"slices"
 	"strings"
+	"sync"
 
+	"github.com/google/uuid"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 )
 
 const telemetryPropPrefix = "telemetry_prop:"
+
+// KnownIDKey names a resource-ID telemetry property tracked via TrackKnownID.
+// Use one of the typed constants below rather than an ad hoc string literal —
+// it doesn't stop a determined caller from constructing an arbitrary
+// KnownIDKey, but it does mean the normal way to call TrackKnownID (typing
+// "cmdutil.Key" and letting completion suggest a valid one) won't produce a
+// typo'd, uncorrelated property name by accident.
+type KnownIDKey string
+
+// Valid KnownIDKey values, one per resource type TrackKnownID covers.
+const (
+	KeyRunID      KnownIDKey = "run_id"
+	KeyWorkflowID KnownIDKey = "workflow_id"
+	KeyJobID      KnownIDKey = "job_id"
+)
+
+type knownIDsContextKey struct{}
+
+// knownIDCollector is the mutable sink TrackKnownID writes into. It travels
+// via ctx rather than a *cobra.Command parameter specifically so that
+// resolution code (runGet, workflow.Get, job.Get, ...) doesn't need cmd
+// threaded through its signature just to reach telemetry — ctx is already
+// there on every one of those functions.
+type knownIDCollector struct {
+	mu  sync.Mutex
+	ids map[KnownIDKey]string
+}
+
+// WithKnownIDs seeds ctx with an empty collector for TrackKnownID. Called
+// once per command execution — see root.go, alongside the rest of the
+// per-invocation context setup — so it's present unconditionally and no
+// individual command needs to remember to wire it up itself.
+func WithKnownIDs(ctx context.Context) context.Context {
+	return context.WithValue(ctx, knownIDsContextKey{}, &knownIDCollector{ids: map[KnownIDKey]string{}})
+}
+
+// TrackKnownID attaches a resource ID to the current command's
+// command_invocation event under key.
+//
+// This is the single chokepoint every command should route a run/workflow/job
+// ID through before it reaches telemetry — never call SetTelemetryProp with a
+// raw CLI argument directly. id must already be "known": either parsed from
+// user input and then confirmed to exist by a successful API call (e.g.
+// GetRunV3), or returned directly by an API response (e.g. a search result).
+// Passing an unvalidated string defeats the point of this function, and is
+// exactly the "arbitrary user input in o11y" pattern this repo deliberately
+// avoids elsewhere (see the CLI vs. GitHub CLI discussion this followed from).
+//
+// uuid.Nil is never tracked — it is never a real resource ID, only a possible
+// zero value from a caller that skipped validation. A ctx that was never
+// passed through WithKnownIDs (e.g. a test that doesn't need telemetry) is
+// also a silent no-op, not a panic.
+//
+// EXPERIMENT: this measures adoption of ID-based lookups across run/workflow/
+// job commands, to inform whether generic per-user API-usage tracking is worth
+// building more broadly. Review by 2026-11-30; remove call sites (not this
+// function — other props may still need it) once evaluated.
+func TrackKnownID(ctx context.Context, key KnownIDKey, id uuid.UUID) {
+	if id == uuid.Nil {
+		return
+	}
+	c, ok := ctx.Value(knownIDsContextKey{}).(*knownIDCollector)
+	if !ok {
+		return
+	}
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.ids[key] = id.String()
+}
 
 // SetTelemetryProp attaches an extra property to cmd that RecordTelemetryNow
 // will include in the command_invocation event.
@@ -121,6 +193,13 @@ func RecordTelemetryNow(cmd *cobra.Command) {
 		if after, ok := strings.CutPrefix(k, telemetryPropPrefix); ok {
 			props[after] = v
 		}
+	}
+	if c, ok := ctx.Value(knownIDsContextKey{}).(*knownIDCollector); ok {
+		c.mu.Lock()
+		for k, v := range c.ids {
+			props[string(k)] = v
+		}
+		c.mu.Unlock()
 	}
 
 	_ = tc.Track("command_invocation", props)
