@@ -98,6 +98,8 @@ cmd/circleci/main.go      Entry point. Cobra bootstrap + top-level error handlin
                           (Lives under cmd/circleci/ so `go install .../cmd/circleci`
                           produces a binary named `circleci`, not `circleci-cli`.)
 acceptance/               Acceptance tests — exec the compiled binary against fake servers.
+smoke/                    Smoke tests — exec the compiled binary against the live API.
+                          Build-tagged `smoke`, credential-gated. See smoke/README.md.
 agents/                   Design guidelines (normative — see above).
 clikit/                   Terminal I/O + presentation layer — its own Go module, published
                           for extension authors (below).
@@ -374,6 +376,7 @@ task test        # all tests (unit + acceptance), root module + clikit, -race -c
 task check       # all static checks: lint (both modules), license headers, mod-tidy, release-check
 task fix         # auto-fix what `task check` flags: fmt, license, mod-tidy, lint --fix
 task build       # build the circleci binary to dist/circleci
+task test:smoke  # runner smoke tests against the live API; needs credentials, see smoke/README.md
 ```
 
 All three cover both Go modules. `clikit` is separate, so `./...` does not reach it — `task test`
@@ -405,7 +408,9 @@ That last one matters here: `internal/cmd/root/testdata/help/` holds a golden `-
 for every command in the tree, so touching a `Short`/`Long`/`Example` or adding a flag updates
 dozens of files. Run it with `-update` and commit the regenerated goldens alongside the change.
 
-**Smoke tests** (compile-and-run without building a binary):
+**Sanity checks** (compile-and-run without building a binary). Not to be confused with
+the runner smoke suite in [`smoke/`](smoke/README.md), which drives the built binary
+against the live API:
 
 ```sh
 go run ./cmd/circleci --help             # basic smoke test

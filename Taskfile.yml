@@ -72,6 +72,13 @@ tasks:
     cmds:
       - go tool -modfile tools/go.mod gotestsum -- -race -count=1 {{.ARGS}}
 
+  test:smoke:
+    desc: Run the runner smoke tests against the live API (needs credentials, see smoke/README.md)
+    vars:
+      ARGS: '{{default "./smoke/..." .CLI_ARGS}}'
+    cmds:
+      - go tool -modfile tools/go.mod gotestsum -- -tags smoke -race -count=1 -timeout 20m {{.ARGS}}
+
   check:
     desc: Run all static checks
     cmds:
@@ -119,6 +126,13 @@ tasks:
       ARGS: '{{default "./..." .CLI_ARGS}}'
     cmds:
       - go tool -modfile ../tools/go.mod golangci-lint run {{.ARGS}}
+
+  lint:smoke:
+    desc: Run golangci-lint on the smoke tests, which the default tags exclude
+    vars:
+      ARGS: '{{default "./smoke/..." .CLI_ARGS}}'
+    cmds:
+      - go tool -modfile tools/go.mod golangci-lint run --build-tags smoke {{.ARGS}}
 
   fmt:
     desc: Format the code
