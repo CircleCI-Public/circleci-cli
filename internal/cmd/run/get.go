@@ -943,9 +943,19 @@ func buildOutput(r *apiclient.RunV3, workflows []apiclient.WorkflowV3, wfJobs []
 
 // deriveDisplayStatus computes a meaningful overall display status from
 // workflow phases and outcomes.
+//
+// A run carrying errors of its own is failed whatever its workflows say. That is
+// the dynamic-config case: the setup workflow succeeds, the continued config is
+// rejected, no continued workflow is ever created — and the API still reports the
+// run as succeeded, so the error it carries is the only thing that says
+// otherwise. A run that has produced no workflows at all is left to its own
+// phase and outcome, which already describe it.
 func deriveDisplayStatus(r runGetOutput) string {
 	if len(r.Workflows) == 0 {
 		return apiclient.PhaseOutcomeStatus(r.Phase, r.Outcome, r.CurrentOutcome)
+	}
+	if len(r.Errors) > 0 {
+		return "failed"
 	}
 	for _, wf := range r.Workflows {
 		if wf.Outcome == "failed" || wf.Outcome == "errored" || wf.CurrentOutcome == "failed" {

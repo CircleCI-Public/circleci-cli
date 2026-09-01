@@ -599,6 +599,17 @@ a:hover {
   text-decoration: none;
 }
 
+/* The cookie-preferences control is a button, since it reopens the consent
+   dialog rather than navigating; strip the button chrome so it reads as one of
+   the footer links beside it. */
+button.footer-link {
+  background: none;
+  border: 0;
+  padding: 0;
+  font: inherit;
+  cursor: pointer;
+}
+
 @media (hover: hover) {
   .footer-link:hover { color: var(--color-site-heading); }
 }
