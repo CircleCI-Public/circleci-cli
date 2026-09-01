@@ -52,7 +52,7 @@ func NewOnboardCmd() *cobra.Command {
 		},
 		Long: heredoc.Doc(`
 			Prompts for repo setup or signup unless --scan or --signup is given. Writes a
-			starter config if the repo has none, creates the project, adds a push trigger.
+			starter config if none exists, creates and follows the project, adds a trigger.
 		`),
 		Example: heredoc.Doc(`
 			# Interactive mode: choose repo setup or signup
