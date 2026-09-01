@@ -269,6 +269,8 @@ func postSignupGuidance(ctx context.Context, dir string, opts Options) error {
 		iostream.Printf(ctx, "  Pipelines: %s\n", pipelinesURL)
 	}
 
+	followProject(ctx, client, proj)
+
 	return setupFirstPipeline(ctx, client, appURL, proj, remote, opts)
 }
 
@@ -714,6 +716,36 @@ func printPipelineReadyGuidance(ctx context.Context) {
 func printManualPipelineGuidance(ctx context.Context) {
 	iostream.Printf(ctx, "\nCommit .circleci/config.yml. After your project is connected in CircleCI, pushing will start your first pipeline.\n")
 	iostream.Printf(ctx, "To set up a trigger now, run 'circleci pipeline create' then 'circleci project trigger create'.\n")
+}
+
+// followProject follows the project on the CircleCI-native path, so the first
+// pipeline the user is about to push reaches them: a follower is who the
+// notifications for a run go to, and onboard's whole promise is that the next push
+// builds. followClassicProject does the same for a classic organization, where the
+// slug's segments are the org and repository names rather than opaque IDs.
+//
+// A failure is reported and the run continues. Following decides who hears about a
+// pipeline, not whether the project has one, so it must not stand between the user
+// and a working trigger. It is idempotent, which is what makes it safe on the
+// re-run and adopt-existing paths, where the project may already be followed —
+// possibly by a teammate who created it.
+func followProject(ctx context.Context, client *apiclient.Client, proj *apiclient.ProjectInfo) {
+	vcs, orgSegment, projectSegment, err := cmdutil.ParseSlug(proj.Slug)
+	if err != nil {
+		trackOnboard(ctx, "onboard_project_follow", map[string]any{"outcome": "skipped_bad_slug"})
+		return
+	}
+
+	if err := client.FollowProject(ctx, vcs, orgSegment, projectSegment); err != nil {
+		iostream.ErrPrintf(ctx,
+			"%s Could not follow the project, so you may not be notified about its pipelines: %s\n",
+			iostream.SymbolWarn(ctx), err)
+		trackOnboard(ctx, "onboard_project_follow", map[string]any{"outcome": "failed"})
+		return
+	}
+
+	iostream.Printf(ctx, "%s Following %s\n", iostream.SymbolOK(ctx), proj.Name)
+	trackOnboard(ctx, "onboard_project_follow", map[string]any{"outcome": "followed"})
 }
 
 func followClassicProject(ctx context.Context, client *apiclient.Client, appURL, vcs, orgName, repoName string) {

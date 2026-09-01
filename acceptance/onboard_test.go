@@ -837,6 +837,65 @@ func TestOnboard_PostSignup_GitHubAppInstall_ReturnURL(t *testing.T) {
 		"the project's pipelines page reads as a finish line in the browser, got %q", returnURLs[0])
 }
 
+// TestOnboard_PostSignup_FollowsProject covers the CircleCI-native path following
+// the project it just set up. A follower is who a run's notifications go to, so
+// without this the first pipeline onboard tells the user to push can fail silently.
+//
+// The request carries the project's own slug, whose segments are opaque org and
+// project IDs rather than an org and repository name — the shape the classic path
+// sends.
+func TestOnboard_PostSignup_FollowsProject(t *testing.T) {
+	dir, fake, env := onboardRepo(t)
+	addFirstPipelineResponses(fake)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"onboard", "--scan", "--repo-id", onboardRepoExternalID},
+		Env:     env.Environ(),
+		WorkDir: dir,
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+
+	t.Run("reports the follow", func(t *testing.T) {
+		assert.Check(t, cmp.Contains(result.Stdout, "Following my-repo"))
+	})
+
+	t.Run("follows the project by its own slug", func(t *testing.T) {
+		var paths []string
+		for _, req := range fake.AllRequests() {
+			if req.Method == http.MethodPost && strings.HasSuffix(req.URL.Path, "/follow") {
+				paths = append(paths, req.URL.Path)
+			}
+		}
+		assert.Check(t, cmp.DeepEqual(paths, []string{
+			"/api/v1.1/project/circleci/Org1234ShortId/Proj5678ShortId/follow",
+		}))
+	})
+}
+
+// TestOnboard_PostSignup_FollowFails_ContinuesSetup pins the follow as advisory: it
+// decides who hears about a pipeline, not whether the project has one, so a
+// rejection warns and the run carries on to the definition and trigger rather than
+// leaving the project half-configured.
+func TestOnboard_PostSignup_FollowFails_ContinuesSetup(t *testing.T) {
+	dir, fake, env := onboardRepo(t)
+	addFirstPipelineResponses(fake)
+	fake.SetFollowProjectStatus(http.StatusForbidden)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"onboard", "--scan", "--repo-id", onboardRepoExternalID},
+		Env:     env.Environ(),
+		WorkDir: dir,
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, cmp.Contains(result.Stderr, "Could not follow the project"))
+	assert.Check(t, cmp.Contains(result.Stdout, "Trigger created: all-pushes"))
+	assert.Check(t, cmp.Contains(result.Stdout, "Your project is ready!"))
+}
+
 func TestOnboard_PostSignup_ClassicOrg_FollowsProject(t *testing.T) {
 	dir := t.TempDir()
 	initGitRepoWithRemote(t, dir, "https://github.com/myorg/my-repo.git")
