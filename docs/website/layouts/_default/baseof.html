@@ -3,6 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  {{ partial "analytics.html" . }}
   <title>{{ block "title" . }}CircleCI CLI{{ end }}</title>
   <meta name="description" content="{{ block "description" . }}Command reference and documentation for the CircleCI CLI.{{ end }}">
   <link rel="alternate" type="text/markdown" href="{{ block "llms_href" . }}llms.txt{{ end }}" title="Markdown for LLMs">

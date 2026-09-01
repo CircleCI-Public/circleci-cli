@@ -45,16 +45,28 @@ type Provider struct {
 	// integration. A host matches when it equals one of these or is a subdomain
 	// of it, so enterprise and regional hosts resolve without new entries.
 	Hosts []string
+	// InstalledPath is the app page an install returns the browser to, relative to
+	// the app URL. It confirms the install and points the user back at their
+	// terminal, so it names the integration the user just installed.
+	InstalledPath string
 }
 
 // registry is every integration the CLI can drive. Order is significant only in
 // that the first host match wins.
 var registry = []Provider{
 	{
-		Name:    "github_app",
-		Short:   "GitHub App",
-		Install: "the CircleCI GitHub App",
-		Hosts:   []string{"github.com"},
+		Name:          "github_app",
+		Short:         "GitHub App",
+		Install:       "the CircleCI GitHub App",
+		Hosts:         []string{"github.com"},
+		InstalledPath: "cli/github-app-installed",
+	},
+	{
+		Name:          "origin",
+		Short:         "Origin",
+		Install:       "the CircleCI Origin app",
+		Hosts:         []string{"origin.cursor.com"},
+		InstalledPath: "cli/origin-installed",
 	},
 }
 

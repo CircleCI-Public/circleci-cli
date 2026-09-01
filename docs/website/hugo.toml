@@ -55,3 +55,11 @@ disableKinds = ["taxonomy", "term", "RSS", "404"]
 # Single page for now — only emit HTML for the home page.
 [outputs]
   home = ["HTML"]
+
+# Consent banner and analytics source, shared with circleci.com and its docs so
+# events land in one place. Both are public client-side identifiers, not secrets
+# (see layouts/partials/analytics.html). Blank either one to switch that script
+# off; only production builds of the baseURL host emit them at all.
+[params.analytics]
+  cookiebotId = "a28b71f3-4d2e-4eac-93bc-34929948dd7d"
+  segmentWriteKey = "AbgkrgN4cbRhAVEwlzMkHbwvrXnxHh35"
