@@ -4712,7 +4712,7 @@ the run's "org/repo" repository (when known) and project_id its UUID.
 Guided onboarding: generate config, sign up, connect project
 
 Prompts for repo setup or signup unless --scan or --signup is given. Writes a
-starter config if the repo has none, creates the project, adds a push trigger.
+starter config if none exists, creates and follows the project, adds a trigger.
 
 | Flag               | Description                                                 |
 | ------------------ | ----------------------------------------------------------- |
