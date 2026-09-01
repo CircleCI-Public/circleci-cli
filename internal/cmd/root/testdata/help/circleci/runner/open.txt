@@ -19,7 +19,7 @@ Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `ci
 - Open runners for a specific organization: 
   `circleci runner open --org gh/myorg`
 - Open when your remote is on CircleCI server: 
-  `circleci runner open --host https://circleci.example.com`
+  `CIRCLE_HOST=https://circleci.example.com circleci runner open`
 
 ## Details
 
