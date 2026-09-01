@@ -127,7 +127,7 @@ func runFailureReport(ctx context.Context, client *apiclient.Client, r *apiclien
 						fmt.Fprintf(&out, "#### step %d: %s\n\n", step.Num, step.Name)
 					}
 
-					condensed, err := client.GetJobStdoutCondensed(ctx, j.ID, fe.exec.Index, step.Num)
+					condensed, err := client.GetJobStdoutCondensed(ctx, j.ID, fe.exec.Index, step.Num, "circleci-cli/run-get-failure-report")
 					if err != nil {
 						if httpcl.HasStatusCode(err, http.StatusNotFound) {
 							condensed = nil
