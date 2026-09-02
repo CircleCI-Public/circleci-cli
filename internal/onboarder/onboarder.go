@@ -83,7 +83,7 @@ func Run(ctx context.Context, dir string, opts Options) error {
 		return err
 	}
 
-	trackOnboard(ctx, "onboard_mode_selected", map[string]any{
+	trackOnboard(ctx, "onboarding_mode_selected", map[string]any{
 		"mode": modeString(m),
 	})
 
@@ -92,7 +92,7 @@ func Run(ctx context.Context, dir string, opts Options) error {
 		if err != nil {
 			return err
 		}
-		trackOnboard(ctx, "onboard_signup", map[string]any{
+		trackOnboard(ctx, "onboarding_signup", map[string]any{
 			"mode":    "signup",
 			"outcome": string(result.Outcome),
 		})
@@ -154,7 +154,7 @@ func Run(ctx context.Context, dir string, opts Options) error {
 	if err != nil {
 		return err
 	}
-	trackOnboard(ctx, "onboard_signup", map[string]any{
+	trackOnboard(ctx, "onboarding_signup", map[string]any{
 		"mode":    "scan",
 		"outcome": string(signupResult.Outcome),
 	})
@@ -505,14 +505,14 @@ func setupFirstPipeline(ctx context.Context, client *apiclient.Client, appURL st
 	repoID, p := resolveRepoID(ctx, client, appURL, proj, remote, opts)
 	if repoID == "" {
 		// No external ID, so there is nothing to attach a definition to.
-		trackOnboard(ctx, "onboard_project_setup", map[string]any{"outcome": "skipped_no_repo_id"})
+		trackOnboard(ctx, "onboarding_project_setup", map[string]any{"outcome": "skipped_no_repo_id"})
 		printManualPipelineGuidance(ctx)
 		return nil
 	}
 
 	def, err := ensurePipelineDefinition(ctx, client, p, proj.ID, proj.Name, repoID, remote.FullName())
 	if err != nil {
-		trackOnboard(ctx, "onboard_project_setup", map[string]any{"outcome": "pipeline_definition_failed"})
+		trackOnboard(ctx, "onboarding_project_setup", map[string]any{"outcome": "pipeline_definition_failed"})
 		return clierrors.New("onboard.pipeline_definition_failed",
 			"Could not set up the pipeline definition",
 			fmt.Sprintf("The project was created, but its pipeline definition could not be set up: %s.", err)).
@@ -524,7 +524,7 @@ func setupFirstPipeline(ctx context.Context, client *apiclient.Client, appURL st
 	}
 
 	if err := ensureTrigger(ctx, client, p, proj.ID, def.ID, repoID, remote.FullName()); err != nil {
-		trackOnboard(ctx, "onboard_project_setup", map[string]any{"outcome": "trigger_failed"})
+		trackOnboard(ctx, "onboarding_project_setup", map[string]any{"outcome": "trigger_failed"})
 		return clierrors.New("onboard.trigger_failed",
 			"Could not set up the trigger",
 			fmt.Sprintf("The pipeline definition was created, but its trigger could not be: %s.", err)).
@@ -535,7 +535,7 @@ func setupFirstPipeline(ctx context.Context, client *apiclient.Client, appURL st
 			WithExitCode(clierrors.ExitAPIError)
 	}
 
-	trackOnboard(ctx, "onboard_project_setup", map[string]any{"outcome": "created"})
+	trackOnboard(ctx, "onboarding_project_setup", map[string]any{"outcome": "created"})
 	printPipelineReadyGuidance(ctx)
 	return nil
 }
@@ -732,7 +732,7 @@ func printManualPipelineGuidance(ctx context.Context) {
 func followProject(ctx context.Context, client *apiclient.Client, proj *apiclient.ProjectInfo) {
 	vcs, orgSegment, projectSegment, err := cmdutil.ParseSlug(proj.Slug)
 	if err != nil {
-		trackOnboard(ctx, "onboard_project_follow", map[string]any{"outcome": "skipped_bad_slug"})
+		trackOnboard(ctx, "onboarding_project_follow", map[string]any{"outcome": "skipped_bad_slug"})
 		return
 	}
 
@@ -740,12 +740,12 @@ func followProject(ctx context.Context, client *apiclient.Client, proj *apiclien
 		iostream.ErrPrintf(ctx,
 			"%s Could not follow the project, so you may not be notified about its pipelines: %s\n",
 			iostream.SymbolWarn(ctx), err)
-		trackOnboard(ctx, "onboard_project_follow", map[string]any{"outcome": "failed"})
+		trackOnboard(ctx, "onboarding_project_follow", map[string]any{"outcome": "failed"})
 		return
 	}
 
 	iostream.Printf(ctx, "%s Following %s\n", iostream.SymbolOK(ctx), proj.Name)
-	trackOnboard(ctx, "onboard_project_follow", map[string]any{"outcome": "followed"})
+	trackOnboard(ctx, "onboarding_project_follow", map[string]any{"outcome": "followed"})
 }
 
 func followClassicProject(ctx context.Context, client *apiclient.Client, appURL, vcs, orgName, repoName string) {
