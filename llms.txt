@@ -3944,9 +3944,13 @@ Delete a CircleCI runner resource class.
 All tokens associated with the resource class will also be deleted.
 Connected runner instances will no longer be able to claim jobs.
 
-| Flag          | Description              |
-| ------------- | ------------------------ |
-| `-f, --force` | skip confirmation prompt |
+JSON fields: id, resource_class
+
+| Flag          | Description                                                                       |
+| ------------- | --------------------------------------------------------------------------------- |
+| `-f, --force` | skip confirmation prompt                                                          |
+| `--jq string` | Process values from the response using jq syntax (see `circleci help formatting`) |
+| `--json`      | Output as JSON                                                                    |
 
 
 **Arguments:**
@@ -3965,8 +3969,8 @@ where namespace is your organization name (for example, `my-org/my-runner`).
   `circleci runner resource-class delete my-org/my-runner`
 - Delete without confirmation: 
   `circleci runner resource-class delete my-org/my-runner --force`
-- Delete in a script: 
-  `circleci runner resource-class delete my-org/my-runner --force`
+- Delete in a script, and report what was deleted: 
+  `circleci runner resource-class delete my-org/my-runner --force --json`
 
 ##### `circleci runner resource-class list [flags]`
 
@@ -4050,14 +4054,15 @@ Delete a runner token
 
 Delete a CircleCI runner authentication token by its ID.
 
-Any runner agents using this token will immediately lose their ability
-to claim new jobs. Running jobs are not affected.
+Agents using this token can no longer claim jobs; running jobs continue.
 
-Find token IDs with: circleci runner token list `<resource-class>`
+JSON fields: id
 
-| Flag          | Description              |
-| ------------- | ------------------------ |
-| `-f, --force` | skip confirmation prompt |
+| Flag          | Description                                                                       |
+| ------------- | --------------------------------------------------------------------------------- |
+| `-f, --force` | skip confirmation prompt                                                          |
+| `--jq string` | Process values from the response using jq syntax (see `circleci help formatting`) |
+| `--json`      | Output as JSON                                                                    |
 
 
 **Arguments:**
@@ -4078,7 +4083,7 @@ with: `circleci runner token list --resource-class <namespace/name>`
   `circleci runner token delete abc12345-0000-0000-0000-000000000000 --force`
 - Delete in a script using JSON output: 
   `ID=$(circleci runner token list --resource-class my-org/my-runner --json --jq '.[0].id')`
-- `circleci runner token delete "$ID" --force`
+- `circleci runner token delete "$ID" --force --json`
 
 ##### `circleci runner token list [flags]`
 
