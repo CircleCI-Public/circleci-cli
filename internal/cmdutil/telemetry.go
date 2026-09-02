@@ -67,6 +67,15 @@ func RecordTelemetry(cmd *cobra.Command) {
 
 		RecordTelemetryNow(cmd)
 
+		// Events are buffered until the sender is closed, and the root command's
+		// PersistentPostRunE is what normally closes it. Cobra skips that hook when
+		// RunE returns an error, so without this a failed command builds its event
+		// and then discards it, losing exactly the runs most worth measuring. Close
+		// is idempotent, so the success path still closes once, in the hook.
+		if runErr != nil {
+			_ = GetTelemetry(cmd.Context()).Close()
+		}
+
 		return runErr
 	}
 }

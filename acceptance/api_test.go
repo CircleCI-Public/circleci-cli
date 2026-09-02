@@ -457,6 +457,54 @@ func TestAPI_Telemetry(t *testing.T) {
 	})
 }
 
+// TestAPI_Telemetry_CommandFailure covers the failure path specifically. The
+// sender buffers events until it is closed, and the root command's
+// PersistentPostRunE — the usual closer — is skipped by cobra when RunE returns
+// an error, so a failing command used to build its event and then discard it.
+// Only an end-to-end run can catch that: the unit-level harness records
+// synchronously, so it passes whether or not the sender is ever closed.
+func TestAPI_Telemetry_CommandFailure(t *testing.T) {
+	ctx := iostream.Testing(context.Background())
+
+	fake := fakes.NewCircleCI(t)
+
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+	env.Telemetry = true
+	fs := fakesegment.New(ctx, telemetry.SegmentKey)
+	fsSrv := httptest.NewServer(fs)
+	t.Cleanup(fsSrv.Close)
+	env.Extra["CIRCLE_TELEMETRY_ENDPOINT"] = fsSrv.URL
+
+	// A path the fake does not route, so the request fails inside RunE rather
+	// than in argument validation, which would return before the event is built.
+	const apiPath = "api/v3/no-such-endpoint"
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"api", apiPath},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+	assert.Assert(t, result.ExitCode != 0, "the command must fail for this test to mean anything")
+
+	poll.WaitOn(t, func(t poll.LogT) poll.Result {
+		for _, batch := range fs.Batches() {
+			for _, msg := range batch.Messages {
+				if msg.Event == "command_invocation" {
+					return poll.Compare(cmp.DeepEqual(msg.Properties, analytics.Properties{
+						"command":  "circleci api",
+						"flags":    "debug,insecure-storage,theme",
+						"api_path": apiPath,
+					}))
+				}
+			}
+		}
+		return poll.Continue("no command_invocation event yet")
+	})
+}
+
 // When the project lookup itself fails (slug resolves but the API has no such
 // project), the command surfaces an API error.
 func TestAPI_ProjectIDSubstitution_LookupFails(t *testing.T) {
