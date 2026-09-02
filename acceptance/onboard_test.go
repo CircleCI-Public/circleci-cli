@@ -44,8 +44,11 @@ import (
 // opaque short IDs rather than names, mirroring a real CircleCI-native project,
 // whose slug the API will not accept in name form.
 const (
-	onboardOrgID          = "org-uuid-1234"
-	onboardProjectID      = "proj-uuid-5678"
+	// The org and project IDs are real UUIDs: the v3 entities the CLI decodes type
+	// them as such, so a placeholder string would fail to parse rather than fail an
+	// assertion.
+	onboardOrgID          = "a0000000-0000-4000-8000-00000000d001"
+	onboardProjectID      = "a0000000-0000-4000-8000-00000000d002"
 	onboardPipelineDefID  = "pdef-uuid-1"
 	onboardRepoExternalID = "123456789"
 )
@@ -565,7 +568,7 @@ func TestOnboard_PostSignup_Rerun_Idempotent(t *testing.T) {
 	// The second run looks the project up by the slug projectref derives from the
 	// recorded UUIDs. The real API accepts that form and canonicalises it to the
 	// short-ID slug.
-	fake.AddProjectInfo("circleci/org-uuid-1234/proj-uuid-5678", fakes.ProjectInfo{
+	fake.AddProjectInfo("circleci/"+onboardOrgID+"/"+onboardProjectID, fakes.ProjectInfo{
 		ID:               onboardProjectID,
 		Slug:             "circleci/Org1234ShortId/Proj5678ShortId",
 		Name:             "my-repo",
@@ -659,11 +662,11 @@ func TestOnboard_PostSignup_LinkedProjectInAnotherOrg(t *testing.T) {
 	assert.Check(t, !strings.Contains(result.Stderr, "409"), "stderr should not leak an HTTP status")
 }
 
-// TestOnboard_PostSignup_ProjectNameConflict covers a name collision that onboard
-// cannot resolve: the org already has a project with this name, but the checkout
-// has no .circleci/info.yml recording its ID. Since a project cannot be looked up
-// by name, onboard points at `circleci project link` rather than reporting a raw
-// HTTP conflict.
+// TestOnboard_PostSignup_ProjectNameConflict covers a name collision onboard
+// cannot resolve: the create is rejected, and the name resolves to no project this
+// organization holds — someone else's project, or one the caller cannot read. There
+// is nothing to adopt, so onboard points at `circleci project link` rather than
+// reporting a raw HTTP conflict.
 func TestOnboard_PostSignup_ProjectNameConflict(t *testing.T) {
 	dir, fake, env := onboardRepo(t)
 	fake.SetCreateProjectConflict()
@@ -682,6 +685,55 @@ func TestOnboard_PostSignup_ProjectNameConflict(t *testing.T) {
 	// No raw HTTP internals for a conflict the user can resolve with one command.
 	assert.Check(t, !strings.Contains(result.Stderr, "409"), "stderr should not leak an HTTP status")
 	assert.Check(t, !strings.Contains(result.Stderr, "/api/v2/"), "stderr should not leak an API path")
+}
+
+// TestOnboard_PostSignup_ProjectNameConflict_Resumes pins that a re-run picks up
+// where an interrupted one left off. The org already holds the project onboard
+// would create, so it adopts it and carries on into pipeline setup instead of
+// sending the user to copy an ID out of the UI.
+func TestOnboard_PostSignup_ProjectNameConflict_Resumes(t *testing.T) {
+	dir, fake, env := onboardRepo(t)
+	fake.SetCreateProjectConflict()
+	fake.AddProjectBySlug("circleci/myorg/my-repo", onboardProjectID, "my-repo", onboardOrgID)
+	// Adopting it hydrates the record from the slug its UUIDs build, which is the
+	// only handle available once the name is taken.
+	fake.AddProjectInfo("circleci/"+onboardOrgID+"/"+onboardProjectID, fakes.ProjectInfo{
+		ID:               onboardProjectID,
+		Slug:             "circleci/myorg/my-repo",
+		Name:             "my-repo",
+		OrganizationName: "myorg",
+		OrganizationSlug: "circleci/myorg",
+		OrganizationID:   onboardOrgID,
+	})
+	fake.SetProviderConnected(onboardOrgID, "github_app", true)
+	fake.AddProviderRepository(onboardOrgID, fakes.ProviderRepo{
+		ID:           "987654321",
+		RepoFullName: "myorg/my-repo",
+		RepoName:     "my-repo",
+		Owner:        "myorg",
+	})
+	addFirstPipelineResponses(fake)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"onboard", "--scan"},
+		Env:     env.Environ(),
+		WorkDir: dir,
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, cmp.Contains(result.Stdout, "Using existing project: my-repo"))
+	assert.Check(t, cmp.Contains(result.Stdout, "Pipeline definition created"))
+	assert.Check(t, cmp.Contains(result.Stdout, "Trigger created: all-pushes"))
+	// The hand-off this replaces: no ID to copy, no second command to run.
+	assert.Check(t, !strings.Contains(result.Stdout, "circleci project link"),
+		"an adopted project needs no manual link step")
+	assert.Check(t, !strings.Contains(result.Stderr, "409"), "stderr should not leak an HTTP status")
+
+	// Recorded, so the next run resolves the project before attempting a create.
+	body, err := os.ReadFile(filepath.Join(dir, ".circleci", "info.yml"))
+	assert.NilError(t, err)
+	assert.Check(t, strings.Contains(string(body), onboardProjectID), "info.yml: %s", body)
 }
 
 func TestOnboard_PostSignup_FirstPipeline_RepoNotAccessible(t *testing.T) {
@@ -780,9 +832,68 @@ func TestOnboard_PostSignup_GitHubAppInstall_ReturnURL(t *testing.T) {
 
 	assert.Assert(t, cmp.Len(returnURLs, 1))
 	assert.Check(t, strings.HasSuffix(returnURLs[0], "/cli/github-app-installed"),
-		"return_url should land on the page that points back at the terminal, got %q", returnURLs[0])
+		"return_url should land on the page that names the integration and points back at the terminal, got %q", returnURLs[0])
 	assert.Check(t, !strings.Contains(returnURLs[0], "/pipelines/"),
 		"the project's pipelines page reads as a finish line in the browser, got %q", returnURLs[0])
+}
+
+// TestOnboard_PostSignup_FollowsProject covers the CircleCI-native path following
+// the project it just set up. A follower is who a run's notifications go to, so
+// without this the first pipeline onboard tells the user to push can fail silently.
+//
+// The request carries the project's own slug, whose segments are opaque org and
+// project IDs rather than an org and repository name — the shape the classic path
+// sends.
+func TestOnboard_PostSignup_FollowsProject(t *testing.T) {
+	dir, fake, env := onboardRepo(t)
+	addFirstPipelineResponses(fake)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"onboard", "--scan", "--repo-id", onboardRepoExternalID},
+		Env:     env.Environ(),
+		WorkDir: dir,
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+
+	t.Run("reports the follow", func(t *testing.T) {
+		assert.Check(t, cmp.Contains(result.Stdout, "Following my-repo"))
+	})
+
+	t.Run("follows the project by its own slug", func(t *testing.T) {
+		var paths []string
+		for _, req := range fake.AllRequests() {
+			if req.Method == http.MethodPost && strings.HasSuffix(req.URL.Path, "/follow") {
+				paths = append(paths, req.URL.Path)
+			}
+		}
+		assert.Check(t, cmp.DeepEqual(paths, []string{
+			"/api/v1.1/project/circleci/Org1234ShortId/Proj5678ShortId/follow",
+		}))
+	})
+}
+
+// TestOnboard_PostSignup_FollowFails_ContinuesSetup pins the follow as advisory: it
+// decides who hears about a pipeline, not whether the project has one, so a
+// rejection warns and the run carries on to the definition and trigger rather than
+// leaving the project half-configured.
+func TestOnboard_PostSignup_FollowFails_ContinuesSetup(t *testing.T) {
+	dir, fake, env := onboardRepo(t)
+	addFirstPipelineResponses(fake)
+	fake.SetFollowProjectStatus(http.StatusForbidden)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"onboard", "--scan", "--repo-id", onboardRepoExternalID},
+		Env:     env.Environ(),
+		WorkDir: dir,
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, cmp.Contains(result.Stderr, "Could not follow the project"))
+	assert.Check(t, cmp.Contains(result.Stdout, "Trigger created: all-pushes"))
+	assert.Check(t, cmp.Contains(result.Stdout, "Your project is ready!"))
 }
 
 func TestOnboard_PostSignup_ClassicOrg_FollowsProject(t *testing.T) {
@@ -840,8 +951,15 @@ func TestOnboard_PostSignup_CreateFails(t *testing.T) {
 // isolated environment pointed at it.
 func onboardRepo(t *testing.T) (string, *fakes.CircleCI, *testenv.TestEnv) {
 	t.Helper()
+	return onboardRepoWithRemote(t, "https://github.com/myorg/my-repo.git")
+}
+
+// onboardRepoWithRemote is onboardRepo for a checkout whose origin is remoteURL,
+// which is what decides the integration onboard resolves.
+func onboardRepoWithRemote(t *testing.T, remoteURL string) (string, *fakes.CircleCI, *testenv.TestEnv) {
+	t.Helper()
 	dir := t.TempDir()
-	initGitRepoWithRemote(t, dir, "https://github.com/myorg/my-repo.git")
+	initGitRepoWithRemote(t, dir, remoteURL)
 	fake, env := onboardStandaloneEnv(t, "testuser")
 	return dir, fake, env
 }
@@ -996,4 +1114,83 @@ func normalizeOnboardOutput(stdout, dir string) string {
 	stdout = strings.ReplaceAll(stdout, dir, "<DIR>")
 	stdout = strings.ReplaceAll(stdout, `\`, `/`)
 	return stdout
+}
+
+// TestOnboard_PostSignup_FirstPipeline_ResolvesRepoOnSecondProvider pins that the
+// integration comes from the checkout's remote rather than being assumed.
+//
+// The remote is on a host a different integration owns, so every provider-shaped
+// value has to follow from it: the connection that is checked, the repository list
+// that is searched, and the provider written into the pipeline definition and
+// trigger.
+func TestOnboard_PostSignup_FirstPipeline_ResolvesRepoOnSecondProvider(t *testing.T) {
+	dir, fake, env := onboardRepoWithRemote(t, "https://origin.cursor.com/circleci/soc-test-repo.git")
+
+	fake.SetProviderConnected(onboardOrgID, "origin", true)
+	fake.AddProviderRepository(onboardOrgID, fakes.ProviderRepo{
+		ID:            "repo_01fake",
+		RepoFullName:  "circleci/soc-test-repo",
+		RepoName:      "soc-test-repo",
+		Owner:         "circleci",
+		DefaultBranch: "main",
+		Provider:      "origin",
+	})
+	addFirstPipelineResponses(fake)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"onboard", "--scan"},
+		Env:     env.Environ(),
+		WorkDir: dir,
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, cmp.Contains(result.Stdout, "Found repository circleci/soc-test-repo"))
+	assert.Check(t, cmp.Contains(result.Stdout, "Pipeline definition created"))
+	assert.Check(t, cmp.Contains(result.Stdout, "Trigger created: all-pushes"))
+
+	t.Run("writes carry the remote's provider and repository", func(t *testing.T) {
+		var defBody, trigBody string
+		for _, req := range fake.AllRequests() {
+			if req.Method != http.MethodPost || req.Body == nil {
+				continue
+			}
+			switch req.URL.Path {
+			case "/api/v3/pipelines":
+				defBody = *req.Body
+			case "/api/v3/triggers":
+				trigBody = *req.Body
+			}
+		}
+
+		assert.Assert(t, defBody != "", "no pipeline definition was created")
+		assert.Check(t, strings.Contains(defBody, `"provider":"origin"`), "definition body: %s", defBody)
+		// The full name is load-bearing for an integration that addresses a
+		// repository by owner and name, so it has to travel on the write.
+		assert.Check(t, strings.Contains(defBody, `"repo_full_name":"circleci/soc-test-repo"`), "definition body: %s", defBody)
+		assert.Check(t, strings.Contains(defBody, `"repo_id":"repo_01fake"`), "definition body: %s", defBody)
+
+		assert.Assert(t, trigBody != "", "no trigger was created")
+		assert.Check(t, strings.Contains(trigBody, `"provider":"origin"`), "trigger body: %s", trigBody)
+		assert.Check(t, strings.Contains(trigBody, `"repo_full_name":"circleci/soc-test-repo"`), "trigger body: %s", trigBody)
+	})
+}
+
+// TestOnboard_PostSignup_FirstPipeline_UnclaimedHost pins that a remote no
+// integration owns is reported rather than sent through one that cannot help.
+func TestOnboard_PostSignup_FirstPipeline_UnclaimedHost(t *testing.T) {
+	dir, _, env := onboardRepoWithRemote(t, "https://gitlab.com/myorg/my-repo.git")
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"onboard", "--scan"},
+		Env:     env.Environ(),
+		WorkDir: dir,
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, cmp.Contains(result.Stderr, "is not on a provider CircleCI can look up"))
+	assert.Check(t, cmp.Contains(result.Stderr, "--repo-id"))
+	assert.Check(t, !strings.Contains(result.Stdout, "Pipeline definition created"),
+		"no definition should be created without a resolved repository")
 }

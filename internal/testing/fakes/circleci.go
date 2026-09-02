@@ -113,6 +113,7 @@ type CircleCI struct {
 	// Project / env-var state.
 	followedProjects    []FollowedProject      // projects for GET /api/v1.1/projects
 	followedSlugs       map[string]bool        // vcs+org+repo → true (for follow idempotency)
+	followProjectStatus int                    // HTTP status for POST .../follow (0 → 200 OK)
 	envVars             map[string][]EnvVar    // project slug → env vars
 	deletedEnvVars      map[string]bool        // "slug/name" → deleted
 	projectInfos        map[string]ProjectInfo // project slug → project info response
@@ -2359,10 +2360,27 @@ func projectV3Entity(p ProjectV3) map[string]any {
 }
 
 func (f *CircleCI) handleResolveProjectBySlug(w http.ResponseWriter, r *http.Request) {
-	slug := r.URL.Query().Get("filter[slug]")
+	q := r.URL.Query()
+	slug := q.Get("filter[slug]")
 	if slug == "" {
-		render.Status(r, http.StatusBadRequest)
-		render.JSON(w, r, map[string]any{"error": map[string]any{"title": "Bad Request", "detail": "filter[slug] is required"}})
+		// The real endpoint takes either a slug or an org, and pairs the org with an
+		// optional name. Registered projects are keyed by slug, so an org-scoped
+		// lookup matches on the name and the org the project records.
+		orgID, name := q.Get("filter[org_id]"), q.Get("filter[name]")
+		if orgID == "" {
+			render.Status(r, http.StatusBadRequest)
+			render.JSON(w, r, map[string]any{"error": map[string]any{"title": "Bad Request", "detail": "filter[slug] or filter[org_id] is required"}})
+			return
+		}
+		f.mu.RLock()
+		matches := []any{}
+		for _, p := range f.projectsBySlug {
+			if p.OrgID == orgID && (name == "" || p.Name == name) {
+				matches = append(matches, projectV3Entity(p))
+			}
+		}
+		f.mu.RUnlock()
+		render.JSON(w, r, map[string]any{"data": matches, "page": map[string]any{"next": nil, "prev": nil}})
 		return
 	}
 	f.mu.RLock()
@@ -2427,6 +2445,14 @@ func (f *CircleCI) AddFollowedProject(proj FollowedProject) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.followedProjects = append(f.followedProjects, proj)
+}
+
+// SetFollowProjectStatus makes POST /api/v1.1/project/{vcs}/{org}/{repo}/follow
+// answer status instead of following the project. Pass 0 to restore the default.
+func (f *CircleCI) SetFollowProjectStatus(status int) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.followProjectStatus = status
 }
 
 // followedProjectEntity renders a stored FollowedProject as its v1.1 object.
@@ -2508,6 +2534,15 @@ func (f *CircleCI) handleFollowProject(w http.ResponseWriter, r *http.Request) {
 	org := chi.URLParam(r, "org")
 	repo := chi.URLParam(r, "repo")
 	slug := vcs + "/" + org + "/" + repo
+
+	f.mu.RLock()
+	status := f.followProjectStatus
+	f.mu.RUnlock()
+	if status != 0 {
+		render.Status(r, status)
+		render.JSON(w, r, map[string]any{"message": "follow not permitted"})
+		return
+	}
 
 	f.mu.Lock()
 	if !f.followedSlugs[slug] {

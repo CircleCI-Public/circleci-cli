@@ -175,6 +175,46 @@ func TestRunGet_FailedContext_NoFailures(t *testing.T) {
 	assert.Check(t, cmp.Equal(result.Stderr, ""))
 }
 
+// TestRunGet_FailedContext_RunErrors covers the report for a run that failed
+// without any job failing: a dynamic-config run whose continued config was
+// rejected has no failed step to condense, so the error the run carries is the
+// only thing there is to report — and the report used to be empty.
+func TestRunGet_FailedContext_RunErrors(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	run := fakeRunV3(fcRunID, runTestProjectID, "ended", "succeeded", "main", "abc1234def5678")
+	run.Errors = []fakes.RunError{{
+		Type:    "config",
+		Message: "Error calling workflow: 'deploy'\nCannot find a definition for job named release",
+	}}
+	fake.AddRunV3(fcRunID, runTestProjectID, run)
+	fake.AddRunWorkflowsV3(fcRunID, fakeWorkflowV3(fcWfID, "setup", fcRunID, runTestProjectID, "ended", "succeeded"))
+	fake.AddWorkflowJobsV3(fcWfID, fakeJobV3(fcJob3ID, "setup-job", fcWfID, runTestProjectID))
+
+	now := time.Date(2020, 1, 1, 12, 0, 0, 0, time.UTC).Format(v3TimeFormat)
+	fake.AddJobV3(fakes.JobV3{
+		ID: fcJob3ID, Name: "setup-job", Type: "build", Phase: "ended", Outcome: "succeeded",
+		StartedAt: now, EndedAt: now, WorkflowID: fcWfID, ProjectID: runTestProjectID,
+		Executions: [][]fakes.JobStep{{
+			{Name: "continue", Type: "run", Num: 100, Phase: "ended", Outcome: "succeeded", ExitCode: new(0), StartedAt: now, EndedAt: now},
+		}},
+	})
+
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"run", "get", fcRunID, "--failure-report"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 0))
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, cmp.Equal(result.Stderr, ""))
+}
+
 // TestRunGet_FailureReport_RejectsJSON verifies that combining --failure-report with
 // --json exits non-zero with a user-facing error.
 func TestRunGet_FailureReport_RejectsJSON(t *testing.T) {

@@ -97,15 +97,35 @@ type RunWatchWorkflow struct {
 	Jobs     []RunWatchJob
 }
 
-// RunWatchState is one poll's worth of run state: the rows to draw, whether
-// every workflow has reached a terminal phase, and the run's derived display
-// status once it has. Like the run-get item types this mirrors what the API
-// client returns rather than embedding it, keeping this package independent of
+// RunWatchError is one error the run carries in its own right, rather than the
+// outcome of a job: a config that would not compile, or a dynamic-config
+// continuation whose config was rejected. The flow does not draw these — they
+// are read off the final state by the caller, which prints them with the summary
+// once the run is over.
+type RunWatchError struct {
+	Type    string
+	Message string
+}
+
+// RunWatchState is one poll's worth of run state: the rows to draw, the run's
+// own errors, whether the run has finished, and its derived display status once
+// it has. Like the run-get item types this mirrors what the API client returns
+// rather than embedding it, keeping this package independent of
 // internal/apiclient — the caller's Fetch callback does the conversion.
+//
+// Done is about the run, not its workflows: AllWorkflowsEnded says the workflows
+// are finished, which is a weaker thing (see pendingNote).
 type RunWatchState struct {
 	Workflows []RunWatchWorkflow
+	Errors    []RunWatchError
 	Done      bool
-	Outcome   string
+
+	// AllWorkflowsEnded reports that every workflow the run has produced so far
+	// has reached a terminal phase — true of a dynamic-config run waiting on its
+	// continuation, which is not done.
+	AllWorkflowsEnded bool
+
+	Outcome string
 }
 
 // FailedJobs returns every job across every workflow whose outcome is a failure,
@@ -457,6 +477,9 @@ func (m RunWatchFlowModel) buildView() tea.View {
 			b.WriteString(m.line(m.jobRow(j)))
 		}
 	}
+	if note := m.pendingNote(); note != "" {
+		b.WriteString(m.line("  " + note))
+	}
 	if footer := m.footer(); footer != "" {
 		b.WriteString("\n" + footer)
 	}
@@ -476,6 +499,19 @@ func (m RunWatchFlowModel) header() string {
 		scope = theme.SecondaryStyle.Render(scope)
 	}
 	return title + " " + scope
+}
+
+// pendingNote explains a table that looks finished but is not: every workflow the
+// run has produced so far has ended, and the run is still going. That is what a
+// dynamic-config run looks like between its setup workflow ending and the
+// continued workflow appearing — and if the continued config is rejected, the
+// rows never change again, so without this line a watch that is right to keep
+// waiting looks stuck on a finished table.
+func (m RunWatchFlowModel) pendingNote() string {
+	if m.done || !m.state.AllWorkflowsEnded {
+		return ""
+	}
+	return m.muted("All workflows have ended; waiting for the run itself to finish.")
 }
 
 // footer is the elapsed clock and the key hints, with a spinner leading them

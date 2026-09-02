@@ -183,6 +183,33 @@ func (c *Client) GetProjectBySlug(ctx context.Context, slug string) (*ProjectRef
 	}, nil
 }
 
+// GetProjectByName resolves a project by its name within an organization via
+// GET /api/v3/projects. orgID must be the organization UUID.
+//
+// Use this where a name is all that is known — a project whose slug carries
+// opaque IDs cannot be addressed by slug, so its name is the only handle a user
+// (or a previous run of the same command) supplies.
+func (c *Client) GetProjectByName(ctx context.Context, orgID, name string) (*ProjectRef, error) {
+	var env v3List[projectEntity]
+	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodGet, "/api/v3/projects",
+		filterParam("org_id", orgID),
+		filterParam("name", name),
+		httpcl.JSONDecoder(&env),
+	))
+	if err != nil {
+		return nil, err
+	}
+	if len(env.Data) == 0 {
+		return nil, fmt.Errorf("%w: %q", ErrProjectNotFound, name)
+	}
+	p := env.Data[0]
+	return &ProjectRef{
+		ID:    p.ID,
+		Name:  p.Attributes.Name,
+		OrgID: p.References.Org.ID,
+	}, nil
+}
+
 // GetProjectByID resolves a project UUID to its name (and owning org UUID) via
 // GET /api/v3/projects/:id. Use this to label runs when only the project UUID is
 // known — e.g. the cross-project "my runs" listing, where runs span projects
