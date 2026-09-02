@@ -82,9 +82,9 @@ func newWatchCmd() *cobra.Command {
 			arguments, watches the latest run for the current branch. A terminal gets a
 			live table of workflows and jobs; piped or in CI, each change prints a line.
 
-			Exit code reflects the result: 0 all workflows succeeded, 1 one or more failed,
-			6 cancelled, 8 timed out. With --sha, polls for up to 2 minutes for a run
-			matching that commit to appear — useful immediately after git push.
+			Exit code reflects the result: 0 succeeded, 1 failed, 6 cancelled, 7 the run's
+			config was rejected (a dynamic-config continuation included), 8 timed out.
+			With --sha, polls up to 2 minutes for the run to appear — useful after a push.
 		`),
 		Example: heredoc.Doc(`
 			# Watch the latest run on the current branch
@@ -339,6 +339,7 @@ func watchUntilDone(ctx context.Context, client *apiclient.Client, runID uuid.UU
 	start := time.Now()
 
 	var prevFingerprint string
+	notedPending := false
 	pollInterval := ui.RunWatchPollInterval
 
 	for {
@@ -357,6 +358,15 @@ func watchUntilDone(ctx context.Context, client *apiclient.Client, runID uuid.UU
 		if fingerprint := watchFingerprint(state); fingerprint != prevFingerprint {
 			printWatchLine(ctx, state, elapsed)
 			prevFingerprint = fingerprint
+		}
+
+		// A dynamic-config run goes quiet here: its setup workflow has ended and the
+		// continued workflow does not exist yet, so nothing further prints until one
+		// appears — or, if the continued config is rejected, until the run ends
+		// carrying the error. Say so once, so the wait does not read as a hung watch.
+		if !state.Done && state.AllWorkflowsEnded && !notedPending {
+			iostream.ErrPrintf(ctx, "All workflows have ended; waiting for the run itself to finish.\n")
+			notedPending = true
 		}
 
 		switch {
@@ -384,9 +394,11 @@ func watchUntilDone(ctx context.Context, client *apiclient.Client, runID uuid.UU
 // emoji shortcodes only render when passed through markdown.
 func watchState(state runGetOutput) ui.RunWatchState {
 	out := ui.RunWatchState{
-		Workflows: make([]ui.RunWatchWorkflow, 0, len(state.Workflows)),
-		Done:      allWorkflowsDone(state.Workflows),
-		Outcome:   deriveDisplayStatus(state),
+		Workflows:         make([]ui.RunWatchWorkflow, 0, len(state.Workflows)),
+		Errors:            watchErrors(state.Errors),
+		Done:              runEnded(state),
+		AllWorkflowsEnded: allWorkflowsEnded(state.Workflows),
+		Outcome:           deriveDisplayStatus(state),
 	}
 	for _, wf := range state.Workflows {
 		row := ui.RunWatchWorkflow{
@@ -456,16 +468,41 @@ func fetchWatchState(ctx context.Context, client *apiclient.Client, runID uuid.U
 	return buildOutput(r, workflows, wfJobs), nil
 }
 
-func allWorkflowsDone(workflows []workflowOutput) bool {
+// runEnded reports whether the run itself has finished, and is the only thing
+// the watch treats as the run being over. Its workflows are not: a dynamic-config
+// run whose setup workflow has ended is still going — the continued workflow does
+// not exist yet, and if its config is rejected it never will — so a watch that
+// stopped at "every workflow has ended" would report the setup workflow's success
+// as the run's, and never mention the continuation being rejected. A run that
+// failed before producing any workflow has none to read either way.
+func runEnded(r runGetOutput) bool {
+	return r.Phase == apiclient.PhaseEnded
+}
+
+// allWorkflowsEnded reports that the run has produced at least one workflow and
+// every one of them has ended. That is not the run being over (see runEnded); it
+// is what the watch says so on screen for, since the table stops changing there
+// while the run carries on.
+func allWorkflowsEnded(workflows []workflowOutput) bool {
 	if len(workflows) == 0 {
 		return false
 	}
 	for _, wf := range workflows {
-		if wf.Phase != "ended" {
+		if wf.Phase != apiclient.PhaseEnded {
 			return false
 		}
 	}
 	return true
+}
+
+// watchErrors adapts a run's own errors — a config that would not compile, a
+// continuation that was rejected — to the watch state's error type.
+func watchErrors(errs []errorOutput) []ui.RunWatchError {
+	out := make([]ui.RunWatchError, 0, len(errs))
+	for _, e := range errs {
+		out = append(out, ui.RunWatchError{Type: e.Type, Message: e.Message})
+	}
+	return out
 }
 
 // watchFingerprint summarises the statuses in a poll, so the non-interactive
@@ -528,11 +565,74 @@ func watchFinalResult(ctx context.Context, state ui.RunWatchState, runID uuid.UU
 	default:
 		iostream.ErrPrintf(ctx, "%s Run %s failed (%s)\n",
 			iostream.SymbolFail(ctx), runID, ui.FormatElapsed(elapsed))
-		return clierrors.New("run.failed", "Run failed",
-			fmt.Sprintf("Run %s failed.", runID)).
-			WithSuggestions(failedJobLogSuggestions(state)...).
-			WithExitCode(clierrors.ExitGeneralError)
+		return clierrors.New("run.failed", "Run failed", runFailureMessage(runID, state)).
+			WithSuggestions(runFailureSuggestions(state)...).
+			WithExitCode(runFailureExitCode(state))
 	}
+}
+
+// runFailureMessage explains a finished run that did not succeed. A run's own
+// errors carry the explanation when it has any: they are the failures that belong
+// to the run rather than to one of its jobs, and the case that arrives here with
+// nothing else to show is a dynamic-config run whose continued config was
+// rejected — its setup workflow succeeded, no job failed, and the API reports the
+// run itself as succeeded, so the error it carries is the only account of what
+// went wrong.
+func runFailureMessage(runID uuid.UUID, state ui.RunWatchState) string {
+	var b strings.Builder
+	_, _ = fmt.Fprintf(&b, "Run %s failed.", runID)
+	for _, e := range state.Errors {
+		_, _ = fmt.Fprintf(&b, "\n\n%s", runErrorLine(e))
+	}
+	return b.String()
+}
+
+// runErrorLine renders one run error as "<type> error: <message>", or as the
+// message alone when the API gave the error no type.
+func runErrorLine(e ui.RunWatchError) string {
+	msg := strings.TrimSpace(e.Message)
+	if e.Type == "" {
+		return "error: " + msg
+	}
+	return e.Type + " error: " + msg
+}
+
+// runFailureSuggestions is what to do next about a failed run: validate the
+// config behind a config error — which for a dynamic-config run is the config the
+// setup workflow generated, not the one in the repository — and then fetch the
+// logs of each failed job.
+func runFailureSuggestions(state ui.RunWatchState) []string {
+	var suggestions []string
+	if hasConfigError(state) {
+		suggestions = append(suggestions,
+			"Validate the config locally: circleci config validate .circleci/config.yml",
+			"For dynamic config, validate the config the setup job generates, not .circleci/config.yml",
+		)
+	}
+	return append(suggestions, failedJobLogSuggestions(state)...)
+}
+
+// runFailureExitCode separates a run the platform would not accept from one that
+// ran and failed. A config error means nothing was wrong with the run's jobs —
+// there was no valid config to build them from — so it exits like the other
+// validation failures in the CLI rather than as a general error.
+func runFailureExitCode(state ui.RunWatchState) int {
+	if hasConfigError(state) && len(state.FailedJobs()) == 0 {
+		return clierrors.ExitValidationFail
+	}
+	return clierrors.ExitGeneralError
+}
+
+// hasConfigError reports whether any of the run's own errors is a config error —
+// the type the API attaches to a config it would not compile, including the
+// continued config of a dynamic-config run.
+func hasConfigError(state ui.RunWatchState) bool {
+	for _, e := range state.Errors {
+		if e.Type == "config" {
+			return true
+		}
+	}
+	return false
 }
 
 // failedJobLogSuggestions builds one runnable suggestion per failed job. The

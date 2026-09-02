@@ -64,9 +64,15 @@ func TestRunURL(t *testing.T) {
 	assert.Check(t, cmp.Equal(u, "https://app.circleci.com/pipeline/8cb37115-80a4-4af6-b377-eddd0f7c7167"))
 }
 
-func TestGitHubAppInstalledURL(t *testing.T) {
-	u := GitHubAppInstalledURL(testAppURL)
-	assert.Check(t, cmp.Equal(u, "https://app.circleci.com/cli/github-app-installed"))
+func TestInstalledURL(t *testing.T) {
+	// The path comes from the integration being installed, so each one lands on the
+	// page that names it.
+	assert.Check(t, cmp.Equal(
+		InstalledURL(testAppURL, "cli/github-app-installed"),
+		"https://app.circleci.com/cli/github-app-installed"))
+	assert.Check(t, cmp.Equal(
+		InstalledURL(testAppURL, "cli/origin-installed"),
+		"https://app.circleci.com/cli/origin-installed"))
 }
 
 func TestWorkflowURL(t *testing.T) {

@@ -269,11 +269,9 @@ func postSignupGuidance(ctx context.Context, dir string, opts Options) error {
 		iostream.Printf(ctx, "  Pipelines: %s\n", pipelinesURL)
 	}
 
-	// Where the provider returns the browser after an install. Landing on the
-	// project's own page reads as a finish line, in the browser, while the rest of
-	// setup is still waiting back in the terminal.
-	returnURL := cmdutil.GitHubAppInstalledURL(appURL)
-	return setupFirstPipeline(ctx, client, returnURL, proj, remote, opts)
+	followProject(ctx, client, proj)
+
+	return setupFirstPipeline(ctx, client, appURL, proj, remote, opts)
 }
 
 // selectOrg picks the organization to create the project in, returning nil when
@@ -503,8 +501,8 @@ func writeProjectRef(ctx context.Context, workDir string, proj *apiclient.Projec
 // attempted, so onboard prints the next step and succeeds. A request the API
 // rejected is a real error: it leaves the project half-configured, and a definition
 // with no trigger will never build.
-func setupFirstPipeline(ctx context.Context, client *apiclient.Client, returnURL string, proj *apiclient.ProjectInfo, remote gitremote.RemoteRef, opts Options) error {
-	repoID, p := resolveRepoID(ctx, client, returnURL, proj, remote, opts)
+func setupFirstPipeline(ctx context.Context, client *apiclient.Client, appURL string, proj *apiclient.ProjectInfo, remote gitremote.RemoteRef, opts Options) error {
+	repoID, p := resolveRepoID(ctx, client, appURL, proj, remote, opts)
 	if repoID == "" {
 		// No external ID, so there is nothing to attach a definition to.
 		trackOnboard(ctx, "onboard_project_setup", map[string]any{"outcome": "skipped_no_repo_id"})
@@ -633,7 +631,7 @@ func ensureTrigger(
 func resolveRepoID(
 	ctx context.Context,
 	client *apiclient.Client,
-	returnURL string,
+	appURL string,
 	proj *apiclient.ProjectInfo,
 	remote gitremote.RemoteRef,
 	opts Options,
@@ -660,6 +658,12 @@ func resolveRepoID(
 		iostream.ErrPrintf(ctx, "  Re-run with --repo-id <id> to set up the pipeline.\n")
 		return "", p
 	}
+
+	// Where the provider returns the browser after an install. Landing on the
+	// project's own page reads as a finish line, in the browser, while the rest of
+	// setup is still waiting back in the terminal, so each integration has a page
+	// that says so.
+	returnURL := cmdutil.InstalledURL(appURL, p.InstalledPath)
 
 	installed, err := providerconn.EnsureConnected(ctx, client, p, proj.OrganizationID, returnURL, opts.NoBrowser)
 	if err != nil {
@@ -712,6 +716,36 @@ func printPipelineReadyGuidance(ctx context.Context) {
 func printManualPipelineGuidance(ctx context.Context) {
 	iostream.Printf(ctx, "\nCommit .circleci/config.yml. After your project is connected in CircleCI, pushing will start your first pipeline.\n")
 	iostream.Printf(ctx, "To set up a trigger now, run 'circleci pipeline create' then 'circleci project trigger create'.\n")
+}
+
+// followProject follows the project on the CircleCI-native path, so the first
+// pipeline the user is about to push reaches them: a follower is who the
+// notifications for a run go to, and onboard's whole promise is that the next push
+// builds. followClassicProject does the same for a classic organization, where the
+// slug's segments are the org and repository names rather than opaque IDs.
+//
+// A failure is reported and the run continues. Following decides who hears about a
+// pipeline, not whether the project has one, so it must not stand between the user
+// and a working trigger. It is idempotent, which is what makes it safe on the
+// re-run and adopt-existing paths, where the project may already be followed —
+// possibly by a teammate who created it.
+func followProject(ctx context.Context, client *apiclient.Client, proj *apiclient.ProjectInfo) {
+	vcs, orgSegment, projectSegment, err := cmdutil.ParseSlug(proj.Slug)
+	if err != nil {
+		trackOnboard(ctx, "onboard_project_follow", map[string]any{"outcome": "skipped_bad_slug"})
+		return
+	}
+
+	if err := client.FollowProject(ctx, vcs, orgSegment, projectSegment); err != nil {
+		iostream.ErrPrintf(ctx,
+			"%s Could not follow the project, so you may not be notified about its pipelines: %s\n",
+			iostream.SymbolWarn(ctx), err)
+		trackOnboard(ctx, "onboard_project_follow", map[string]any{"outcome": "failed"})
+		return
+	}
+
+	iostream.Printf(ctx, "%s Following %s\n", iostream.SymbolOK(ctx), proj.Name)
+	trackOnboard(ctx, "onboard_project_follow", map[string]any{"outcome": "followed"})
 }
 
 func followClassicProject(ctx context.Context, client *apiclient.Client, appURL, vcs, orgName, repoName string) {
@@ -824,7 +858,7 @@ func displayPreamble(ctx context.Context, dir string) error {
 		[]string{
 			"Generate a starter .circleci/config.yml",
 			"Sign you up for CircleCI",
-			"Create your project and connect it to GitHub",
+			"Create your project and connect your repository",
 			"Set up your first pipeline trigger",
 		},
 	)

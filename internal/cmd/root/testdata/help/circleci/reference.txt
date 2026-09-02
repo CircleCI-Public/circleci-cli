@@ -716,9 +716,9 @@ Monitor a CircleCI run and block until it reaches a terminal state. Without
 arguments, watches the latest run for the current branch. A terminal gets a
 live table of workflows and jobs; piped or in CI, each change prints a line.
 
-Exit code reflects the result: 0 all workflows succeeded, 1 one or more failed,
-6 cancelled, 8 timed out. With --sha, polls for up to 2 minutes for a run
-matching that commit to appear — useful immediately after git push.
+Exit code reflects the result: 0 succeeded, 1 failed, 6 cancelled, 7 the run's
+config was rejected (a dynamic-config continuation included), 8 timed out.
+With --sha, polls up to 2 minutes for the run to appear — useful after a push.
 
 | Flag                  | Description                                                            |
 | --------------------- | ---------------------------------------------------------------------- |
@@ -4580,7 +4580,7 @@ the run's "org/repo" repository (when known) and project_id its UUID.
 Guided onboarding: generate config, sign up, connect project
 
 Prompts for repo setup or signup unless --scan or --signup is given. Writes a
-starter config if the repo has none, creates the project, adds a push trigger.
+starter config if none exists, creates and follows the project, adds a trigger.
 
 | Flag               | Description                                                 |
 | ------------------ | ----------------------------------------------------------- |

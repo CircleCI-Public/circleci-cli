@@ -4,6 +4,9 @@ parameters:
   go_version_with_patch:
     type: string
     default: 1.26.4
+  setup_go:
+    type: string
+    default: github.com/circleci-functions/setup-go@v0.4.0-bfaab3a
 
 commands:
   setup:
@@ -12,9 +15,13 @@ commands:
       - install-go
       - install-task
 
+  # Installs the toolchain and restores the module, build and lint caches, saved at job end.
   install-go:
     steps:
-      - run: circleci run circleci/setup-go@0.0.10-5577d2a -- --version << pipeline.parameters.go_version_with_patch >> --go-cache-checksum '{{ checksum "go.sum" }}_{{ checksum "clikit/go.sum" }}_{{ checksum "tools/go.sum" }}'
+      - run: circleci run << pipeline.parameters.setup_go >> --
+          --version << pipeline.parameters.go_version_with_patch >>
+          --golangci-lint-cache
+          --checksum '{{ checksum "go.sum" }}_{{ checksum "clikit/go.sum" }}_{{ checksum "tools/go.sum" }}'
       - run: go version
 
   install-task:

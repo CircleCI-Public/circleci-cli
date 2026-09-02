@@ -296,6 +296,82 @@ func TestRunWatch_FailFast(t *testing.T) {
 		"circleci job get d0000000-0000-4000-8000-00000000f001"), "stderr: %s", result.Stderr)
 }
 
+// --- dynamic config: the setup workflow succeeds, the continued config is rejected ---
+
+// TestRunWatch_ContinuationRejected covers the run the API reports as succeeded —
+// its only workflow, the setup one, succeeded and no job failed — while carrying
+// a config error for the continued config it would not compile. Watch used to
+// report the setup workflow's success as the run's and exit 0, never mentioning
+// the error.
+func TestRunWatch_ContinuationRejected(t *testing.T) {
+	runID := "f0000000-0000-4000-8000-00000000dc01"
+	wfID := "b0000000-0000-4000-8000-0000000dc001"
+
+	run := fakeRunV3(runID, watchProjectID, "ended", "succeeded", "main", "abc1234def5678")
+	run.Errors = []fakes.RunError{{
+		Type:    "config",
+		Message: "Error calling workflow: 'deploy'\nCannot find a definition for job named release",
+	}}
+
+	fake := fakes.NewCircleCI(t)
+	addProjectBySlug(fake, watchSlug, watchProjectID)
+	fake.AddRunV3(runID, watchProjectID, run)
+	fake.AddRunWorkflowsV3(runID, fakeWorkflowV3(wfID, "setup", runID, watchProjectID, "ended", "succeeded"))
+	fake.AddWorkflowJobsV3(wfID, fakeJobV3("d0000000-0000-4000-8000-00000000f001", "setup-job", wfID, watchProjectID))
+
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"run", "watch", runID},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 7, "stderr: %s", result.Stderr) // ExitValidationFail
+	assert.Check(t, cmp.Contains(result.Stderr, "failed"), "stderr: %s", result.Stderr)
+	assert.Check(t, cmp.Contains(result.Stderr,
+		"config error: Error calling workflow: 'deploy'"), "stderr: %s", result.Stderr)
+	assert.Check(t, cmp.Contains(result.Stderr,
+		"Cannot find a definition for job named release"), "stderr: %s", result.Stderr)
+	assert.Check(t, cmp.Contains(result.Stderr,
+		"For dynamic config, validate the config the setup job generates"), "stderr: %s", result.Stderr)
+}
+
+// TestRunWatch_KeepsWatchingWhileTheRunIsGoing covers the gap a dynamic-config
+// run sits in: its setup workflow has ended and the continued workflow does not
+// exist yet. The run is not over, so the watch waits for it — here until the
+// timeout, since the fake's run never leaves that state — rather than reporting
+// the setup workflow's success as the run's.
+func TestRunWatch_KeepsWatchingWhileTheRunIsGoing(t *testing.T) {
+	runID := "f0000000-0000-4000-8000-00000000dc02"
+	wfID := "b0000000-0000-4000-8000-0000000dc002"
+
+	fake := fakes.NewCircleCI(t)
+	addProjectBySlug(fake, watchSlug, watchProjectID)
+	fake.AddRunV3(runID, watchProjectID, fakeRunV3(runID, watchProjectID, "started", "", "main", "abc1234def5678"))
+	fake.AddRunWorkflowsV3(runID, fakeWorkflowV3(wfID, "setup", runID, watchProjectID, "ended", "succeeded"))
+	fake.AddWorkflowJobsV3(wfID, fakeJobV3("d0000000-0000-4000-8000-00000000f001", "setup-job", wfID, watchProjectID))
+
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"run", "watch", runID, "--timeout", "1s"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 8, "stderr: %s", result.Stderr) // ExitTimeout
+	assert.Check(t, cmp.Contains(result.Stderr,
+		"All workflows have ended; waiting for the run itself to finish."), "stderr: %s", result.Stderr)
+	assert.Check(t, !strings.Contains(result.Stderr, "succeeded ("), "stderr: %s", result.Stderr)
+}
+
 // --- watch timeout while run still running → exit 8 ---
 
 func TestRunWatch_Timeout(t *testing.T) {

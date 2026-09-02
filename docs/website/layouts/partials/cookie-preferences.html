@@ -1,0 +1,15 @@
+{{- /* Reopens the Cookiebot consent dialog so a visitor can change or withdraw
+       consent after answering the banner. Consent has to be as easy to withdraw
+       as it was to give, so this belongs anywhere the banner can appear.
+
+       A button rather than a link: it performs an action on this page instead of
+       navigating. Rendered only when Cookiebot is actually loaded (same
+       condition as analytics.html), since without it the control would do
+       nothing at all. */ -}}
+{{- if hugo.IsProduction -}}
+  {{- with site.Params.analytics -}}
+    {{- with .cookiebotId -}}
+      <button type="button" class="footer-link" onclick="Cookiebot.renew()">Cookie Preferences</button>
+    {{- end -}}
+  {{- end -}}
+{{- end -}}

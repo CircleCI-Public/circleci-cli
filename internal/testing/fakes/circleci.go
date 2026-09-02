@@ -113,6 +113,7 @@ type CircleCI struct {
 	// Project / env-var state.
 	followedProjects    []FollowedProject      // projects for GET /api/v1.1/projects
 	followedSlugs       map[string]bool        // vcs+org+repo → true (for follow idempotency)
+	followProjectStatus int                    // HTTP status for POST .../follow (0 → 200 OK)
 	envVars             map[string][]EnvVar    // project slug → env vars
 	deletedEnvVars      map[string]bool        // "slug/name" → deleted
 	projectInfos        map[string]ProjectInfo // project slug → project info response
@@ -2446,6 +2447,14 @@ func (f *CircleCI) AddFollowedProject(proj FollowedProject) {
 	f.followedProjects = append(f.followedProjects, proj)
 }
 
+// SetFollowProjectStatus makes POST /api/v1.1/project/{vcs}/{org}/{repo}/follow
+// answer status instead of following the project. Pass 0 to restore the default.
+func (f *CircleCI) SetFollowProjectStatus(status int) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.followProjectStatus = status
+}
+
 // followedProjectEntity renders a stored FollowedProject as its v1.1 object.
 func followedProjectEntity(p FollowedProject) map[string]any {
 	return map[string]any{
@@ -2525,6 +2534,15 @@ func (f *CircleCI) handleFollowProject(w http.ResponseWriter, r *http.Request) {
 	org := chi.URLParam(r, "org")
 	repo := chi.URLParam(r, "repo")
 	slug := vcs + "/" + org + "/" + repo
+
+	f.mu.RLock()
+	status := f.followProjectStatus
+	f.mu.RUnlock()
+	if status != 0 {
+		render.Status(r, status)
+		render.JSON(w, r, map[string]any{"message": "follow not permitted"})
+		return
+	}
 
 	f.mu.Lock()
 	if !f.followedSlugs[slug] {
