@@ -13,9 +13,11 @@ where namespace is your organization name (for example, `my-org/my-runner`).
 
 ## Flags
 
-| Flag          | Description              |
-| ------------- | ------------------------ |
-| `-f, --force` | skip confirmation prompt |
+| Flag          | Description                                                                       |
+| ------------- | --------------------------------------------------------------------------------- |
+| `-f, --force` | skip confirmation prompt                                                          |
+| `--jq string` | Process values from the response using jq syntax (see `circleci help formatting`) |
+| `--json`      | Output as JSON                                                                    |
 
 Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `circleci --help`.
 
@@ -25,8 +27,8 @@ Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `ci
   `circleci runner resource-class delete my-org/my-runner`
 - Delete without confirmation: 
   `circleci runner resource-class delete my-org/my-runner --force`
-- Delete in a script: 
-  `circleci runner resource-class delete my-org/my-runner --force`
+- Delete in a script, and report what was deleted: 
+  `circleci runner resource-class delete my-org/my-runner --force --json`
 
 ## Details
 
@@ -34,4 +36,6 @@ Delete a CircleCI runner resource class.
 
 All tokens associated with the resource class will also be deleted.
 Connected runner instances will no longer be able to claim jobs.
+
+JSON fields: id, resource_class
 

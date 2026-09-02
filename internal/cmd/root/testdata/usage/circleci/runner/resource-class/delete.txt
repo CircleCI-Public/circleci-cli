@@ -1,6 +1,8 @@
 Usage:  circleci runner resource-class delete <namespace>/<name> [flags]
 
 Flags:
-  -f, --force   skip confirmation prompt
-  -h, --help    help for delete
+  -f, --force       skip confirmation prompt
+  -h, --help        help for delete
+      --jq string   Process values from the response using jq syntax
+      --json        Output as JSON
   

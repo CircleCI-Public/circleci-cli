@@ -278,6 +278,7 @@ func runTokenCreate(ctx context.Context, client *apiclient.Client, resourceClass
 
 func newTokenDeleteCmd() *cobra.Command {
 	var force bool
+	var jsonOut bool
 
 	cmd := &cobra.Command{
 		Use:     "delete <token-id>",
@@ -290,14 +291,13 @@ func newTokenDeleteCmd() *cobra.Command {
 			`, "`"),
 			"destructiveHint": "true",
 		},
-		Long: heredoc.Docf(`
+		Long: heredoc.Doc(`
 			Delete a CircleCI runner authentication token by its ID.
 
-			Any runner agents using this token will immediately lose their ability
-			to claim new jobs. Running jobs are not affected.
+			Agents using this token can no longer claim jobs; running jobs continue.
 
-			Find token IDs with: circleci runner token list %[1]s<resource-class>%[1]s
-		`, "`"),
+			JSON fields: id
+		`),
 		Example: heredoc.Doc(`
 			# Delete a token by ID (with confirmation prompt)
 			$ circleci runner token delete abc12345-0000-0000-0000-000000000000
@@ -307,7 +307,7 @@ func newTokenDeleteCmd() *cobra.Command {
 
 			# Delete in a script using JSON output
 			$ ID=$(circleci runner token list --resource-class my-org/my-runner --json --jq '.[0].id')
-			$ circleci runner token delete "$ID" --force
+			$ circleci runner token delete "$ID" --force --json
 		`),
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -319,15 +319,22 @@ func newTokenDeleteCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return runTokenDelete(ctx, client, args[0], force)
+			return runTokenDelete(ctx, client, args[0], force, jsonOut)
 		},
 	}
 
 	cmd.Flags().BoolVarP(&force, "force", "f", false, "skip confirmation prompt")
+	cmdutil.AddJSONFlag(cmd, &jsonOut)
+	cmdutil.AddJQFlag(cmd)
 	return cmd
 }
 
-func runTokenDelete(ctx context.Context, client *apiclient.Client, tokenID string, force bool) error {
+type tokenDeleteOutput struct {
+	ID string `json:"id"`
+}
+
+func runTokenDelete(ctx context.Context, client *apiclient.Client,
+	tokenID string, force, jsonOut bool) error {
 	if err := cmdutil.ConfirmOrForce(ctx, iostream.Get(ctx), force,
 		fmt.Sprintf("Delete token %q? Agents using this token will lose the ability to claim new jobs.", tokenID),
 		clierrors.New("runner.delete_aborted", "Deletion aborted",
@@ -342,6 +349,10 @@ func runTokenDelete(ctx context.Context, client *apiclient.Client, tokenID strin
 
 	if err := client.DeleteRunnerToken(ctx, tokenID); err != nil {
 		return apiErr(err, tokenID)
+	}
+
+	if jsonOut {
+		return iostream.PrintJSON(ctx, tokenDeleteOutput{ID: tokenID})
 	}
 
 	iostream.Printf(ctx, "Deleted token: %s\n", tokenID)

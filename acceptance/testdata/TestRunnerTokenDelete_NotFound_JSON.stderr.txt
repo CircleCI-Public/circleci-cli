@@ -1,0 +1,9 @@
+{
+  "error": true,
+  "code": "runner.not_found",
+  "message": "No runner resource found for \"tok-id-nope\".\nAPI: {\"message\":\"not found\"}\n",
+  "suggestions": [
+    "List available resource classes with: circleci runner resource-class list"
+  ],
+  "exit_code": 5
+}
