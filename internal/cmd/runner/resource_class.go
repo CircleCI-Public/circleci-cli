@@ -319,6 +319,7 @@ func tokenValueMissingErr(resourceClass, tokenID string) *clierrors.CLIError {
 
 func newResourceClassDeleteCmd() *cobra.Command {
 	var force bool
+	var jsonOut bool
 
 	cmd := &cobra.Command{
 		Use:     "delete <namespace>/<name>",
@@ -336,6 +337,8 @@ func newResourceClassDeleteCmd() *cobra.Command {
 
 			All tokens associated with the resource class will also be deleted.
 			Connected runner instances will no longer be able to claim jobs.
+
+			JSON fields: id, resource_class
 		`),
 		Example: heredoc.Doc(`
 			# Delete a resource class (with confirmation prompt)
@@ -344,8 +347,8 @@ func newResourceClassDeleteCmd() *cobra.Command {
 			# Delete without confirmation
 			$ circleci runner resource-class delete my-org/my-runner --force
 
-			# Delete in a script
-			$ circleci runner resource-class delete my-org/my-runner --force
+			# Delete in a script, and report what was deleted
+			$ circleci runner resource-class delete my-org/my-runner --force --json
 		`),
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -357,15 +360,23 @@ func newResourceClassDeleteCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return runResourceClassDelete(ctx, client, args[0], force)
+			return runResourceClassDelete(ctx, client, args[0], force, jsonOut)
 		},
 	}
 
 	cmd.Flags().BoolVarP(&force, "force", "f", false, "skip confirmation prompt")
+	cmdutil.AddJSONFlag(cmd, &jsonOut)
+	cmdutil.AddJQFlag(cmd)
 	return cmd
 }
 
-func runResourceClassDelete(ctx context.Context, client *apiclient.Client, resourceClass string, force bool) error {
+type resourceClassDeleteOutput struct {
+	ID            string `json:"id"`
+	ResourceClass string `json:"resource_class"`
+}
+
+func runResourceClassDelete(ctx context.Context, client *apiclient.Client,
+	resourceClass string, force, jsonOut bool) error {
 	if namespace, _, ok := strings.Cut(resourceClass, "/"); !ok || namespace == "" {
 		return clierrors.New("runner.malformed_resource_class", "Malformed resource class",
 			fmt.Sprintf("%q is not in namespace/name form.", resourceClass)).
@@ -406,6 +417,13 @@ func runResourceClassDelete(ctx context.Context, client *apiclient.Client, resou
 
 	if err := client.DeleteResourceClass(ctx, id); err != nil {
 		return apiErr(err, resourceClass)
+	}
+
+	if jsonOut {
+		return iostream.PrintJSON(ctx, resourceClassDeleteOutput{
+			ID:            rc.ID,
+			ResourceClass: resourceClass,
+		})
 	}
 
 	iostream.ErrPrintf(ctx, "%s Deleted resource class %s\n", iostream.SymbolOK(ctx), resourceClass)

@@ -31,6 +31,7 @@ import (
 	"strings"
 	"testing"
 
+	clierrors "github.com/CircleCI-Public/circleci-cli/clikit/errors"
 	"github.com/CircleCI-Public/circleci-cli/internal/httpcl"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/assert/cmp"
@@ -571,6 +572,42 @@ func TestRunnerResourceClassDelete_Force(t *testing.T) {
 	})
 }
 
+func TestRunnerResourceClassDelete_Force_JSON(t *testing.T) {
+	_, env := setupRunnerFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary: binaryPath,
+		Args: []string{"runner", "resource-class", "delete", "my-org/linux-runner",
+			"--force", "--json"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 0))
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+}
+
+// TestRunnerResourceClassDelete_NotFound_JSON is the reason --json is worth having
+// on a command that returns nothing on success: the runner API answers a
+// permission denial with 404 as well, so ExitNotFound alone cannot say which
+// happened. The structured code can.
+func TestRunnerResourceClassDelete_NotFound_JSON(t *testing.T) {
+	_, env := setupRunnerFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary: binaryPath,
+		Args: []string{"runner", "resource-class", "delete", "my-org/nope",
+			"--force", "--json"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, clierrors.ExitNotFound))
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+}
+
 func TestRunnerResourceClassDelete_Force_RemovesTokens(t *testing.T) {
 	_, env := setupRunnerFake(t)
 
@@ -851,6 +888,36 @@ func TestRunnerTokenDelete(t *testing.T) {
 			Body: new(""),
 		}, ignoreCommonHeaders))
 	})
+}
+
+func TestRunnerTokenDelete_JSON(t *testing.T) {
+	_, env := setupRunnerFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"runner", "token", "delete", "--force", "--json", "tok-id-1"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 0))
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+}
+
+func TestRunnerTokenDelete_NotFound_JSON(t *testing.T) {
+	_, env := setupRunnerFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"runner", "token", "delete", "--force", "--json", "tok-id-nope"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, clierrors.ExitNotFound))
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 }
 
 func TestRunnerTokenDelete_Color(t *testing.T) {

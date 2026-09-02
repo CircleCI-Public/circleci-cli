@@ -1,0 +1,9 @@
+{
+  "error": true,
+  "code": "runner.not_found",
+  "message": "No runner resource class named \"my-org/nope\".",
+  "suggestions": [
+    "List available resource classes with: circleci runner resource-class list"
+  ],
+  "exit_code": 5
+}
