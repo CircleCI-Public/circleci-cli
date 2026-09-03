@@ -271,6 +271,8 @@ func runGet(ctx context.Context, client *apiclient.Client, args []string, projec
 		r = &runs[0]
 	}
 
+	cmdutil.TrackKnownID(ctx, cmdutil.KeyRunID, r.ID)
+
 	if failureReport {
 		return runFailureReport(ctx, client, r)
 	}
@@ -515,6 +517,10 @@ func runGetInteractive(ctx context.Context, client *apiclient.Client, projectSlu
 
 	// The picker only collected the choice; the matching summary is printed now,
 	// after the program has exited, reusing each command's existing output code.
+	// Each of these (workflow.Get, job.Get, showJobOutput, job.ResourceUsageGet)
+	// tracks its own resolved ID via ctx once it succeeds, so nothing extra is
+	// needed here beyond the run case, which resolves the run right at this call
+	// site rather than inside a shared helper.
 	switch res.Action {
 	case ui.RunGetActionShowRun:
 		// Fetch the run by ID rather than reusing the picker list: a branch toggle
@@ -523,6 +529,7 @@ func runGetInteractive(ctx context.Context, client *apiclient.Client, projectSlu
 		if err != nil {
 			return apiErr(err, res.RunID.String())
 		}
+		cmdutil.TrackKnownID(ctx, cmdutil.KeyRunID, r.ID)
 		return displayRun(ctx, client, r, false)
 	case ui.RunGetActionShowWorkflow:
 		return workflow.Get(ctx, client, res.WorkflowID.String(), false)
@@ -854,6 +861,7 @@ func showJobOutput(ctx context.Context, client *apiclient.Client, jobID uuid.UUI
 	if err != nil {
 		return cmdutil.APIErr(err, jobID.String(), "job.not_found", "No job found for %q.")
 	}
+	cmdutil.TrackKnownID(ctx, cmdutil.KeyJobID, j.ID)
 	for _, exec := range j.Executions {
 		if err := job.OutputList(ctx, client, jobID, exec.Index, job.DefaultStepOutputTail, false); err != nil {
 			return err

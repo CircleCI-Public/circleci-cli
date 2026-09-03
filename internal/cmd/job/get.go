@@ -89,7 +89,11 @@ func newGetCmd() *cobra.Command {
 
 // Get renders a job's details exactly as "circleci job get" does. It is
 // exported so interactive callers (e.g. "circleci run get") can reuse the same
-// output without duplicating the formatting code.
+// output without duplicating the formatting code. Telemetry travels via ctx
+// (cmdutil.TrackKnownID), so it's tracked correctly no matter which top-level
+// command called this, as long as ctx flows from root's normal per-invocation
+// setup (cmdutil.WithKnownIDs) — true for every entry point this repo ships,
+// so not a caveat in practice, but not a property of ctx itself.
 func Get(ctx context.Context, client *apiclient.Client, idStr string, jsonOut bool) error {
 	return runGet(ctx, client, idStr, jsonOut)
 }
@@ -104,6 +108,8 @@ func runGet(ctx context.Context, client *apiclient.Client, idStr string, jsonOut
 	if err != nil {
 		return cmdutil.APIErr(err, id.String(), "job.not_found", "No job found for %q.")
 	}
+
+	cmdutil.TrackKnownID(ctx, cmdutil.KeyJobID, job.ID)
 
 	if jsonOut {
 		return iostream.PrintJSON(ctx, job)

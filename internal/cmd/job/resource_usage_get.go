@@ -223,6 +223,7 @@ func fetchResourceUsage(ctx context.Context, client *apiclient.Client, jobID uui
 			"Usage is only recorded for jobs that ran an executor — an approval job, or one cancelled before it started, has none.",
 			"Check the job exists with: circleci job get "+jobID.String())
 	}
+	cmdutil.TrackKnownID(ctx, cmdutil.KeyJobID, usage.ID)
 
 	execs := usage.Executions
 	if execution != allExecutions {
