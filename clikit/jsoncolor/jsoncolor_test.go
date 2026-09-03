@@ -40,7 +40,7 @@ func TestWrite(t *testing.T) {
 		r            io.Reader
 		indent       string
 		expectOutput string
-		expectErr    string
+		expectErr    bool
 	}{
 		{
 			name:   "blank",
@@ -66,7 +66,7 @@ func TestWrite(t *testing.T) {
 			name:      "error",
 			r:         bytes.NewBufferString("{{"),
 			indent:    "",
-			expectErr: "invalid character '{'",
+			expectErr: true,
 		},
 	}
 	for _, tt := range tests {
@@ -74,10 +74,12 @@ func TestWrite(t *testing.T) {
 			w := &bytes.Buffer{}
 			err := jsoncolor.Write(w, tt.r, tt.indent)
 
-			if tt.expectErr == "" {
-				assert.Check(t, err)
+			if tt.expectErr {
+				// Only that malformed input fails: the wording is
+				// encoding/json's and changes between Go releases.
+				assert.Check(t, cmp.ErrorContains(err, ""))
 			} else {
-				assert.Check(t, cmp.ErrorContains(err, tt.expectErr))
+				assert.Check(t, err)
 			}
 
 			assert.Check(t, golden.String(w.String(), tt.name+".txt"))
