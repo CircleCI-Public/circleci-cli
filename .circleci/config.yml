@@ -1,9 +1,6 @@
 version: 2.1
 
 parameters:
-  go_version_with_patch:
-    type: string
-    default: 1.26.4
   setup_go:
     type: string
     default: github.com/circleci-functions/setup-go@v0.4.0-bfaab3a
@@ -19,7 +16,7 @@ commands:
   install-go:
     steps:
       - run: circleci run << pipeline.parameters.setup_go >> --
-          --version << pipeline.parameters.go_version_with_patch >>
+          --version-file go.mod
           --golangci-lint-cache
           --checksum '{{ checksum "go.sum" }}_{{ checksum "clikit/go.sum" }}_{{ checksum "tools/go.sum" }}'
       - run: go version
