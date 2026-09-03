@@ -1,0 +1,4 @@
+error: --name applies to --product machine only.
+
+Suggestions:
+  • Drop --name, or use --product machine

@@ -1,0 +1,4 @@
+error: "bad/name" is not a valid runner name.
+
+Suggestions:
+  • Use up to 64 letters, numbers, spaces, or the characters .()_-

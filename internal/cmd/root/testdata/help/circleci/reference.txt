@@ -395,24 +395,24 @@ shown in the output of `circleci workflow get` and `circleci job get`.
 
 ### `circleci pipeline <command>`
 
-Manage the pipeline definitions a run executes
+Define what will happen in a run
 
 Create and list pipeline definitions for a CircleCI project.
 
 A pipeline definition decides what happens when a run is triggered:
 which repository to check out and where to find the config YAML that
 CircleCI compiles into workflows. Attach triggers to a definition with
-'circleci project trigger create', and list the runs one produced with
-'circleci run list'.
+'circleci project trigger create'.
 
 #### `circleci pipeline create [flags]`
 
 Create a pipeline definition
 
-Create a new pipeline definition for a project: where CircleCI finds the
-config YAML and which repository to check out. Attach triggers afterwards
-with `circleci project trigger create`. Required flags must be
-given in non-interactive mode; a terminal prompts.
+Create a new pipeline definition for a CircleCI project: where CircleCI finds
+the config YAML, and which repository to check out. Attach triggers to it
+afterwards with `circleci project trigger create`.
+
+Required flags must be given in non-interactive mode; a terminal prompts.
 
 JSON fields: id, name, description, created_at, config_source.provider, config_source.file_path, config_source.repo.external_id, config_source.repo.full_name, checkout_source.provider, checkout_source.repo.external_id, checkout_source.repo.full_name
 
@@ -421,7 +421,6 @@ JSON fields: id, name, description, created_at, config_source.provider, config_s
 | `--checkout-provider string` | Checkout source provider (one of: github_app, github_server)                      |
 | `--checkout-repo-id string`  | Checkout source repo external ID                                                  |
 | `--config-file string`       | Config file path (e.g. .circleci/config.yml)                                      |
-| `--config-file-type string`  | Config file type, omit for standard CircleCI YAML (one of: github-actions)        |
 | `--config-provider string`   | Config source provider (one of: github_app, github_server, circleci)              |
 | `--config-repo-id string`    | Config source repo external ID (required for github_app, github_server)           |
 | `--description string`       | Pipeline definition description                                                   |
@@ -511,13 +510,13 @@ JSON fields: id, state, number, created_at, triggered — or triggered, message 
 
 ### `circleci run <command>`
 
-Trigger, watch and cancel pipeline runs
+Trigger, watch and cancel CI runs
 
 Work with CircleCI runs.
 
-A run is one execution of a pipeline, created each time a trigger
-fires. It carries the VCS context for that firing and groups the
-workflows it produced; each workflow in turn contains jobs.
+A run is created each time a trigger fires for a pipeline. It carries
+the VCS context for that firing and groups the workflows it produced;
+each workflow in turn contains jobs.
 
 #### `circleci run cancel <run-number-or-id> [flags]`
 
@@ -604,8 +603,10 @@ List recent runs for a project
 
 List recent runs for a CircleCI project.
 
-A run is one execution of a pipeline. The project is inferred from the
-current git repository's remote unless overridden with --project.
+The project is inferred from the current git repository's remote
+unless overridden with --project. Use --branch to filter results
+to a single branch, or --current-branch (-B) to automatically use
+the branch you have checked out.
 
 The markdown table includes the commit subject; the JSON adds the full
 commit and repository detail.
@@ -1184,7 +1185,7 @@ JSON fields: id, name, created_at
 | -------------- | --------------------------------------------------------------------------------- |
 | `--jq string`  | Process values from the response using jq syntax (see `circleci help formatting`) |
 | `--json`       | Output as JSON                                                                    |
-| `--org string` | Organization slug (e.g. gh/myorg) or UUID; defaults to git remote                 |
+| `--org string` | Organization slug (e.g. gh/myorg); defaults to git remote                         |
 
 
 **Arguments:**
@@ -1209,10 +1210,10 @@ Delete a CircleCI context by UUID or name.
 Deleting a context removes all environment variables stored in it.
 Jobs that reference this context will fail until they are updated.
 
-| Flag           | Description                                                               |
-| -------------- | ------------------------------------------------------------------------- |
-| `-f, --force`  | skip confirmation prompt                                                  |
-| `--org string` | Organization slug (e.g. gh/myorg) or UUID; used when resolving name to ID |
+| Flag           | Description                                                       |
+| -------------- | ----------------------------------------------------------------- |
+| `-f, --force`  | skip confirmation prompt                                          |
+| `--org string` | Organization slug (e.g. gh/myorg); used when resolving name to ID |
 
 
 **Arguments:**
@@ -1250,7 +1251,7 @@ JSON fields: id, name, org_id, created_at, environment_variables, restrictions
 | -------------- | --------------------------------------------------------------------------------- |
 | `--jq string`  | Process values from the response using jq syntax (see `circleci help formatting`) |
 | `--json`       | Output as JSON                                                                    |
-| `--org string` | Organization slug (e.g. gh/myorg) or UUID; used when resolving name to ID         |
+| `--org string` | Organization slug (e.g. gh/myorg); used when resolving name to ID                 |
 
 
 **Arguments:**
@@ -1285,7 +1286,7 @@ JSON fields: id, name, created_at
 | `--jq string`   | Process values from the response using jq syntax (see `circleci help formatting`) |
 | `--json`        | Output as JSON                                                                    |
 | `--name string` | Find contexts by name (partial match)                                             |
-| `--org string`  | Organization slug (e.g. gh/myorg) or UUID; defaults to git remote                 |
+| `--org string`  | Organization slug (e.g. gh/myorg); defaults to git remote                         |
 
 
 **Aliases:**
@@ -1348,15 +1349,15 @@ Add a restriction to a context
 
 Add a restriction to a CircleCI context.
 
-JSON fields: id, restriction_type, restriction_value
+JSON fields: id, name, restriction_type, restriction_value
 
 | Flag             | Description                                                                       |
 | ---------------- | --------------------------------------------------------------------------------- |
 | `--jq string`    | Process values from the response using jq syntax (see `circleci help formatting`) |
 | `--json`         | Output as JSON                                                                    |
-| `--org string`   | Organization slug (e.g. gh/myorg) or UUID; used when resolving name to ID         |
+| `--org string`   | Organization slug (e.g. gh/myorg); used when resolving name to ID                 |
 | `--type string`  | Restriction type: project, expression, or group                                   |
-| `--value string` | Project ID, pipeline expression, or group ID, matching --type                     |
+| `--value string` | Value of the restriction                                                          |
 
 
 **Arguments:**
@@ -1369,10 +1370,10 @@ A context can be specified by name or ID:
 
 - Restrict context to a specific project: 
   `circleci context restriction create ctx-uuid --type project --value proj-uuid`
+- Restrict context to a specific group: 
+  `circleci context restriction create ctx-uuid --type group --value group-uuid`
 - Restrict context using a pipeline expression: 
   `circleci context restriction create ctx-uuid --type expression --value 'pipeline.git.branch == "main"'`
-- Restrict context to a security group (--value is the group ID): 
-  `circleci context restriction create ctx-uuid --type group --value group-uuid`
 - Capture the restriction ID: 
   `circleci context restriction create ctx-uuid --type project --value proj-uuid --json --jq '.id'`
 
@@ -1385,11 +1386,11 @@ Remove a restriction from a CircleCI context.
 This action is irreversible. Once removed, the context will be
 accessible to any project or group that was previously blocked.
 
-| Flag                      | Description                                                               |
-| ------------------------- | ------------------------------------------------------------------------- |
-| `-f, --force`             | Skip confirmation prompt                                                  |
-| `--org string`            | Organization slug (e.g. gh/myorg) or UUID; used when resolving name to ID |
-| `--restriction-id string` | UUID of the restriction to delete                                         |
+| Flag                      | Description                                                       |
+| ------------------------- | ----------------------------------------------------------------- |
+| `-f, --force`             | Skip confirmation prompt                                          |
+| `--org string`            | Organization slug (e.g. gh/myorg); used when resolving name to ID |
+| `--restriction-id string` | UUID of the restriction to delete                                 |
 
 
 **Arguments:**
@@ -1428,11 +1429,11 @@ Remove an environment variable from a CircleCI context.
 This action is irreversible. Jobs that depend on this variable will
 fail until a new value is set.
 
-| Flag            | Description                                                               |
-| --------------- | ------------------------------------------------------------------------- |
-| `-f, --force`   | skip confirmation prompt                                                  |
-| `--name string` | Name of the environment variable to delete                                |
-| `--org string`  | Organization slug (e.g. gh/myorg) or UUID; used when resolving name to ID |
+| Flag            | Description                                                       |
+| --------------- | ----------------------------------------------------------------- |
+| `-f, --force`   | skip confirmation prompt                                          |
+| `--name string` | Name of the environment variable to delete                        |
+| `--org string`  | Organization slug (e.g. gh/myorg); used when resolving name to ID |
 
 
 **Arguments:**
@@ -1467,7 +1468,7 @@ JSON fields: variable, truncated_value, context_id, created_at, updated_at
 | -------------- | --------------------------------------------------------------------------------- |
 | `--jq string`  | Process values from the response using jq syntax (see `circleci help formatting`) |
 | `--json`       | Output as JSON                                                                    |
-| `--org string` | Organization slug (e.g. gh/myorg) or UUID; used when resolving name to ID         |
+| `--org string` | Organization slug (e.g. gh/myorg); used when resolving name to ID                 |
 
 
 **Arguments:**
@@ -1501,11 +1502,11 @@ Add or update an environment variable in a CircleCI context.
 An existing variable is overwritten. The value is never retrievable once
 set, and in a terminal --value may be omitted to be prompted with masking.
 
-| Flag             | Description                                                               |
-| ---------------- | ------------------------------------------------------------------------- |
-| `--name string`  | Name of the environment variable                                          |
-| `--org string`   | Organization slug (e.g. gh/myorg) or UUID; used when resolving name to ID |
-| `--value string` | Value of the environment variable (prompted if omitted in a terminal)     |
+| Flag             | Description                                                           |
+| ---------------- | --------------------------------------------------------------------- |
+| `--name string`  | Name of the environment variable                                      |
+| `--org string`   | Organization slug (e.g. gh/myorg); used when resolving name to ID     |
+| `--value string` | Value of the environment variable (prompted if omitted in a terminal) |
 
 
 **Arguments:**
@@ -2022,44 +2023,6 @@ after being set and is masked in all subsequent list output.
   `circleci envvar set MY_SECRET s3cr3t --project gh/myorg/myrepo`
 - Read a value from a file: 
   `circleci envvar set MY_SECRET "$(cat secret.txt)"`
-
-### `circleci migrate <command>`
-
-Migrate workflows from other CI platforms to CircleCI
-
-Commands for migrating CI workflows from other platforms into CircleCI.
-
-Use these commands to copy workflow files into a layout that CircleCI
-can run directly.
-
-#### `circleci migrate actions <workflow-file> [flags]`
-
-Copy a GitHub Actions workflow into .circleci/workflows/
-
-Copy a GitHub Actions workflow file into the .circleci/workflows/
-directory so that CircleCI can run it directly.
-
-The destination filename is derived from the source basename,
-prefixed with "cci-". For example:
-
-  .github/workflows/run_tests.yml → .circleci/workflows/cci-run_tests.yml
-
-The .circleci/workflows/ directory is created if it does not exist.
-An existing destination file is not overwritten unless --force is passed.
-
-| Flag      | Description                                         |
-| --------- | --------------------------------------------------- |
-| `--force` | Overwrite the destination file if it already exists |
-
-
-**Examples:**
-
-- Migrate a single workflow file: 
-  `circleci migrate actions .github/workflows/run_tests.yml`
-- Migrate a workflow stored at a non-standard path: 
-  `circleci migrate actions ci/build.yml`
-- Overwrite an existing destination file: 
-  `circleci migrate actions --force .github/workflows/run_tests.yml`
 
 ### `circleci namespace <command>`
 
@@ -3699,18 +3662,20 @@ Resource class names use the format namespace/name (e.g. my-org/my-runner).
 
 #### `circleci runner config <resource-class> [flags]`
 
-Generate a machine runner configuration file
+Generate configuration for a self-hosted runner
 
-Generate the api.auth_token stanza for a machine runner config file.
+Generate the configuration a self-hosted runner needs to start. --product
+machine (the default) emits an agent circleci-runner-config.yaml for machine
+runner 3 (circleci-runner 3.x); container and provisioner emit Helm values.
 
-A new authentication token is created unless you pass an existing one with
---token, which generates the YAML without an API call.
-
-| Flag                  | Description                                               |
-| --------------------- | --------------------------------------------------------- |
-| `--nickname string`   | Nickname for the new token                                |
-| `-o, --output string` | Write config to this file instead of stdout               |
-| `--token string`      | Use an existing token value instead of creating a new one |
+| Flag                         | Description                                                                           |
+| ---------------------------- | ------------------------------------------------------------------------------------- |
+| `--name string`              | Runner name, machine only (default: hostname)                                         |
+| `--nickname string`          | Nickname for the new token                                                            |
+| `-o, --output string`        | Write config to this file instead of stdout                                           |
+| `--product string`           | Runner product: machine\|container\|provisioner (default machine, prompts when unset) |
+| `--token string`             | Use an existing token value instead of creating a new one                             |
+| `--working-directory string` | Job working directory, machine only                                                   |
 
 
 **Arguments:**
@@ -3720,12 +3685,12 @@ in the form `namespace/name` (for example, `my-org/my-runner`).
 
 **Examples:**
 
-- Create a new token and print config to stdout: 
+- Generate machine runner 3 config, using the hostname as the runner name: 
   `circleci runner config my-org/my-runner`
-- Write config directly to a file: 
-  `circleci runner config my-org/my-runner --output circleci-runner-config.yaml`
-- Create a nicely-labeled token and write to a new file: 
-  `circleci runner config my-org/my-runner --nickname "prod-server-1" --output token.yaml`
+- Write machine runner config to the path the agent reads: 
+  `circleci runner config my-org/my-runner --name prod-server-1 --output /etc/circleci-runner/circleci-runner-config.yaml`
+- Generate Helm values for container runner: 
+  `circleci runner config my-org/my-runner --product container --output values.yaml`
 - Generate config from an existing token value (no API token creation): 
   `circleci runner config my-org/my-runner --token "$EXISTING_TOKEN_VALUE"`
 
@@ -3796,7 +3761,7 @@ remotes.
 - Open runners for a specific organization: 
   `circleci runner open --org gh/myorg`
 - Open when your remote is on CircleCI server: 
-  `CIRCLE_HOST=https://circleci.example.com circleci runner open`
+  `circleci runner open --host https://circleci.example.com`
 
 #### `circleci runner resource-class <command>`
 
@@ -4832,8 +4797,8 @@ Exit code reflects the HTTP response: 0 for 2xx, 4 for 4xx/5xx.
 **Arguments:**
 
 `<path>` is the request path. It is relative to /api/v3 by default
-(for example, "projects/{project-id}"). A path that starts with
-`api` is sent as given, so include the prefix to target another version.
+(for example, "projects/{project-id}"). To target
+a different version prefix, include it explicitly, for example, "api/v2/me".
 
 **Examples:**
 
@@ -4845,8 +4810,8 @@ Exit code reflects the HTTP response: 0 for 2xx, 4 for 4xx/5xx.
   `circleci api projects/{project-id}/run -f definition_id=<id> -f "config[branch]=main"`
 - Send a body read from a file (@- reads from stdin): 
   `circleci api projects/{project-id}/run -d @payload.json`
-- Send a custom header: 
-  `circleci api 'runs?filter[user_id]=me' -H "X-Custom: value"`
+- Access the v1.1 API with a custom header: 
+  `circleci api api/v1.1/me -H "X-Custom: value"`
 
 ### `circleci env <command>`
 

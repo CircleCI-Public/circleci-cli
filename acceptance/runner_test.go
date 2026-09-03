@@ -33,6 +33,7 @@ import (
 
 	clierrors "github.com/CircleCI-Public/circleci-cli/clikit/errors"
 	"github.com/CircleCI-Public/circleci-cli/internal/httpcl"
+	"github.com/CircleCI-Public/circleci-cli/internal/runnerconfig"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/golden"
@@ -1136,7 +1137,16 @@ func TestRunnerInstanceList_NoToken(t *testing.T) {
 
 // --- runner config ---
 
+// runnerConfigArgs is the common invocation. An explicit --name keeps output
+// deterministic; the hostname default is covered by TestRunnerConfig.
+func runnerConfigArgs(extra ...string) []string {
+	return append([]string{"runner", "config", "my-org/linux-runner", "--name", "prod-server-1"}, extra...)
+}
+
 func TestRunnerConfig(t *testing.T) {
+	// A bare invocation must not prompt for --product: RunCLI is
+	// non-interactive, so it keeps the documented machine default and names the
+	// runner after the host.
 	_, env := setupRunnerFake(t)
 
 	result := binary.RunCLI(t, binary.RunOpts{
@@ -1146,10 +1156,141 @@ func TestRunnerConfig(t *testing.T) {
 		WorkDir: t.TempDir(),
 	})
 
+	host, err := os.Hostname()
+	assert.NilError(t, err)
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 0))
+	goldenTemplate(t, result.Stdout, t.Name()+".yaml.tmpl", map[string]string{
+		"Name": runnerconfig.SanitizeName(host),
+	})
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+}
+
+func TestRunnerConfig_Name(t *testing.T) {
+	_, env := setupRunnerFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    runnerConfigArgs(),
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
 	assert.Check(t, cmp.Equal(result.ExitCode, 0))
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".yaml"))
 	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+}
 
+func TestRunnerConfig_WorkingDirectory(t *testing.T) {
+	_, env := setupRunnerFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    runnerConfigArgs("--working-directory", "/srv/circleci/workdir"),
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 0))
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".yaml"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+}
+
+func TestRunnerConfig_ProductContainer(t *testing.T) {
+	// Container runner reads no agent config file, so the output is Helm values
+	// for the container-agent chart.
+	_, env := setupRunnerFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"runner", "config", "my-org/linux-runner", "--product", "container"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 0))
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".yaml"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+}
+
+func TestRunnerConfig_ProductProvisioner(t *testing.T) {
+	_, env := setupRunnerFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"runner", "config", "my-org/linux-runner", "--product", "provisioner"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 0))
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".yaml"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+}
+
+func TestRunnerConfig_ProductInvalid(t *testing.T) {
+	_, env := setupRunnerFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"runner", "config", "my-org/linux-runner", "--product", "kubernetes"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, clierrors.ExitBadArguments))
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+}
+
+func TestRunnerConfig_MachineFlagOnHelmProduct(t *testing.T) {
+	// --name has no home in a Helm values file, so it is rejected rather than
+	// silently dropped from the output.
+	_, env := setupRunnerFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    runnerConfigArgs("--product", "container"),
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, clierrors.ExitBadArguments))
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+}
+
+func TestRunnerConfig_InvalidName(t *testing.T) {
+	_, env := setupRunnerFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"runner", "config", "my-org/linux-runner", "--name", "bad/name"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, clierrors.ExitBadArguments))
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+}
+
+func TestRunnerConfig_InvalidResourceClass(t *testing.T) {
+	// --token skips the API call, so a malformed resource class would otherwise
+	// reach the generated file and silently never claim a task.
+	env := testenv.New(t)
+	env.Token = testToken
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"runner", "config", "linux-runner", "--token", "my-existing-token-value", "--name", "prod-server-1"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, clierrors.ExitBadArguments))
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 }
 
 func TestRunnerConfig_Nickname(t *testing.T) {
@@ -1157,7 +1298,7 @@ func TestRunnerConfig_Nickname(t *testing.T) {
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"runner", "config", "my-org/linux-runner", "--nickname", "prod-server-1"},
+		Args:    runnerConfigArgs("--nickname", "prod-server-1"),
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
@@ -1174,7 +1315,7 @@ func TestRunnerConfig_ExistingToken(t *testing.T) {
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"runner", "config", "my-org/linux-runner", "--token", "my-existing-token-value"},
+		Args:    runnerConfigArgs("--token", "my-existing-token-value"),
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
@@ -1187,11 +1328,11 @@ func TestRunnerConfig_ExistingToken(t *testing.T) {
 func TestRunnerConfig_OutputFile(t *testing.T) {
 	_, env := setupRunnerFake(t)
 	dir := t.TempDir()
-	outPath := dir + "/circleci-runner-config.yaml"
+	outPath := dir + "/nested/circleci-runner-config.yaml"
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"runner", "config", "my-org/linux-runner", "--output", outPath},
+		Args:    runnerConfigArgs("--output", outPath),
 		Env:     env.Environ(),
 		WorkDir: dir,
 	})
@@ -1203,6 +1344,66 @@ func TestRunnerConfig_OutputFile(t *testing.T) {
 	contents, err := os.ReadFile(outPath)
 	assert.NilError(t, err)
 	assert.Check(t, golden.String(string(contents), t.Name()+".yaml"))
+
+	// The file holds a runner token, so it must not be group or world readable.
+	info, err := os.Stat(outPath)
+	assert.NilError(t, err)
+	assert.Check(t, cmp.Equal(info.Mode().Perm(), os.FileMode(0o600)))
+}
+
+func TestRunnerConfig_Interactive_DefaultsToMachine(t *testing.T) {
+	// On a terminal the product is confirmed rather than assumed. Machine is
+	// preselected, so a bare Enter keeps the documented default.
+	env := testenv.New(t)
+	env.Token = testToken
+
+	console := binary.RunCLIInteractive(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"runner", "config", "my-org/linux-runner", "--token", "my-existing-token-value"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Assert(t, t.Run("prompts for the product", func(t *testing.T) {
+		_, err := console.ExpectString("Runner product")
+		assert.NilError(t, err)
+		_, err = console.Send("\r")
+		assert.NilError(t, err)
+	}))
+
+	assert.Assert(t, t.Run("emits machine runner config", func(t *testing.T) {
+		_, err := console.ExpectString("Machine runner 3 agent configuration")
+		assert.NilError(t, err)
+		_, err = console.ExpectString("auth_token: my-existing-token-value")
+		assert.NilError(t, err)
+	}))
+}
+
+func TestRunnerConfig_Interactive_SelectsContainer(t *testing.T) {
+	env := testenv.New(t)
+	env.Token = testToken
+
+	console := binary.RunCLIInteractive(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"runner", "config", "my-org/linux-runner", "--token", "my-existing-token-value"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Assert(t, t.Run("selects container", func(t *testing.T) {
+		_, err := console.ExpectString("Runner product")
+		assert.NilError(t, err)
+		// Down once: machine -> container.
+		_, err = console.Send("\x1b[B\r")
+		assert.NilError(t, err)
+	}))
+
+	assert.Assert(t, t.Run("emits container runner Helm values", func(t *testing.T) {
+		_, err := console.ExpectString("Helm values for container runner")
+		assert.NilError(t, err)
+		_, err = console.ExpectString("resourceClasses")
+		assert.NilError(t, err)
+	}))
 }
 
 func TestRunnerConfig_NoArgs(t *testing.T) {
@@ -1219,6 +1420,3 @@ func TestRunnerConfig_NoArgs(t *testing.T) {
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
 	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 }
-
-// verify the fake server returns a proper 202 for rerun (used by TestRunnerResourceClassDelete_Force indirectly)
-var _ = http.StatusAccepted

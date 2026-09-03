@@ -1,8 +1,11 @@
 Usage:  circleci runner config <resource-class> [flags]
 
 Flags:
-  -h, --help              help for config
-      --nickname string   Nickname for the new token
-  -o, --output string     Write config to this file instead of stdout
-      --token string      Use an existing token value instead of creating a new one
+  -h, --help                       help for config
+      --name string                Runner name, machine only (default: hostname)
+      --nickname string            Nickname for the new token
+  -o, --output string              Write config to this file instead of stdout
+      --product string             Runner product: machine|container|provisioner (default machine, prompts when unset)
+      --token string               Use an existing token value instead of creating a new one
+      --working-directory string   Job working directory, machine only
   
