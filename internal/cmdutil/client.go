@@ -123,8 +123,20 @@ func WithConfig(ctx context.Context, cfg *config.Config) context.Context {
 
 type telemetryKey struct{}
 
+// WithTelemetry returns a copy of ctx carrying the sender, plus the set of extra
+// command_invocation properties that SetTelemetryProp writes into. The two are
+// installed together because a sender with no property set silently drops every
+// property, and there is no use for one without the other.
+//
+// An existing property set is carried over rather than replaced: properties
+// belong to the invocation, not to whichever sender is current, so re-installing
+// a sender mid-run must not discard what earlier steps already recorded.
 func WithTelemetry(ctx context.Context, tc *telemetry.Sender) context.Context {
-	return context.WithValue(ctx, telemetryKey{}, tc)
+	ctx = context.WithValue(ctx, telemetryKey{}, tc)
+	if getTelemetryProps(ctx) == nil {
+		ctx = context.WithValue(ctx, telemetryPropsKey{}, &telemetryProps{})
+	}
+	return ctx
 }
 
 func GetTelemetry(ctx context.Context) *telemetry.Sender {

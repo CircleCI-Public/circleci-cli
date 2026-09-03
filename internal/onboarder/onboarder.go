@@ -60,6 +60,36 @@ const (
 // push, which is what onboard sets up.
 const allPushesPreset = "all-pushes"
 
+// Telemetry attributes recorded on the command_invocation event, one per step of
+// the flow. Each step happens at most once per run, which is what makes them
+// attributes of the invocation rather than events in their own right.
+//
+// One attribute per step rather than a single merged outcome: a query can
+// collapse these, but a merged value could never be taken apart again.
+const (
+	propMode          = "onboard_mode"
+	propOrgType       = "onboard_org_type"
+	propSignup        = "onboard_signup_outcome"
+	propProjectSetup  = "onboard_project_setup_outcome"
+	propProjectFollow = "onboard_project_follow_outcome"
+)
+
+const (
+	// notReached is the value every step attribute starts at. A single event per
+	// invocation cannot express a sequence, so an absent attribute would be
+	// ambiguous: it could mean the step never ran, or that it ran and said
+	// nothing. Seeding every step with notReached removes the ambiguity — "the
+	// flow stopped before here" reads differently from any outcome the step
+	// itself reports.
+	notReached = "not_reached"
+
+	// notApplicable separates a step this organization has no equivalent of from
+	// one the run stopped short of. Both would otherwise read as notReached,
+	// which would make "the user dropped out" and "there was nothing to do"
+	// indistinguishable — the ambiguity seeding exists to remove.
+	notApplicable = "not_applicable"
+)
+
 // Options configures the onboarding flow.
 type Options struct {
 	ConfigPath    string
@@ -78,24 +108,25 @@ type Options struct {
 // Run generates a starter config for a repository when it has none, and ensures
 // the CLI has an authenticated CircleCI session.
 func Run(ctx context.Context, dir string, opts Options) error {
+	// Seed before the first thing that can fail, so even a run that resolves no
+	// mode at all still reports a complete set of steps.
+	for _, prop := range []string{propMode, propOrgType, propSignup, propProjectSetup, propProjectFollow} {
+		cmdutil.SetTelemetryProp(ctx, prop, notReached)
+	}
+
 	m, err := resolveMode(ctx, opts)
 	if err != nil {
 		return err
 	}
 
-	trackOnboard(ctx, "onboard_mode_selected", map[string]any{
-		"mode": modeString(m),
-	})
+	cmdutil.SetTelemetryProp(ctx, propMode, modeString(m))
 
 	if m == modeSignup {
 		result, err := cmdauth.SignupIfNeeded(ctx, opts.NoBrowser, opts.SecureStorage, opts.ConfigPath)
 		if err != nil {
 			return err
 		}
-		trackOnboard(ctx, "onboard_signup", map[string]any{
-			"mode":    "signup",
-			"outcome": string(result.Outcome),
-		})
+		cmdutil.SetTelemetryProp(ctx, propSignup, string(result.Outcome))
 		// --signup may be run anywhere — it needs no repository — so the directory
 		// has been through none of the validation below. repoDir yields "" unless it
 		// really is a checkout, which keeps a run from a home directory out of
@@ -154,10 +185,7 @@ func Run(ctx context.Context, dir string, opts Options) error {
 	if err != nil {
 		return err
 	}
-	trackOnboard(ctx, "onboard_signup", map[string]any{
-		"mode":    "scan",
-		"outcome": string(signupResult.Outcome),
-	})
+	cmdutil.SetTelemetryProp(ctx, propSignup, string(signupResult.Outcome))
 
 	return postSignupGuidance(ctx, dir, opts)
 }
@@ -207,6 +235,11 @@ func postSignupGuidance(ctx context.Context, dir string, opts Options) error {
 		return stopWithGuidance(ctx)
 	}
 
+	// Which integration owns the organization decides which steps below exist at
+	// all, so it is recorded as its own attribute rather than left to be inferred
+	// from which step outcomes came back empty.
+	cmdutil.SetTelemetryProp(ctx, propOrgType, selectedOrg.VCSType)
+
 	appURL, _ := cmdutil.AppURL(ctx)
 
 	// One read of the checkout's remote serves the suggested project name, the
@@ -235,7 +268,11 @@ func postSignupGuidance(ctx context.Context, dir string, opts Options) error {
 			return stopWithGuidance(ctx)
 		}
 
+		// A classic organization stops here: pipeline definitions and triggers are
+		// CircleCI-native only, so the setup step does not exist on this path
+		// rather than being one the run fell short of.
 		if selectedOrg.VCSType != "circleci" {
+			cmdutil.SetTelemetryProp(ctx, propProjectSetup, notApplicable)
 			followClassicProject(ctx, client, appURL, vcs, orgName, name)
 			return nil
 		}
@@ -505,14 +542,14 @@ func setupFirstPipeline(ctx context.Context, client *apiclient.Client, appURL st
 	repoID, p := resolveRepoID(ctx, client, appURL, proj, remote, opts)
 	if repoID == "" {
 		// No external ID, so there is nothing to attach a definition to.
-		trackOnboard(ctx, "onboard_project_setup", map[string]any{"outcome": "skipped_no_repo_id"})
+		cmdutil.SetTelemetryProp(ctx, propProjectSetup, "skipped_no_repo_id")
 		printManualPipelineGuidance(ctx)
 		return nil
 	}
 
 	def, err := ensurePipelineDefinition(ctx, client, p, proj.ID, proj.Name, repoID, remote.FullName())
 	if err != nil {
-		trackOnboard(ctx, "onboard_project_setup", map[string]any{"outcome": "pipeline_definition_failed"})
+		cmdutil.SetTelemetryProp(ctx, propProjectSetup, "pipeline_definition_failed")
 		return clierrors.New("onboard.pipeline_definition_failed",
 			"Could not set up the pipeline definition",
 			fmt.Sprintf("The project was created, but its pipeline definition could not be set up: %s.", err)).
@@ -524,7 +561,7 @@ func setupFirstPipeline(ctx context.Context, client *apiclient.Client, appURL st
 	}
 
 	if err := ensureTrigger(ctx, client, p, proj.ID, def.ID, repoID, remote.FullName()); err != nil {
-		trackOnboard(ctx, "onboard_project_setup", map[string]any{"outcome": "trigger_failed"})
+		cmdutil.SetTelemetryProp(ctx, propProjectSetup, "trigger_failed")
 		return clierrors.New("onboard.trigger_failed",
 			"Could not set up the trigger",
 			fmt.Sprintf("The pipeline definition was created, but its trigger could not be: %s.", err)).
@@ -535,7 +572,7 @@ func setupFirstPipeline(ctx context.Context, client *apiclient.Client, appURL st
 			WithExitCode(clierrors.ExitAPIError)
 	}
 
-	trackOnboard(ctx, "onboard_project_setup", map[string]any{"outcome": "created"})
+	cmdutil.SetTelemetryProp(ctx, propProjectSetup, "created")
 	printPipelineReadyGuidance(ctx)
 	return nil
 }
@@ -732,7 +769,7 @@ func printManualPipelineGuidance(ctx context.Context) {
 func followProject(ctx context.Context, client *apiclient.Client, proj *apiclient.ProjectInfo) {
 	vcs, orgSegment, projectSegment, err := cmdutil.ParseSlug(proj.Slug)
 	if err != nil {
-		trackOnboard(ctx, "onboard_project_follow", map[string]any{"outcome": "skipped_bad_slug"})
+		cmdutil.SetTelemetryProp(ctx, propProjectFollow, "skipped_bad_slug")
 		return
 	}
 
@@ -740,20 +777,23 @@ func followProject(ctx context.Context, client *apiclient.Client, proj *apiclien
 		iostream.ErrPrintf(ctx,
 			"%s Could not follow the project, so you may not be notified about its pipelines: %s\n",
 			iostream.SymbolWarn(ctx), err)
-		trackOnboard(ctx, "onboard_project_follow", map[string]any{"outcome": "failed"})
+		cmdutil.SetTelemetryProp(ctx, propProjectFollow, "failed")
 		return
 	}
 
 	iostream.Printf(ctx, "%s Following %s\n", iostream.SymbolOK(ctx), proj.Name)
-	trackOnboard(ctx, "onboard_project_follow", map[string]any{"outcome": "followed"})
+	cmdutil.SetTelemetryProp(ctx, propProjectFollow, "followed")
 }
 
 func followClassicProject(ctx context.Context, client *apiclient.Client, appURL, vcs, orgName, repoName string) {
 	if err := client.FollowProject(ctx, vcs, orgName, repoName); err != nil {
 		iostream.ErrPrintf(ctx, "%s Could not connect project: %s\n", iostream.SymbolWarn(ctx), err)
+		cmdutil.SetTelemetryProp(ctx, propProjectFollow, "failed")
 		printManualGuidance(ctx)
 		return
 	}
+
+	cmdutil.SetTelemetryProp(ctx, propProjectFollow, "followed")
 
 	slug := fmt.Sprintf("%s/%s/%s", vcs, orgName, repoName)
 	iostream.Printf(ctx, "%s Project connected: %s\n", iostream.SymbolOK(ctx), repoName)
@@ -785,14 +825,6 @@ func printLinkGuidance(ctx context.Context, workDir, orgSlug string) {
 	iostream.Printf(ctx, "\nCopy that project's ID from its settings in CircleCI, then run:\n")
 	iostream.Printf(ctx, "  circleci project link %s\n", args)
 	iostream.Printf(ctx, "  circleci onboard\n")
-}
-
-func trackOnboard(ctx context.Context, event string, props map[string]any) {
-	tc := cmdutil.GetTelemetry(ctx)
-	if tc == nil {
-		return
-	}
-	_ = tc.Track(event, props)
 }
 
 func modeString(m mode) string {
