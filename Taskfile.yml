@@ -367,12 +367,15 @@ tasks:
             --output.text.path=stdout --output.text.colors=true
 
   ci:test:
-    desc: Run tests with JUnit output
+    desc: Run the tests and output the test results
+    # Same package set as `task test` — clikit is a separate module, so ./...
+    # does not reach it and it has to be named by module path.
     vars:
-      NAME: '{{if not (eq OS "windows")}}ci tests{{else}}windows tests{{end}}'
+      ARGS: '{{default "./... github.com/CircleCI-Public/circleci-cli/clikit/..." .CLI_ARGS}}'
+      RACE: '{{if not (eq OS "windows")}}-race{{end}}'
     cmds:
       - mkdir -p {{.RESULTS_DIR}}
-      - circleci testsuite "{{.NAME}}"
+      - go tool -modfile tools/go.mod gotestsum --junitfile="{{.TEST_REPORT}}" -- {{.RACE}} -count=1 {{.ARGS}}
 
   ci:check:
     desc: Check no uncommitted diffs after generate/fmt/tidy
