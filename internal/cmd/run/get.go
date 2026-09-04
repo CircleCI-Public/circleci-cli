@@ -66,12 +66,13 @@ const (
 
 func newGetCmd() *cobra.Command {
 	var (
-		projectSlug   string
-		branch        string
-		jsonOut       bool
-		mine          bool
-		noInteractive bool
-		failureReport bool
+		projectSlug    string
+		branch         string
+		jsonOut        bool
+		mine           bool
+		noInteractive  bool
+		failureReport  bool
+		failureReport2 bool
 	)
 
 	cmd := &cobra.Command{
@@ -123,11 +124,17 @@ func newGetCmd() *cobra.Command {
 					"--failure-report prints plain-text output for agent consumption and does not support JSON formatting.").
 					WithExitCode(clierrors.ExitBadArguments)
 			}
+			if failureReport2 && (failureReport || jsonOut || cmd.Flags().Changed("jq")) {
+				return clierrors.New("run.failure_report_2_exclusive",
+					"--failure-report-2 cannot be combined with --failure-report, --json, or --jq",
+					"--failure-report-2 prints its own JSON shape and does not compose with the other output flags.").
+					WithExitCode(clierrors.ExitBadArguments)
+			}
 			client, err := cmdutil.LoadClient(ctx)
 			if err != nil {
 				return err
 			}
-			return runGet(ctx, client, args, projectSlug, branch, jsonOut, mine, noInteractive, failureReport)
+			return runGet(ctx, client, args, projectSlug, branch, jsonOut, mine, noInteractive, failureReport, failureReport2)
 		},
 	}
 
@@ -136,6 +143,8 @@ func newGetCmd() *cobra.Command {
 	cmd.Flags().BoolVarP(&mine, "mine", "m", false, "Filter to runs owned by you.")
 	cmd.Flags().BoolVar(&noInteractive, "no-interactive", false, "Skip the interactive picker and resolve the latest run directly")
 	cmd.Flags().BoolVar(&failureReport, "failure-report", false, "Print condensed output for every failed step; intended for agent consumption")
+	cmd.Flags().BoolVar(&failureReport2, "failure-report-2", false, "Experimental: mock up the future failure-report endpoint shape client-side")
+	_ = cmd.Flags().MarkHidden("failure-report-2")
 	cmdutil.AddJSONFlag(cmd, &jsonOut)
 	cmdutil.AddJQFlag(cmd)
 
@@ -205,13 +214,14 @@ type jobOutput struct {
 	Type           string    `json:"type,omitempty"`
 }
 
-func runGet(ctx context.Context, client *apiclient.Client, args []string, projectSlug, branch string, jsonOut, mine, noInteractive, failureReport bool) error {
-	// --failure-report always bypasses the TUI — it is an output-mode flag.
-	// With no run ID and an interactive terminal, walk the user through a series
-	// of pickers (run → workflow → job) instead of silently resolving the latest
-	// run. JSON output stays non-interactive so scripting is unaffected, and
-	// --no-interactive forces the same direct latest-run lookup in a TTY.
-	if len(args) == 0 && !jsonOut && !noInteractive && !failureReport && iostream.IsInteractive(ctx) {
+func runGet(ctx context.Context, client *apiclient.Client, args []string, projectSlug, branch string, jsonOut, mine, noInteractive, failureReport, failureReport2 bool) error {
+	// --failure-report and --failure-report-2 always bypass the TUI — both are
+	// output-mode flags. With no run ID and an interactive terminal, walk the
+	// user through a series of pickers (run → workflow → job) instead of
+	// silently resolving the latest run. JSON output stays non-interactive so
+	// scripting is unaffected, and --no-interactive forces the same direct
+	// latest-run lookup in a TTY.
+	if len(args) == 0 && !jsonOut && !noInteractive && !failureReport && !failureReport2 && iostream.IsInteractive(ctx) {
 		return runGetInteractive(ctx, client, projectSlug, branch, mine)
 	}
 
@@ -273,6 +283,9 @@ func runGet(ctx context.Context, client *apiclient.Client, args []string, projec
 
 	if failureReport {
 		return runFailureReport(ctx, client, r)
+	}
+	if failureReport2 {
+		return runFailureReport2(ctx, client, r)
 	}
 	return displayRun(ctx, client, r, jsonOut)
 }
