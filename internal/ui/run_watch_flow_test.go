@@ -263,7 +263,11 @@ func TestRunWatchFlow_PollMeterFills(t *testing.T) {
 	assert.Check(t, cmp.Contains(flowSnapshot(t, tm), "next update ▱▱▱▱▱▱"),
 		"the meter starts empty")
 
-	waitForOutput(t, tm, "next update ▰")
+	// The footer is redrawn in place, so a filled cell reaches the output stream
+	// as a cursor move and a few cells — "next update ▰" only ever lands there
+	// contiguously if the renderer happens to repaint the whole line on the same
+	// frame. Wait on the model's frames instead.
+	waitForFrame(t, tm, "next update ▰")
 }
 
 // TestRunWatchFlow_FirstWaitIsTheBaseInterval confirms the backoff is applied
