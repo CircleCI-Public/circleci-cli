@@ -1,0 +1,6 @@
+Usage:  circleci migrate actions <workflow-file> [flags]
+
+Flags:
+      --force   Overwrite the destination file if it already exists
+  -h, --help    help for actions
+  

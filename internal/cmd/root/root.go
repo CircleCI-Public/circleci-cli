@@ -48,6 +48,7 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/internal/cmd/envvar"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmd/extension"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmd/job"
+	"github.com/CircleCI-Public/circleci-cli/internal/cmd/migrate"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmd/my"
 	cmdnamespace "github.com/CircleCI-Public/circleci-cli/internal/cmd/namespace"
 	cmdonboard "github.com/CircleCI-Public/circleci-cli/internal/cmd/onboard"
@@ -223,6 +224,7 @@ func NewRootCmd(version string) *cobra.Command {
 		Title: "Extension commands",
 	})
 
+	cmd.AddCommand(migrate.NewMigrateCmd())
 	cmd.AddCommand(artifacts.NewArtifactCmd())
 	cmd.AddCommand(certificate.NewCertificateCmd())
 	cmd.AddCommand(componentversion.NewComponentVersionCmd())

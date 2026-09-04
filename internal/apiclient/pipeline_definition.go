@@ -81,10 +81,11 @@ type hostedAttrs struct {
 }
 
 // pipelineConfigAttrs is the config half of a pipeline: a tagged union on Type,
-// where exactly one of VCS/Hosted is populated. FilePath is common to both.
+// where exactly one of VCS/Hosted is populated. FilePath and FileType are common to both.
 type pipelineConfigAttrs struct {
 	Type     string       `json:"type"`
 	FilePath string       `json:"file_path"`
+	FileType string       `json:"file_type,omitempty"`
 	VCS      *vcsAttrs    `json:"vcs,omitempty"`
 	Hosted   *hostedAttrs `json:"hosted,omitempty"`
 }
@@ -160,6 +161,7 @@ func (c *Client) ListPipelineDefinitions(ctx context.Context, projectID string) 
 // CreatePipelineDefinitionInput contains all fields for creating a pipeline definition.
 // The RepoFullName fields are required by providers that address a repository by
 // owner and name rather than by id, and ignored by the rest.
+// ConfigFileType is optional; pass "github-actions" for a GitHub Actions workflow file.
 type CreatePipelineDefinitionInput struct {
 	Name                 string
 	Description          string
@@ -167,6 +169,7 @@ type CreatePipelineDefinitionInput struct {
 	ConfigRepoID         string
 	ConfigRepoFullName   string
 	ConfigFilePath       string
+	ConfigFileType       string
 	CheckoutProvider     string
 	CheckoutRepoID       string
 	CheckoutRepoFullName string
@@ -271,6 +274,7 @@ func (c *Client) CreatePipelineDefinition(ctx context.Context, projectID string,
 		Config: pipelineConfigAttrs{
 			Type:     sourceTypeVCS,
 			FilePath: input.ConfigFilePath,
+			FileType: input.ConfigFileType,
 			VCS: &vcsAttrs{
 				Provider:     input.ConfigProvider,
 				RepoID:       input.ConfigRepoID,
@@ -291,6 +295,7 @@ func (c *Client) CreatePipelineDefinition(ctx context.Context, projectID string,
 		attrs.Config = pipelineConfigAttrs{
 			Type:     sourceTypeHosted,
 			FilePath: input.ConfigFilePath,
+			FileType: input.ConfigFileType,
 			Hosted:   &hostedAttrs{Provider: input.ConfigProvider},
 		}
 	}

@@ -39,6 +39,7 @@ import (
 
 var validConfigProviders = []string{"github_app", "github_server", "circleci"}
 var validCheckoutProviders = []string{"github_app", "github_server"}
+var validConfigFileTypes = []string{"github-actions"}
 
 // repoConfigProviders are config source providers that require a repo external ID.
 var repoConfigProviders = map[string]bool{
@@ -55,6 +56,7 @@ func newCreateCmd() *cobra.Command {
 		configProvider   string
 		configRepoID     string
 		configFile       string
+		configFileType   string
 		checkoutProvider string
 		checkoutRepoID   string
 		jsonOut          bool
@@ -64,11 +66,10 @@ func newCreateCmd() *cobra.Command {
 		Use:   "create",
 		Short: "Create a pipeline definition",
 		Long: heredoc.Docf(`
-			Create a new pipeline definition for a CircleCI project: where CircleCI finds
-			the config YAML, and which repository to check out. Attach triggers to it
-			afterwards with %[1]scircleci project trigger create%[1]s.
-
-			Required flags must be given in non-interactive mode; a terminal prompts.
+			Create a new pipeline definition for a project: where CircleCI finds the
+			config YAML and which repository to check out. Attach triggers afterwards
+			with %[1]scircleci project trigger create%[1]s. Required flags must be
+			given in non-interactive mode; a terminal prompts.
 
 			JSON fields: id, name, description, created_at, config_source.provider, config_source.file_path, config_source.repo.external_id, config_source.repo.full_name, checkout_source.provider, checkout_source.repo.external_id, checkout_source.repo.full_name
 		`, "`"),
@@ -112,7 +113,7 @@ func newCreateCmd() *cobra.Command {
 				return err
 			}
 			return runCreate(ctx, client, projectSlug, projectID, name, description,
-				configProvider, configRepoID, configFile,
+				configProvider, configRepoID, configFile, configFileType,
 				checkoutProvider, checkoutRepoID, jsonOut)
 		},
 	}
@@ -124,6 +125,7 @@ func newCreateCmd() *cobra.Command {
 	cmd.Flags().StringVar(&configProvider, "config-provider", "", fmt.Sprintf("Config source provider (one of: %s)", strings.Join(validConfigProviders, ", ")))
 	cmd.Flags().StringVar(&configRepoID, "config-repo-id", "", "Config source repo external ID (required for github_app, github_server)")
 	cmd.Flags().StringVar(&configFile, "config-file", "", "Config file path (e.g. .circleci/config.yml)")
+	cmd.Flags().StringVar(&configFileType, "config-file-type", "", fmt.Sprintf("Config file type, omit for standard CircleCI YAML (one of: %s)", strings.Join(validConfigFileTypes, ", ")))
 	cmd.Flags().StringVar(&checkoutProvider, "checkout-provider", "", fmt.Sprintf("Checkout source provider (one of: %s)", strings.Join(validCheckoutProviders, ", ")))
 	cmd.Flags().StringVar(&checkoutRepoID, "checkout-repo-id", "", "Checkout source repo external ID")
 	cmdutil.AddJSONFlag(cmd, &jsonOut)
@@ -146,7 +148,7 @@ func runCreate(
 	client *apiclient.Client,
 	projectSlug, projectID string,
 	name, description string,
-	configProvider, configRepoID, configFile string,
+	configProvider, configRepoID, configFile, configFileType string,
 	checkoutProvider, checkoutRepoID string,
 	jsonOut bool,
 ) error {
@@ -166,6 +168,11 @@ func runCreate(
 	}
 	if err := validateConfigProvider(configProvider); err != nil {
 		return err
+	}
+	if configFileType != "" {
+		if err := validateConfigFileType(configFileType); err != nil {
+			return err
+		}
 	}
 
 	// Fetch existing pipeline definitions once for interactive repo selection.
@@ -207,6 +214,7 @@ func runCreate(
 		ConfigProvider:   configProvider,
 		ConfigRepoID:     configRepoID,
 		ConfigFilePath:   configFile,
+		ConfigFileType:   configFileType,
 		CheckoutProvider: checkoutProvider,
 		CheckoutRepoID:   checkoutRepoID,
 	})
@@ -408,6 +416,18 @@ func validateConfigProvider(v string) *clierrors.CLIError {
 	return clierrors.New("args.invalid_config_provider", "Invalid --config-provider value",
 		fmt.Sprintf("%q is not a valid config provider.", v)).
 		WithSuggestions("Valid values: " + strings.Join(validConfigProviders, ", ")).
+		WithExitCode(clierrors.ExitBadArguments)
+}
+
+func validateConfigFileType(v string) *clierrors.CLIError {
+	for _, valid := range validConfigFileTypes {
+		if v == valid {
+			return nil
+		}
+	}
+	return clierrors.New("args.invalid_config_file_type", "Invalid --config-file-type value",
+		fmt.Sprintf("%q is not a valid config file type.", v)).
+		WithSuggestions("Valid values: " + strings.Join(validConfigFileTypes, ", ")).
 		WithExitCode(clierrors.ExitBadArguments)
 }
 

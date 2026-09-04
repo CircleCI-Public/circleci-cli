@@ -1,0 +1,4 @@
+Usage:  circleci migrate <command> [flags]
+
+Available commands:
+  actions

@@ -16,6 +16,7 @@ Available commands:
   extension
   job
   mcp
+  migrate
   my
   namespace
   onboard

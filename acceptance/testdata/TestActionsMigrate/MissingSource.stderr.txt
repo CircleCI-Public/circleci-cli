@@ -1,0 +1,4 @@
+error: nonexistent.yml: file not found.
+
+Suggestions:
+  • Check that the file path is correct and readable

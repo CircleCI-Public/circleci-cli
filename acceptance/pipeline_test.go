@@ -292,6 +292,73 @@ func TestPipelineCreate_InvalidConfigProvider(t *testing.T) {
 	assert.Check(t, strings.Contains(result.Stderr, "bitbucket"))
 }
 
+func TestPipelineCreate_WithGitHubActionsFileType(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	fake.AddProjectBySlug("gh/myorg/myrepo", pipelineProjectID, "myrepo", "a0000000-0000-4000-8000-0000000b0003")
+	payload := fakePipelineDefPayload(pipelineDefID, "actions-pipeline", "github_app", pipelineRepoID, ".github/workflows/run_tests.yml", "github_app", pipelineRepoID)
+	payload["attributes"].(map[string]any)["config"].(map[string]any)["file_type"] = "github-actions"
+	fake.SetCreatePipelineDefinitionResponse(pipelineProjectID, payload)
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary: binaryPath,
+		Args: []string{
+			"pipeline", "create",
+			"--project-id", pipelineProjectID,
+			"--name", "actions-pipeline",
+			"--config-provider", "github_app",
+			"--config-repo-id", pipelineRepoID,
+			"--config-file", ".github/workflows/run_tests.yml",
+			"--config-file-type", "github-actions",
+			"--checkout-provider", "github_app",
+			"--checkout-repo-id", pipelineRepoID,
+		},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, strings.Contains(result.Stdout, pipelineDefID))
+
+	t.Run("check request", func(t *testing.T) {
+		assert.Check(t, cmp.DeepEqual(fake.LastRequest(), &httprecorder.Request{
+			Method: http.MethodPost,
+			URL:    url.URL{Path: "/api/v3/pipelines"},
+			Header: http.Header{
+				"Authorization": {"Bearer test-token"},
+				"User-Agent":    {httpcl.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
+			},
+			Body: new(`{"data":{"attributes":{"name":"actions-pipeline","config":{"type":"vcs","file_path":".github/workflows/run_tests.yml","file_type":"github-actions","vcs":{"provider":"github_app","repo_id":"987654321"}},"checkout":{"vcs":{"provider":"github_app","repo_id":"987654321"}}},"references":{"project":{"id":"` + pipelineProjectID + `"}}}}`),
+		}, ignoreCommonHeaders))
+	})
+}
+
+func TestPipelineCreate_InvalidConfigFileType(t *testing.T) {
+	_, env := setupPipelineFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary: binaryPath,
+		Args: []string{
+			"pipeline", "create",
+			"--project", "gh/myorg/myrepo",
+			"--name", "my-pipeline",
+			"--config-provider", "github_app",
+			"--config-repo-id", pipelineRepoID,
+			"--config-file", ".circleci/config.yml",
+			"--config-file-type", "bitbucket-pipelines",
+			"--checkout-provider", "github_app",
+			"--checkout-repo-id", pipelineRepoID,
+		},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 2, "stderr: %s", result.Stderr)
+	assert.Check(t, strings.Contains(result.Stderr, "bitbucket-pipelines"))
+}
+
 func TestPipelineCreate_InvalidCheckoutProvider(t *testing.T) {
 	_, env := setupPipelineFake(t)
 
