@@ -1,0 +1,36 @@
+Copy a GitHub Actions workflow into .circleci/workflows/
+
+## Usage
+
+`circleci actions migrate <workflow-file> [flags]`
+
+## Flags
+
+| Flag      | Description                                         |
+| --------- | --------------------------------------------------- |
+| `--force` | Overwrite the destination file if it already exists |
+
+Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `circleci --help`.
+
+## Examples
+
+- Migrate a single workflow file: 
+  `circleci actions migrate .github/workflows/run_tests.yml`
+- Migrate a workflow stored at a non-standard path: 
+  `circleci actions migrate ci/build.yml`
+- Overwrite an existing destination file: 
+  `circleci actions migrate --force .github/workflows/run_tests.yml`
+
+## Details
+
+Copy a GitHub Actions workflow file into the .circleci/workflows/
+directory so that CircleCI can run it directly.
+
+The destination filename is derived from the source basename,
+prefixed with "cci-". For example:
+
+  .github/workflows/run_tests.yml → .circleci/workflows/cci-run_tests.yml
+
+The .circleci/workflows/ directory is created if it does not exist.
+An existing destination file is not overwritten unless --force is passed.
+

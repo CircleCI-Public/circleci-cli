@@ -1,0 +1,23 @@
+Work with GitHub Actions workflows
+
+## Usage
+
+`circleci actions <command> [flags]`
+
+## General Commands
+
+| Command   | Description                                              |
+| --------- | -------------------------------------------------------- |
+| `migrate` | Copy a GitHub Actions workflow into .circleci/workflows/ |
+
+## Flags
+
+Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `circleci --help`.
+
+## Details
+
+Commands for working with GitHub Actions workflows alongside CircleCI.
+
+Use these commands to migrate GitHub Actions workflow files into a
+layout that CircleCI can run directly.
+
