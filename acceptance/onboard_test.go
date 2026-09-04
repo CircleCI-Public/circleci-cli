@@ -23,7 +23,9 @@
 package acceptance_test
 
 import (
+	"context"
 	"net/http"
+	"net/http/httptest"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -34,10 +36,14 @@ import (
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/golden"
+	"gotest.tools/v3/poll"
 
+	"github.com/CircleCI-Public/circleci-cli/clikit/iostream"
+	"github.com/CircleCI-Public/circleci-cli/internal/telemetry"
 	"github.com/CircleCI-Public/circleci-cli/internal/testing/binary"
 	testenv "github.com/CircleCI-Public/circleci-cli/internal/testing/env"
 	"github.com/CircleCI-Public/circleci-cli/internal/testing/fakes"
+	"github.com/CircleCI-Public/circleci-cli/internal/testing/fakesegment"
 )
 
 // Fixture IDs shared by the onboard tests. The slug segments are deliberately
@@ -1193,4 +1199,125 @@ func TestOnboard_PostSignup_FirstPipeline_UnclaimedHost(t *testing.T) {
 	assert.Check(t, cmp.Contains(result.Stderr, "--repo-id"))
 	assert.Check(t, !strings.Contains(result.Stdout, "Pipeline definition created"),
 		"no definition should be created without a resolved repository")
+}
+
+// TestOnboard_Telemetry pins the onboarding attributes on the per-invocation
+// command_invocation event, which replaced the four bespoke onboard_* events.
+// The full event shape is pinned by TestAPI_Telemetry; these subtests assert
+// only the onboarding attributes.
+func TestOnboard_Telemetry(t *testing.T) {
+	t.Run("records an outcome for every step it reaches", func(t *testing.T) {
+		dir, fake, env := onboardRepo(t)
+		addFirstPipelineResponses(fake)
+		segment := onboardTelemetryEnv(t, env)
+
+		result := binary.RunCLI(t, binary.RunOpts{
+			Binary:  binaryPath,
+			Args:    []string{"onboard", "--scan", "--repo-id", onboardRepoExternalID},
+			Env:     env.Environ(),
+			WorkDir: dir,
+		})
+		assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+
+		assert.Check(t, cmp.DeepEqual(awaitOnboardProps(t, segment), map[string]any{
+			"onboard_mode":                   "scan",
+			"onboard_org_type":               "circleci",
+			"onboard_signup_outcome":         "already_authenticated",
+			"onboard_project_setup_outcome":  "created",
+			"onboard_project_follow_outcome": "followed",
+		}))
+	})
+
+	// A classic organization follows the project through a different function than
+	// the CircleCI-native path, and stops before pipeline setup: definitions and
+	// triggers are native-only. The follow it does perform has to be reported, or
+	// the seeded not_reached would claim a step ran that plainly did.
+	t.Run("reports the follow a classic organization performs", func(t *testing.T) {
+		dir := t.TempDir()
+		initGitRepoWithRemote(t, dir, "https://github.com/myorg/my-repo.git")
+		_, env := onboardAuthenticatedEnv(t, "testuser")
+		segment := onboardTelemetryEnv(t, env)
+
+		result := binary.RunCLI(t, binary.RunOpts{
+			Binary:  binaryPath,
+			Args:    []string{"onboard", "--scan"},
+			Env:     env.Environ(),
+			WorkDir: dir,
+		})
+		assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+		assert.Check(t, cmp.Contains(result.Stdout, "Project connected: my-repo"))
+
+		assert.Check(t, cmp.DeepEqual(awaitOnboardProps(t, segment), map[string]any{
+			"onboard_mode":                   "scan",
+			"onboard_org_type":               "github",
+			"onboard_signup_outcome":         "already_authenticated",
+			"onboard_project_setup_outcome":  "not_applicable",
+			"onboard_project_follow_outcome": "followed",
+		}))
+	})
+
+	// A single event cannot express a sequence, so a step the run never got to has
+	// to say so rather than go unreported — otherwise "stopped before here" is
+	// indistinguishable from "ran and reported nothing".
+	t.Run("marks steps a failed run never reached", func(t *testing.T) {
+		env := testenv.New(t)
+		segment := onboardTelemetryEnv(t, env)
+		dir := t.TempDir()
+
+		result := binary.RunCLI(t, binary.RunOpts{
+			Binary:  binaryPath,
+			Args:    []string{"onboard", dir},
+			Env:     env.Environ(),
+			WorkDir: t.TempDir(),
+		})
+		assert.Equal(t, result.ExitCode, 2, "expected ExitBadArguments, stderr: %s", result.Stderr)
+
+		assert.Check(t, cmp.DeepEqual(awaitOnboardProps(t, segment), map[string]any{
+			"onboard_mode":                   "scan",
+			"onboard_org_type":               "not_reached",
+			"onboard_signup_outcome":         "not_reached",
+			"onboard_project_setup_outcome":  "not_reached",
+			"onboard_project_follow_outcome": "not_reached",
+		}))
+	})
+}
+
+// onboardTelemetryEnv points env's telemetry at a fake Segment service and
+// returns it, so a test can assert on the events the run actually sent.
+func onboardTelemetryEnv(t *testing.T, env *testenv.TestEnv) *fakesegment.Service {
+	t.Helper()
+
+	segment := fakesegment.New(iostream.Testing(context.Background()), telemetry.SegmentKey)
+	server := httptest.NewServer(segment)
+	t.Cleanup(server.Close)
+
+	env.Telemetry = true
+	env.Extra["CIRCLE_TELEMETRY_ENDPOINT"] = server.URL
+	return segment
+}
+
+// awaitOnboardProps waits for the command_invocation event and returns just its
+// onboard_* properties. The events are delivered by a detached subprocess, so
+// they arrive after the CLI has already exited.
+func awaitOnboardProps(t *testing.T, segment *fakesegment.Service) map[string]any {
+	t.Helper()
+
+	props := map[string]any{}
+	poll.WaitOn(t, func(t poll.LogT) poll.Result {
+		for _, batch := range segment.Batches() {
+			for _, msg := range batch.Messages {
+				if msg.Event != "command_invocation" {
+					continue
+				}
+				for key, value := range msg.Properties {
+					if strings.HasPrefix(key, "onboard_") {
+						props[key] = value
+					}
+				}
+				return poll.Success()
+			}
+		}
+		return poll.Continue("no command_invocation event yet")
+	})
+	return props
 }

@@ -1,6 +1,6 @@
 module github.com/CircleCI-Public/circleci-cli
 
-go 1.26.4
+go 1.27.1
 
 require (
 	charm.land/bubbles/v2 v2.1.1
@@ -9,15 +9,16 @@ require (
 	charm.land/lipgloss/v2 v2.0.4
 	github.com/CircleCI-Public/chunk-cli v0.7.135
 	github.com/CircleCI-Public/circle-policy-agent v0.0.779
+	github.com/CircleCI-Public/circleci-cli/clikit v0.0.0
 	github.com/MakeNowJust/heredoc v1.0.0
 	github.com/a8m/envsubst v1.4.3
-	github.com/charmbracelet/x/ansi v0.11.7
+	github.com/charmbracelet/x/ansi v0.11.8
 	github.com/charmbracelet/x/exp/teatest/v2 v2.0.0-20260629091435-9c70f75e26a4
 	github.com/go-chi/chi/v5 v5.3.2
 	github.com/go-chi/render v1.0.3
 	github.com/go-git/go-git/v6 v6.0.0-alpha.5
 	github.com/godbus/dbus/v5 v5.2.2
-	github.com/gofrs/flock v0.13.0
+	github.com/gofrs/flock v0.13.1
 	github.com/google/go-cmp v0.7.0
 	github.com/google/uuid v1.6.0
 	github.com/hashicorp/go-retryablehttp v0.7.8
@@ -42,19 +43,9 @@ require (
 
 require (
 	charm.land/log/v2 v2.0.0 // indirect
-	github.com/NimbleMarkets/ntcharts/v2 v2.2.0 // indirect
-	github.com/charmbracelet/x/mosaic v0.0.0-20260816001655-68d539dca504 // indirect
-	github.com/charmbracelet/x/term v0.2.2 // indirect
-	github.com/cli/browser v1.3.0 // indirect
-	github.com/itchyny/gojq v0.12.19 // indirect
-	github.com/lrstanley/bubblezone/v2 v2.0.0 // indirect
-	golang.org/x/image v0.44.0 // indirect
-)
-
-require (
 	github.com/BurntSushi/toml v1.6.0 // indirect
-	github.com/CircleCI-Public/circleci-cli/clikit v0.0.0
 	github.com/Microsoft/go-winio v0.6.2 // indirect
+	github.com/NimbleMarkets/ntcharts/v2 v2.2.0 // indirect
 	github.com/ProtonMail/go-crypto v1.4.1 // indirect
 	github.com/agnivade/levenshtein v1.2.1 // indirect
 	github.com/ajg/form v1.7.1 // indirect
@@ -69,9 +60,12 @@ require (
 	github.com/charmbracelet/x/conpty v0.2.0 // indirect
 	github.com/charmbracelet/x/exp/golden v0.0.0-20251109135125-8916d276318f // indirect
 	github.com/charmbracelet/x/exp/slice v0.0.0-20260615092313-b57e5e6d29bb // indirect
+	github.com/charmbracelet/x/mosaic v0.0.0-20260816001655-68d539dca504 // indirect
+	github.com/charmbracelet/x/term v0.2.2 // indirect
 	github.com/charmbracelet/x/termios v0.1.1 // indirect
 	github.com/charmbracelet/x/windows v0.2.2 // indirect
 	github.com/charmbracelet/x/xpty v0.1.3 // indirect
+	github.com/cli/browser v1.3.0 // indirect
 	github.com/clipperhouse/displaywidth v0.11.0 // indirect
 	github.com/clipperhouse/uax29/v2 v2.7.0 // indirect
 	github.com/cloudflare/circl v1.6.3 // indirect
@@ -93,9 +87,11 @@ require (
 	github.com/gorilla/mux v1.8.1 // indirect
 	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
+	github.com/itchyny/gojq v0.12.19 // indirect
 	github.com/itchyny/timefmt-go v0.1.8 // indirect
 	github.com/kevinburke/ssh_config v1.6.0 // indirect
 	github.com/klauspost/cpuid/v2 v2.3.0 // indirect
+	github.com/lrstanley/bubblezone/v2 v2.0.0 // indirect
 	github.com/lucasb-eyer/go-colorful v1.4.0 // indirect
 	github.com/lufia/plan9stats v0.0.0-20260330125221-c963978e514e // indirect
 	github.com/mattn/go-runewidth v0.0.24 // indirect
@@ -137,6 +133,7 @@ require (
 	go.opentelemetry.io/otel/trace v1.43.0 // indirect
 	golang.org/x/crypto v0.54.0 // indirect
 	golang.org/x/exp v0.0.0-20260611194520-c48552f49976 // indirect
+	golang.org/x/image v0.44.0 // indirect
 	golang.org/x/net v0.57.0 // indirect
 	golang.org/x/text v0.40.0 // indirect
 	golang.org/x/time v0.15.0 // indirect

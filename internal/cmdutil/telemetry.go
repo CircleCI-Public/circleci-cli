@@ -23,22 +23,78 @@
 package cmdutil
 
 import (
+	"context"
 	"slices"
 	"strings"
+	"sync"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 )
 
-const telemetryPropPrefix = "telemetry_prop:"
+// telemetryProps is the mutable set of extra properties RecordTelemetryNow adds
+// to the command_invocation event. It is carried by the context, so a package
+// that only ever receives a ctx can record a property without reaching for the
+// running cobra command — which business logic packages must not do, since
+// commands import them and never the reverse.
+//
+// Properties describe a single invocation, so each key is written at most once
+// per run and a later write simply replaces an earlier one.
+type telemetryProps struct {
+	mu    sync.Mutex
+	props map[string]string
+}
 
-// SetTelemetryProp attaches an extra property to cmd that RecordTelemetryNow
-// will include in the command_invocation event.
-func SetTelemetryProp(cmd *cobra.Command, key, value string) {
-	if cmd.Annotations == nil {
-		cmd.Annotations = map[string]string{}
+func (p *telemetryProps) set(key, value string) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if p.props == nil {
+		p.props = map[string]string{}
 	}
-	cmd.Annotations[telemetryPropPrefix+key] = value
+	p.props[key] = value
+}
+
+// mergeInto copies the properties into dst under the lock, so RecordTelemetryNow
+// never reads the map while another goroutine is writing it. A nil receiver — no
+// property set in the context — merges nothing.
+func (p *telemetryProps) mergeInto(dst map[string]any) {
+	if p == nil {
+		return
+	}
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	for key, value := range p.props {
+		dst[key] = value
+	}
+}
+
+// telemetryPropsKey carries the property set. WithTelemetry installs it, so
+// there is no separate exported installer to forget.
+type telemetryPropsKey struct{}
+
+func getTelemetryProps(ctx context.Context) *telemetryProps {
+	if ctx == nil {
+		return nil
+	}
+	p, _ := ctx.Value(telemetryPropsKey{}).(*telemetryProps)
+	return p
+}
+
+// SetTelemetryProp attaches an extra property to the current invocation that
+// RecordTelemetryNow will include in the command_invocation event. It takes a
+// ctx rather than the running command so that business logic packages can call
+// it: commands import them and never the reverse, so they never hold the cobra
+// command. A command that does hold one passes cmd.Context().
+//
+// WithTelemetry installs the property set, so a context without one has no
+// sender either. Telemetry is best-effort, so recording a property under such a
+// context — a bare context in a test, or business logic reached outside a
+// command — drops it rather than failing, the same way RecordTelemetryNow drops
+// the whole event when no sender is installed.
+func SetTelemetryProp(ctx context.Context, key, value string) {
+	if p := getTelemetryProps(ctx); p != nil {
+		p.set(key, value)
+	}
 }
 
 func DisableEverything(cmd *cobra.Command) {
@@ -66,6 +122,15 @@ func RecordTelemetry(cmd *cobra.Command) {
 		runErr := currentRunE(cmd, args)
 
 		RecordTelemetryNow(cmd)
+
+		// Events are buffered until the sender is closed, and the root command's
+		// PersistentPostRunE is what normally closes it. Cobra skips that hook when
+		// RunE returns an error, so without this a failed command builds its event
+		// and then discards it, losing exactly the runs most worth measuring. Close
+		// is idempotent, so the success path still closes once, in the hook.
+		if runErr != nil {
+			_ = GetTelemetry(cmd.Context()).Close()
+		}
 
 		return runErr
 	}
@@ -117,11 +182,7 @@ func RecordTelemetryNow(cmd *cobra.Command) {
 		"command": cmd.CommandPath(),
 		"flags":   strings.Join(flags, ","),
 	}
-	for k, v := range cmd.Annotations {
-		if after, ok := strings.CutPrefix(k, telemetryPropPrefix); ok {
-			props[after] = v
-		}
-	}
+	getTelemetryProps(ctx).mergeInto(props)
 
 	_ = tc.Track("command_invocation", props)
 }

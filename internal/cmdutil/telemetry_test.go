@@ -250,12 +250,115 @@ func TestRecordTelemetry(t *testing.T) {
 		assert.Check(t, cmp.Len(recorder.Tracks(), 0))
 	})
 
+	t.Run("includes extra props set from a context-only caller", func(t *testing.T) {
+		recorder, client := newTelemetry(t)
+		cmd := &cobra.Command{
+			Use: "onboard",
+			RunE: func(cmd *cobra.Command, args []string) error {
+				// Stands in for a business logic package, which is handed a ctx and
+				// must not reach for the running command.
+				setFromBusinessLogic(cmd.Context())
+				return nil
+			},
+		}
+		ctx := cmdutil.WithTelemetry(context.Background(), client)
+		cmd.SetContext(ctx)
+		cmdutil.RecordTelemetry(cmd)
+		assert.NilError(t, cmd.RunE(cmd, nil))
+		assert.NilError(t, client.Close())
+
+		assert.Check(t, cmp.DeepEqual(properties(recorder.Tracks()), []analytics.Properties{
+			{
+				"command":        "onboard",
+				"flags":          "",
+				"onboard_mode":   "scan",
+				"onboard_signup": "completed",
+			},
+		}))
+	})
+
+	// A later write replaces an earlier one, which is what lets a step be seeded
+	// with a placeholder before the run and overwritten by its real outcome.
+	t.Run("last write of a prop wins", func(t *testing.T) {
+		recorder, client := newTelemetry(t)
+		cmd := &cobra.Command{
+			Use: "onboard",
+			RunE: func(cmd *cobra.Command, args []string) error {
+				cmdutil.SetTelemetryProp(cmd.Context(), "onboard_signup", "not_reached")
+				cmdutil.SetTelemetryProp(cmd.Context(), "onboard_signup", "completed")
+				return nil
+			},
+		}
+		ctx := cmdutil.WithTelemetry(context.Background(), client)
+		cmd.SetContext(ctx)
+		cmdutil.RecordTelemetry(cmd)
+		assert.NilError(t, cmd.RunE(cmd, nil))
+		assert.NilError(t, client.Close())
+
+		assert.Check(t, cmp.DeepEqual(properties(recorder.Tracks()), []analytics.Properties{
+			{"command": "onboard", "flags": "", "onboard_signup": "completed"},
+		}))
+	})
+
+	// Props are recorded after the handler returns, so an outcome set before a
+	// failure still reaches the event.
+	t.Run("records props set before a failing RunE returned", func(t *testing.T) {
+		recorder, client := newTelemetry(t)
+		wantErr := fmt.Errorf("trigger could not be created")
+		cmd := &cobra.Command{
+			Use: "onboard",
+			RunE: func(cmd *cobra.Command, args []string) error {
+				cmdutil.SetTelemetryProp(cmd.Context(), "onboard_project_setup", "trigger_failed")
+				return wantErr
+			},
+		}
+		ctx := cmdutil.WithTelemetry(context.Background(), client)
+		cmd.SetContext(ctx)
+		cmdutil.RecordTelemetry(cmd)
+		assert.Check(t, cmp.ErrorIs(cmd.RunE(cmd, nil), wantErr))
+		assert.NilError(t, client.Close())
+
+		assert.Check(t, cmp.DeepEqual(properties(recorder.Tracks()), []analytics.Properties{
+			{"command": "onboard", "flags": "", "onboard_project_setup": "trigger_failed"},
+		}))
+	})
+
+	// Telemetry is best-effort. WithTelemetry installs the property set, so a
+	// context without one has no sender either and nothing to attach a property
+	// to: business logic that records an outcome while running under a bare
+	// context must be dropped quietly rather than panic.
+	t.Run("recording a prop without telemetry in the context is a no-op", func(t *testing.T) {
+		cmdutil.SetTelemetryProp(context.Background(), "onboard_mode", "scan")
+	})
+
+	// A sender re-installed mid-run must not discard outcomes already recorded,
+	// since properties belong to the invocation rather than to the sender.
+	t.Run("reinstalling telemetry keeps props already recorded", func(t *testing.T) {
+		recorder, client := newTelemetry(t)
+		cmd := &cobra.Command{
+			Use: "onboard",
+			RunE: func(cmd *cobra.Command, args []string) error {
+				cmdutil.SetTelemetryProp(cmd.Context(), "onboard_mode", "scan")
+				cmd.SetContext(cmdutil.WithTelemetry(cmd.Context(), client))
+				return nil
+			},
+		}
+		cmd.SetContext(cmdutil.WithTelemetry(context.Background(), client))
+		cmdutil.RecordTelemetry(cmd)
+		assert.NilError(t, cmd.RunE(cmd, nil))
+		assert.NilError(t, client.Close())
+
+		assert.Check(t, cmp.DeepEqual(properties(recorder.Tracks()), []analytics.Properties{
+			{"command": "onboard", "flags": "", "onboard_mode": "scan"},
+		}))
+	})
+
 	t.Run("includes extra props set via SetTelemetryProp", func(t *testing.T) {
 		recorder, client := newTelemetry(t)
 		cmd := &cobra.Command{
 			Use: "api",
 			RunE: func(cmd *cobra.Command, args []string) error {
-				cmdutil.SetTelemetryProp(cmd, "api_path", "api/v2/me")
+				cmdutil.SetTelemetryProp(cmd.Context(), "api_path", "api/v2/me")
 				return nil
 			},
 		}
@@ -437,3 +540,20 @@ const (
 	userID     = "cb3ce909-79b7-4a12-baa4-ecb986047e37"
 	instanceID = "536bbd16-bf6c-4d1c-bf2c-fc2bb474fb42"
 )
+
+// setFromBusinessLogic records props the way a package outside internal/cmd does:
+// from a ctx alone, with no access to the cobra command.
+func setFromBusinessLogic(ctx context.Context) {
+	cmdutil.SetTelemetryProp(ctx, "onboard_mode", "scan")
+	cmdutil.SetTelemetryProp(ctx, "onboard_signup", "completed")
+}
+
+// properties reduces recorded tracks to their properties, for tests asserting on
+// the props alone. The full event shape is pinned by the subtests above.
+func properties(tracks []analytics.Track) []analytics.Properties {
+	props := make([]analytics.Properties, 0, len(tracks))
+	for _, track := range tracks {
+		props = append(props, track.Properties)
+	}
+	return props
+}
