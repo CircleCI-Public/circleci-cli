@@ -4,6 +4,7 @@ Flags:
       --checkout-provider string   Checkout source provider (one of: github_app, github_server)
       --checkout-repo-id string    Checkout source repo external ID
       --config-file string         Config file path (e.g. .circleci/config.yml)
+      --config-file-type string    Config file type, omit for standard CircleCI YAML (one of: github-actions)
       --config-provider string     Config source provider (one of: github_app, github_server, circleci)
       --config-repo-id string      Config source repo external ID (required for github_app, github_server)
       --description string         Pipeline definition description

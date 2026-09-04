@@ -11,6 +11,7 @@ Create a pipeline definition
 | `--checkout-provider string` | Checkout source provider (one of: github_app, github_server)                      |
 | `--checkout-repo-id string`  | Checkout source repo external ID                                                  |
 | `--config-file string`       | Config file path (e.g. .circleci/config.yml)                                      |
+| `--config-file-type string`  | Config file type, omit for standard CircleCI YAML (one of: github-actions)        |
 | `--config-provider string`   | Config source provider (one of: github_app, github_server, circleci)              |
 | `--config-repo-id string`    | Config source repo external ID (required for github_app, github_server)           |
 | `--description string`       | Pipeline definition description                                                   |
@@ -33,11 +34,10 @@ Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `ci
 
 ## Details
 
-Create a new pipeline definition for a CircleCI project: where CircleCI finds
-the config YAML, and which repository to check out. Attach triggers to it
-afterwards with `circleci project trigger create`.
-
-Required flags must be given in non-interactive mode; a terminal prompts.
+Create a new pipeline definition for a project: where CircleCI finds the
+config YAML and which repository to check out. Attach triggers afterwards
+with `circleci project trigger create`. Required flags must be
+given in non-interactive mode; a terminal prompts.
 
 JSON fields: id, name, description, created_at, config_source.provider, config_source.file_path, config_source.repo.external_id, config_source.repo.full_name, checkout_source.provider, checkout_source.repo.external_id, checkout_source.repo.full_name
 

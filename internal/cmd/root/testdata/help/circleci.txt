@@ -22,6 +22,7 @@ Work with CircleCI from the command line.
 
 | Command             | Description                                            |
 | ------------------- | ------------------------------------------------------ |
+| `actions`           | Work with GitHub Actions workflows                     |
 | `certificate`       | Manage iOS code signing certificates                   |
 | `component-version` | Manage deploy component versions                       |
 | `context`           | Manage secret env vars shared across pipelines         |

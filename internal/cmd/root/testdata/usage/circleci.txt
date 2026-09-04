@@ -1,6 +1,7 @@
 Usage:  circleci [flags]
 
 Available commands:
+  actions
   api
   artifact
   auth

@@ -34,6 +34,7 @@ import (
 	clierrors "github.com/CircleCI-Public/circleci-cli/clikit/errors"
 	"github.com/CircleCI-Public/circleci-cli/clikit/iostream"
 	"github.com/CircleCI-Public/circleci-cli/internal/agent"
+	"github.com/CircleCI-Public/circleci-cli/internal/cmd/actions"
 	cmdapi "github.com/CircleCI-Public/circleci-cli/internal/cmd/api"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmd/artifacts"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmd/certificate"
@@ -223,6 +224,7 @@ func NewRootCmd(version string) *cobra.Command {
 		Title: "Extension commands",
 	})
 
+	cmd.AddCommand(actions.NewActionsCmd())
 	cmd.AddCommand(artifacts.NewArtifactCmd())
 	cmd.AddCommand(certificate.NewCertificateCmd())
 	cmd.AddCommand(componentversion.NewComponentVersionCmd())
