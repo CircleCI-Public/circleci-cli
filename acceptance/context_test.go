@@ -42,13 +42,24 @@ import (
 )
 
 const testOrgSlug = "gh/testorg"
+const testContextOrgID = "a0000001-0000-4000-8000-0000000000a1"
+const testContextGroupID = "a0000002-0000-4000-8000-0000000000a2"
 const testContextID = "c0000001-0000-4000-8000-000000000001"
 const testContextID2 = "c0000002-0000-4000-8000-000000000002"
 const testRestrictionID = "e0000001-0000-4000-8000-000000000001"
 const testCreatedRestrictionID = "c0000003-0000-4000-8000-000000000003"
 
+// contextFake returns a fake with the test org registered, so the CLI can
+// resolve --org gh/testorg to the UUID the v3 context endpoints filter on.
+func contextFake(t *testing.T) *fakes.CircleCI {
+	t.Helper()
+	fake := fakes.NewCircleCI(t)
+	fake.AddOrg(testContextOrgID, testOrgSlug, "testorg", "github")
+	return fake
+}
+
 func fakeContext(id, name string) fakes.Context {
-	return fakes.Context{ID: id, Name: name, CreatedAt: "2020-01-01T12:00:00Z"}
+	return fakes.Context{ID: id, Name: name, CreatedAt: "2020-01-01T12:00:00Z", OrgID: testContextOrgID}
 }
 
 func fakeContextEnvVar(contextID, variable string) fakes.ContextEnvVar {
@@ -61,22 +72,22 @@ func fakeContextEnvVar(contextID, variable string) fakes.ContextEnvVar {
 	}
 }
 
-func fakeContextRestriction(contextID, id, restrictionType, restrictionValue, name string) fakes.ContextRestriction {
+func fakeContextRestriction(contextID, id, restrictionType, matchPattern, name string) fakes.ContextRestriction {
 	return fakes.ContextRestriction{
-		ContextID:        contextID,
-		ID:               id,
-		RestrictionType:  restrictionType,
-		RestrictionValue: restrictionValue,
-		Name:             name,
+		ContextID:       contextID,
+		ID:              id,
+		RestrictionType: restrictionType,
+		MatchPattern:    matchPattern,
+		Name:            name,
 	}
 }
 
 // --- context list ---
 
 func TestContextList(t *testing.T) {
-	fake := fakes.NewCircleCI(t)
-	fake.AddContext(testOrgSlug, fakeContext(testContextID, "my-context"))
-	fake.AddContext(testOrgSlug, fakeContext(testContextID2, "other-context"))
+	fake := contextFake(t)
+	fake.AddContext(testContextOrgID, fakeContext(testContextID, "my-context"))
+	fake.AddContext(testContextOrgID, fakeContext(testContextID2, "other-context"))
 
 	env := testenv.New(t)
 	env.Token = testToken
@@ -94,9 +105,9 @@ func TestContextList(t *testing.T) {
 }
 
 func TestContextList_JSON(t *testing.T) {
-	fake := fakes.NewCircleCI(t)
-	fake.AddContext(testOrgSlug, fakeContext(testContextID, "my-context"))
-	fake.AddContext(testOrgSlug, fakeContext(testContextID2, "other-context"))
+	fake := contextFake(t)
+	fake.AddContext(testContextOrgID, fakeContext(testContextID, "my-context"))
+	fake.AddContext(testContextOrgID, fakeContext(testContextID2, "other-context"))
 
 	env := testenv.New(t)
 	env.Token = testToken
@@ -120,8 +131,8 @@ func TestContextList_JSON(t *testing.T) {
 }
 
 func TestContextList_JQ(t *testing.T) {
-	fake := fakes.NewCircleCI(t)
-	fake.AddContext(testOrgSlug, fakeContext(testContextID, "my-context"))
+	fake := contextFake(t)
+	fake.AddContext(testContextOrgID, fakeContext(testContextID, "my-context"))
 
 	env := testenv.New(t)
 	env.Token = testToken
@@ -139,7 +150,7 @@ func TestContextList_JQ(t *testing.T) {
 }
 
 func TestContextList_Empty(t *testing.T) {
-	fake := fakes.NewCircleCI(t)
+	fake := contextFake(t)
 
 	env := testenv.New(t)
 	env.Token = testToken
@@ -157,9 +168,9 @@ func TestContextList_Empty(t *testing.T) {
 }
 
 func TestContextList_Name(t *testing.T) {
-	fake := fakes.NewCircleCI(t)
-	fake.AddContext(testOrgSlug, fakeContext(testContextID, "my-context"))
-	fake.AddContext(testOrgSlug, fakeContext(testContextID2, "other-context"))
+	fake := contextFake(t)
+	fake.AddContext(testContextOrgID, fakeContext(testContextID, "my-context"))
+	fake.AddContext(testContextOrgID, fakeContext(testContextID2, "other-context"))
 
 	env := testenv.New(t)
 	env.Token = testToken
@@ -177,9 +188,9 @@ func TestContextList_Name(t *testing.T) {
 }
 
 func TestContextList_Name_JSON(t *testing.T) {
-	fake := fakes.NewCircleCI(t)
-	fake.AddContext(testOrgSlug, fakeContext(testContextID, "my-context"))
-	fake.AddContext(testOrgSlug, fakeContext(testContextID2, "other-context"))
+	fake := contextFake(t)
+	fake.AddContext(testContextOrgID, fakeContext(testContextID, "my-context"))
+	fake.AddContext(testContextOrgID, fakeContext(testContextID2, "other-context"))
 
 	env := testenv.New(t)
 	env.Token = testToken
@@ -199,6 +210,74 @@ func TestContextList_Name_JSON(t *testing.T) {
 	assert.Check(t, cmp.Equal(out[0]["name"], "my-context"))
 }
 
+// TestContextList_OrgUUID covers --org taking an org UUID directly, which skips
+// the slug lookup the other tests exercise.
+func TestContextList_OrgUUID(t *testing.T) {
+	fake := contextFake(t)
+	fake.AddContext(testContextOrgID, fakeContext(testContextID, "my-context"))
+
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"context", "list", "--org", testContextOrgID, "--json", "--jq", ".[0].name"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, cmp.Equal(strings.TrimSpace(result.Stdout), "my-context"))
+
+	t.Run("resolves without an org lookup", func(t *testing.T) {
+		for _, req := range fake.AllRequests() {
+			assert.Check(t, req.URL.Path != "/api/v3/orgs",
+				"a UUID needs no slug resolution, but %s was called", req.URL.Path)
+		}
+	})
+}
+
+// TestContextList_NameFilter pins --name reaching the API as filter[name].
+// The match itself is the server's job — it applies upstream, so it narrows
+// pagination too, which a local pass could not do.
+func TestContextList_NameFilter(t *testing.T) {
+	fake := contextFake(t)
+	fake.AddContext(testContextOrgID, fakeContext(testContextID, "my-context"))
+	fake.AddContext(testContextOrgID, fakeContext(testContextID2, "other-context"))
+
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary: binaryPath,
+		// Upper-case, to pin the match as case-insensitive the way v2's was.
+		Args:    []string{"context", "list", "--org", testOrgSlug, "--name", "MY-CONTEXT", "--json"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+
+	var out []map[string]any
+	assert.NilError(t, json.Unmarshal([]byte(result.Stdout), &out))
+	assert.Check(t, cmp.Len(out, 1))
+	assert.Check(t, cmp.Equal(out[0]["name"], "my-context"))
+
+	t.Run("sends the filter", func(t *testing.T) {
+		var listReq *httprecorder.Request
+		reqs := fake.AllRequests()
+		for i := range reqs {
+			if reqs[i].URL.Path == "/api/v3/contexts" {
+				listReq = &reqs[i]
+			}
+		}
+		assert.Assert(t, listReq != nil)
+		assert.Check(t, cmp.Equal(listReq.URL.Query().Get("filter[name]"), "MY-CONTEXT"))
+	})
+}
+
 func TestContextList_NoToken(t *testing.T) {
 	env := testenv.New(t)
 
@@ -215,8 +294,8 @@ func TestContextList_NoToken(t *testing.T) {
 // --- context get ---
 
 func TestContextGet(t *testing.T) {
-	fake := fakes.NewCircleCI(t)
-	fake.AddContext(testOrgSlug, fakeContext(testContextID, "my-context"))
+	fake := contextFake(t)
+	fake.AddContext(testContextOrgID, fakeContext(testContextID, "my-context"))
 	fake.AddContextEnvVar(testContextID, fakeContextEnvVar(testContextID, "DB_PASSWORD"))
 	fake.AddContextEnvVar(testContextID, fakeContextEnvVar(testContextID, "API_KEY"))
 	fake.AddContextRestriction(testContextID, fakeContextRestriction(
@@ -240,8 +319,8 @@ func TestContextGet(t *testing.T) {
 }
 
 func TestContextGet_JSON(t *testing.T) {
-	fake := fakes.NewCircleCI(t)
-	fake.AddContext(testOrgSlug, fakeContext(testContextID, "my-context"))
+	fake := contextFake(t)
+	fake.AddContext(testContextOrgID, fakeContext(testContextID, "my-context"))
 	fake.AddContextEnvVar(testContextID, fakeContextEnvVar(testContextID, "DB_PASSWORD"))
 	fake.AddContextRestriction(testContextID, fakeContextRestriction(
 		testContextID, "e0000001-0000-4000-8000-000000000001",
@@ -274,8 +353,126 @@ func TestContextGet_JSON(t *testing.T) {
 	assert.Check(t, cmp.Equal(rs[0].(map[string]any)["restriction_type"], "project"))
 }
 
+// TestContextGet_GroupRestriction covers the restriction list `context get`
+// renders: every type comes from the restrictions endpoint, each carrying its
+// resolved name, ordered group-then-project-then-expression.
+func TestContextGet_GroupRestriction(t *testing.T) {
+	fake := contextFake(t)
+	fake.AddContext(testContextOrgID, fakeContext(testContextID, "my-context"))
+	fake.AddContextRestriction(testContextID, fakeContextRestriction(
+		testContextID, testContextGroupID, "group", testContextGroupID, "All members",
+	))
+	fake.AddContextRestriction(testContextID, fakeContextRestriction(
+		testContextID, testRestrictionID,
+		"project", "b0000001-0000-4000-8000-000000000001", "myrepo",
+	))
+
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"context", "get", testContextID, "--json"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+
+	var out map[string]any
+	assert.NilError(t, json.Unmarshal([]byte(result.Stdout), &out))
+	rs, ok := out["restrictions"].([]any)
+	assert.Assert(t, ok)
+	assert.Assert(t, cmp.Len(rs, 2))
+
+	group := rs[0].(map[string]any)
+	assert.Check(t, cmp.Equal(group["restriction_type"], "group"))
+	assert.Check(t, cmp.Equal(group["name"], "All members"))
+	assert.Check(t, cmp.Equal(group["id"], testContextGroupID))
+	assert.Check(t, cmp.Equal(group["restriction_value"], testContextGroupID))
+
+	project := rs[1].(map[string]any)
+	assert.Check(t, cmp.Equal(project["restriction_type"], "project"))
+	assert.Check(t, cmp.Equal(project["name"], "myrepo"))
+	assert.Check(t, cmp.Equal(project["restriction_value"], "b0000001-0000-4000-8000-000000000001"))
+}
+
+// TestContextList_Forbidden covers a 403 on an org-scoped call: the token
+// cannot see the organization, which is not a missing context, so it reports
+// access denied and exits 4 rather than borrowing the not-found path.
+func TestContextList_Forbidden(t *testing.T) {
+	fake := contextFake(t)
+	fake.ForbidOrgContexts(testContextOrgID)
+
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"context", "list", "--org", testOrgSlug},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 4))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+}
+
+// TestContextGet_ByName_SkipsRedundantFetch pins the saving that resolving by
+// name buys: the name lookup already returns the whole context, so the by-id
+// endpoint must not be called again. It is the slowest of the context reads, so
+// re-fetching it would put ~0.5s back on the critical path.
+func TestContextGet_ByName_SkipsRedundantFetch(t *testing.T) {
+	fake := contextFake(t)
+	fake.AddContext(testContextOrgID, fakeContext(testContextID, "my-context"))
+	fake.AddContextRestriction(testContextID, fakeContextRestriction(
+		testContextID, testContextGroupID, "group", testContextGroupID, "All members",
+	))
+	fake.AddContextEnvVar(testContextID, fakeContextEnvVar(testContextID, "DB_PASSWORD"))
+
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"context", "get", "my-context", "--org", testOrgSlug, "--json"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+
+	t.Run("never fetches the context by id", func(t *testing.T) {
+		byID := "/api/v3/contexts/" + testContextID
+		for _, req := range fake.AllRequests() {
+			assert.Check(t, req.URL.Path != byID,
+				"by-name resolution already has the context; %s is a wasted round trip", req.URL.Path)
+		}
+	})
+
+	t.Run("still renders everything, groups included", func(t *testing.T) {
+		var out map[string]any
+		assert.NilError(t, json.Unmarshal([]byte(result.Stdout), &out))
+		// org_id comes from the resolved org, since the list response omits it.
+		assert.Check(t, cmp.Equal(out["org_id"], testContextOrgID))
+		assert.Check(t, cmp.Equal(out["name"], "my-context"))
+
+		evs, ok := out["environment_variables"].([]any)
+		assert.Assert(t, ok)
+		assert.Check(t, cmp.Len(evs, 1))
+
+		rs, ok := out["restrictions"].([]any)
+		assert.Assert(t, ok)
+		assert.Assert(t, cmp.Len(rs, 1))
+		assert.Check(t, cmp.Equal(rs[0].(map[string]any)["name"], "All members"))
+	})
+}
+
 func TestContextGet_NotFound(t *testing.T) {
-	fake := fakes.NewCircleCI(t)
+	fake := contextFake(t)
 
 	env := testenv.New(t)
 	env.Token = testToken
@@ -320,8 +517,8 @@ func TestContextGet_NoToken(t *testing.T) {
 }
 
 func TestContextGet_ByName(t *testing.T) {
-	fake := fakes.NewCircleCI(t)
-	fake.AddContext(testOrgSlug, fakeContext(testContextID, "my-context"))
+	fake := contextFake(t)
+	fake.AddContext(testContextOrgID, fakeContext(testContextID, "my-context"))
 	fake.AddContextEnvVar(testContextID, fakeContextEnvVar(testContextID, "DB_PASSWORD"))
 
 	env := testenv.New(t)
@@ -340,8 +537,8 @@ func TestContextGet_ByName(t *testing.T) {
 }
 
 func TestContextGet_ByName_NotFound(t *testing.T) {
-	fake := fakes.NewCircleCI(t)
-	fake.AddContext(testOrgSlug, fakeContext(testContextID, "my-context"))
+	fake := contextFake(t)
+	fake.AddContext(testContextOrgID, fakeContext(testContextID, "my-context"))
 
 	env := testenv.New(t)
 	env.Token = testToken
@@ -361,7 +558,7 @@ func TestContextGet_ByName_NotFound(t *testing.T) {
 // --- context create ---
 
 func TestContextCreate(t *testing.T) {
-	fake := fakes.NewCircleCI(t)
+	fake := contextFake(t)
 
 	env := testenv.New(t)
 	env.Token = testToken
@@ -383,18 +580,19 @@ func TestContextCreate(t *testing.T) {
 	t.Run("check request", func(t *testing.T) {
 		assert.Check(t, cmp.DeepEqual(fake.LastRequest(), &httprecorder.Request{
 			Method: http.MethodPost,
-			URL:    url.URL{Path: "/api/v2/context"},
+			URL:    url.URL{Path: "/api/v3/contexts"},
 			Header: http.Header{
 				"Authorization": {"Bearer test-token"},
 				"User-Agent":    {httpcl.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "chunk")},
 			},
-			Body: new(`{"name":"new-context","owner":{"slug":"gh/testorg","type":"organization"}}`),
+			Body: new(`{"data":{"attributes":{"name":"new-context"},` +
+				`"references":{"org":{"id":"` + testContextOrgID + `"}}}}`),
 		}, ignoreCommonHeaders))
 	})
 }
 
 func TestContextCreate_JSON(t *testing.T) {
-	fake := fakes.NewCircleCI(t)
+	fake := contextFake(t)
 
 	env := testenv.New(t)
 	env.Token = testToken
@@ -446,8 +644,8 @@ func TestContextCreate_NoToken(t *testing.T) {
 // --- context delete ---
 
 func TestContextDelete(t *testing.T) {
-	fake := fakes.NewCircleCI(t)
-	fake.AddContext(testOrgSlug, fakeContext(testContextID, "my-context"))
+	fake := contextFake(t)
+	fake.AddContext(testContextOrgID, fakeContext(testContextID, "my-context"))
 
 	env := testenv.New(t)
 	env.Token = testToken
@@ -466,7 +664,7 @@ func TestContextDelete(t *testing.T) {
 	t.Run("check request", func(t *testing.T) {
 		assert.Check(t, cmp.DeepEqual(fake.LastRequest(), &httprecorder.Request{
 			Method: http.MethodDelete,
-			URL:    url.URL{Path: "/api/v2/context/" + testContextID},
+			URL:    url.URL{Path: "/api/v3/contexts/" + testContextID},
 			Header: http.Header{
 				"Authorization": {"Bearer test-token"},
 				"User-Agent":    {httpcl.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
@@ -477,8 +675,8 @@ func TestContextDelete(t *testing.T) {
 }
 
 func TestContextDelete_RequiresForce(t *testing.T) {
-	fake := fakes.NewCircleCI(t)
-	fake.AddContext(testOrgSlug, fakeContext(testContextID, "my-context"))
+	fake := contextFake(t)
+	fake.AddContext(testContextOrgID, fakeContext(testContextID, "my-context"))
 
 	env := testenv.New(t)
 	env.Token = testToken
@@ -496,7 +694,7 @@ func TestContextDelete_RequiresForce(t *testing.T) {
 }
 
 func TestContextDelete_NotFound(t *testing.T) {
-	fake := fakes.NewCircleCI(t)
+	fake := contextFake(t)
 
 	env := testenv.New(t)
 	env.Token = testToken
@@ -528,8 +726,8 @@ func TestContextDelete_MissingArg(t *testing.T) {
 }
 
 func TestContextDelete_ByName(t *testing.T) {
-	fake := fakes.NewCircleCI(t)
-	fake.AddContext(testOrgSlug, fakeContext(testContextID, "my-context"))
+	fake := contextFake(t)
+	fake.AddContext(testContextOrgID, fakeContext(testContextID, "my-context"))
 
 	env := testenv.New(t)
 	env.Token = testToken
@@ -547,8 +745,8 @@ func TestContextDelete_ByName(t *testing.T) {
 }
 
 func TestContextDelete_ByName_NotFound(t *testing.T) {
-	fake := fakes.NewCircleCI(t)
-	fake.AddContext(testOrgSlug, fakeContext(testContextID, "my-context"))
+	fake := contextFake(t)
+	fake.AddContext(testContextOrgID, fakeContext(testContextID, "my-context"))
 
 	env := testenv.New(t)
 	env.Token = testToken
@@ -567,8 +765,8 @@ func TestContextDelete_ByName_NotFound(t *testing.T) {
 // --- context secret list ---
 
 func TestContextSecretList(t *testing.T) {
-	fake := fakes.NewCircleCI(t)
-	fake.AddContext(testOrgSlug, fakeContext(testContextID, "my-context"))
+	fake := contextFake(t)
+	fake.AddContext(testContextOrgID, fakeContext(testContextID, "my-context"))
 	fake.AddContextEnvVar(testContextID, fakeContextEnvVar(testContextID, "DB_PASSWORD"))
 	fake.AddContextEnvVar(testContextID, fakeContextEnvVar(testContextID, "API_KEY"))
 
@@ -588,8 +786,8 @@ func TestContextSecretList(t *testing.T) {
 }
 
 func TestContextSecretList_JSON(t *testing.T) {
-	fake := fakes.NewCircleCI(t)
-	fake.AddContext(testOrgSlug, fakeContext(testContextID, "my-context"))
+	fake := contextFake(t)
+	fake.AddContext(testContextOrgID, fakeContext(testContextID, "my-context"))
 	fake.AddContextEnvVar(testContextID, fakeContextEnvVar(testContextID, "DB_PASSWORD"))
 
 	env := testenv.New(t)
@@ -613,7 +811,7 @@ func TestContextSecretList_JSON(t *testing.T) {
 }
 
 func TestContextSecretList_Empty(t *testing.T) {
-	fake := fakes.NewCircleCI(t)
+	fake := contextFake(t)
 
 	env := testenv.New(t)
 	env.Token = testToken
@@ -645,8 +843,8 @@ func TestContextSecretList_MissingArg(t *testing.T) {
 }
 
 func TestContextSecretList_ByName(t *testing.T) {
-	fake := fakes.NewCircleCI(t)
-	fake.AddContext(testOrgSlug, fakeContext(testContextID, "my-context"))
+	fake := contextFake(t)
+	fake.AddContext(testContextOrgID, fakeContext(testContextID, "my-context"))
 	fake.AddContextEnvVar(testContextID, fakeContextEnvVar(testContextID, "DB_PASSWORD"))
 	fake.AddContextEnvVar(testContextID, fakeContextEnvVar(testContextID, "API_KEY"))
 
@@ -668,8 +866,8 @@ func TestContextSecretList_ByName(t *testing.T) {
 // --- context secret set ---
 
 func TestContextSecretSet(t *testing.T) {
-	fake := fakes.NewCircleCI(t)
-	fake.AddContext(testOrgSlug, fakeContext(testContextID, "my-context"))
+	fake := contextFake(t)
+	fake.AddContext(testContextOrgID, fakeContext(testContextID, "my-context"))
 
 	env := testenv.New(t)
 	env.Token = testToken
@@ -687,15 +885,40 @@ func TestContextSecretSet(t *testing.T) {
 
 	t.Run("check request", func(t *testing.T) {
 		assert.Check(t, cmp.DeepEqual(fake.LastRequest(), &httprecorder.Request{
-			Method: http.MethodPut,
-			URL:    url.URL{Path: "/api/v2/context/" + testContextID + "/environment-variable/MY_VAR"},
+			Method: http.MethodPost,
+			URL:    url.URL{Path: "/api/v3/contexts/" + testContextID + "/env-vars/set"},
 			Header: http.Header{
 				"Authorization": {"Bearer test-token"},
 				"User-Agent":    {httpcl.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
 			},
-			Body: new(`{"value":"s3cr3t"}`),
+			Body: new(`{"name":"MY_VAR","value":"s3cr3t"}`),
 		}, ignoreCommonHeaders))
 	})
+}
+
+// TestContextSecretSet_Forbidden covers a by-id 403: the caller can see the
+// context but lacks the permission to write to it — the read-only-member case,
+// and the only thing a by-id 403 means, since a missing or cross-tenant context
+// answers 404. So the message can say so plainly instead of falling through to
+// the generic API error.
+func TestContextSecretSet_Forbidden(t *testing.T) {
+	fake := contextFake(t)
+	fake.AddContext(testContextOrgID, fakeContext(testContextID, "my-context"))
+	fake.ForbidContextAction(testContextID)
+
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"context", "secret", "set", testContextID, "--name", "MY_VAR", "--value", "s3cr3t"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 4))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 }
 
 func TestContextSecretSet_MissingName(t *testing.T) {
@@ -754,8 +977,8 @@ func TestContextSecretSet_NoToken(t *testing.T) {
 }
 
 func TestContextSecretSet_ByName(t *testing.T) {
-	fake := fakes.NewCircleCI(t)
-	fake.AddContext(testOrgSlug, fakeContext(testContextID, "my-context"))
+	fake := contextFake(t)
+	fake.AddContext(testContextOrgID, fakeContext(testContextID, "my-context"))
 
 	env := testenv.New(t)
 	env.Token = testToken
@@ -775,8 +998,8 @@ func TestContextSecretSet_ByName(t *testing.T) {
 // --- context secret delete ---
 
 func TestContextSecretDelete(t *testing.T) {
-	fake := fakes.NewCircleCI(t)
-	fake.AddContext(testOrgSlug, fakeContext(testContextID, "my-context"))
+	fake := contextFake(t)
+	fake.AddContext(testContextOrgID, fakeContext(testContextID, "my-context"))
 	fake.AddContextEnvVar(testContextID, fakeContextEnvVar(testContextID, "MY_VAR"))
 
 	env := testenv.New(t)
@@ -796,7 +1019,10 @@ func TestContextSecretDelete(t *testing.T) {
 	t.Run("check request", func(t *testing.T) {
 		assert.Check(t, cmp.DeepEqual(fake.LastRequest(), &httprecorder.Request{
 			Method: http.MethodDelete,
-			URL:    url.URL{Path: "/api/v2/context/" + testContextID + "/environment-variable/MY_VAR"},
+			URL: url.URL{
+				Path:     "/api/v3/contexts/" + testContextID + "/env-vars",
+				RawQuery: "filter%5Bname%5D=MY_VAR",
+			},
 			Header: http.Header{
 				"Authorization": {"Bearer test-token"},
 				"User-Agent":    {httpcl.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
@@ -807,8 +1033,8 @@ func TestContextSecretDelete(t *testing.T) {
 }
 
 func TestContextSecretDelete_RequiresForce(t *testing.T) {
-	fake := fakes.NewCircleCI(t)
-	fake.AddContext(testOrgSlug, fakeContext(testContextID, "my-context"))
+	fake := contextFake(t)
+	fake.AddContext(testContextOrgID, fakeContext(testContextID, "my-context"))
 	fake.AddContextEnvVar(testContextID, fakeContextEnvVar(testContextID, "MY_VAR"))
 
 	env := testenv.New(t)
@@ -827,7 +1053,7 @@ func TestContextSecretDelete_RequiresForce(t *testing.T) {
 }
 
 func TestContextSecretDelete_NotFound(t *testing.T) {
-	fake := fakes.NewCircleCI(t)
+	fake := contextFake(t)
 
 	env := testenv.New(t)
 	env.Token = testToken
@@ -859,8 +1085,8 @@ func TestContextSecretDelete_MissingArgs(t *testing.T) {
 }
 
 func TestContextSecretDelete_ByName(t *testing.T) {
-	fake := fakes.NewCircleCI(t)
-	fake.AddContext(testOrgSlug, fakeContext(testContextID, "my-context"))
+	fake := contextFake(t)
+	fake.AddContext(testContextOrgID, fakeContext(testContextID, "my-context"))
 	fake.AddContextEnvVar(testContextID, fakeContextEnvVar(testContextID, "MY_VAR"))
 
 	env := testenv.New(t)
@@ -881,8 +1107,8 @@ func TestContextSecretDelete_ByName(t *testing.T) {
 // --- context restriction create ---
 
 func TestContextRestrictionCreate(t *testing.T) {
-	fake := fakes.NewCircleCI(t)
-	fake.AddContext(testOrgSlug, fakeContext(testContextID, "my-context"))
+	fake := contextFake(t)
+	fake.AddContext(testContextOrgID, fakeContext(testContextID, "my-context"))
 
 	env := testenv.New(t)
 	env.Token = testToken
@@ -901,19 +1127,20 @@ func TestContextRestrictionCreate(t *testing.T) {
 	t.Run("check request", func(t *testing.T) {
 		assert.Check(t, cmp.DeepEqual(fake.LastRequest(), &httprecorder.Request{
 			Method: http.MethodPost,
-			URL:    url.URL{Path: "/api/v2/context/" + testContextID + "/restrictions"},
+			URL:    url.URL{Path: "/api/v3/context-restrictions"},
 			Header: http.Header{
 				"Authorization": {"Bearer test-token"},
 				"User-Agent":    {httpcl.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
 			},
-			Body: new(`{"restriction_type":"project","restriction_value":"p0000001-0000-4000-8000-000000000001"}`),
+			Body: new(`{"data":{"attributes":{"match_pattern":"p0000001-0000-4000-8000-000000000001",` +
+				`"restriction_type":"project"},"references":{"context":{"id":"` + testContextID + `"}}}}`),
 		}, ignoreCommonHeaders))
 	})
 }
 
 func TestContextRestrictionCreate_Color(t *testing.T) {
-	fake := fakes.NewCircleCI(t)
-	fake.AddContext(testOrgSlug, fakeContext(testContextID, "my-context"))
+	fake := contextFake(t)
+	fake.AddContext(testContextOrgID, fakeContext(testContextID, "my-context"))
 
 	env := testenv.New(t)
 	env.Token = testToken
@@ -932,8 +1159,8 @@ func TestContextRestrictionCreate_Color(t *testing.T) {
 }
 
 func TestContextRestrictionCreate_JSON(t *testing.T) {
-	fake := fakes.NewCircleCI(t)
-	fake.AddContext(testOrgSlug, fakeContext(testContextID, "my-context"))
+	fake := contextFake(t)
+	fake.AddContext(testContextOrgID, fakeContext(testContextID, "my-context"))
 
 	env := testenv.New(t)
 	env.Token = testToken
@@ -953,6 +1180,32 @@ func TestContextRestrictionCreate_JSON(t *testing.T) {
 	assert.Check(t, cmp.Equal(out["id"], testCreatedRestrictionID))
 	assert.Check(t, cmp.Equal(out["restriction_type"], "project"))
 	assert.Check(t, cmp.Equal(out["restriction_value"], "p0000001-0000-4000-8000-000000000001"))
+}
+
+// TestContextRestrictionCreate_Group covers --type group. Groups are stored
+// differently upstream, but the API hides that: the same endpoint takes a group
+// id as its match pattern, so the CLI needs no special case.
+func TestContextRestrictionCreate_Group(t *testing.T) {
+	fake := contextFake(t)
+	fake.AddContext(testContextOrgID, fakeContext(testContextID, "my-context"))
+
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"context", "restriction", "create", testContextID, "--type", "group", "--value", testContextGroupID, "--json"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+
+	var out map[string]any
+	assert.NilError(t, json.Unmarshal([]byte(result.Stdout), &out))
+	assert.Check(t, cmp.Equal(out["restriction_type"], "group"))
+	assert.Check(t, cmp.Equal(out["restriction_value"], testContextGroupID))
 }
 
 func TestContextRestrictionCreate_MissingArg(t *testing.T) {
@@ -998,7 +1251,7 @@ func TestContextRestrictionCreate_MissingValue(t *testing.T) {
 }
 
 func TestContextRestrictionCreate_InvalidType(t *testing.T) {
-	fake := fakes.NewCircleCI(t)
+	fake := contextFake(t)
 
 	env := testenv.New(t)
 	env.Token = testToken
@@ -1015,8 +1268,8 @@ func TestContextRestrictionCreate_InvalidType(t *testing.T) {
 }
 
 func TestContextRestrictionCreate_ByName(t *testing.T) {
-	fake := fakes.NewCircleCI(t)
-	fake.AddContext(testOrgSlug, fakeContext(testContextID, "my-context"))
+	fake := contextFake(t)
+	fake.AddContext(testContextOrgID, fakeContext(testContextID, "my-context"))
 
 	env := testenv.New(t)
 	env.Token = testToken
@@ -1036,8 +1289,8 @@ func TestContextRestrictionCreate_ByName(t *testing.T) {
 // --- context restriction delete ---
 
 func TestContextRestrictionDelete(t *testing.T) {
-	fake := fakes.NewCircleCI(t)
-	fake.AddContext(testOrgSlug, fakeContext(testContextID, "my-context"))
+	fake := contextFake(t)
+	fake.AddContext(testContextOrgID, fakeContext(testContextID, "my-context"))
 	fake.AddContextRestriction(testContextID, fakeContextRestriction(testContextID, testRestrictionID, "project", "p0000001-0000-4000-8000-000000000001", "myrepo"))
 
 	env := testenv.New(t)
@@ -1057,7 +1310,10 @@ func TestContextRestrictionDelete(t *testing.T) {
 	t.Run("check request", func(t *testing.T) {
 		assert.Check(t, cmp.DeepEqual(fake.LastRequest(), &httprecorder.Request{
 			Method: http.MethodDelete,
-			URL:    url.URL{Path: "/api/v2/context/" + testContextID + "/restrictions/" + testRestrictionID},
+			URL: url.URL{
+				Path:     "/api/v3/context-restrictions/" + testRestrictionID,
+				RawQuery: "filter%5Bcontext_id%5D=" + testContextID,
+			},
 			Header: http.Header{
 				"Authorization": {"Bearer test-token"},
 				"User-Agent":    {httpcl.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
@@ -1068,8 +1324,8 @@ func TestContextRestrictionDelete(t *testing.T) {
 }
 
 func TestContextRestrictionDelete_Color(t *testing.T) {
-	fake := fakes.NewCircleCI(t)
-	fake.AddContext(testOrgSlug, fakeContext(testContextID, "my-context"))
+	fake := contextFake(t)
+	fake.AddContext(testContextOrgID, fakeContext(testContextID, "my-context"))
 	fake.AddContextRestriction(testContextID, fakeContextRestriction(testContextID, testRestrictionID, "project", "p0000001-0000-4000-8000-000000000001", "myrepo"))
 
 	env := testenv.New(t)
@@ -1089,8 +1345,8 @@ func TestContextRestrictionDelete_Color(t *testing.T) {
 }
 
 func TestContextRestrictionDelete_RequiresForce(t *testing.T) {
-	fake := fakes.NewCircleCI(t)
-	fake.AddContext(testOrgSlug, fakeContext(testContextID, "my-context"))
+	fake := contextFake(t)
+	fake.AddContext(testContextOrgID, fakeContext(testContextID, "my-context"))
 	fake.AddContextRestriction(testContextID, fakeContextRestriction(testContextID, testRestrictionID, "project", "p0000001-0000-4000-8000-000000000001", "myrepo"))
 
 	env := testenv.New(t)
@@ -1109,8 +1365,8 @@ func TestContextRestrictionDelete_RequiresForce(t *testing.T) {
 }
 
 func TestContextRestrictionDelete_NotFound(t *testing.T) {
-	fake := fakes.NewCircleCI(t)
-	fake.AddContext(testOrgSlug, fakeContext(testContextID, "my-context"))
+	fake := contextFake(t)
+	fake.AddContext(testContextOrgID, fakeContext(testContextID, "my-context"))
 
 	env := testenv.New(t)
 	env.Token = testToken
@@ -1142,8 +1398,8 @@ func TestContextRestrictionDelete_MissingArg(t *testing.T) {
 }
 
 func TestContextRestrictionDelete_ByName(t *testing.T) {
-	fake := fakes.NewCircleCI(t)
-	fake.AddContext(testOrgSlug, fakeContext(testContextID, "my-context"))
+	fake := contextFake(t)
+	fake.AddContext(testContextOrgID, fakeContext(testContextID, "my-context"))
 	fake.AddContextRestriction(testContextID, fakeContextRestriction(testContextID, testRestrictionID, "project", "p0000001-0000-4000-8000-000000000001", "myrepo"))
 
 	env := testenv.New(t)

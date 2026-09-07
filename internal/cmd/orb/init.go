@@ -491,21 +491,37 @@ func orbInitLicenseErr(err error) error {
 // stores the current API token as CIRCLE_TOKEN. Failures are surfaced as
 // warnings so they do not abort the whole init.
 func setupPublishingContext(ctx context.Context, client *apiclient.Client, orgSlug string) {
-	ctxt, err := client.CreateContext(ctx, publishingContextName, orgSlug)
+	orgID, err := cmdutil.ResolveOrgSlugOrID(ctx, client, orgSlug, "circleci orb init")
 	if err != nil {
-		// The context may already exist; try to look it up.
-		existing, lerr := client.ListContexts(ctx, orgSlug, publishingContextName)
-		if lerr != nil || len(existing) == 0 {
+		iostream.Printf(ctx, "%s Could not set up the publishing context: %s\n", iostream.SymbolWarn(ctx), err)
+		return
+	}
+
+	ctxt, err := client.CreateContext(ctx, publishingContextName, orgID)
+	if err != nil {
+		// The context may already exist; try to look it up. ListContexts
+		// treats the name as a partial match, so pick the exact one rather
+		// than the first result — "orb-publishing-old" must not win.
+		existing, lerr := client.ListContexts(ctx, orgID, publishingContextName)
+		if lerr != nil {
 			iostream.Printf(ctx, "%s Could not set up the publishing context: %s\n", iostream.SymbolWarn(ctx), err)
 			return
 		}
-		c := existing[0]
-		ctxt = &c
+		for i := range existing {
+			if existing[i].Name == publishingContextName {
+				ctxt = &existing[i]
+				break
+			}
+		}
+		if ctxt == nil {
+			iostream.Printf(ctx, "%s Could not set up the publishing context: %s\n", iostream.SymbolWarn(ctx), err)
+			return
+		}
 		iostream.Printf(ctx, "Context %q already exists, continuing\n", publishingContextName)
 	}
 
 	token := cmdutil.GetConfig(ctx).EffectiveToken()
-	if _, err := client.SetContextEnvVar(ctx, ctxt.ID.String(), "CIRCLE_TOKEN", token); err != nil {
+	if err := client.SetContextEnvVar(ctx, ctxt.ID, "CIRCLE_TOKEN", token); err != nil {
 		iostream.Printf(ctx, "%s Could not set CIRCLE_TOKEN on the publishing context: %s\n", iostream.SymbolWarn(ctx), err)
 	}
 }

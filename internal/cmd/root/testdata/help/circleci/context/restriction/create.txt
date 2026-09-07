@@ -16,9 +16,9 @@ A context can be specified by name or ID:
 | ---------------- | --------------------------------------------------------------------------------- |
 | `--jq string`    | Process values from the response using jq syntax (see `circleci help formatting`) |
 | `--json`         | Output as JSON                                                                    |
-| `--org string`   | Organization slug (e.g. gh/myorg); used when resolving name to ID                 |
+| `--org string`   | Organization slug (e.g. gh/myorg) or UUID; used when resolving name to ID         |
 | `--type string`  | Restriction type: project, expression, or group                                   |
-| `--value string` | Value of the restriction                                                          |
+| `--value string` | Project ID, pipeline expression, or group ID, matching --type                     |
 
 Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `circleci --help`.
 
@@ -26,10 +26,10 @@ Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `ci
 
 - Restrict context to a specific project: 
   `circleci context restriction create ctx-uuid --type project --value proj-uuid`
-- Restrict context to a specific group: 
-  `circleci context restriction create ctx-uuid --type group --value group-uuid`
 - Restrict context using a pipeline expression: 
   `circleci context restriction create ctx-uuid --type expression --value 'pipeline.git.branch == "main"'`
+- Restrict context to a security group (--value is the group ID): 
+  `circleci context restriction create ctx-uuid --type group --value group-uuid`
 - Capture the restriction ID: 
   `circleci context restriction create ctx-uuid --type project --value proj-uuid --json --jq '.id'`
 
@@ -37,5 +37,5 @@ Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `ci
 
 Add a restriction to a CircleCI context.
 
-JSON fields: id, name, restriction_type, restriction_value
+JSON fields: id, restriction_type, restriction_value
 

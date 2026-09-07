@@ -37,7 +37,7 @@ import (
 
 func newCreateCmd() *cobra.Command {
 	var (
-		orgSlug string
+		orgRef  string
 		jsonOut bool
 	)
 
@@ -74,11 +74,11 @@ func newCreateCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return runCreate(ctx, client, args[0], orgSlug, jsonOut)
+			return runCreate(ctx, client, args[0], orgRef, jsonOut)
 		},
 	}
 
-	cmd.Flags().StringVar(&orgSlug, "org", "", "Organization slug (e.g. gh/myorg); defaults to git remote")
+	cmd.Flags().StringVar(&orgRef, "org", "", "Organization slug (e.g. gh/myorg) or UUID; defaults to git remote")
 	cmdutil.AddJSONFlag(cmd, &jsonOut)
 	cmdutil.AddJQFlag(cmd)
 
@@ -91,13 +91,13 @@ type contextCreateOutput struct {
 	CreatedAt time.Time `json:"created_at"`
 }
 
-func runCreate(ctx context.Context, client *apiclient.Client, name, orgSlug string, jsonOut bool) error {
-	orgSlug, err := cmdutil.ResolveOrgSlug(orgSlug, "circleci context create")
+func runCreate(ctx context.Context, client *apiclient.Client, name, orgRef string, jsonOut bool) error {
+	orgID, err := cmdutil.ResolveOrgSlugOrID(ctx, client, orgRef, "circleci context create")
 	if err != nil {
 		return err
 	}
 
-	ctxt, err := client.CreateContext(ctx, name, orgSlug)
+	ctxt, err := client.CreateContext(ctx, name, orgID)
 	if err != nil {
 		return apiErr(err, name)
 	}

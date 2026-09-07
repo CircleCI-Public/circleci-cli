@@ -14,11 +14,11 @@ A context can be specified by name or ID:
 
 ## Flags
 
-| Flag                      | Description                                                       |
-| ------------------------- | ----------------------------------------------------------------- |
-| `-f, --force`             | Skip confirmation prompt                                          |
-| `--org string`            | Organization slug (e.g. gh/myorg); used when resolving name to ID |
-| `--restriction-id string` | UUID of the restriction to delete                                 |
+| Flag                      | Description                                                               |
+| ------------------------- | ------------------------------------------------------------------------- |
+| `-f, --force`             | Skip confirmation prompt                                                  |
+| `--org string`            | Organization slug (e.g. gh/myorg) or UUID; used when resolving name to ID |
+| `--restriction-id string` | UUID of the restriction to delete                                         |
 
 Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `circleci --help`.
 
