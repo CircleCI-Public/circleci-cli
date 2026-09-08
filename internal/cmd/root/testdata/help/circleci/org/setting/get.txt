@@ -6,7 +6,7 @@ Get the current value of an org setting
 
 ## Arguments
 
-`<setting>` is one of: ai-error-summarization, ai-agents, unversioned-config, certified-public-orbs, chunk-ip-ranges, minor-ai-features, private-orbs, uncertified-public-orbs, bitbucket-workspace-member-is-org-member, disable-user-checkout-keys, disable-running, image-brownouts, context-group-restriction, resource-class-brownouts, runner-tos-accepted.
+`<setting>` is one of: ai-error-summarization, ai-agents, unversioned-config, certified-public-orbs, chunk-ip-ranges, marketing-tracking, minor-ai-features, preferences-tracking, private-orbs, statistics-tracking, uncertified-public-orbs, disable-user-checkout-keys, disable-running, enforce-privacy-optout, image-brownouts, context-group-restriction, resource-class-brownouts, runner-tos-accepted.
 
 Run `circleci org setting list` for each setting's description and current value.
 

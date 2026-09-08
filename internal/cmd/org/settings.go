@@ -101,10 +101,22 @@ var orgBoolSettingSpecs = []orgBoolSettingSpec{
 		set:   func(u *apiclient.OrgSettingsUpdate, v bool) { u.ChunkIPRanges = &v },
 	},
 	{
+		use:   "marketing-tracking",
+		short: "Allow marketing analytics tracking",
+		get:   func(a *apiclient.OrgSettingsAttributes) bool { return a.MarketingTracking },
+		set:   func(u *apiclient.OrgSettingsUpdate, v bool) { u.MarketingTracking = &v },
+	},
+	{
 		use:   "minor-ai-features",
 		short: "Enable minor AI features for this organization",
 		get:   func(a *apiclient.OrgSettingsAttributes) bool { return a.MinorAIFeatures },
 		set:   func(u *apiclient.OrgSettingsUpdate, v bool) { u.MinorAIFeatures = &v },
+	},
+	{
+		use:   "preferences-tracking",
+		short: "Allow preferences analytics tracking",
+		get:   func(a *apiclient.OrgSettingsAttributes) bool { return a.PreferencesTracking },
+		set:   func(u *apiclient.OrgSettingsUpdate, v bool) { u.PreferencesTracking = &v },
 	},
 	{
 		use:   "private-orbs",
@@ -113,16 +125,16 @@ var orgBoolSettingSpecs = []orgBoolSettingSpec{
 		set:   func(u *apiclient.OrgSettingsUpdate, v bool) { u.PrivateOrbs = &v },
 	},
 	{
+		use:   "statistics-tracking",
+		short: "Allow statistics analytics tracking",
+		get:   func(a *apiclient.OrgSettingsAttributes) bool { return a.StatisticsTracking },
+		set:   func(u *apiclient.OrgSettingsUpdate, v bool) { u.StatisticsTracking = &v },
+	},
+	{
 		use:   "uncertified-public-orbs",
 		short: "Allow use of uncertified public orbs",
 		get:   func(a *apiclient.OrgSettingsAttributes) bool { return a.UncertifiedPublicOrbs },
 		set:   func(u *apiclient.OrgSettingsUpdate, v bool) { u.UncertifiedPublicOrbs = &v },
-	},
-	{
-		use:   "bitbucket-workspace-member-is-org-member",
-		short: "Treat Bitbucket workspace members as org members",
-		get:   func(a *apiclient.OrgSettingsAttributes) bool { return a.BitbucketWorkspaceMemberIsOrgMember },
-		set:   func(u *apiclient.OrgSettingsUpdate, v bool) { u.BitbucketWorkspaceMemberIsOrgMember = &v },
 	},
 	{
 		use:   "disable-user-checkout-keys",
@@ -135,6 +147,12 @@ var orgBoolSettingSpecs = []orgBoolSettingSpec{
 		short: "Disable all builds for this organization",
 		get:   func(a *apiclient.OrgSettingsAttributes) bool { return a.DisableRunning },
 		set:   func(u *apiclient.OrgSettingsUpdate, v bool) { u.DisableRunning = &v },
+	},
+	{
+		use:   "enforce-privacy-optout",
+		short: "Enforce the privacy opt-out for org members",
+		get:   func(a *apiclient.OrgSettingsAttributes) bool { return a.PrivacyOptoutEnforced },
+		set:   func(u *apiclient.OrgSettingsUpdate, v bool) { u.PrivacyOptoutEnforced = &v },
 	},
 	{
 		use:   "image-brownouts",
@@ -379,21 +397,24 @@ func runOrgSettingSet(ctx context.Context, client *apiclient.Client, orgID uuid.
 // --- settings list ---
 
 type orgSettingsListOutput struct {
-	AIErrorSummarization                bool `json:"enable_ai_error_summarization"`
-	AIAgents                            bool `json:"enable_ai_agents"`
-	UnversionedConfig                   bool `json:"enable_unversioned_config"`
-	CertifiedPublicOrbs                 bool `json:"enable_certified_public_orbs"`
-	ChunkIPRanges                       bool `json:"enable_chunk_ip_ranges"`
-	MinorAIFeatures                     bool `json:"enable_minor_ai_features"`
-	PrivateOrbs                         bool `json:"enable_private_orbs"`
-	UncertifiedPublicOrbs               bool `json:"enable_uncertified_public_orbs"`
-	BitbucketWorkspaceMemberIsOrgMember bool `json:"is_bitbucket_workspace_member_org_member"`
-	UserCheckoutKeysDisabled            bool `json:"is_user_checkout_keys_disabled"`
-	DisableRunning                      bool `json:"is_running_disabled"`
-	ImageBrownouts                      bool `json:"enable_image_brownouts"`
-	ContextGroupRestrictionRequired     bool `json:"is_context_group_restriction_required"`
-	ResourceClassBrownouts              bool `json:"enable_resource_class_brownouts"`
-	RunnerTOSAccepted                   bool `json:"is_runner_terms_of_service_accepted"`
+	AIErrorSummarization            bool `json:"enable_ai_error_summarization"`
+	AIAgents                        bool `json:"enable_ai_agents"`
+	UnversionedConfig               bool `json:"enable_unversioned_config"`
+	CertifiedPublicOrbs             bool `json:"enable_certified_public_orbs"`
+	ChunkIPRanges                   bool `json:"enable_chunk_ip_ranges"`
+	MarketingTracking               bool `json:"enable_marketing_tracking"`
+	MinorAIFeatures                 bool `json:"enable_minor_ai_features"`
+	PreferencesTracking             bool `json:"enable_preferences_tracking"`
+	PrivateOrbs                     bool `json:"enable_private_orbs"`
+	StatisticsTracking              bool `json:"enable_statistics_tracking"`
+	UncertifiedPublicOrbs           bool `json:"enable_uncertified_public_orbs"`
+	UserCheckoutKeysDisabled        bool `json:"is_user_checkout_keys_disabled"`
+	DisableRunning                  bool `json:"is_running_disabled"`
+	PrivacyOptoutEnforced           bool `json:"is_privacy_optout_enforced"`
+	ImageBrownouts                  bool `json:"enable_image_brownouts"`
+	ContextGroupRestrictionRequired bool `json:"is_context_group_restriction_required"`
+	ResourceClassBrownouts          bool `json:"enable_resource_class_brownouts"`
+	RunnerTOSAccepted               bool `json:"is_runner_terms_of_service_accepted"`
 }
 
 func newOrgSettingsListCmd() *cobra.Command {
@@ -409,7 +430,7 @@ func newOrgSettingsListCmd() *cobra.Command {
 		Long: heredoc.Doc(`
 			List all advanced settings for a CircleCI organization.
 
-			JSON fields: enable_ai_error_summarization, enable_ai_agents, enable_unversioned_config, enable_certified_public_orbs, enable_chunk_ip_ranges, enable_minor_ai_features, enable_private_orbs, enable_uncertified_public_orbs, is_bitbucket_workspace_member_org_member, is_user_checkout_keys_disabled, is_running_disabled, enable_image_brownouts, is_context_group_restriction_required, enable_resource_class_brownouts, is_runner_terms_of_service_accepted
+			JSON fields: enable_ai_error_summarization, enable_ai_agents, enable_unversioned_config, enable_certified_public_orbs, enable_chunk_ip_ranges, enable_marketing_tracking, enable_minor_ai_features, enable_preferences_tracking, enable_private_orbs, enable_statistics_tracking, enable_uncertified_public_orbs, is_user_checkout_keys_disabled, is_running_disabled, is_privacy_optout_enforced, enable_image_brownouts, is_context_group_restriction_required, enable_resource_class_brownouts, is_runner_terms_of_service_accepted
 		`),
 		Example: heredoc.Doc(`
 			# List settings for the current org
@@ -455,21 +476,24 @@ func runOrgSettingsList(ctx context.Context, client *apiclient.Client, orgID uui
 	}
 
 	out := orgSettingsListOutput{
-		AIErrorSummarization:                attrs.AIErrorSummarization,
-		AIAgents:                            attrs.AIAgents,
-		UnversionedConfig:                   attrs.UnversionedConfig,
-		CertifiedPublicOrbs:                 attrs.CertifiedPublicOrbs,
-		ChunkIPRanges:                       attrs.ChunkIPRanges,
-		MinorAIFeatures:                     attrs.MinorAIFeatures,
-		PrivateOrbs:                         attrs.PrivateOrbs,
-		UncertifiedPublicOrbs:               attrs.UncertifiedPublicOrbs,
-		BitbucketWorkspaceMemberIsOrgMember: attrs.BitbucketWorkspaceMemberIsOrgMember,
-		UserCheckoutKeysDisabled:            attrs.UserCheckoutKeysDisabled,
-		DisableRunning:                      attrs.DisableRunning,
-		ImageBrownouts:                      attrs.ImageBrownouts,
-		ContextGroupRestrictionRequired:     attrs.ContextGroupRestrictionRequired,
-		ResourceClassBrownouts:              attrs.ResourceClassBrownouts,
-		RunnerTOSAccepted:                   attrs.RunnerTOSAccepted,
+		AIErrorSummarization:            attrs.AIErrorSummarization,
+		AIAgents:                        attrs.AIAgents,
+		UnversionedConfig:               attrs.UnversionedConfig,
+		CertifiedPublicOrbs:             attrs.CertifiedPublicOrbs,
+		ChunkIPRanges:                   attrs.ChunkIPRanges,
+		MarketingTracking:               attrs.MarketingTracking,
+		MinorAIFeatures:                 attrs.MinorAIFeatures,
+		PreferencesTracking:             attrs.PreferencesTracking,
+		PrivateOrbs:                     attrs.PrivateOrbs,
+		StatisticsTracking:              attrs.StatisticsTracking,
+		UncertifiedPublicOrbs:           attrs.UncertifiedPublicOrbs,
+		UserCheckoutKeysDisabled:        attrs.UserCheckoutKeysDisabled,
+		DisableRunning:                  attrs.DisableRunning,
+		PrivacyOptoutEnforced:           attrs.PrivacyOptoutEnforced,
+		ImageBrownouts:                  attrs.ImageBrownouts,
+		ContextGroupRestrictionRequired: attrs.ContextGroupRestrictionRequired,
+		ResourceClassBrownouts:          attrs.ResourceClassBrownouts,
+		RunnerTOSAccepted:               attrs.RunnerTOSAccepted,
 	}
 
 	if jsonOut {
