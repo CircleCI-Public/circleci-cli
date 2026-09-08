@@ -62,7 +62,7 @@ func newSecretCmd() *cobra.Command {
 func newSecretListCmd() *cobra.Command {
 	var (
 		jsonOut bool
-		orgSlug string
+		orgRef  string
 	)
 
 	cmd := &cobra.Command{
@@ -106,7 +106,7 @@ func newSecretListCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			contextID, err := resolveContextArg(ctx, client, args[0], orgSlug,
+			contextID, err := resolveContextArg(ctx, client, args[0], orgRef,
 				"circleci context secret list")
 			if err != nil {
 				return err
@@ -115,7 +115,7 @@ func newSecretListCmd() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVar(&orgSlug, "org", "", "Organization slug (e.g. gh/myorg); used when resolving name to ID")
+	cmd.Flags().StringVar(&orgRef, "org", "", "Organization slug (e.g. gh/myorg) or UUID; used when resolving name to ID")
 	cmdutil.AddJSONFlag(cmd, &jsonOut)
 	cmdutil.AddJQFlag(cmd)
 
@@ -130,10 +130,10 @@ type secretListEntry struct {
 	UpdatedAt      time.Time `json:"updated_at"`
 }
 
-func runSecretList(ctx context.Context, client *apiclient.Client, contextID string, jsonOut bool) error {
+func runSecretList(ctx context.Context, client *apiclient.Client, contextID uuid.UUID, jsonOut bool) error {
 	vars, err := client.ListContextEnvVars(ctx, contextID)
 	if err != nil {
-		return secretAPIErr(err, contextID)
+		return secretAPIErr(err, contextID.String())
 	}
 
 	entries := make([]secretListEntry, len(vars))
@@ -168,9 +168,9 @@ func runSecretList(ctx context.Context, client *apiclient.Client, contextID stri
 
 func newSecretSetCmd() *cobra.Command {
 	var (
-		name    string
-		value   string
-		orgSlug string
+		name   string
+		value  string
+		orgRef string
 	)
 
 	cmd := &cobra.Command{
@@ -233,7 +233,7 @@ func newSecretSetCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			contextID, err := resolveContextArg(ctx, client, args[0], orgSlug,
+			contextID, err := resolveContextArg(ctx, client, args[0], orgRef,
 				"circleci context secret set")
 			if err != nil {
 				return err
@@ -244,14 +244,14 @@ func newSecretSetCmd() *cobra.Command {
 
 	cmd.Flags().StringVar(&name, "name", "", "Name of the environment variable")
 	cmd.Flags().StringVar(&value, "value", "", "Value of the environment variable (prompted if omitted in a terminal)")
-	cmd.Flags().StringVar(&orgSlug, "org", "", "Organization slug (e.g. gh/myorg); used when resolving name to ID")
+	cmd.Flags().StringVar(&orgRef, "org", "", "Organization slug (e.g. gh/myorg) or UUID; used when resolving name to ID")
 
 	return cmd
 }
 
-func runSecretSet(ctx context.Context, client *apiclient.Client, contextID, name, value string) error {
-	if _, err := client.SetContextEnvVar(ctx, contextID, name, value); err != nil {
-		return secretAPIErr(err, contextID)
+func runSecretSet(ctx context.Context, client *apiclient.Client, contextID uuid.UUID, name, value string) error {
+	if err := client.SetContextEnvVar(ctx, contextID, name, value); err != nil {
+		return secretAPIErr(err, contextID.String())
 	}
 
 	iostream.Printf(ctx, "%s Set %s\n", iostream.SymbolOK(ctx), name)
@@ -262,9 +262,9 @@ func runSecretSet(ctx context.Context, client *apiclient.Client, contextID, name
 
 func newSecretDeleteCmd() *cobra.Command {
 	var (
-		name    string
-		orgSlug string
-		force   bool
+		name   string
+		orgRef string
+		force  bool
 	)
 
 	cmd := &cobra.Command{
@@ -305,7 +305,7 @@ func newSecretDeleteCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			contextID, err := resolveContextArg(ctx, client, args[0], orgSlug,
+			contextID, err := resolveContextArg(ctx, client, args[0], orgRef,
 				"circleci context secret delete")
 			if err != nil {
 				return err
@@ -316,12 +316,12 @@ func newSecretDeleteCmd() *cobra.Command {
 
 	cmd.Flags().StringVar(&name, "name", "", "Name of the environment variable to delete")
 	cmd.Flags().BoolVarP(&force, "force", "f", false, "skip confirmation prompt")
-	cmd.Flags().StringVar(&orgSlug, "org", "", "Organization slug (e.g. gh/myorg); used when resolving name to ID")
+	cmd.Flags().StringVar(&orgRef, "org", "", "Organization slug (e.g. gh/myorg) or UUID; used when resolving name to ID")
 
 	return cmd
 }
 
-func runSecretDelete(ctx context.Context, client *apiclient.Client, contextID, name string, force bool) error {
+func runSecretDelete(ctx context.Context, client *apiclient.Client, contextID uuid.UUID, name string, force bool) error {
 	if err := cmdutil.ConfirmOrForce(ctx, iostream.Get(ctx), force,
 		fmt.Sprintf("Delete environment variable %q from context? This cannot be undone.", name),
 		clierrors.New("context.secret_delete_aborted", "Deletion aborted",
@@ -343,26 +343,10 @@ func runSecretDelete(ctx context.Context, client *apiclient.Client, contextID, n
 }
 
 func secretAPIErr(err error, subject string) *clierrors.CLIError {
-	return cmdutil.APIErr(err, subject,
+	if e := byIDForbiddenErr(err); e != nil {
+		return e
+	}
+	return cmdutil.APIErr(err, subject, //nolint:wrapcheck // APIErr returns a *CLIError, not a wrapped error.
 		"context.secret_not_found", "No environment variable found for %q.",
 		"Check the context ID and variable name and try again")
-}
-
-// resolveContextArg resolves a context UUID or name to a UUID string.
-// If arg is a valid UUID it is returned as-is. Otherwise it looks up by name,
-// requiring orgSlug or a detectable git remote. cmdName is used in the
-// git-detection error suggestion (e.g. "circleci context secret list").
-func resolveContextArg(ctx context.Context, client *apiclient.Client, arg, orgSlug, cmdName string) (string, error) {
-	if _, err := uuid.Parse(arg); err == nil {
-		return arg, nil
-	}
-	orgSlug, err := cmdutil.ResolveOrgSlug(orgSlug, cmdName)
-	if err != nil {
-		return "", err
-	}
-	id, err := resolveContextID(ctx, client, arg, orgSlug)
-	if err != nil {
-		return "", err
-	}
-	return id.String(), nil
 }

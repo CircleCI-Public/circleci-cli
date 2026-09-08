@@ -1185,7 +1185,7 @@ JSON fields: id, name, created_at
 | -------------- | --------------------------------------------------------------------------------- |
 | `--jq string`  | Process values from the response using jq syntax (see `circleci help formatting`) |
 | `--json`       | Output as JSON                                                                    |
-| `--org string` | Organization slug (e.g. gh/myorg); defaults to git remote                         |
+| `--org string` | Organization slug (e.g. gh/myorg) or UUID; defaults to git remote                 |
 
 
 **Arguments:**
@@ -1210,10 +1210,10 @@ Delete a CircleCI context by UUID or name.
 Deleting a context removes all environment variables stored in it.
 Jobs that reference this context will fail until they are updated.
 
-| Flag           | Description                                                       |
-| -------------- | ----------------------------------------------------------------- |
-| `-f, --force`  | skip confirmation prompt                                          |
-| `--org string` | Organization slug (e.g. gh/myorg); used when resolving name to ID |
+| Flag           | Description                                                               |
+| -------------- | ------------------------------------------------------------------------- |
+| `-f, --force`  | skip confirmation prompt                                                  |
+| `--org string` | Organization slug (e.g. gh/myorg) or UUID; used when resolving name to ID |
 
 
 **Arguments:**
@@ -1251,7 +1251,7 @@ JSON fields: id, name, org_id, created_at, environment_variables, restrictions
 | -------------- | --------------------------------------------------------------------------------- |
 | `--jq string`  | Process values from the response using jq syntax (see `circleci help formatting`) |
 | `--json`       | Output as JSON                                                                    |
-| `--org string` | Organization slug (e.g. gh/myorg); used when resolving name to ID                 |
+| `--org string` | Organization slug (e.g. gh/myorg) or UUID; used when resolving name to ID         |
 
 
 **Arguments:**
@@ -1286,7 +1286,7 @@ JSON fields: id, name, created_at
 | `--jq string`   | Process values from the response using jq syntax (see `circleci help formatting`) |
 | `--json`        | Output as JSON                                                                    |
 | `--name string` | Find contexts by name (partial match)                                             |
-| `--org string`  | Organization slug (e.g. gh/myorg); defaults to git remote                         |
+| `--org string`  | Organization slug (e.g. gh/myorg) or UUID; defaults to git remote                 |
 
 
 **Aliases:**
@@ -1349,15 +1349,15 @@ Add a restriction to a context
 
 Add a restriction to a CircleCI context.
 
-JSON fields: id, name, restriction_type, restriction_value
+JSON fields: id, restriction_type, restriction_value
 
 | Flag             | Description                                                                       |
 | ---------------- | --------------------------------------------------------------------------------- |
 | `--jq string`    | Process values from the response using jq syntax (see `circleci help formatting`) |
 | `--json`         | Output as JSON                                                                    |
-| `--org string`   | Organization slug (e.g. gh/myorg); used when resolving name to ID                 |
+| `--org string`   | Organization slug (e.g. gh/myorg) or UUID; used when resolving name to ID         |
 | `--type string`  | Restriction type: project, expression, or group                                   |
-| `--value string` | Value of the restriction                                                          |
+| `--value string` | Project ID, pipeline expression, or group ID, matching --type                     |
 
 
 **Arguments:**
@@ -1370,10 +1370,10 @@ A context can be specified by name or ID:
 
 - Restrict context to a specific project: 
   `circleci context restriction create ctx-uuid --type project --value proj-uuid`
-- Restrict context to a specific group: 
-  `circleci context restriction create ctx-uuid --type group --value group-uuid`
 - Restrict context using a pipeline expression: 
   `circleci context restriction create ctx-uuid --type expression --value 'pipeline.git.branch == "main"'`
+- Restrict context to a security group (--value is the group ID): 
+  `circleci context restriction create ctx-uuid --type group --value group-uuid`
 - Capture the restriction ID: 
   `circleci context restriction create ctx-uuid --type project --value proj-uuid --json --jq '.id'`
 
@@ -1386,11 +1386,11 @@ Remove a restriction from a CircleCI context.
 This action is irreversible. Once removed, the context will be
 accessible to any project or group that was previously blocked.
 
-| Flag                      | Description                                                       |
-| ------------------------- | ----------------------------------------------------------------- |
-| `-f, --force`             | Skip confirmation prompt                                          |
-| `--org string`            | Organization slug (e.g. gh/myorg); used when resolving name to ID |
-| `--restriction-id string` | UUID of the restriction to delete                                 |
+| Flag                      | Description                                                               |
+| ------------------------- | ------------------------------------------------------------------------- |
+| `-f, --force`             | Skip confirmation prompt                                                  |
+| `--org string`            | Organization slug (e.g. gh/myorg) or UUID; used when resolving name to ID |
+| `--restriction-id string` | UUID of the restriction to delete                                         |
 
 
 **Arguments:**
@@ -1429,11 +1429,11 @@ Remove an environment variable from a CircleCI context.
 This action is irreversible. Jobs that depend on this variable will
 fail until a new value is set.
 
-| Flag            | Description                                                       |
-| --------------- | ----------------------------------------------------------------- |
-| `-f, --force`   | skip confirmation prompt                                          |
-| `--name string` | Name of the environment variable to delete                        |
-| `--org string`  | Organization slug (e.g. gh/myorg); used when resolving name to ID |
+| Flag            | Description                                                               |
+| --------------- | ------------------------------------------------------------------------- |
+| `-f, --force`   | skip confirmation prompt                                                  |
+| `--name string` | Name of the environment variable to delete                                |
+| `--org string`  | Organization slug (e.g. gh/myorg) or UUID; used when resolving name to ID |
 
 
 **Arguments:**
@@ -1468,7 +1468,7 @@ JSON fields: variable, truncated_value, context_id, created_at, updated_at
 | -------------- | --------------------------------------------------------------------------------- |
 | `--jq string`  | Process values from the response using jq syntax (see `circleci help formatting`) |
 | `--json`       | Output as JSON                                                                    |
-| `--org string` | Organization slug (e.g. gh/myorg); used when resolving name to ID                 |
+| `--org string` | Organization slug (e.g. gh/myorg) or UUID; used when resolving name to ID         |
 
 
 **Arguments:**
@@ -1502,11 +1502,11 @@ Add or update an environment variable in a CircleCI context.
 An existing variable is overwritten. The value is never retrievable once
 set, and in a terminal --value may be omitted to be prompted with masking.
 
-| Flag             | Description                                                           |
-| ---------------- | --------------------------------------------------------------------- |
-| `--name string`  | Name of the environment variable                                      |
-| `--org string`   | Organization slug (e.g. gh/myorg); used when resolving name to ID     |
-| `--value string` | Value of the environment variable (prompted if omitted in a terminal) |
+| Flag             | Description                                                               |
+| ---------------- | ------------------------------------------------------------------------- |
+| `--name string`  | Name of the environment variable                                          |
+| `--org string`   | Organization slug (e.g. gh/myorg) or UUID; used when resolving name to ID |
+| `--value string` | Value of the environment variable (prompted if omitted in a terminal)     |
 
 
 **Arguments:**

@@ -4,5 +4,5 @@ Flags:
   -h, --help         help for create
       --jq string    Process values from the response using jq syntax
       --json         Output as JSON
-      --org string   Organization slug (e.g. gh/myorg); defaults to git remote
+      --org string   Organization slug (e.g. gh/myorg) or UUID; defaults to git remote
   
