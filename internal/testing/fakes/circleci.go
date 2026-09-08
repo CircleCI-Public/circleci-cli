@@ -126,10 +126,12 @@ type CircleCI struct {
 
 	// Context state.
 	contexts                   map[string]Context              // context id → context
-	contextsByOrg              map[string][]Context            // org slug → ordered contexts
+	contextsByOrg              map[string][]Context            // org UUID → ordered contexts
 	contextEnvVars             map[string][]ContextEnvVar      // context id → env vars
 	contextRestrictions        map[string][]ContextRestriction // context id → restrictions
 	deletedContexts            map[string]bool                 // context id → deleted
+	forbiddenContexts          map[string]bool                 // org id → answer 403 on its context list
+	forbiddenContextActions    map[string]bool                 // context id → answer 403 on by-id calls
 	deletedContextVars         map[string]bool                 // "contextID/name" → deleted
 	deletedContextRestrictions map[string]bool                 // "contextID/restrictionID" → deleted
 
@@ -285,6 +287,8 @@ func NewCircleCI(t *testing.T, tokens ...string) *CircleCI {
 		envVars:                           map[string][]EnvVar{},
 		deletedEnvVars:                    map[string]bool{},
 		contexts:                          map[string]Context{},
+		forbiddenContexts:                 map[string]bool{},
+		forbiddenContextActions:           map[string]bool{},
 		contextsByOrg:                     map[string][]Context{},
 		contextEnvVars:                    map[string][]ContextEnvVar{},
 		contextRestrictions:               map[string][]ContextRestriction{},
@@ -359,15 +363,16 @@ func NewCircleCI(t *testing.T, tokens ...string) *CircleCI {
 	r.Post("/oauth/par", f.handleOAuthPAR)
 	r.Post("/oauth/token", f.handleOAuthToken)
 	// Context routes.
-	r.Get("/api/v2/context", f.handleListContexts)
-	r.Post("/api/v2/context", f.handleCreateContext)
-	r.Get("/api/v2/context/{id}", f.handleGetContext)
-	r.Delete("/api/v2/context/{id}", f.handleDeleteContext)
-	r.Get("/api/v2/context/{id}/environment-variable", f.handleListContextEnvVars)
-	r.Put("/api/v2/context/{id}/environment-variable/{name}", f.handleSetContextEnvVar)
-	r.Delete("/api/v2/context/{id}/environment-variable/{name}", f.handleDeleteContextEnvVar)
-	r.Post("/api/v2/context/{id}/restrictions", f.handleCreateContextRestriction)
-	r.Delete("/api/v2/context/{id}/restrictions/{restriction_id}", f.handleDeleteContextRestriction)
+	r.Get("/api/v3/contexts", f.handleListContexts)
+	r.Post("/api/v3/contexts", f.handleCreateContext)
+	r.Get("/api/v3/contexts/{id}", f.handleGetContext)
+	r.Delete("/api/v3/contexts/{id}", f.handleDeleteContext)
+	r.Get("/api/v3/contexts/{id}/env-vars", f.handleListContextEnvVars)
+	r.Post("/api/v3/contexts/{id}/env-vars/set", f.handleSetContextEnvVar)
+	r.Delete("/api/v3/contexts/{id}/env-vars", f.handleDeleteContextEnvVar)
+	r.Get("/api/v3/context-restrictions", f.handleListContextRestrictions)
+	r.Post("/api/v3/context-restrictions", f.handleCreateContextRestriction)
+	r.Delete("/api/v3/context-restrictions/{id}", f.handleDeleteContextRestriction)
 	r.Get("/api/v2/project/{vcs}/{org}/{repo}/envvar", f.handleListEnvVars)
 	r.Post("/api/v2/project/{vcs}/{org}/{repo}/envvar", f.handleSetEnvVar)
 	r.Delete("/api/v2/project/{vcs}/{org}/{repo}/envvar/{name}", f.handleDeleteEnvVar)
@@ -2661,6 +2666,7 @@ type Context struct {
 	ID        string
 	Name      string
 	CreatedAt string
+	OrgID     string
 }
 
 // ContextEnvVar is a stored context environment variable. TruncatedValue is the
@@ -2674,25 +2680,54 @@ type ContextEnvVar struct {
 	UpdatedAt      string
 }
 
-// ContextRestriction is a stored context restriction. ContextID renders only
-// when set — the create response omits it, matching the real API.
+// ContextRestriction is a stored context restriction of any type, including
+// group. The restrictions endpoint is the only place they are served; the
+// context endpoints report no group references.
+//
+// Name is the resolved name of what the restriction points at — a project's or
+// a group's — rendered as attributes.name. Expression restrictions have none.
 type ContextRestriction struct {
-	ContextID        string
-	ID               string
-	RestrictionType  string
-	RestrictionValue string
-	Name             string
+	ContextID       string
+	ID              string
+	RestrictionType string
+	MatchPattern    string
+	Name            string
 }
 
-// AddContext registers a context served by GET /api/v2/context/{id} and
-// indexed by org slug for list responses.
-func (f *CircleCI) AddContext(orgSlug string, ctx Context) {
+// AddContext registers a context served by GET /api/v3/contexts/{id} and
+// indexed by org UUID for list responses. v3 lists contexts by
+// filter[org_id], so orgID is a UUID — register it with AddOrg too if the test
+// invokes the CLI with an --org slug.
+func (f *CircleCI) AddContext(orgID string, ctx Context) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
+	if ctx.OrgID == "" {
+		ctx.OrgID = orgID
+	}
 	if ctx.ID != "" {
 		f.contexts[ctx.ID] = ctx
 	}
-	f.contextsByOrg[orgSlug] = append(f.contextsByOrg[orgSlug], ctx)
+	f.contextsByOrg[orgID] = append(f.contextsByOrg[orgID], ctx)
+}
+
+// ForbidOrgContexts makes GET /api/v3/contexts answer 403 for an org, which is
+// what the API returns when the token cannot see that organization.
+func (f *CircleCI) ForbidOrgContexts(orgID string) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.forbiddenContexts[orgID] = true
+}
+
+// ForbidContextAction makes the by-id context endpoints answer 403 for a
+// context, modelling a caller who can see it but lacks the action permission.
+//
+// This is the only thing a by-id 403 means: a context that does not exist, and
+// one in an organization the caller cannot see, both answer 404 so that the two
+// are indistinguishable.
+func (f *CircleCI) ForbidContextAction(contextID string) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.forbiddenContextActions[contextID] = true
 }
 
 // AddContextEnvVar registers an environment variable for a context.
@@ -2702,57 +2737,93 @@ func (f *CircleCI) AddContextEnvVar(contextID string, envVar ContextEnvVar) {
 	f.contextEnvVars[contextID] = append(f.contextEnvVars[contextID], envVar)
 }
 
-// AddContextRestriction registers a restriction for a context.
+// AddContextRestriction registers a restriction served by
+// GET /api/v3/context-restrictions, of any type including group.
 func (f *CircleCI) AddContextRestriction(contextID string, restriction ContextRestriction) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.contextRestrictions[contextID] = append(f.contextRestrictions[contextID], restriction)
 }
 
-// contextEntity renders a stored Context as its wire object.
-func contextEntity(c Context) map[string]any {
-	return map[string]any{"id": c.ID, "name": c.Name, "created_at": c.CreatedAt}
+// contextEntity renders a stored Context as a v3 data entity. references.org is
+// included only for the by-id read: list items carry no references, since every
+// item belongs to the org that was filtered on.
+func contextEntity(c Context, withOrg bool) map[string]any {
+	entity := map[string]any{
+		"id": c.ID,
+		"attributes": map[string]any{
+			"name":       c.Name,
+			"created_at": c.CreatedAt,
+		},
+	}
+	if withOrg && c.OrgID != "" {
+		entity["references"] = map[string]any{"org": map[string]any{"id": c.OrgID}}
+	}
+	return entity
 }
 
-// contextEnvVarEntity renders a stored ContextEnvVar, including the masked value
-// only when set.
+// contextEnvVarEntity renders a stored ContextEnvVar as a v3 data entity. Env
+// vars carry no id of their own — they are keyed by name within a context — so
+// none is emitted. The masked value renders only when set.
 func contextEnvVarEntity(v ContextEnvVar) map[string]any {
-	m := map[string]any{
-		"variable":   v.Variable,
-		"context_id": v.ContextID,
+	attrs := map[string]any{
+		"name":       v.Variable,
 		"created_at": v.CreatedAt,
 		"updated_at": v.UpdatedAt,
 	}
 	if v.TruncatedValue != "" {
-		m["truncated_value"] = v.TruncatedValue
+		attrs["truncated_value"] = v.TruncatedValue
 	}
-	return m
+	return map[string]any{
+		"attributes": attrs,
+		"references": map[string]any{
+			"context": map[string]any{"id": v.ContextID},
+		},
+	}
 }
 
-// contextRestrictionEntity renders a stored ContextRestriction, including
-// context_id only when set.
+// contextRestrictionEntity renders a stored ContextRestriction as a v3 data
+// entity, with the project reference only for project restrictions that have a
+// name registered.
 func contextRestrictionEntity(rr ContextRestriction) map[string]any {
-	m := map[string]any{
-		"id":                rr.ID,
-		"name":              rr.Name,
-		"restriction_type":  rr.RestrictionType,
-		"restriction_value": rr.RestrictionValue,
+	attrs := map[string]any{
+		"restriction_type": rr.RestrictionType,
+		"match_pattern":    rr.MatchPattern,
 	}
-	if rr.ContextID != "" {
-		m["context_id"] = rr.ContextID
+	if rr.Name != "" {
+		attrs["name"] = rr.Name
 	}
-	return m
+	return map[string]any{
+		"id":         rr.ID,
+		"attributes": attrs,
+		"references": map[string]any{
+			"context": map[string]any{"id": rr.ContextID},
+		},
+	}
 }
 
 // --- Context handlers ---
 
+// handleListContexts serves GET /api/v3/contexts. filter[org_id] is required —
+// a missing one is a 400, as on the real endpoint — and filter[name] is applied
+// as a case-insensitive substring match.
 func (f *CircleCI) handleListContexts(w http.ResponseWriter, r *http.Request) {
-	ownerSlug := r.URL.Query().Get("owner-slug")
-	nameFilter := r.URL.Query().Get("name")
+	orgID := r.URL.Query().Get("filter[org_id]")
+	if orgID == "" {
+		renderV3Error(w, r, http.StatusBadRequest, "filter[org_id] is required")
+		return
+	}
+	nameFilter := r.URL.Query().Get("filter[name]")
 	f.mu.RLock()
-	items := f.contextsByOrg[ownerSlug]
+	items := f.contextsByOrg[orgID]
 	deleted := f.deletedContexts
+	forbidden := f.forbiddenContexts[orgID]
 	f.mu.RUnlock()
+
+	if forbidden {
+		renderV3Error(w, r, http.StatusForbidden, "Forbidden")
+		return
+	}
 
 	result := []any{}
 	for _, ctx := range items {
@@ -2762,77 +2833,55 @@ func (f *CircleCI) handleListContexts(w http.ResponseWriter, r *http.Request) {
 		if nameFilter != "" && !strings.Contains(strings.ToLower(ctx.Name), strings.ToLower(nameFilter)) {
 			continue
 		}
-		result = append(result, contextEntity(ctx))
+		result = append(result, contextEntity(ctx, false))
 	}
-	render.JSON(w, r, map[string]any{"items": result, "next_page_token": nil})
+	renderV3CursorCollection(w, r, result)
 }
 
+// handleCreateContext serves POST /api/v3/contexts. The owning org arrives in
+// the body's references rather than as a query filter.
 func (f *CircleCI) handleCreateContext(w http.ResponseWriter, r *http.Request) {
-	var body map[string]any
+	orgID := v3BodyRefID(r, "org")
+
+	var body struct {
+		Data struct {
+			Attributes struct {
+				Name string `json:"name"`
+			} `json:"attributes"`
+		} `json:"data"`
+	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		render.Status(r, http.StatusBadRequest)
-		render.JSON(w, r, map[string]any{"message": "invalid body"})
+		renderV3Error(w, r, http.StatusBadRequest, "invalid body")
 		return
 	}
-	name, _ := body["name"].(string)
-	var orgSlug string
-	if owner, ok := body["owner"].(map[string]any); ok {
-		orgSlug, _ = owner["slug"].(string)
-	}
+
 	id := "c0000099-0000-4000-8000-000000000099"
-	ctx := Context{ID: id, Name: name, CreatedAt: "2026-01-01T00:00:00Z"}
+	ctx := Context{ID: id, Name: body.Data.Attributes.Name, CreatedAt: "2026-01-01T00:00:00Z", OrgID: orgID}
 	f.mu.Lock()
 	f.contexts[id] = ctx
-	if orgSlug != "" {
-		f.contextsByOrg[orgSlug] = append(f.contextsByOrg[orgSlug], ctx)
+	if orgID != "" {
+		f.contextsByOrg[orgID] = append(f.contextsByOrg[orgID], ctx)
 	}
 	f.mu.Unlock()
 	render.Status(r, http.StatusCreated)
-	render.JSON(w, r, contextEntity(ctx))
+	render.JSON(w, r, map[string]any{"data": contextEntity(ctx, true)})
 }
 
+// handleGetContext serves GET /api/v3/contexts/{id}. Unlike v2 this returns the
+// context alone — env vars and restrictions have their own endpoints — plus its
+// group restrictions as references.
 func (f *CircleCI) handleGetContext(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	f.mu.RLock()
 	ctx, ok := f.contexts[id]
 	deleted := f.deletedContexts[id]
-	vars := f.contextEnvVars[id]
-	restrictions := f.contextRestrictions[id]
-	deletedVars := f.deletedContextVars
-	deletedRestrictions := f.deletedContextRestrictions
 	f.mu.RUnlock()
 
 	if !ok || deleted {
-		render.Status(r, http.StatusNotFound)
-		render.JSON(w, r, map[string]any{"message": "not found"})
+		renderV3Error(w, r, http.StatusNotFound, "not found")
 		return
 	}
-
-	// Build a ContextDetail-shaped response with env vars embedded.
-	liveVars := []any{}
-	for _, v := range vars {
-		if deletedVars[id+"/"+v.Variable] {
-			continue
-		}
-		liveVars = append(liveVars, contextEnvVarEntity(v))
-	}
-	liveRestrictions := []any{}
-	for _, restr := range restrictions {
-		if deletedRestrictions[id+"/"+restr.ID] {
-			continue
-		}
-		liveRestrictions = append(liveRestrictions, contextRestrictionEntity(restr))
-	}
-
-	detail := map[string]any{
-		"id":                    ctx.ID,
-		"name":                  ctx.Name,
-		"created_at":            ctx.CreatedAt,
-		"org_id":                "00000000-0000-0000-0000-000000000000",
-		"environment_variables": liveVars,
-		"restrictions":          liveRestrictions,
-	}
-	render.JSON(w, r, detail)
+	render.JSON(w, r, map[string]any{"data": contextEntity(ctx, true)})
 }
 
 func (f *CircleCI) handleDeleteContext(w http.ResponseWriter, r *http.Request) {
@@ -2845,11 +2894,11 @@ func (f *CircleCI) handleDeleteContext(w http.ResponseWriter, r *http.Request) {
 	f.mu.Unlock()
 
 	if !ok {
-		render.Status(r, http.StatusNotFound)
-		render.JSON(w, r, map[string]any{"message": "not found"})
+		renderV3Error(w, r, http.StatusNotFound, "not found")
 		return
 	}
-	render.JSON(w, r, map[string]any{"message": "Deleted."})
+	render.Status(r, http.StatusNoContent)
+	render.NoContent(w, r)
 }
 
 func (f *CircleCI) handleListContextEnvVars(w http.ResponseWriter, r *http.Request) {
@@ -2866,16 +2915,32 @@ func (f *CircleCI) handleListContextEnvVars(w http.ResponseWriter, r *http.Reque
 		}
 		items = append(items, contextEnvVarEntity(v))
 	}
-	render.JSON(w, r, map[string]any{"items": items, "next_page_token": nil})
+	renderV3CursorCollection(w, r, items)
 }
 
+// handleSetContextEnvVar serves POST /api/v3/contexts/{id}/env-vars/set. The
+// variable name is in the body, not the path, and the body is flat rather than
+// wrapped in a data envelope.
 func (f *CircleCI) handleSetContextEnvVar(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
-	name := chi.URLParam(r, "name")
-	var body map[string]any
+	f.mu.RLock()
+	forbidden := f.forbiddenContextActions[id]
+	f.mu.RUnlock()
+	if forbidden {
+		renderV3Error(w, r, http.StatusForbidden, "Forbidden")
+		return
+	}
+	var body struct {
+		Name  string `json:"name"`
+		Value string `json:"value"`
+	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		render.Status(r, http.StatusBadRequest)
-		render.JSON(w, r, map[string]any{"message": "invalid body"})
+		renderV3Error(w, r, http.StatusBadRequest, "invalid body")
+		return
+	}
+	name := body.Name
+	if name == "" {
+		renderV3Error(w, r, http.StatusBadRequest, "name is required")
 		return
 	}
 	ev := ContextEnvVar{
@@ -2896,12 +2961,21 @@ func (f *CircleCI) handleSetContextEnvVar(w http.ResponseWriter, r *http.Request
 	f.contextEnvVars[id] = append(kept, ev)
 	delete(f.deletedContextVars, id+"/"+name)
 	f.mu.Unlock()
-	render.JSON(w, r, contextEnvVarEntity(ev))
+	// Always 200, never 201: a verb-terminated path is a scoped action rather
+	// than a POST to a collection, and a create/overwrite distinction would leak
+	// whether the secret already existed.
+	render.JSON(w, r, map[string]any{"data": contextEnvVarEntity(ev)})
 }
 
+// handleDeleteContextEnvVar serves DELETE /api/v3/contexts/{id}/env-vars. The
+// variable name is a required query filter rather than a path segment.
 func (f *CircleCI) handleDeleteContextEnvVar(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
-	name := chi.URLParam(r, "name")
+	name := r.URL.Query().Get("filter[name]")
+	if name == "" {
+		renderV3Error(w, r, http.StatusBadRequest, "filter[name] is required")
+		return
+	}
 	key := id + "/" + name
 
 	f.mu.Lock()
@@ -2918,49 +2992,102 @@ func (f *CircleCI) handleDeleteContextEnvVar(w http.ResponseWriter, r *http.Requ
 	f.mu.Unlock()
 
 	if !found {
-		render.Status(r, http.StatusNotFound)
-		render.JSON(w, r, map[string]any{"message": "not found"})
+		renderV3Error(w, r, http.StatusNotFound, "not found")
 		return
 	}
-	render.JSON(w, r, map[string]any{"message": "Deleted."})
+	render.Status(r, http.StatusNoContent)
+	render.NoContent(w, r)
 }
 
+// handleListContextRestrictions serves GET /api/v3/context-restrictions. The
+// context is a required query filter. Group restrictions are deliberately absent
+// — they reach clients as references on the context itself.
+func (f *CircleCI) handleListContextRestrictions(w http.ResponseWriter, r *http.Request) {
+	contextID := r.URL.Query().Get("filter[context_id]")
+	if contextID == "" {
+		renderV3Error(w, r, http.StatusBadRequest, "filter[context_id] is required")
+		return
+	}
+	f.mu.RLock()
+	_, ok := f.contexts[contextID]
+	deleted := f.deletedContexts[contextID]
+	restrictions := f.contextRestrictions[contextID]
+	deletedRestrictions := f.deletedContextRestrictions
+	f.mu.RUnlock()
+
+	if !ok || deleted {
+		renderV3Error(w, r, http.StatusNotFound, "not found")
+		return
+	}
+
+	items := []any{}
+	for _, restr := range restrictions {
+		if deletedRestrictions[contextID+"/"+restr.ID] {
+			continue
+		}
+		if restr.ContextID == "" {
+			restr.ContextID = contextID
+		}
+		items = append(items, contextRestrictionEntity(restr))
+	}
+	renderV3CursorCollection(w, r, items)
+}
+
+// handleCreateContextRestriction serves POST /api/v3/context-restrictions. The
+// context arrives in the body's references rather than the path.
 func (f *CircleCI) handleCreateContextRestriction(w http.ResponseWriter, r *http.Request) {
-	id := chi.URLParam(r, "id")
+	id := v3BodyRefID(r, "context")
 	f.mu.RLock()
 	_, ok := f.contexts[id]
 	deleted := f.deletedContexts[id]
 	f.mu.RUnlock()
 
 	if !ok || deleted {
-		render.Status(r, http.StatusNotFound)
-		render.JSON(w, r, map[string]any{"message": "not found"})
+		renderV3Error(w, r, http.StatusNotFound, "not found")
 		return
 	}
 
-	var body map[string]any
+	var body struct {
+		Data struct {
+			Attributes struct {
+				RestrictionType string `json:"restriction_type"`
+				MatchPattern    string `json:"match_pattern"`
+			} `json:"attributes"`
+		} `json:"data"`
+	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		render.Status(r, http.StatusBadRequest)
-		render.JSON(w, r, map[string]any{"message": "invalid body"})
+		renderV3Error(w, r, http.StatusBadRequest, "invalid body")
 		return
 	}
-	restrictionType, _ := body["restriction_type"].(string)
-	restrictionValue, _ := body["restriction_value"].(string)
+	switch body.Data.Attributes.RestrictionType {
+	case "project", "expression", "group":
+	default:
+		renderV3Error(w, r, http.StatusBadRequest, "invalid restriction type")
+		return
+	}
 	restr := ContextRestriction{
-		ID:               "c0000003-0000-4000-8000-000000000003",
-		RestrictionType:  restrictionType,
-		RestrictionValue: restrictionValue,
+		ContextID:       id,
+		ID:              "c0000003-0000-4000-8000-000000000003",
+		RestrictionType: body.Data.Attributes.RestrictionType,
+		MatchPattern:    body.Data.Attributes.MatchPattern,
 	}
 	f.mu.Lock()
 	f.contextRestrictions[id] = append(f.contextRestrictions[id], restr)
 	f.mu.Unlock()
 	render.Status(r, http.StatusCreated)
-	render.JSON(w, r, contextRestrictionEntity(restr))
+	render.JSON(w, r, map[string]any{"data": contextRestrictionEntity(restr)})
 }
 
+// handleDeleteContextRestriction serves DELETE /api/v3/context-restrictions/{id}.
+// The restriction is addressed by path but the owning context is still a
+// required filter, which is what the real endpoint authorises against.
 func (f *CircleCI) handleDeleteContextRestriction(w http.ResponseWriter, r *http.Request) {
-	contextID := chi.URLParam(r, "id")
-	restrictionID := chi.URLParam(r, "restriction_id")
+	restrictionID := chi.URLParam(r, "id")
+	contextID := r.URL.Query().Get("filter[context_id]")
+	if contextID == "" {
+		renderV3Error(w, r, http.StatusBadRequest, "filter[context_id] is required")
+		return
+	}
 	key := contextID + "/" + restrictionID
 
 	f.mu.Lock()
@@ -2977,11 +3104,11 @@ func (f *CircleCI) handleDeleteContextRestriction(w http.ResponseWriter, r *http
 	f.mu.Unlock()
 
 	if !found {
-		render.Status(r, http.StatusNotFound)
-		render.JSON(w, r, map[string]any{"message": "not found"})
+		renderV3Error(w, r, http.StatusNotFound, "not found")
 		return
 	}
-	render.JSON(w, r, map[string]any{"message": "Context restriction deleted."})
+	render.Status(r, http.StatusNoContent)
+	render.NoContent(w, r)
 }
 
 func (f *CircleCI) handleListPipelineDefinitions(w http.ResponseWriter, r *http.Request) {
@@ -3035,6 +3162,27 @@ func (f *CircleCI) handleCreateTrigger(w http.ResponseWriter, r *http.Request) {
 	}
 	render.Status(r, http.StatusCreated)
 	render.JSON(w, r, map[string]any{"data": resp})
+}
+
+// renderV3CursorCollection writes items as a cursor-paginated v3 collection.
+// Everything fits on one page, so page.next is always null.
+func renderV3CursorCollection(w http.ResponseWriter, r *http.Request, items []any) {
+	if items == nil {
+		items = []any{}
+	}
+	render.JSON(w, r, map[string]any{
+		"data": items,
+		"page": map[string]any{"next": nil, "prev": nil},
+	})
+}
+
+// renderV3Error writes a v3 error envelope, which is what apiclient.ParseError
+// reads to surface an API message.
+func renderV3Error(w http.ResponseWriter, r *http.Request, status int, detail string) {
+	render.Status(r, status)
+	render.JSON(w, r, map[string]any{
+		"error": map[string]any{"title": http.StatusText(status), "detail": detail},
+	})
 }
 
 // renderV3Collection writes items as a v3 collection, so an empty set is an empty

@@ -58,9 +58,11 @@ func newRestrictionCmd() *cobra.Command {
 
 // --- restriction create ---
 
+// restrictionCreateOutput keeps the v2 field name restriction_value for what
+// v3 calls match_pattern. There is no name field: the API returns none for the
+// project and expression restrictions this command creates.
 type restrictionCreateOutput struct {
 	ID               string `json:"id"`
-	Name             string `json:"name"`
 	RestrictionType  string `json:"restriction_type"`
 	RestrictionValue string `json:"restriction_value"`
 }
@@ -69,7 +71,7 @@ func newRestrictionCreateCmd() *cobra.Command {
 	var (
 		restrictionType  string
 		restrictionValue string
-		orgSlug          string
+		orgRef           string
 		jsonOut          bool
 	)
 
@@ -86,17 +88,17 @@ func newRestrictionCreateCmd() *cobra.Command {
 		Long: heredoc.Doc(`
 			Add a restriction to a CircleCI context.
 
-			JSON fields: id, name, restriction_type, restriction_value
+			JSON fields: id, restriction_type, restriction_value
 		`),
 		Example: heredoc.Doc(`
 			# Restrict context to a specific project
 			$ circleci context restriction create ctx-uuid --type project --value proj-uuid
 
-			# Restrict context to a specific group
-			$ circleci context restriction create ctx-uuid --type group --value group-uuid
-
 			# Restrict context using a pipeline expression
 			$ circleci context restriction create ctx-uuid --type expression --value 'pipeline.git.branch == "main"'
+
+			# Restrict context to a security group (--value is the group ID)
+			$ circleci context restriction create ctx-uuid --type group --value group-uuid
 
 			# Capture the restriction ID
 			$ circleci context restriction create ctx-uuid --type project --value proj-uuid --json --jq '.id'
@@ -124,25 +126,19 @@ func newRestrictionCreateCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			contextID, err := uuid.Parse(args[0])
+			contextID, err := resolveContextArg(ctx, client, args[0], orgRef,
+				"circleci context restriction create")
 			if err != nil {
-				orgSlug, err = cmdutil.ResolveOrgSlug(orgSlug, "circleci context restriction create")
-				if err != nil {
-					return err
-				}
-				id, err := resolveContextID(ctx, client, args[0], orgSlug)
-				if err != nil {
-					return err
-				}
-				contextID = id
+				return err
 			}
 			return runRestrictionCreate(ctx, client, contextID, restrictionType, restrictionValue, jsonOut)
 		},
 	}
 
 	cmd.Flags().StringVar(&restrictionType, "type", "", "Restriction type: project, expression, or group")
-	cmd.Flags().StringVar(&restrictionValue, "value", "", "Value of the restriction")
-	cmd.Flags().StringVar(&orgSlug, "org", "", "Organization slug (e.g. gh/myorg); used when resolving name to ID")
+	cmd.Flags().StringVar(&restrictionValue, "value", "",
+		"Project ID, pipeline expression, or group ID, matching --type")
+	cmd.Flags().StringVar(&orgRef, "org", "", "Organization slug (e.g. gh/myorg) or UUID; used when resolving name to ID")
 	cmdutil.AddJSONFlag(cmd, &jsonOut)
 	cmdutil.AddJQFlag(cmd)
 
@@ -157,9 +153,8 @@ func runRestrictionCreate(ctx context.Context, client *apiclient.Client, context
 
 	out := restrictionCreateOutput{
 		ID:               r.ID.String(),
-		Name:             r.Name,
 		RestrictionType:  r.RestrictionType,
-		RestrictionValue: r.RestrictionValue,
+		RestrictionValue: r.MatchPattern,
 	}
 
 	if jsonOut {
@@ -176,7 +171,7 @@ func runRestrictionCreate(ctx context.Context, client *apiclient.Client, context
 func newRestrictionDeleteCmd() *cobra.Command {
 	var (
 		restrictionID string
-		orgSlug       string
+		orgRef        string
 		force         bool
 	)
 
@@ -232,17 +227,10 @@ func newRestrictionDeleteCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			contextID, err := uuid.Parse(args[0])
+			contextID, err := resolveContextArg(ctx, client, args[0], orgRef,
+				"circleci context restriction delete")
 			if err != nil {
-				orgSlug, err = cmdutil.ResolveOrgSlug(orgSlug, "circleci context restriction delete")
-				if err != nil {
-					return err
-				}
-				id, err := resolveContextID(ctx, client, args[0], orgSlug)
-				if err != nil {
-					return err
-				}
-				contextID = id
+				return err
 			}
 			if err := client.DeleteContextRestriction(ctx, contextID, rID); err != nil {
 				return restrictionAPIErr(err, restrictionID)
@@ -255,14 +243,17 @@ func newRestrictionDeleteCmd() *cobra.Command {
 
 	cmd.Flags().StringVar(&restrictionID, "restriction-id", "", "UUID of the restriction to delete")
 	cmd.Flags().BoolVarP(&force, "force", "f", false, "Skip confirmation prompt")
-	cmd.Flags().StringVar(&orgSlug, "org", "", "Organization slug (e.g. gh/myorg); used when resolving name to ID")
+	cmd.Flags().StringVar(&orgRef, "org", "", "Organization slug (e.g. gh/myorg) or UUID; used when resolving name to ID")
 	_ = cmd.MarkFlagRequired("restriction-id")
 
 	return cmd
 }
 
 func restrictionAPIErr(err error, subject string) *clierrors.CLIError {
-	return cmdutil.APIErr(err, subject,
+	if e := byIDForbiddenErr(err); e != nil {
+		return e
+	}
+	return cmdutil.APIErr(err, subject, //nolint:wrapcheck // APIErr returns a *CLIError, not a wrapped error.
 		"context.restriction_not_found", "No restriction found for %q.",
 		"Check the context ID and try again",
 		"Run: circleci context get <context-id>")

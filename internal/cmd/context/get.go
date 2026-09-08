@@ -28,7 +28,6 @@ import (
 	"time"
 
 	"github.com/MakeNowJust/heredoc"
-	"github.com/google/uuid"
 	"github.com/spf13/cobra"
 
 	"github.com/CircleCI-Public/circleci-cli/clikit/iostream"
@@ -40,7 +39,7 @@ import (
 func newGetCmd() *cobra.Command {
 	var (
 		jsonOut bool
-		orgSlug string
+		orgRef  string
 	)
 
 	cmd := &cobra.Command{
@@ -87,11 +86,11 @@ func newGetCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return runGet(ctx, client, args[0], orgSlug, jsonOut)
+			return runGet(ctx, client, args[0], orgRef, jsonOut)
 		},
 	}
 
-	cmd.Flags().StringVar(&orgSlug, "org", "", "Organization slug (e.g. gh/myorg); used when resolving name to ID")
+	cmd.Flags().StringVar(&orgRef, "org", "", "Organization slug (e.g. gh/myorg) or UUID; used when resolving name to ID")
 	cmdutil.AddJSONFlag(cmd, &jsonOut)
 	cmdutil.AddJQFlag(cmd)
 
@@ -114,6 +113,10 @@ type contextEnvVarEntry struct {
 	UpdatedAt      time.Time `json:"updated_at"`
 }
 
+// contextRestrictionEntry keeps the v2 field names the CLI has always
+// emitted. restriction_value carries what v3 calls match_pattern, and group
+// restrictions are reconstructed by the client from the context's group
+// references, so this output is unchanged by the move to v3.
 type contextRestrictionEntry struct {
 	ID               string `json:"id"`
 	Name             string `json:"name"`
@@ -121,23 +124,23 @@ type contextRestrictionEntry struct {
 	RestrictionValue string `json:"restriction_value"`
 }
 
-func runGet(ctx context.Context, client *apiclient.Client, contextName, orgSlug string, jsonOut bool) error {
-	contextID, err := uuid.Parse(contextName)
+func runGet(ctx context.Context, client *apiclient.Client, contextName, orgRef string, jsonOut bool) error {
+	contextID, resolved, err := resolveContextRef(ctx, client, contextName, orgRef, "circleci context get")
 	if err != nil {
-		orgSlug, err = cmdutil.ResolveOrgSlug(orgSlug, "circleci context get")
-		if err != nil {
-			return err
-		}
-		id, err := resolveContextID(ctx, client, contextName, orgSlug)
-		if err != nil {
-			return err
-		}
-		contextID = id
+		return err
 	}
 
-	ctxt, err := client.GetContext(ctx, contextID)
+	// Resolving a name already fetched the context, so only its env vars and
+	// restrictions are still needed. Re-fetching it by id would put another
+	// round trip on the critical path for data we already hold.
+	var ctxt *apiclient.ContextDetail
+	if resolved != nil {
+		ctxt, err = client.ContextDetailFor(ctx, resolved)
+	} else {
+		ctxt, err = client.GetContextDetail(ctx, contextID)
+	}
 	if err != nil {
-		return apiErr(err, contextID.String())
+		return contextIDErr(err, contextID.String())
 	}
 
 	envVars := make([]contextEnvVarEntry, len(ctxt.EnvironmentVariables))
@@ -156,7 +159,7 @@ func runGet(ctx context.Context, client *apiclient.Client, contextName, orgSlug 
 			ID:               r.ID.String(),
 			Name:             r.Name,
 			RestrictionType:  r.RestrictionType,
-			RestrictionValue: r.RestrictionValue,
+			RestrictionValue: r.MatchPattern,
 		}
 	}
 

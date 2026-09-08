@@ -1,0 +1,5 @@
+error: Your token does not have access to organization "gh/testorg".
+
+Suggestions:
+  • Check the organization with: circleci org list
+  • Confirm you are logged in as the right user: circleci auth me

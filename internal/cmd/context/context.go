@@ -24,11 +24,15 @@
 package context
 
 import (
+	"fmt"
+	"net/http"
+
 	"github.com/MakeNowJust/heredoc"
 	"github.com/spf13/cobra"
 
 	clierrors "github.com/CircleCI-Public/circleci-cli/clikit/errors"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmdutil"
+	"github.com/CircleCI-Public/circleci-cli/internal/httpcl"
 )
 
 // NewContextCmd returns the "circleci context" command group.
@@ -63,9 +67,59 @@ func NewContextCmd() *cobra.Command {
 	return cmd
 }
 
+// apiErr maps an error from a context call scoped to an organization —
+// list and create. A 403 stays a 403: it means the token cannot see the org,
+// which is worth saying plainly rather than leaving to the generic handler.
 func apiErr(err error, subject string) *clierrors.CLIError {
-	return cmdutil.APIErr(err, subject,
+	if httpcl.HasStatusCode(err, http.StatusForbidden) {
+		return clierrors.New("context.org_forbidden", "Access denied",
+			fmt.Sprintf("Your token does not have access to organization %q.", subject)).
+			WithSuggestions(
+				"Check the organization with: circleci org list",
+				"Confirm you are logged in as the right user: circleci auth me",
+			).
+			WithExitCode(clierrors.ExitAPIError)
+	}
+	return cmdutil.APIErr(err, subject, //nolint:wrapcheck // APIErr returns a *CLIError, not a wrapped error.
 		"context.not_found", "No context found for %q.",
 		"Check the context name or ID and try again",
 		"Run: circleci context list --org <org-slug>")
+}
+
+// contextIDErr maps an error from a context call addressed by context id —
+// get and delete.
+func contextIDErr(err error, subject string) *clierrors.CLIError {
+	if e := byIDForbiddenErr(err); e != nil {
+		return e
+	}
+	return cmdutil.APIErr(err, subject, //nolint:wrapcheck // APIErr returns a *CLIError, not a wrapped error.
+		"context.not_found", "No context found for %q.",
+		"Check the context name or ID and try again",
+		"Run: circleci context list --org <org-slug>")
+}
+
+// byIDForbiddenErr maps a 403 from a request addressed by a context, variable
+// or restriction id, returning nil for any other error.
+//
+// On these endpoints a 403 has exactly one meaning: the caller can see the
+// context but lacks the permission for this action — the read-only-member case.
+// A context that does not exist, and one in an organization the caller cannot
+// see, both answer 404 so the two cannot be told apart. That makes the message
+// below safe to state plainly; it was not, while a missing context could also
+// produce a 403.
+//
+// The subject is deliberately not named: callers pass a context id, a variable
+// name or a restriction id here, and the permission is on the context in every
+// case.
+func byIDForbiddenErr(err error) *clierrors.CLIError {
+	if !httpcl.HasStatusCode(err, http.StatusForbidden) {
+		return nil
+	}
+	return clierrors.New("context.forbidden", "Permission denied",
+		"Your token can see this context but does not have permission for this action.").
+		WithSuggestions(
+			"Ask an organization administrator to grant you the permission",
+			"Confirm you are logged in as the right user: circleci auth me",
+		).
+		WithExitCode(clierrors.ExitAPIError)
 }

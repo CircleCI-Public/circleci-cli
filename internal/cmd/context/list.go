@@ -38,7 +38,7 @@ import (
 
 func newListCmd() *cobra.Command {
 	var (
-		orgSlug string
+		orgRef  string
 		name    string
 		jsonOut bool
 	)
@@ -75,11 +75,11 @@ func newListCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return runList(ctx, client, orgSlug, name, jsonOut)
+			return runList(ctx, client, orgRef, name, jsonOut)
 		},
 	}
 
-	cmd.Flags().StringVar(&orgSlug, "org", "", "Organization slug (e.g. gh/myorg); defaults to git remote")
+	cmd.Flags().StringVar(&orgRef, "org", "", "Organization slug (e.g. gh/myorg) or UUID; defaults to git remote")
 	cmd.Flags().StringVar(&name, "name", "", "Find contexts by name (partial match)")
 	cmdutil.AddJSONFlag(cmd, &jsonOut)
 	cmdutil.AddJQFlag(cmd)
@@ -93,15 +93,15 @@ type contextListEntry struct {
 	CreatedAt time.Time `json:"created_at"`
 }
 
-func runList(ctx context.Context, client *apiclient.Client, orgSlug string, name string, jsonOut bool) error {
-	orgSlug, err := cmdutil.ResolveOrgSlug(orgSlug, "circleci context list")
+func runList(ctx context.Context, client *apiclient.Client, orgRef string, name string, jsonOut bool) error {
+	orgID, err := cmdutil.ResolveOrgSlugOrID(ctx, client, orgRef, "circleci context list")
 	if err != nil {
 		return err
 	}
 
-	contexts, err := client.ListContexts(ctx, orgSlug, name)
+	contexts, err := client.ListContexts(ctx, orgID, name)
 	if err != nil {
-		return apiErr(err, orgSlug)
+		return apiErr(err, orgDisplay(orgID, orgRef))
 	}
 
 	entries := make([]contextListEntry, len(contexts))
