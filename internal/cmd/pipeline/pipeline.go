@@ -35,14 +35,15 @@ func NewPipelineCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "pipeline <command>",
 		GroupID: "ci",
-		Short:   "Define what will happen in a run",
+		Short:   "Manage the pipeline definitions a run executes",
 		Long: heredoc.Doc(`
 			Create and list pipeline definitions for a CircleCI project.
 
 			A pipeline definition decides what happens when a run is triggered:
 			which repository to check out and where to find the config YAML that
 			CircleCI compiles into workflows. Attach triggers to a definition with
-			'circleci project trigger create'.
+			'circleci project trigger create', and list the runs one produced with
+			'circleci run list'.
 		`),
 		RunE:               cmdutil.GroupRunE,
 		FParseErrWhitelist: cobra.FParseErrWhitelist{UnknownFlags: true},
