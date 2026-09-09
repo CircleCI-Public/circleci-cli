@@ -33,56 +33,24 @@
               </button>
             </div>
 
+            {{/* Options come from data/install.yaml so that this menu and the
+                 "All platforms" list below it cannot disagree. Group boundaries
+                 become the menu's dividers. The first option is the pre-selected
+                 fallback for visitors whose OS we cannot detect. */}}
             <ul class="install-menu" id="install-menu" role="listbox" aria-label="Installation method" hidden>
-              <li role="option"
-                  tabindex="-1"
-                  data-cmd="brew install circleci"
-                  data-platform="macos"
-                  aria-selected="true">
-                macOS — Homebrew
-              </li>
-              <li class="picker-divider" aria-hidden="true"></li>
-              <li role="option"
-                  tabindex="-1"
-                  data-cmd="winget install --id CircleCI.CLI"
-                  data-platform="windows"
-                  aria-selected="false">
-                Windows — WinGet
-              </li>
-              <li class="picker-divider" aria-hidden="true"></li>
-              <li role="option"
-                  tabindex="-1"
-                  data-cmd="curl -1sLf \
-  'https://packages.circleci.com/public/setup.deb.sh' \
-  | sudo -E bash"
-                  data-cmd2="sudo apt install circleci"
-                  data-platform="linux"
-                  aria-selected="false">
-                Linux — apt (Debian, Ubuntu, Mint, Raspberry Pi)
-              </li>
-              <li role="option"
-                  tabindex="-1"
-                  data-cmd="curl -1sLf \
-  'https://packages.circleci.com/public/setup.rpm.sh' \
-  | sudo -E bash"
-                  data-cmd2="sudo dnf install circleci"
-                  aria-selected="false">
-                Linux — rpm (Fedora, RHEL, SUSE, Amazon)
-              </li>
-              <li class="picker-divider" aria-hidden="true"></li>
-              <li role="option"
-                  tabindex="-1"
-                  data-cmd="brew install circleci"
-                  aria-selected="false">
-                Linux — Homebrew
-              </li>
-              <li role="option"
-                  tabindex="-1"
-                  data-cmd="sudo snap install circleci"
-                  data-cmd2="sudo snap connect circleci:password-manager-service"
-                  aria-selected="false">
-                Linux — Snap
-              </li>
+              {{ range $gi, $group := hugo.Data.install.groups }}
+                {{ if $gi }}<li class="picker-divider" aria-hidden="true"></li>{{ end }}
+                {{ range $oi, $opt := $group.options }}
+                  <li role="option"
+                      tabindex="-1"
+                      data-cmd="{{ index $opt.cmds 0 }}"
+                      {{ if gt (len $opt.cmds) 1 }}data-cmd2="{{ index $opt.cmds 1 }}"{{ end }}
+                      {{ with $opt.platform }}data-platform="{{ . }}"{{ end }}
+                      aria-selected="{{ if and (eq $gi 0) (eq $oi 0) }}true{{ else }}false{{ end }}">
+                    {{ $opt.label }}
+                  </li>
+                {{ end }}
+              {{ end }}
             </ul>
           </div>
 
@@ -123,6 +91,25 @@
               {{ partial "copy-button.html" (dict "cmd" "circleci run get") }}
             </div>
           </section>
+
+          {{/* Every install command as plain text, from the same data file as the
+               picker above. The picker keeps its commands in data-cmd attributes,
+               which HTML-to-markdown converters drop — so a reader without
+               JavaScript, and every agent fetching this page, used to see a single
+               unlabelled `brew install circleci`. This list is real page content
+               (collapsed, not hidden), so those readers get all six methods with
+               the platform each one belongs to. */}}
+          <details class="install-all">
+            <summary>All platforms and package managers</summary>
+            <dl class="install-all-list">
+              {{ range hugo.Data.install.groups }}
+                {{ range .options }}
+                  <dt>{{ .label }}</dt>
+                  <dd>{{ range .cmds }}<code>{{ . }}</code>{{ end }}</dd>
+                {{ end }}
+              {{ end }}
+            </dl>
+          </details>
 
           <p class="hero-ref-link"><a href="reference/">View command reference &rarr;</a></p>
 

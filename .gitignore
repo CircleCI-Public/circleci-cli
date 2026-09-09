@@ -5,6 +5,7 @@ share/
 # Docs site (generated reference page, built output, pinned tools, publish worktree)
 docs/website/content/reference/_index.md
 docs/website/static/llms.txt
+docs/website/static/llms-full.txt
 docs/website/static/img/run-get.svg
 docs/website/public/
 bin/tools/

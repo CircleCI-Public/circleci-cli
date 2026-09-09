@@ -59,7 +59,41 @@ var helpTopics = []helpTopic{
 
 			## Installation
 
-			Installation instructions are in the [README](https://github.com/CircleCI-Public/circleci-cli#readme)
+			Pick the entry for your platform. Package managers that need their repository
+			registered first list the setup command and the install command, in that order.
+
+			macOS or Linux — Homebrew:
+			%[1]s%[1]s%[1]sshell
+			brew install circleci
+			%[1]s%[1]s%[1]s
+
+			Windows — WinGet:
+			%[1]s%[1]s%[1]sshell
+			winget install --id CircleCI.CLI
+			%[1]s%[1]s%[1]s
+
+			Linux — apt (Debian, Ubuntu, Mint, Raspberry Pi):
+			%[1]s%[1]s%[1]sshell
+			curl -1sLf 'https://packages.circleci.com/public/setup.deb.sh' | sudo -E bash
+			sudo apt install circleci
+			%[1]s%[1]s%[1]s
+
+			Linux — rpm (Fedora, RHEL, SUSE, Amazon):
+			%[1]s%[1]s%[1]sshell
+			curl -1sLf 'https://packages.circleci.com/public/setup.rpm.sh' | sudo -E bash
+			sudo dnf install circleci
+			%[1]s%[1]s%[1]s
+
+			Linux — Snap:
+			%[1]s%[1]s%[1]sshell
+			sudo snap install circleci
+			sudo snap connect circleci:password-manager-service
+			%[1]s%[1]s%[1]s
+
+			Prebuilt binaries and Linux packages for every release are on the
+			[releases page](https://github.com/CircleCI-Public/circleci-cli/releases), and the
+			[README](https://github.com/CircleCI-Public/circleci-cli#readme) covers the
+			less common cases.
 
 			## Configuration
 

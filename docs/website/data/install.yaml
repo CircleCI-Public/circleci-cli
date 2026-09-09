@@ -1,0 +1,88 @@
+# Copyright (c) 2026 Circle Internet Services, Inc.
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+#
+# SPDX-License-Identifier: MIT
+
+# Install methods for the landing page.
+#
+# The landing page renders this file twice: once as the JS install picker's
+# option list, and once as the always-present "All platforms" list underneath
+# it. The second render exists because the picker's commands used to live only
+# in data-cmd attributes, which HTML-to-markdown converters drop — an agent
+# reading the page saw one unlabelled `brew install circleci` and nothing else.
+# Both renders come from this file so they cannot drift apart.
+#
+# The prose copy of this list lives in the `getting-started` help topic
+# (internal/cmd/root/help_topic.go), which is what feeds llms.txt, /reference,
+# the man page and the MCP tool description. Change one, change the other;
+# TestLandingPageInstallCommands in that package fails if they disagree.
+#
+# Fields:
+#   label     shown in the picker and as the term in the "All platforms" list.
+#   platform  optional; matched against the visitor's detected OS to pre-select
+#             an option. Only the first entry per OS needs it.
+#   cmds      one or two commands, in the order they must be run. Managers that
+#             register a repository first (apt, rpm) or need a connect step
+#             (snap) take two. Line breaks inside a command are deliberate and
+#             preserved on the page (see `white-space: pre-wrap` in main.css).
+#
+# Groups map to the divider rules in the picker menu; they carry no other
+# meaning.
+
+groups:
+  - options:
+      - label: macOS — Homebrew
+        platform: macos
+        cmds:
+          - brew install circleci
+
+  - options:
+      - label: Windows — WinGet
+        platform: windows
+        cmds:
+          - winget install --id CircleCI.CLI
+
+  - options:
+      - label: Linux — apt (Debian, Ubuntu, Mint, Raspberry Pi)
+        platform: linux
+        cmds:
+          - |-
+            curl -1sLf \
+              'https://packages.circleci.com/public/setup.deb.sh' \
+              | sudo -E bash
+          - sudo apt install circleci
+
+      - label: Linux — rpm (Fedora, RHEL, SUSE, Amazon)
+        cmds:
+          - |-
+            curl -1sLf \
+              'https://packages.circleci.com/public/setup.rpm.sh' \
+              | sudo -E bash
+          - sudo dnf install circleci
+
+  - options:
+      - label: Linux — Homebrew
+        cmds:
+          - brew install circleci
+
+      - label: Linux — Snap
+        cmds:
+          - sudo snap install circleci
+          - sudo snap connect circleci:password-manager-service
