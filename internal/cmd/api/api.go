@@ -62,8 +62,8 @@ func NewAPICmd() *cobra.Command {
 		Annotations: map[string]string{
 			"help:arguments": heredoc.Docf(`
 				%[1]s<path>%[1]s is the request path. It is relative to /api/v3 by default
-				(for example, "projects/{project-id}"). To target
-				a different version prefix, include it explicitly, for example, "api/v2/me".
+				(for example, "projects/{project-id}"). A path that starts with
+				%[1]sapi%[1]s is sent as given, so include the prefix to target another version.
 			`, "`"),
 		},
 		Long: heredoc.Doc(`
@@ -85,8 +85,8 @@ func NewAPICmd() *cobra.Command {
 			# Send a body read from a file (@- reads from stdin)
 			$ circleci api projects/{project-id}/run -d @payload.json
 
-			# Access the v1.1 API with a custom header
-			$ circleci api api/v1.1/me -H "X-Custom: value"
+			# Send a custom header
+			$ circleci api 'runs?filter[user_id]=me' -H "X-Custom: value"
 		`),
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
