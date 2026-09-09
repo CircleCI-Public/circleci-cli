@@ -255,40 +255,71 @@ tasks:
       # The landing page (/) is a hand-written template; the screenshot it shows
       # is the freeze-captured demo, copied into the site's static tree.
       - cp docs/demos/run-get.svg {{.SITE_DIR}}/static/img/run-get.svg
-      # Generate the reference body once, then derive two artifacts from it:
-      #   static/llms.txt           — clean markdown for LLMs/agents (llmstxt.org),
-      #                                copied to the site root verbatim by Hugo.
-      #   content/reference/_index.md — the same body with Hugo front matter, served
-      #                                at /reference.
-      # The llms.txt opens with an H1 + blockquote summary per the llms.txt spec.
+      # Generate the help-topic bodies once, then derive three artifacts:
+      #
+      #   static/llms.txt             — the short index llmstxt.org actually
+      #                                 describes: getting started (install,
+      #                                 authenticate, MCP) plus links out. This
+      #                                 file used to be the full dump, which cost
+      #                                 an agent ~50k tokens to answer "how do I
+      #                                 install this?" — and then sent it to the
+      #                                 README anyway. Keep it small.
+      #   static/llms-full.txt        — every topic plus the whole command tree,
+      #                                 for agents that need command detail.
+      #   content/reference/_index.md — the same full body with Hugo front
+      #                                 matter, served at /reference.
+      #
+      # Hugo copies static/ to the site root verbatim. Both .txt files open with
+      # an H1 + blockquote summary per the llms.txt spec.
       - |
+        GS="$(mktemp)"
+        REST="$(mktemp)"
+        go run ./cmd/circleci help getting-started > "$GS"
         {
-          echo '# CircleCI CLI'
-          echo
-          echo '> Command-line interface to CircleCI for use in your terminal or scripts. This is the full command reference, generated from the live command tree.'
-          echo
-          go run ./cmd/circleci help getting-started
-          echo
           go run ./cmd/circleci help environment
           echo
           go run ./cmd/circleci help formatting
           echo
           go run ./cmd/circleci help reference
+        } > "$REST"
+
+        {
+          echo '# CircleCI CLI'
+          echo
+          echo '> Command-line interface to CircleCI for use in your terminal or scripts. This is the short index: install, authenticate, and links to the full reference.'
+          echo
+          cat "$GS"
+          echo
+          echo '## Reference'
+          echo
+          echo '- [Full command reference](https://cli.circleci.com/llms-full.txt): every command, flag and JSON field, generated from the live command tree. Large — fetch it when you need command detail.'
+          echo '- [Command reference on the web](https://cli.circleci.com/reference/): the same content as a browsable page.'
+          echo '- [Environment variables](https://cli.circleci.com/reference/#environment): authentication, colour, paging and telemetry. Also `circleci help environment`.'
+          echo '- [Output formatting](https://cli.circleci.com/reference/#formatting): `--json`, `--jq` and templates. Also `circleci help formatting`.'
+          echo '- [Source, issue tracker and prebuilt binaries](https://github.com/CircleCI-Public/circleci-cli)'
         } > {{.SITE_DIR}}/static/llms.txt
-      - |
+
+        {
+          echo '# CircleCI CLI'
+          echo
+          echo '> Command-line interface to CircleCI for use in your terminal or scripts. This is the full command reference, generated from the live command tree. The short index is at https://cli.circleci.com/llms.txt'
+          echo
+          cat "$GS"
+          echo
+          cat "$REST"
+        } > {{.SITE_DIR}}/static/llms-full.txt
+
         {
           echo '---'
           echo 'title: CircleCI CLI Reference'
           echo '---'
           echo
-          go run ./cmd/circleci help getting-started
+          cat "$GS"
           echo
-          go run ./cmd/circleci help environment
-          echo
-          go run ./cmd/circleci help formatting
-          echo
-          go run ./cmd/circleci help reference
+          cat "$REST"
         } > {{.SITE_DIR}}/content/reference/_index.md
+
+        rm -f "$GS" "$REST"
 
   docs:clean:
     desc: Remove the built docs site
