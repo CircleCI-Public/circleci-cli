@@ -37,13 +37,13 @@ func NewRunCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "run <command>",
 		GroupID: "ci",
-		Short:   "Trigger, watch and cancel CI runs",
+		Short:   "Trigger, watch and cancel pipeline runs",
 		Long: heredoc.Doc(`
 			Work with CircleCI runs.
 
-			A run is created each time a trigger fires for a pipeline. It carries
-			the VCS context for that firing and groups the workflows it produced;
-			each workflow in turn contains jobs.
+			A run is one execution of a pipeline, created each time a trigger
+			fires. It carries the VCS context for that firing and groups the
+			workflows it produced; each workflow in turn contains jobs.
 		`),
 	}
 

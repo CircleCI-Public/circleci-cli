@@ -53,10 +53,8 @@ func newListCmd() *cobra.Command {
 		Long: heredoc.Doc(`
 			List recent runs for a CircleCI project.
 
-			The project is inferred from the current git repository's remote
-			unless overridden with --project. Use --branch to filter results
-			to a single branch, or --current-branch (-B) to automatically use
-			the branch you have checked out.
+			A run is one execution of a pipeline. The project is inferred from the
+			current git repository's remote unless overridden with --project.
 
 			The markdown table includes the commit subject; the JSON adds the full
 			commit and repository detail.
