@@ -28,6 +28,7 @@ Work with CircleCI from the command line.
 | `deploy`            | Track released components and versions                 |
 | `dlc`               | Purge a project's Docker layer cache (DLC)             |
 | `envvar`            | List, set and delete a project's environment variables |
+| `migrate`           | Migrate workflows from other CI platforms to CircleCI  |
 | `namespace`         | Manage the org namespace orbs publish under            |
 | `orb`               | Create, publish and inspect orbs (reusable config)     |
 | `org`               | Manage CircleCI organizations                          |

@@ -1,0 +1,23 @@
+Migrate workflows from other CI platforms to CircleCI
+
+## Usage
+
+`circleci migrate <command> [flags]`
+
+## General Commands
+
+| Command   | Description                                              |
+| --------- | -------------------------------------------------------- |
+| `actions` | Copy a GitHub Actions workflow into .circleci/workflows/ |
+
+## Flags
+
+Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `circleci --help`.
+
+## Details
+
+Commands for migrating CI workflows from other platforms into CircleCI.
+
+Use these commands to copy workflow files into a layout that CircleCI
+can run directly.
+
