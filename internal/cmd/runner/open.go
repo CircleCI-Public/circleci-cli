@@ -53,7 +53,7 @@ func newOpenCmd() *cobra.Command {
 			$ circleci runner open --org gh/myorg
 
 			# Open when your remote is on CircleCI server
-			$ circleci runner open --host https://circleci.example.com
+			$ CIRCLE_HOST=https://circleci.example.com circleci runner open
 		`),
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
