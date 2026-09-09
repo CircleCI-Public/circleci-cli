@@ -27,6 +27,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -222,19 +223,9 @@ func runWatch(ctx context.Context, client *apiclient.Client, args []string, proj
 // non-hex --sha is a bad-argument error, not a git failure — and because
 // gitremote's expansion would otherwise happily resolve branch names and tags,
 // silently watching the wrong commit.
-func isHexSHA(s string) bool {
-	if s == "" {
-		return false
-	}
-	for _, r := range s {
-		switch {
-		case r >= '0' && r <= '9', r >= 'a' && r <= 'f', r >= 'A' && r <= 'F':
-		default:
-			return false
-		}
-	}
-	return true
-}
+var validHexSHA = regexp.MustCompile(`^[0-9a-fA-F]+$`)
+
+func isHexSHA(s string) bool { return validHexSHA.MatchString(s) }
 
 // waitForRunBySHA searches for a run matching the given commit SHA via V3 search,
 // polling every 5 seconds for up to shaWaitDuration() if not immediately found.
