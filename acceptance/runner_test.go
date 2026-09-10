@@ -1346,9 +1346,12 @@ func TestRunnerConfig_OutputFile(t *testing.T) {
 	assert.Check(t, golden.String(string(contents), t.Name()+".yaml"))
 
 	// The file holds a runner token, so it must not be group or world readable.
-	info, err := os.Stat(outPath)
-	assert.NilError(t, err)
-	assert.Check(t, cmp.Equal(info.Mode().Perm(), os.FileMode(0o600)))
+	// Windows does not honour Unix permission bits, so the check is skipped there.
+	if runtime.GOOS != "windows" {
+		info, err := os.Stat(outPath)
+		assert.NilError(t, err)
+		assert.Check(t, cmp.Equal(info.Mode().Perm(), os.FileMode(0o600)))
+	}
 }
 
 func TestRunnerConfig_Interactive_DefaultsToMachine(t *testing.T) {
