@@ -21,12 +21,15 @@ Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `ci
   `circleci org list`
 - Output as JSON for scripting: 
   `circleci org list --json`
-- Extract just the slugs: 
-  `circleci org list --json --jq '.[].slug'`
+- Extract just the IDs: 
+  `circleci org list --json --jq '.[].id'`
 
 ## Details
 
 List all CircleCI organizations the authenticated user is a member of.
 
-JSON fields: id, slug, name, vcs_type
+Only a VCS-backed org has a slug, so orgs are identified here by ID.
+Most commands' --org flag takes an org ID as well as a slug.
+
+JSON fields: id, name, vcs_type
 
