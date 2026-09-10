@@ -12,9 +12,9 @@ Manage self-hosted runners
 
 ## Targeted Commands
 
-| Command  | Description                                  |
-| -------- | -------------------------------------------- |
-| `config` | Generate a machine runner configuration file |
+| Command  | Description                                     |
+| -------- | ----------------------------------------------- |
+| `config` | Generate configuration for a self-hosted runner |
 
 ## Subcommands
 
