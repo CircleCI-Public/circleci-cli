@@ -38,6 +38,7 @@ import (
 	"gotest.tools/v3/golden"
 	"gotest.tools/v3/poll"
 
+	clierrors "github.com/CircleCI-Public/circleci-cli/clikit/errors"
 	"github.com/CircleCI-Public/circleci-cli/clikit/iostream"
 	"github.com/CircleCI-Public/circleci-cli/internal/config"
 	"github.com/CircleCI-Public/circleci-cli/internal/telemetry"
@@ -196,8 +197,9 @@ func TestSettingList_TextOutput(t *testing.T) {
 							UserId:    telemetry.AnonymousID.String(),
 							Event:     "command_invocation",
 							Properties: analytics.Properties{
-								"command": "circleci setting list",
-								"flags":   "debug,insecure-storage,theme",
+								"command":   "circleci setting list",
+								"flags":     "debug,insecure-storage,theme",
+								"exit_code": float64(clierrors.ExitSuccess),
 							},
 							Context: &analytics.Context{
 								App: analytics.AppInfo{Name: "circleci-cli", Version: "dev"},
@@ -265,8 +267,9 @@ func TestSettingList_TextOutput_Color(t *testing.T) {
 							UserId:    telemetry.AnonymousID.String(),
 							Event:     "command_invocation",
 							Properties: analytics.Properties{
-								"command": "circleci setting list",
-								"flags":   "insecure-storage,theme",
+								"command":   "circleci setting list",
+								"flags":     "insecure-storage,theme",
+								"exit_code": float64(clierrors.ExitSuccess),
 							},
 							Context: &analytics.Context{
 								App: analytics.AppInfo{Name: "circleci-cli", Version: "dev"},

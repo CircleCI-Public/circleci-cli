@@ -24,12 +24,15 @@ package cmdutil
 
 import (
 	"context"
+	"errors"
 	"slices"
 	"strings"
 	"sync"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
+
+	clierrors "github.com/CircleCI-Public/circleci-cli/clikit/errors"
 )
 
 // telemetryProps is the mutable set of extra properties RecordTelemetryNow adds
@@ -42,14 +45,14 @@ import (
 // per run and a later write simply replaces an earlier one.
 type telemetryProps struct {
 	mu    sync.Mutex
-	props map[string]string
+	props map[string]any
 }
 
-func (p *telemetryProps) set(key, value string) {
+func (p *telemetryProps) set(key string, value any) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	if p.props == nil {
-		p.props = map[string]string{}
+		p.props = map[string]any{}
 	}
 	p.props[key] = value
 }
@@ -121,6 +124,7 @@ func RecordTelemetry(cmd *cobra.Command) {
 	cmd.RunE = func(cmd *cobra.Command, args []string) error {
 		runErr := currentRunE(cmd, args)
 
+		recordOutcome(cmd.Context(), runErr)
 		RecordTelemetryNow(cmd)
 
 		// Events are buffered until the sender is closed, and the root command's
@@ -181,8 +185,45 @@ func RecordTelemetryNow(cmd *cobra.Command) {
 	props := map[string]any{
 		"command": cmd.CommandPath(),
 		"flags":   strings.Join(flags, ","),
+		// Overwritten by recordOutcome when the handler failed. Defaulting here
+		// rather than there keeps the property on the events that never run a
+		// handler at all — help and usage — where success is the only outcome.
+		"exit_code": clierrors.ExitSuccess,
 	}
 	getTelemetryProps(ctx).mergeInto(props)
 
 	_ = tc.Track("command_invocation", props)
+}
+
+// recordOutcome records how the invocation ended, so a command's usage can be
+// told apart from its success. Both properties describe the error the handler
+// returned; cmd/circleci/main.go reclassifies a few error kinds after Execute
+// returns, which is past the point telemetry is recorded, so an error it rewrites
+// is reported here under its original classification.
+func recordOutcome(ctx context.Context, err error) {
+	p := getTelemetryProps(ctx)
+	if p == nil {
+		return
+	}
+
+	exitCode, errorCode := classifyError(err)
+	p.set("exit_code", exitCode)
+	if errorCode != "" {
+		p.set("error_code", errorCode)
+	}
+}
+
+// classifyError reduces an error to the exit code it produces and its
+// machine-readable code. A CLIError carries both already. Anything else escaped
+// the structured error type, so it exits as a general error and is reported as
+// unclassified — which is the signal that a handler needs a real code, not just
+// a count of failures.
+func classifyError(err error) (exitCode int, errorCode string) {
+	if err == nil {
+		return clierrors.ExitSuccess, ""
+	}
+	if cliErr, ok := errors.AsType[*clierrors.CLIError](err); ok {
+		return cliErr.ExitCode, cliErr.Code
+	}
+	return clierrors.ExitGeneralError, "unclassified"
 }
