@@ -167,6 +167,19 @@ func IsInteractive(ctx context.Context) bool {
 	return fromContext(ctx).IsInteractive()
 }
 
+// EnvAllowsInteractive reports whether the environment permits interactive
+// behaviour, ignoring whether the streams are TTYs: false when CI or
+// CIRCLE_NO_INTERACTIVE is set. It takes no context because the answer derives
+// entirely from the environment and not at all from the streams.
+//
+// Prefer IsInteractive for anything that reads from or draws over the terminal.
+// This covers the narrower case of behaviour that still helps a human at this
+// machine when no TTY is attached — launching a browser for an OAuth flow the
+// CLI cannot finish on its own.
+func EnvAllowsInteractive() bool {
+	return !interactiveEnvDisabled()
+}
+
 func SpinnerEnabled(ctx context.Context) bool {
 	return fromContext(ctx).SpinnerEnabled()
 }

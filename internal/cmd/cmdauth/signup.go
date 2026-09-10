@@ -159,7 +159,7 @@ func runSignup(ctx context.Context, noBrowser, secureStorage bool, configPath st
 		return runSignupInteractive(ctx, secureStorage, configPath)
 	}
 
-	return runLoginBrowser(ctx, host, deviceID.String(), true, secureStorage, configPath)
+	return runLoginBrowser(ctx, host, deviceID.String(), true, noBrowser, secureStorage, configPath)
 }
 
 func runSignupInteractive(ctx context.Context, secureStorage bool, configPath string) error {

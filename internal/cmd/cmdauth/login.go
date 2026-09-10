@@ -34,8 +34,10 @@ import (
 	"github.com/google/uuid"
 	"github.com/spf13/cobra"
 
+	"github.com/CircleCI-Public/circleci-cli/clikit/browser"
 	clierrors "github.com/CircleCI-Public/circleci-cli/clikit/errors"
 	"github.com/CircleCI-Public/circleci-cli/clikit/iostream"
+	"github.com/CircleCI-Public/circleci-cli/internal/agent"
 	"github.com/CircleCI-Public/circleci-cli/internal/apiclient"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmdutil"
 	"github.com/CircleCI-Public/circleci-cli/internal/oauth"
@@ -110,10 +112,32 @@ func runLogin(ctx context.Context, noBrowser, secureStorage bool, configPath str
 	host := cfg.EffectiveHost()
 	deviceID := cfg.DeviceID()
 
-	return runLoginBrowser(ctx, host, deviceID.String(), false, secureStorage, configPath)
+	return runLoginBrowser(ctx, host, deviceID.String(), false, noBrowser, secureStorage, configPath)
 }
 
-func runLoginBrowser(ctx context.Context, host string, deviceID string, signup, secureStorage bool, configPath string) error {
+// shouldOpenBrowser reports whether the non-interactive flow should open the
+// authorize URL itself rather than only printing it. agentName is the result of
+// agent.Detect() — empty when no AI coding agent is driving the CLI. It is
+// passed in rather than detected here so the decision stays testable without
+// unsetting every agent environment variable.
+//
+// The interactive TUI deliberately waits for the user to press Enter before
+// opening a browser, and is unaffected by this: it runs in runLoginInteractive
+// and never reaches here. This only ever applies to the non-interactive path,
+// and there only when an AI coding agent is driving the CLI. An agent has no
+// TTY, so it never gets the TUI — but a human is sitting at this machine
+// watching the agent rather than the terminal, and the URL we print lands in
+// tool output they may never see. Opening the browser is what actually puts
+// them in front of the consent screen.
+//
+// --no-browser always wins, and CI / CIRCLE_NO_INTERACTIVE suppress it so an
+// agent running inside a CI job never tries to spawn a browser on a headless
+// runner.
+func shouldOpenBrowser(noBrowser bool, agentName string) bool {
+	return !noBrowser && agentName != "" && iostream.EnvAllowsInteractive()
+}
+
+func runLoginBrowser(ctx context.Context, host string, deviceID string, signup, noBrowser, secureStorage bool, configPath string) error {
 	var flow *oauth.Flow
 	var err error
 	if signup {
@@ -131,7 +155,17 @@ func runLoginBrowser(ctx context.Context, host string, deviceID string, signup, 
 	}
 	defer func() { _ = flow.Close() }()
 
-	iostream.ErrPrintf(ctx, "Open this URL in your browser to continue:\n\n  %s\n\n", flow.AuthorizeURL)
+	if shouldOpenBrowser(noBrowser, agent.Detect()) {
+		iostream.ErrPrintf(ctx, "Opening this URL in your browser — approve the request there to continue:\n\n  %s\n\n", flow.AuthorizeURL)
+		// Fire and forget, and deliberately after the URL is printed. The
+		// opener runs under cmd.Run(), which for some Linux browsers does not
+		// return until the browser itself exits, so it must not sit between
+		// here and flow.Wait below. The URL is already on stderr, so failing
+		// to launch anything costs nothing over just printing it.
+		go func() { _ = browser.OpenURL(flow.AuthorizeURL) }()
+	} else {
+		iostream.ErrPrintf(ctx, "Open this URL in your browser to continue:\n\n  %s\n\n", flow.AuthorizeURL)
+	}
 
 	waitCtx, cancel := context.WithTimeout(ctx, callbackTimeout())
 	defer cancel()

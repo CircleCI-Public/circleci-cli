@@ -437,6 +437,12 @@ a:hover {
     grid-template-columns: 1fr 1.2fr;
     gap: 4rem;
     padding-block: 5rem;
+    /* Top-aligned, not centred: the left column grows by ~550px when the
+       "All platforms" details is opened, and centring would re-centre the
+       screenshot against the taller column — making it jump down the page
+       on open and back up on close. Aligned to the row start it stays put
+       and the page simply grows downward. */
+    align-items: start;
   }
 }
 
