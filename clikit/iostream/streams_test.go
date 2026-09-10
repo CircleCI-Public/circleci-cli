@@ -98,3 +98,39 @@ func TestBackgroundQueryableNonTerminal(t *testing.T) {
 	t.Cleanup(func() { _ = pr.Close(); _ = pw.Close() })
 	assert.Check(t, !backgroundQueryable(pr, pw))
 }
+
+// TestEnvAllowsInteractive pins the exported inverse of
+// interactiveEnvDisabled. It is the seam a caller with no TTY uses to decide
+// whether an action that still needs a human — opening a browser to finish an
+// OAuth flow — is worth attempting at all, so both the inversion and its
+// independence from TTY state matter.
+func TestEnvAllowsInteractive(t *testing.T) {
+	t.Run("allowed by default", func(t *testing.T) {
+		clearTerminalEnv(t)
+		assert.Check(t, EnvAllowsInteractive())
+	})
+
+	t.Run("CI suppresses", func(t *testing.T) {
+		clearTerminalEnv(t)
+		t.Setenv("CI", "true")
+		assert.Check(t, !EnvAllowsInteractive())
+	})
+
+	t.Run("CIRCLE_NO_INTERACTIVE suppresses", func(t *testing.T) {
+		clearTerminalEnv(t)
+		t.Setenv("CIRCLE_NO_INTERACTIVE", "1")
+		assert.Check(t, !EnvAllowsInteractive())
+	})
+
+	t.Run("true where IsInteractive is false for want of a TTY", func(t *testing.T) {
+		clearTerminalEnv(t)
+
+		pr, pw, err := os.Pipe()
+		assert.NilError(t, err)
+		t.Cleanup(func() { _ = pr.Close(); _ = pw.Close() })
+
+		s := Streams{In: pr, Out: pw, Err: pw}
+		assert.Check(t, !s.IsInteractive(), "a pipe is not a TTY")
+		assert.Check(t, EnvAllowsInteractive(), "yet the environment permits interactivity")
+	})
+}

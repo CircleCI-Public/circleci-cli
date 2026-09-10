@@ -1,7 +1,8 @@
 ---
 name: circleci
-description: Patterns for invoking the CircleCI CLI (circleci) from agents. Covers structured output,
-  project and org targeting, which command covers each v3 endpoint, circleci api fallback.
+description: Patterns for invoking the CircleCI CLI (circleci) from agents. Covers authentication,
+  structured output, project and org targeting, which command covers each v3 endpoint, circleci api
+  fallback.
 ---
 
 # Reference
@@ -13,6 +14,29 @@ strips ANSI color, and errors out fast with a helpful message instead of
 prompting (e.g. `must provide --title and --body when not running interactively`).
 You don't need to defensively set `CIRCLECI_PAGER` or pass `--no-pager` (no such
 flag exists).
+
+## Authentication
+
+`circleci auth me` tells you whether there is a usable token; it fails with
+`No CircleCI API token found` when there is not.
+
+To authenticate, run `circleci auth login`. Don't ask the user for an API token
+— the OAuth flow needs no secret from them, and pasting tokens around is worse
+for them than a browser round-trip.
+
+With no TTY the CLI skips its login TUI, opens the authorize page in the user's
+browser, and prints the same URL to stderr. Two things follow from that:
+
+- **Tell the user to approve the request in their browser**, and pass the
+  printed URL along in case the browser never came to the front. They are
+  watching you, not your tool output.
+- **It blocks until they approve**, for up to 5 minutes. Run it in the
+  background, or with a timeout well above your default — not in a foreground
+  call that gives up after a minute.
+
+`--no-browser` prints the URL without opening anything. `CI` and
+`CIRCLE_NO_INTERACTIVE` also suppress the browser, since there is no one there
+to use it; supply `CIRCLE_TOKEN` in those environments instead.
 
 ## Parsing JSON
 
