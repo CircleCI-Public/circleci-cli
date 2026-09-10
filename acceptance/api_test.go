@@ -38,6 +38,7 @@ import (
 	"gotest.tools/v3/golden"
 	"gotest.tools/v3/poll"
 
+	clierrors "github.com/CircleCI-Public/circleci-cli/clikit/errors"
 	"github.com/CircleCI-Public/circleci-cli/clikit/iostream"
 	"github.com/CircleCI-Public/circleci-cli/internal/config"
 	"github.com/CircleCI-Public/circleci-cli/internal/telemetry"
@@ -431,9 +432,10 @@ func TestAPI_Telemetry(t *testing.T) {
 						UserId:    telemetry.AnonymousID.String(),
 						Event:     "command_invocation",
 						Properties: analytics.Properties{
-							"command":  "circleci api",
-							"flags":    "debug,insecure-storage,theme",
-							"api_path": apiPath,
+							"command":   "circleci api",
+							"flags":     "debug,insecure-storage,theme",
+							"exit_code": float64(clierrors.ExitSuccess),
+							"api_path":  apiPath,
 						},
 						Context: &analytics.Context{
 							App: analytics.AppInfo{Name: "circleci-cli", Version: "dev"},
@@ -494,9 +496,14 @@ func TestAPI_Telemetry_CommandFailure(t *testing.T) {
 			for _, msg := range batch.Messages {
 				if msg.Event == "command_invocation" {
 					return poll.Compare(cmp.DeepEqual(msg.Properties, analytics.Properties{
-						"command":  "circleci api",
-						"flags":    "debug,insecure-storage,theme",
-						"api_path": apiPath,
+						"command": "circleci api",
+						"flags":   "debug,insecure-storage,theme",
+						// Compared against the process's own exit status rather
+						// than a literal, since the point of the property is that
+						// the two agree.
+						"exit_code":  float64(result.ExitCode),
+						"error_code": "api.request_failed",
+						"api_path":   apiPath,
 					}))
 				}
 			}

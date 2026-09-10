@@ -37,6 +37,7 @@ import (
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/assert/cmp"
 
+	clierrors "github.com/CircleCI-Public/circleci-cli/clikit/errors"
 	"github.com/CircleCI-Public/circleci-cli/clikit/iostream"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmdutil"
 	"github.com/CircleCI-Public/circleci-cli/internal/telemetry"
@@ -74,8 +75,9 @@ func TestRecordTelemetry(t *testing.T) {
 				UserId:    userID,
 				Event:     "command_invocation",
 				Properties: analytics.Properties{
-					"command": "circleci banana list",
-					"flags":   "bool-flag,string-flag",
+					"command":   "circleci banana list",
+					"flags":     "bool-flag,string-flag",
+					"exit_code": clierrors.ExitSuccess,
 				},
 				Context: &analytics.Context{
 					App: analytics.AppInfo{
@@ -128,8 +130,10 @@ func TestRecordTelemetry(t *testing.T) {
 				UserId:    userID,
 				Event:     "command_invocation",
 				Properties: analytics.Properties{
-					"command": "fail",
-					"flags":   "",
+					"command":    "fail",
+					"flags":      "",
+					"exit_code":  clierrors.ExitGeneralError,
+					"error_code": "unclassified",
 				},
 				Context: &analytics.Context{
 					App: analytics.AppInfo{
@@ -146,6 +150,76 @@ func TestRecordTelemetry(t *testing.T) {
 				Integrations: analytics.NewIntegrations().Enable("Amplitude"),
 			},
 		}, fakesegment.CompareTrack, fakesegment.CompareTime))
+	})
+
+	// A CLIError already carries the exit code the process will use and the
+	// machine-readable code the user was shown, so telemetry reports those rather
+	// than inventing a classification of its own.
+	t.Run("records a structured error's code and exit code", func(t *testing.T) {
+		recorder, client := newTelemetry(t)
+		wantErr := clierrors.New("run.timeout", "Watch timed out", "Run did not complete in time.").
+			WithExitCode(clierrors.ExitTimeout)
+		cmd := &cobra.Command{
+			Use:  "watch",
+			RunE: func(cmd *cobra.Command, args []string) error { return wantErr },
+		}
+
+		cmd.SetContext(cmdutil.WithTelemetry(context.Background(), client))
+		cmdutil.RecordTelemetry(cmd)
+		assert.Check(t, cmp.ErrorIs(cmd.RunE(cmd, nil), wantErr))
+		assert.NilError(t, client.Close())
+
+		assert.Check(t, cmp.DeepEqual(properties(recorder.Tracks()), []analytics.Properties{
+			{
+				"command":    "watch",
+				"flags":      "",
+				"exit_code":  clierrors.ExitTimeout,
+				"error_code": "run.timeout",
+			},
+		}))
+	})
+
+	// Handlers wrap as an error travels back up, so the classification has to look
+	// through the error tree rather than at the outermost error alone.
+	t.Run("records a structured error wrapped by its caller", func(t *testing.T) {
+		recorder, client := newTelemetry(t)
+		cliErr := clierrors.New("auth.token_missing", "Authentication required", "No API token.").
+			WithExitCode(clierrors.ExitAuthError)
+		cmd := &cobra.Command{
+			Use: "me",
+			RunE: func(cmd *cobra.Command, args []string) error {
+				return fmt.Errorf("resolving the current user: %w", cliErr)
+			},
+		}
+
+		cmd.SetContext(cmdutil.WithTelemetry(context.Background(), client))
+		cmdutil.RecordTelemetry(cmd)
+		assert.Check(t, cmp.ErrorIs(cmd.RunE(cmd, nil), cliErr))
+		assert.NilError(t, client.Close())
+
+		assert.Check(t, cmp.DeepEqual(properties(recorder.Tracks()), []analytics.Properties{
+			{
+				"command":    "me",
+				"flags":      "",
+				"exit_code":  clierrors.ExitAuthError,
+				"error_code": "auth.token_missing",
+			},
+		}))
+	})
+
+	// The help and usage paths record an event without running a handler, so
+	// nothing wraps them to classify an error and default the exit code.
+	t.Run("records success for a path with no handler", func(t *testing.T) {
+		recorder, client := newTelemetry(t)
+		cmd := &cobra.Command{Use: "help"}
+		cmd.SetContext(cmdutil.WithTelemetry(context.Background(), client))
+
+		cmdutil.RecordTelemetryNow(cmd)
+		assert.NilError(t, client.Close())
+
+		assert.Check(t, cmp.DeepEqual(properties(recorder.Tracks()), []analytics.Properties{
+			{"command": "help", "flags": "", "exit_code": clierrors.ExitSuccess},
+		}))
 	})
 
 	t.Run("flags are sorted alphabetically", func(t *testing.T) {
@@ -174,8 +248,9 @@ func TestRecordTelemetry(t *testing.T) {
 				UserId:    userID,
 				Event:     "command_invocation",
 				Properties: analytics.Properties{
-					"command": "test",
-					"flags":   "alpha,middle,zebra",
+					"command":   "test",
+					"flags":     "alpha,middle,zebra",
+					"exit_code": clierrors.ExitSuccess,
 				},
 				Context: &analytics.Context{
 					App: analytics.AppInfo{
@@ -215,8 +290,9 @@ func TestRecordTelemetry(t *testing.T) {
 				UserId:    userID,
 				Event:     "command_invocation",
 				Properties: analytics.Properties{
-					"command": "test",
-					"flags":   "",
+					"command":   "test",
+					"flags":     "",
+					"exit_code": clierrors.ExitSuccess,
 				},
 				Context: &analytics.Context{
 					App: analytics.AppInfo{
@@ -271,6 +347,7 @@ func TestRecordTelemetry(t *testing.T) {
 			{
 				"command":        "onboard",
 				"flags":          "",
+				"exit_code":      clierrors.ExitSuccess,
 				"onboard_mode":   "scan",
 				"onboard_signup": "completed",
 			},
@@ -296,7 +373,12 @@ func TestRecordTelemetry(t *testing.T) {
 		assert.NilError(t, client.Close())
 
 		assert.Check(t, cmp.DeepEqual(properties(recorder.Tracks()), []analytics.Properties{
-			{"command": "onboard", "flags": "", "onboard_signup": "completed"},
+			{
+				"command":        "onboard",
+				"flags":          "",
+				"exit_code":      clierrors.ExitSuccess,
+				"onboard_signup": "completed",
+			},
 		}))
 	})
 
@@ -319,7 +401,13 @@ func TestRecordTelemetry(t *testing.T) {
 		assert.NilError(t, client.Close())
 
 		assert.Check(t, cmp.DeepEqual(properties(recorder.Tracks()), []analytics.Properties{
-			{"command": "onboard", "flags": "", "onboard_project_setup": "trigger_failed"},
+			{
+				"command":               "onboard",
+				"flags":                 "",
+				"exit_code":             clierrors.ExitGeneralError,
+				"error_code":            "unclassified",
+				"onboard_project_setup": "trigger_failed",
+			},
 		}))
 	})
 
@@ -349,7 +437,12 @@ func TestRecordTelemetry(t *testing.T) {
 		assert.NilError(t, client.Close())
 
 		assert.Check(t, cmp.DeepEqual(properties(recorder.Tracks()), []analytics.Properties{
-			{"command": "onboard", "flags": "", "onboard_mode": "scan"},
+			{
+				"command":      "onboard",
+				"flags":        "",
+				"exit_code":    clierrors.ExitSuccess,
+				"onboard_mode": "scan",
+			},
 		}))
 	})
 
@@ -374,9 +467,10 @@ func TestRecordTelemetry(t *testing.T) {
 				UserId:    userID,
 				Event:     "command_invocation",
 				Properties: analytics.Properties{
-					"command":  "api",
-					"flags":    "",
-					"api_path": "api/v2/me",
+					"command":   "api",
+					"flags":     "",
+					"exit_code": clierrors.ExitSuccess,
+					"api_path":  "api/v2/me",
 				},
 				Context: &analytics.Context{
 					App: analytics.AppInfo{
@@ -424,8 +518,9 @@ func TestRecordTelemetryForSubcommands(t *testing.T) {
 				UserId:    userID,
 				Event:     "command_invocation",
 				Properties: analytics.Properties{
-					"command": "circleci subcommand list",
-					"flags":   "",
+					"command":   "circleci subcommand list",
+					"flags":     "",
+					"exit_code": clierrors.ExitSuccess,
 				},
 				Context: &analytics.Context{
 					App: analytics.AppInfo{
