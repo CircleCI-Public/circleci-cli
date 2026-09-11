@@ -2923,7 +2923,7 @@ JSON fields: name, value
 
 **Arguments:**
 
-`<setting>` is one of: ai-error-summarization, ai-agents, unversioned-config, certified-public-orbs, chunk-ip-ranges, minor-ai-features, private-orbs, uncertified-public-orbs, bitbucket-workspace-member-is-org-member, disable-user-checkout-keys, disable-running, image-brownouts, context-group-restriction, resource-class-brownouts, runner-tos-accepted.
+`<setting>` is one of: ai-error-summarization, ai-agents, unversioned-config, certified-public-orbs, chunk-ip-ranges, marketing-tracking, minor-ai-features, preferences-tracking, private-orbs, statistics-tracking, uncertified-public-orbs, disable-user-checkout-keys, disable-running, enforce-privacy-optout, image-brownouts, context-group-restriction, resource-class-brownouts, runner-tos-accepted.
 
 Run `circleci org setting list` for each setting's description and current value.
 
@@ -2942,7 +2942,7 @@ List all advanced settings for an org
 
 List all advanced settings for a CircleCI organization.
 
-JSON fields: enable_ai_error_summarization, enable_ai_agents, enable_unversioned_config, enable_certified_public_orbs, enable_chunk_ip_ranges, enable_minor_ai_features, enable_private_orbs, enable_uncertified_public_orbs, is_bitbucket_workspace_member_org_member, is_user_checkout_keys_disabled, is_running_disabled, enable_image_brownouts, is_context_group_restriction_required, enable_resource_class_brownouts, is_runner_terms_of_service_accepted
+JSON fields: enable_ai_error_summarization, enable_ai_agents, enable_unversioned_config, enable_certified_public_orbs, enable_chunk_ip_ranges, enable_marketing_tracking, enable_minor_ai_features, enable_preferences_tracking, enable_private_orbs, enable_statistics_tracking, enable_uncertified_public_orbs, is_user_checkout_keys_disabled, is_running_disabled, is_privacy_optout_enforced, enable_image_brownouts, is_context_group_restriction_required, enable_resource_class_brownouts, is_runner_terms_of_service_accepted
 
 | Flag           | Description                                                                       |
 | -------------- | --------------------------------------------------------------------------------- |
@@ -2982,7 +2982,7 @@ JSON fields: name, value
 
 **Arguments:**
 
-`<setting>` is one of: ai-error-summarization, ai-agents, unversioned-config, certified-public-orbs, chunk-ip-ranges, minor-ai-features, private-orbs, uncertified-public-orbs, bitbucket-workspace-member-is-org-member, disable-user-checkout-keys, disable-running, image-brownouts, context-group-restriction, resource-class-brownouts, runner-tos-accepted.
+`<setting>` is one of: ai-error-summarization, ai-agents, unversioned-config, certified-public-orbs, chunk-ip-ranges, marketing-tracking, minor-ai-features, preferences-tracking, private-orbs, statistics-tracking, uncertified-public-orbs, disable-user-checkout-keys, disable-running, enforce-privacy-optout, image-brownouts, context-group-restriction, resource-class-brownouts, runner-tos-accepted.
 
 `<true|false>` is the new value. Run `circleci org setting list` for each
 setting's description and current value.
