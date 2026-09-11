@@ -1,0 +1,5 @@
+error: "gh/myorg" is not a valid organization UUID.
+
+Suggestions:
+  • Run: circleci org list --json  # to find the UUID
+  • Or filter by project slug: circleci project list --slug gh/myorg/myrepo

@@ -1,3 +1,5 @@
 # Projects
-- gh/myorg/alpha
-- gh/myorg/beta
+| ID                                     | Org Name | Project Name |
+| -------------------------------------- | -------- | ------------ |
+| `a0000000-0000-4000-8000-0000000c0001` | myorg    | alpha        |
+| `a0000000-0000-4000-8000-0000000c0003` | myorg    | beta         |

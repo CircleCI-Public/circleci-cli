@@ -3457,20 +3457,21 @@ than prompting blindly.
 
 #### `circleci project list [flags]`
 
-List followed projects
+List projects
 
-List all CircleCI projects followed by the authenticated user.
+List the CircleCI projects visible to the authenticated user. With no
+filters, lists the projects you follow.
 
-Projects are identified by a slug in the form vcs/org/repo
-(e.g. gh/myorg/myrepo). Use 'circleci project follow' to start
-following a new project.
+JSON fields: id, name, org_id, org_name
 
-JSON fields: slug, name, vcs_type, username, reponame
-
-| Flag          | Description                                                                       |
-| ------------- | --------------------------------------------------------------------------------- |
-| `--jq string` | Process values from the response using jq syntax (see `circleci help formatting`) |
-| `--json`      | Output as JSON                                                                    |
+| Flag              | Description                                                                       |
+| ----------------- | --------------------------------------------------------------------------------- |
+| `--following`     | only projects you follow (default when no other filter is given)                  |
+| `--jq string`     | Process values from the response using jq syntax (see `circleci help formatting`) |
+| `--json`          | Output as JSON                                                                    |
+| `--name string`   | only projects matching this name                                                  |
+| `--org-id string` | only projects in this organization UUID                                           |
+| `--slug string`   | resolve one project by slug (e.g. gh/myorg/myrepo)                                |
 
 
 **Aliases:**
@@ -3480,12 +3481,14 @@ JSON fields: slug, name, vcs_type, username, reponame
 
 **Examples:**
 
-- List all followed projects: 
+- List the projects you follow: 
   `circleci project list`
+- List every project in an organization: 
+  `circleci project list --org-id 8f7c5a1e-0000-4000-8000-000000000001`
+- Resolve a single project by slug: 
+  `circleci project list --slug gh/myorg/myrepo`
 - Output as JSON for scripting: 
   `circleci project list --json`
-- Filter by org: 
-  `circleci project list --json --jq '.[] | select(.username == "myorg")'`
 
 #### `circleci project open [flags]`
 

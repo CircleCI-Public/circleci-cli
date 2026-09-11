@@ -77,8 +77,32 @@ func setupProjectFake(t *testing.T) (*fakes.CircleCI, *testenv.TestEnv) {
 			VCSURL:        "https://github.com/myorg/alpha",
 		},
 	})
-	// v3 slug → UUID resolution, used by `project trigger`.
-	fake.AddProjectBySlug("gh/myorg/alpha", "a0000000-0000-4000-8000-0000000c0001", "alpha", "a0000000-0000-4000-8000-0000000c0002")
+	// v3 projects, backing `project list` and the slug → UUID resolution
+	// `project trigger` does. gamma belongs to another org and is not followed,
+	// so the org, slug and following filters each select something different.
+	fake.AddProjectV3Listed(fakes.ProjectV3{
+		Slug:      "gh/myorg/alpha",
+		ID:        "a0000000-0000-4000-8000-0000000c0001",
+		Name:      "alpha",
+		OrgID:     "a0000000-0000-4000-8000-0000000c0002",
+		OrgName:   "myorg",
+		Following: true,
+	})
+	fake.AddProjectV3Listed(fakes.ProjectV3{
+		Slug:      "gh/myorg/beta",
+		ID:        "a0000000-0000-4000-8000-0000000c0003",
+		Name:      "beta",
+		OrgID:     "a0000000-0000-4000-8000-0000000c0002",
+		OrgName:   "myorg",
+		Following: true,
+	})
+	fake.AddProjectV3Listed(fakes.ProjectV3{
+		Slug:    "gh/otherorg/gamma",
+		ID:      "a0000000-0000-4000-8000-0000000c0004",
+		Name:    "gamma",
+		OrgID:   "a0000000-0000-4000-8000-0000000c0005",
+		OrgName: "otherorg",
+	})
 
 	fake.AddEnvVar("gh/myorg/alpha", "DATABASE_URL", "xxxx", nil)
 	fake.AddEnvVar("gh/myorg/alpha", "SECRET_KEY", "xxxx",
@@ -94,7 +118,7 @@ func setupProjectFake(t *testing.T) (*fakes.CircleCI, *testenv.TestEnv) {
 // --- project list ---
 
 func TestProjectList(t *testing.T) {
-	_, env := setupProjectFake(t)
+	fake, env := setupProjectFake(t)
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
@@ -105,6 +129,114 @@ func TestProjectList(t *testing.T) {
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+
+	t.Run("scopes to followed projects", func(t *testing.T) {
+		q := fake.LastRequest().URL.Query()
+		assert.Check(t, cmp.Equal(fake.LastRequest().URL.Path, "/api/v3/projects"))
+		assert.Check(t, cmp.Equal(q.Get("filter[following]"), "true"))
+		assert.Check(t, cmp.Equal(q.Get("filter[org_id]"), ""))
+		assert.Check(t, cmp.Equal(q.Get("filter[name]"), ""))
+		assert.Check(t, cmp.Equal(q.Get("filter[slug]"), ""))
+	})
+}
+
+func TestProjectList_Filters(t *testing.T) {
+	tests := []struct {
+		name  string
+		args  []string
+		query map[string]string
+		want  []string
+	}{
+		{
+			name:  "following",
+			args:  []string{"--following"},
+			query: map[string]string{"filter[following]": "true"},
+			want:  []string{"alpha", "beta"},
+		},
+		{
+			name:  "org id",
+			args:  []string{"--org-id", "a0000000-0000-4000-8000-0000000c0005"},
+			query: map[string]string{"filter[org_id]": "a0000000-0000-4000-8000-0000000c0005", "filter[following]": ""},
+			want:  []string{"gamma"},
+		},
+		{
+			name:  "name",
+			args:  []string{"--name", "beta"},
+			query: map[string]string{"filter[name]": "beta", "filter[following]": "true"},
+			want:  []string{"beta"},
+		},
+		{
+			name:  "slug",
+			args:  []string{"--slug", "gh/otherorg/gamma"},
+			query: map[string]string{"filter[slug]": "gh/otherorg/gamma", "filter[following]": ""},
+			want:  []string{"gamma"},
+		},
+		{
+			name: "org id and name",
+			args: []string{"--org-id", "a0000000-0000-4000-8000-0000000c0002", "--name", "ALPHA"},
+			query: map[string]string{
+				"filter[org_id]": "a0000000-0000-4000-8000-0000000c0002",
+				"filter[name]":   "ALPHA",
+			},
+			want: []string{"alpha"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			fake, env := setupProjectFake(t)
+
+			result := binary.RunCLI(t, binary.RunOpts{
+				Binary:  binaryPath,
+				Args:    append([]string{"project", "list", "--json"}, tt.args...),
+				Env:     env.Environ(),
+				WorkDir: t.TempDir(),
+			})
+
+			assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+
+			var out []map[string]any
+			assert.NilError(t, json.Unmarshal([]byte(result.Stdout), &out))
+			names := make([]string, len(out))
+			for i, p := range out {
+				names[i] = p["name"].(string)
+			}
+			assert.Check(t, cmp.DeepEqual(names, tt.want))
+
+			q := fake.LastRequest().URL.Query()
+			for param, want := range tt.query {
+				assert.Check(t, cmp.Equal(q.Get(param), want), "query parameter %s", param)
+			}
+		})
+	}
+}
+
+func TestProjectList_SlugIsExclusive(t *testing.T) {
+	_, env := setupProjectFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"project", "list", "--slug", "gh/myorg/alpha", "--following"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 2, "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+}
+
+func TestProjectList_InvalidOrgID(t *testing.T) {
+	_, env := setupProjectFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"project", "list", "--org-id", "gh/myorg"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 2, "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 }
 
 func TestProjectList_Color(t *testing.T) {
@@ -138,10 +270,14 @@ func TestProjectList_JSON(t *testing.T) {
 	err := json.Unmarshal([]byte(result.Stdout), &out)
 	assert.NilError(t, err)
 	assert.Check(t, cmp.Len(out, 2))
-	assert.Check(t, cmp.Equal(out[0]["slug"], "gh/myorg/alpha"))
+	assert.Check(t, cmp.DeepEqual(out[0], map[string]any{
+		"id":       "a0000000-0000-4000-8000-0000000c0001",
+		"name":     "alpha",
+		"org_id":   "a0000000-0000-4000-8000-0000000c0002",
+		"org_name": "myorg",
+	}))
 
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".json"))
-
 }
 
 func TestProjectList_JQ(t *testing.T) {
@@ -149,13 +285,13 @@ func TestProjectList_JQ(t *testing.T) {
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"project", "list", "--json", "--jq", ".[0].slug"},
+		Args:    []string{"project", "list", "--json", "--jq", ".[0].name"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
-	assert.Check(t, cmp.Equal(strings.TrimSpace(result.Stdout), "gh/myorg/alpha"))
+	assert.Check(t, cmp.Equal(strings.TrimSpace(result.Stdout), "alpha"))
 }
 
 func TestProjectList_JSON_Color(t *testing.T) {
