@@ -44,9 +44,69 @@ type OrgInfo struct {
 // ErrOrgNotFound is returned by ResolveOrgID when no org matches the slug.
 var ErrOrgNotFound = errors.New("organization not found")
 
-// orgRef is a single entry in the GET /api/v3/orgs response.
-type orgRef struct {
-	ID uuid.UUID `json:"id"`
+// Organization is an organization the authenticated user belongs to, as
+// returned by GET /api/v3/orgs.
+//
+// The collection carries no slug — see ListOrgs.
+type Organization struct {
+	ID   uuid.UUID
+	Name string
+	// VCS is the version control provider backing the org ("github",
+	// "bitbucket"). Empty for a standalone CircleCI org, which has no provider.
+	VCS string
+}
+
+// orgEntity is a single entry in the GET /api/v3/orgs response.
+type orgEntity struct {
+	ID         uuid.UUID `json:"id"`
+	Attributes struct {
+		Name string `json:"name"`
+		// VCS is null for a standalone CircleCI org.
+		VCS *struct {
+			Provider string `json:"provider"`
+		} `json:"vcs"`
+	} `json:"attributes"`
+}
+
+func (e orgEntity) toOrganization() Organization {
+	org := Organization{ID: e.ID, Name: e.Attributes.Name}
+	if e.Attributes.VCS != nil {
+		org.VCS = e.Attributes.VCS.Provider
+	}
+	return org
+}
+
+// orgPageLimit is the largest page[limit] GET /api/v3/orgs accepts; a bigger
+// value is rejected with a 400 rather than clamped.
+const orgPageLimit = 50
+
+// ListOrgs returns every organization the authenticated user belongs to, via
+// GET /api/v3/orgs. Paginates automatically.
+//
+// The response carries no slug, and one cannot be derived: only a VCS-backed
+// org has a slug at all, so an org is identified here by its UUID.
+func (c *Client) ListOrgs(ctx context.Context) ([]Organization, error) {
+	var all []Organization
+	cursor := ""
+
+	for {
+		var env v3List[orgEntity]
+		_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodGet, "/api/v3/orgs",
+			pageLimit(orgPageLimit),
+			pageCursor(cursor),
+			httpcl.JSONDecoder(&env),
+		))
+		if err != nil {
+			return nil, err
+		}
+		for _, e := range env.Data {
+			all = append(all, e.toOrganization())
+		}
+		if env.Page.Next == nil || *env.Page.Next == "" {
+			return all, nil
+		}
+		cursor = *env.Page.Next
+	}
 }
 
 // ResolveOrgID resolves an organization slug (e.g. "gh/acme") to its UUID via
@@ -55,7 +115,7 @@ type orgRef struct {
 // The endpoint is a collection: a slug matching no org returns an empty list
 // (not a 404), which is surfaced as ErrOrgNotFound.
 func (c *Client) ResolveOrgID(ctx context.Context, slug string) (uuid.UUID, error) {
-	var env v3List[orgRef]
+	var env v3List[orgEntity]
 	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodGet, "/api/v3/orgs",
 		filterParam("slug", slug),
 		httpcl.JSONDecoder(&env),

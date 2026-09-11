@@ -200,9 +200,10 @@ type CircleCI struct {
 	lastCompileOwnerID string
 
 	// Org state.
-	orgs        map[string]Org  // org slug → resolved org
-	orgsByUUID  map[string]bool // org UUID → true
-	orgSettings map[string]any  // org UUID → attributes map
+	orgs         map[string]Org    // org UUID → org
+	orgIDsBySlug map[string]string // org slug → org UUID
+	orgOrder     []string          // org UUIDs in registration order
+	orgSettings  map[string]any    // org UUID → attributes map
 
 	// Release state (GET /api/v3/tool/releases).
 	releaseTool        string    // tool name the fake answers for (default "circleci-cli")
@@ -324,7 +325,7 @@ func NewCircleCI(t *testing.T, tokens ...string) *CircleCI {
 		compileValid:                      true,
 		compileOutputYAML:                 "# compiled output\nversion: \"2.1\"\n",
 		orgs:                              map[string]Org{},
-		orgsByUUID:                        map[string]bool{},
+		orgIDsBySlug:                      map[string]string{},
 		orgSettings:                       map[string]any{},
 	}
 
@@ -414,7 +415,7 @@ func NewCircleCI(t *testing.T, tokens ...string) *CircleCI {
 	// Config compile + org routes.
 	r.Post("/api/v3/configs/compile", f.handleCompileConfig)
 	r.Get("/api/v3/tool/releases", f.handleGetReleases)
-	r.Get("/api/v3/orgs", f.handleResolveOrg)
+	r.Get("/api/v3/orgs", f.handleListOrgs)
 	r.Get("/api/v3/orgs/{id}/settings", f.handleGetOrgSettingsV3)
 	r.Post("/api/v3/orgs/{id}/update-settings", f.handleUpdateOrgSettingsV3)
 	// Job (v3) routes.
@@ -5205,9 +5206,11 @@ func (f *CircleCI) LastCompileOwnerID() string {
 	return f.lastCompileOwnerID
 }
 
-// Org is a stored organization resolved by
-// GET /api/v3/orgs?filter[slug]=<slug>. The resolve endpoint surfaces only the
-// id; Slug, Name and VCSType round out the record for completeness.
+// Org is a stored organization served by GET /api/v3/orgs.
+//
+// Slug is a test-side handle only: it satisfies filter[slug] lookups but is
+// absent from the response, matching the real endpoint. An empty VCSType makes
+// the org standalone, so its entity carries no vcs object at all.
 type Org struct {
 	ID      string
 	Slug    string
@@ -5215,12 +5218,18 @@ type Org struct {
 	VCSType string
 }
 
-// AddOrg registers an org resolvable by slug via GET /api/v3/orgs.
+// AddOrg registers an org served by GET /api/v3/orgs, listed in registration
+// order and resolvable by slug. Re-registering an id updates it in place.
 func (f *CircleCI) AddOrg(id, slug, name, vcsType string) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	f.orgs[slug] = Org{ID: id, Slug: slug, Name: name, VCSType: vcsType}
-	f.orgsByUUID[id] = true
+	if _, seen := f.orgs[id]; !seen {
+		f.orgOrder = append(f.orgOrder, id)
+	}
+	f.orgs[id] = Org{ID: id, Slug: slug, Name: name, VCSType: vcsType}
+	if slug != "" {
+		f.orgIDsBySlug[slug] = id
+	}
 }
 
 // handleCompileConfig serves POST /api/v3/configs/compile. A config that fails
@@ -5269,23 +5278,41 @@ func (f *CircleCI) handleCompileConfig(w http.ResponseWriter, r *http.Request) {
 	render.JSON(w, r, resp)
 }
 
-// handleResolveOrg serves GET /api/v3/orgs?filter[slug]=<slug>, resolving a
-// single org by its slug. An unknown slug returns 200 with an empty data
-// array (not a 404), matching the real API.
-func (f *CircleCI) handleResolveOrg(w http.ResponseWriter, r *http.Request) {
+// handleListOrgs serves GET /api/v3/orgs: every registered org, or just the one
+// matching filter[slug] when that param is present. An unknown slug returns 200
+// with an empty data array (not a 404), matching the real API.
+//
+// The fake returns every org in one page — pagination is not simulated.
+func (f *CircleCI) handleListOrgs(w http.ResponseWriter, r *http.Request) {
 	slug := r.URL.Query().Get("filter[slug]")
+
 	f.mu.RLock()
-	org, ok := f.orgs[slug]
+	data := []map[string]any{}
+	if slug != "" {
+		if id, ok := f.orgIDsBySlug[slug]; ok {
+			data = append(data, orgEntity(f.orgs[id]))
+		}
+	} else {
+		for _, id := range f.orgOrder {
+			data = append(data, orgEntity(f.orgs[id]))
+		}
+	}
 	f.mu.RUnlock()
 
-	data := []map[string]any{}
-	if ok {
-		data = append(data, map[string]any{"id": org.ID})
-	}
 	render.JSON(w, r, map[string]any{
 		"data": data,
 		"page": map[string]any{"next": nil, "prev": nil},
 	})
+}
+
+// orgEntity renders a stored Org as its V3 entity. A standalone org (no
+// VCSType) carries no vcs object, as the real endpoint does.
+func orgEntity(o Org) map[string]any {
+	attrs := map[string]any{"name": o.Name}
+	if o.VCSType != "" {
+		attrs["vcs"] = map[string]any{"provider": o.VCSType}
+	}
+	return map[string]any{"id": o.ID, "attributes": attrs}
 }
 
 // defaultOrgSettingsAttrs returns an all-false v3 attributes payload for org settings.
@@ -5321,7 +5348,7 @@ func (f *CircleCI) handleGetOrgSettingsV3(w http.ResponseWriter, r *http.Request
 	id := chi.URLParam(r, "id")
 	f.mu.RLock()
 	settings, hasSettings := f.orgSettings[id]
-	hasOrg := f.orgsByUUID[id]
+	_, hasOrg := f.orgs[id]
 	f.mu.RUnlock()
 
 	if !hasSettings && !hasOrg {
@@ -5349,7 +5376,7 @@ func (f *CircleCI) handleUpdateOrgSettingsV3(w http.ResponseWriter, r *http.Requ
 
 	f.mu.Lock()
 	existing, hasSettings := f.orgSettings[id]
-	hasOrg := f.orgsByUUID[id]
+	_, hasOrg := f.orgs[id]
 	if !hasSettings && !hasOrg {
 		f.mu.Unlock()
 		render.Status(r, http.StatusNotFound)

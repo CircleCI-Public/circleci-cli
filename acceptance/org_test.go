@@ -35,8 +35,23 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/internal/testing/fakes"
 )
 
+// setupOrgFake registers the orgs served by GET /api/v3/orgs: a VCS-backed one
+// and a standalone CircleCI org, which has neither a VCS provider nor a slug.
+func setupOrgFake(t *testing.T) (*fakes.CircleCI, *testenv.TestEnv) {
+	t.Helper()
+	fake := fakes.NewCircleCI(t)
+	fake.AddOrg("a0000000-0000-4000-8000-0000000c0002", "gh/myorg", "myorg", "github")
+	fake.AddOrg("a0000000-0000-4000-8000-0000000c0003", "", "standalone-org", "")
+
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+
+	return fake, env
+}
+
 func TestOrgList(t *testing.T) {
-	_, env := setupProjectFake(t)
+	_, env := setupOrgFake(t)
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
@@ -47,10 +62,11 @@ func TestOrgList(t *testing.T) {
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 }
 
 func TestOrgList_JSON(t *testing.T) {
-	_, env := setupProjectFake(t)
+	_, env := setupOrgFake(t)
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
@@ -62,18 +78,23 @@ func TestOrgList_JSON(t *testing.T) {
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
 
 	var out []map[string]any
-	err := json.Unmarshal([]byte(result.Stdout), &out)
-	assert.NilError(t, err)
-	assert.Check(t, cmp.Len(out, 1))
-	assert.Check(t, cmp.Equal(out[0]["slug"], "gh/myorg"))
-	assert.Check(t, cmp.Equal(out[0]["name"], "myorg"))
-
-	assert.Check(t, golden.String(result.Stdout, t.Name()+".json"))
+	assert.NilError(t, json.Unmarshal([]byte(result.Stdout), &out))
+	assert.Check(t, cmp.DeepEqual(out, []map[string]any{
+		{
+			"id":       "a0000000-0000-4000-8000-0000000c0002",
+			"name":     "myorg",
+			"vcs_type": "github",
+		},
+		{
+			"id":       "a0000000-0000-4000-8000-0000000c0003",
+			"name":     "standalone-org",
+			"vcs_type": "",
+		},
+	}))
 }
 
 func TestOrgList_Empty(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
-	fake.SetCollaborations()
 
 	env := testenv.New(t)
 	env.Token = testToken

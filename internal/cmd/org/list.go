@@ -25,7 +25,6 @@ package org
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	"github.com/MakeNowJust/heredoc"
 	"github.com/spf13/cobra"
@@ -46,7 +45,10 @@ func newListCmd() *cobra.Command {
 		Long: heredoc.Doc(`
 			List all CircleCI organizations the authenticated user is a member of.
 
-			JSON fields: id, slug, name, vcs_type
+			Only a VCS-backed org has a slug, so orgs are identified here by ID.
+			Most commands' --org flag takes an org ID as well as a slug.
+
+			JSON fields: id, name, vcs_type
 		`),
 		Example: heredoc.Doc(`
 			# List all your organizations
@@ -55,8 +57,8 @@ func newListCmd() *cobra.Command {
 			# Output as JSON for scripting
 			$ circleci org list --json
 
-			# Extract just the slugs
-			$ circleci org list --json --jq '.[].slug'
+			# Extract just the IDs
+			$ circleci org list --json --jq '.[].id'
 		`),
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -77,24 +79,22 @@ func newListCmd() *cobra.Command {
 
 type orgListOutput struct {
 	ID      string `json:"id"`
-	Slug    string `json:"slug"`
 	Name    string `json:"name"`
 	VCSType string `json:"vcs_type"`
 }
 
 func runOrgList(ctx context.Context, client *apiclient.Client, jsonOut bool) error {
-	collabs, err := client.ListCollaborations(ctx)
+	orgs, err := client.ListOrgs(ctx)
 	if err != nil {
 		return cmdutil.APIErr(err, "organizations", "org.list_failed", "Could not list organizations: %s")
 	}
 
-	out := make([]orgListOutput, len(collabs))
-	for i, c := range collabs {
+	out := make([]orgListOutput, len(orgs))
+	for i, o := range orgs {
 		out[i] = orgListOutput{
-			ID:      c.ID,
-			Slug:    c.Slug,
-			Name:    c.Name,
-			VCSType: c.VCSType,
+			ID:      o.ID.String(),
+			Name:    o.Name,
+			VCSType: o.VCS,
 		}
 	}
 
@@ -107,16 +107,15 @@ func runOrgList(ctx context.Context, client *apiclient.Client, jsonOut bool) err
 		return nil
 	}
 
-	tbl := mdtable.New("Slug", "Name", "VCS", "Organization ID")
+	tbl := mdtable.New("Organization ID", "Name", "VCS")
 	for _, o := range out {
+		// A standalone CircleCI org has no VCS provider, so the column would
+		// otherwise be blank.
 		vcs := o.VCSType
 		if vcs == "" {
-			parts := strings.SplitN(o.Slug, "/", 2)
-			if len(parts) == 2 {
-				vcs = parts[0]
-			}
+			vcs = "-"
 		}
-		tbl.Row(o.Slug, o.Name, vcs, "`"+o.ID+"`")
+		tbl.Row("`"+o.ID+"`", o.Name, vcs)
 	}
 	iostream.PrintMarkdown(ctx, fmt.Sprintf("# Organizations\n%s", tbl.Render()))
 	return nil
