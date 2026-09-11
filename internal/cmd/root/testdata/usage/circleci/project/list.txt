@@ -1,7 +1,11 @@
 Usage:  circleci project list [flags]
 
 Flags:
-  -h, --help        help for list
-      --jq string   Process values from the response using jq syntax
-      --json        Output as JSON
+      --following       only projects you follow (default when no other filter is given)
+  -h, --help            help for list
+      --jq string       Process values from the response using jq syntax
+      --json            Output as JSON
+      --name string     only projects matching this name
+      --org-id string   only projects in this organization UUID
+      --slug string     resolve one project by slug (e.g. gh/myorg/myrepo)
   

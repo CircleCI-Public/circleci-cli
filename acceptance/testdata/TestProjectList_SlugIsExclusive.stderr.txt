@@ -1,0 +1,5 @@
+error: --slug resolves a single project, so it cannot be combined with --following, --org-id or --name.
+
+Suggestions:
+  • Drop the other filters: circleci project list --slug gh/myorg/alpha
+  • Or search instead: circleci project list --name <name>

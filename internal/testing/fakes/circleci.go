@@ -118,7 +118,7 @@ type CircleCI struct {
 	deletedEnvVars      map[string]bool        // "slug/name" → deleted
 	projectInfos        map[string]ProjectInfo // project slug → project info response
 	projectsByID        map[string]any         // project UUID → V3 project response (GET /api/v3/projects/{id})
-	projectsBySlug      map[string]ProjectV3   // project slug → resolved project (GET /api/v3/projects?filter[slug]=)
+	projectsBySlug      map[string]ProjectV3   // project slug → project served by GET /api/v3/projects
 	projectSettings     map[string]any         // project UUID → advanced settings attributes
 	createProjectResp   any                    // preset response for POST /organization/{vcs}/{org}/project
 	createProjectStatus int                    // HTTP status for that POST (0 → 201 Created)
@@ -430,7 +430,7 @@ func NewCircleCI(t *testing.T, tokens ...string) *CircleCI {
 	r.Get("/api/v3/workflows/{id}", f.handleGetWorkflowV3ByID)
 	r.Get("/api/v3/workflows", f.handleGetWorkflowsV3)
 	// Project (v3) routes.
-	r.Get("/api/v3/projects", f.handleResolveProjectBySlug)
+	r.Get("/api/v3/projects", f.handleListProjectsV3)
 	r.Get("/api/v3/projects/{id}", f.handleGetProjectV3)
 	r.Get("/api/v3/projects/{id}/settings", f.handleGetProjectSettingsV3)
 	r.Post("/api/v3/projects/{id}/update-settings", f.handleUpdateProjectSettingsV3)
@@ -2338,66 +2338,91 @@ func (f *CircleCI) handleGetProjectV3(w http.ResponseWriter, r *http.Request) {
 	render.JSON(w, r, map[string]any{"data": project})
 }
 
-// ProjectV3 is a stored project resolved by
-// GET /api/v3/projects?filter[slug]=<slug>. The entity carries its UUID, name,
-// and owning org UUID — enough for the CLI to map a slug to its project.
+// ProjectV3 is a stored project served by GET /api/v3/projects. Slug keys it
+// for filter[slug]; OrgID, OrgName and Following back filter[org_id], the org
+// name denormalised into the entity, and filter[following].
 type ProjectV3 struct {
-	ID    string
-	Name  string
-	OrgID string
+	Slug      string
+	ID        string
+	Name      string
+	OrgID     string
+	OrgName   string
+	Following bool
 }
 
 // AddProjectBySlug registers a project resolved by GET
 // /api/v3/projects?filter[slug]=<slug>, returning its UUID, name, and org UUID.
+// Use AddProjectV3Listed for a project that also has to appear in a listing.
 func (f *CircleCI) AddProjectBySlug(slug, id, name, orgID string) {
+	f.AddProjectV3Listed(ProjectV3{Slug: slug, ID: id, Name: name, OrgID: orgID})
+}
+
+// AddProjectV3Listed registers a project served by GET /api/v3/projects, keyed
+// by its slug. Unlike AddProjectBySlug it carries the org name and the
+// following flag, so the project also matches filter[following].
+func (f *CircleCI) AddProjectV3Listed(p ProjectV3) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	f.projectsBySlug[slug] = ProjectV3{ID: id, Name: name, OrgID: orgID}
+	f.projectsBySlug[p.Slug] = p
 }
 
 // projectV3Entity renders a stored ProjectV3 as its V3 entity.
 func projectV3Entity(p ProjectV3) map[string]any {
+	org := map[string]any{"id": p.OrgID}
+	if p.OrgName != "" {
+		org["attributes"] = map[string]any{"name": p.OrgName}
+	}
 	return map[string]any{
 		"id":         p.ID,
 		"attributes": map[string]any{"name": p.Name},
-		"references": map[string]any{"org": map[string]any{"id": p.OrgID}},
+		"references": map[string]any{"org": org},
 	}
 }
 
-func (f *CircleCI) handleResolveProjectBySlug(w http.ResponseWriter, r *http.Request) {
+func (f *CircleCI) handleListProjectsV3(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 	slug := q.Get("filter[slug]")
-	if slug == "" {
-		// The real endpoint takes either a slug or an org, and pairs the org with an
-		// optional name. Registered projects are keyed by slug, so an org-scoped
-		// lookup matches on the name and the org the project records.
-		orgID, name := q.Get("filter[org_id]"), q.Get("filter[name]")
-		if orgID == "" {
-			render.Status(r, http.StatusBadRequest)
-			render.JSON(w, r, map[string]any{"error": map[string]any{"title": "Bad Request", "detail": "filter[slug] or filter[org_id] is required"}})
-			return
-		}
-		f.mu.RLock()
-		matches := []any{}
-		for _, p := range f.projectsBySlug {
-			if p.OrgID == orgID && (name == "" || p.Name == name) {
-				matches = append(matches, projectV3Entity(p))
-			}
-		}
-		f.mu.RUnlock()
-		render.JSON(w, r, map[string]any{"data": matches, "page": map[string]any{"next": nil, "prev": nil}})
+	orgID, name, following := q.Get("filter[org_id]"), q.Get("filter[name]"), q.Get("filter[following]")
+
+	badRequest := func(detail string) {
+		render.Status(r, http.StatusBadRequest)
+		render.JSON(w, r, map[string]any{"error": map[string]any{"title": "Bad Request", "detail": detail}})
+	}
+
+	switch {
+	case slug != "" && (orgID != "" || name != "" || following != ""):
+		badRequest("filter[slug] cannot be combined with another filter")
+		return
+	case slug == "" && orgID == "" && following == "":
+		badRequest("one of filter[slug], filter[org_id] or filter[following] is required")
+		return
+	case following != "" && following != "true":
+		badRequest(`filter[following] accepts only "true"`)
 		return
 	}
+
 	f.mu.RLock()
-	project, ok := f.projectsBySlug[slug]
+	matches := []any{}
+	for _, p := range f.projectsBySlug {
+		// The real filter[name] is a case-insensitive search; the fake matches
+		// the whole name, which is the subset the tests rely on.
+		if (slug != "" && p.Slug != slug) ||
+			(orgID != "" && p.OrgID != orgID) ||
+			(name != "" && !strings.EqualFold(p.Name, name)) ||
+			(following == "true" && !p.Following) {
+			continue
+		}
+		matches = append(matches, projectV3Entity(p))
+	}
 	f.mu.RUnlock()
 
-	// The endpoint is a collection: an unmatched slug is an empty list, not a 404.
-	data := []any{}
-	if ok {
-		data = append(data, projectV3Entity(project))
-	}
-	render.JSON(w, r, map[string]any{"data": data, "page": map[string]any{"next": nil, "prev": nil}})
+	// Map iteration order is random; sort so listings are stable across runs.
+	slices.SortFunc(matches, func(a, b any) int {
+		return strings.Compare(a.(map[string]any)["id"].(string), b.(map[string]any)["id"].(string))
+	})
+
+	// The endpoint is a collection: an unmatched filter is an empty list, not a 404.
+	render.JSON(w, r, map[string]any{"data": matches, "page": map[string]any{"next": nil, "prev": nil}})
 }
 
 // AddPipelineDefinition registers a pipeline entity for a project, returned by

@@ -45,15 +45,6 @@ type ProjectRef struct {
 	OrgID uuid.UUID
 }
 
-// Project is a followed CircleCI project.
-type Project struct {
-	Slug     string `json:"slug"`
-	Name     string `json:"name"`
-	VCSType  string `json:"vcs_type"`
-	Username string `json:"username"`
-	RepoName string `json:"reponame"`
-}
-
 // EnvVar is a project environment variable.
 // The value is masked in list responses; it is only returned on set.
 type EnvVar struct {
@@ -62,17 +53,72 @@ type EnvVar struct {
 	CreatedAt *time.Time `json:"created_at"`
 }
 
-// ListProjects returns all followed projects for the authenticated user.
-// Uses the v1.1 API.
-func (c *Client) ListProjects(ctx context.Context) ([]Project, error) {
-	var projects []Project
-	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodGet, "/api/v1.1/projects",
-		httpcl.JSONDecoder(&projects),
-	))
-	if err != nil {
-		return nil, err
+// projectPageLimit is the page[limit] asked of GET /api/v3/projects. 50 is the
+// endpoint's maximum — a larger value is a 400, not a clamp.
+const projectPageLimit = 50
+
+// ProjectFilter scopes GET /api/v3/projects. The endpoint requires at least one
+// of Following, OrgID or Slug, and rejects Slug combined with any other filter,
+// so callers must not set both. Name narrows Following or OrgID by name.
+type ProjectFilter struct {
+	Following bool
+	OrgID     string
+	Name      string
+	Slug      string
+}
+
+// ProjectSummary is a project as the v3 collection reports it: its UUID and
+// name, plus the owning org denormalised into references.org.
+type ProjectSummary struct {
+	ID      uuid.UUID
+	Name    string
+	OrgID   uuid.UUID
+	OrgName string
+}
+
+// ListProjects returns the projects matching filter, via GET /api/v3/projects.
+// Paginates automatically.
+//
+// Matching is the API's job: filter[name] is a case-insensitive search applied
+// upstream, so it narrows pagination rather than just the final page.
+func (c *Client) ListProjects(ctx context.Context, filter ProjectFilter) ([]ProjectSummary, error) {
+	// filter[following] takes "true" and nothing else — listing projects the
+	// caller does not follow is unsupported, and any other value is a 400.
+	following := ""
+	if filter.Following {
+		following = "true"
 	}
-	return projects, nil
+
+	var all []ProjectSummary
+	cursor := ""
+
+	for {
+		var env v3List[projectEntity]
+		_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodGet, "/api/v3/projects",
+			filterParam("following", following),
+			filterParam("org_id", filter.OrgID),
+			filterParam("name", filter.Name),
+			filterParam("slug", filter.Slug),
+			pageLimit(projectPageLimit),
+			pageCursor(cursor),
+			httpcl.JSONDecoder(&env),
+		))
+		if err != nil {
+			return nil, err
+		}
+		for _, p := range env.Data {
+			all = append(all, ProjectSummary{
+				ID:      p.ID,
+				Name:    p.Attributes.Name,
+				OrgID:   p.References.Org.ID,
+				OrgName: p.References.Org.Attributes.Name,
+			})
+		}
+		if env.Page.Next == nil || *env.Page.Next == "" {
+			return all, nil
+		}
+		cursor = *env.Page.Next
+	}
 }
 
 // FollowProject follows a project identified by its VCS type, org, and repo.
@@ -152,7 +198,10 @@ type projectEntity struct {
 	} `json:"attributes"`
 	References struct {
 		Org struct {
-			ID uuid.UUID `json:"id"`
+			ID         uuid.UUID `json:"id"`
+			Attributes struct {
+				Name string `json:"name"`
+			} `json:"attributes"`
 		} `json:"org"`
 	} `json:"references"`
 }

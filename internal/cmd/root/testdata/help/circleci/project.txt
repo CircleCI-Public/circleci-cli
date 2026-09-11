@@ -9,7 +9,7 @@ List, follow and configure CircleCI projects
 | Command  | Description                          |
 | -------- | ------------------------------------ |
 | `create` | Create a new project                 |
-| `list`   | List followed projects               |
+| `list`   | List projects                        |
 | `open`   | Open the project page in the browser |
 
 ## Targeted Commands
