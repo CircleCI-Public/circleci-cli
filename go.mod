@@ -42,7 +42,7 @@ require (
 )
 
 require (
-	charm.land/log/v2 v2.0.0 // indirect
+	charm.land/log/v2 v2.0.1 // indirect
 	github.com/BurntSushi/toml v1.6.0 // indirect
 	github.com/Microsoft/go-winio v0.6.2 // indirect
 	github.com/NimbleMarkets/ntcharts/v2 v2.2.0 // indirect
