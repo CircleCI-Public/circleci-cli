@@ -1,0 +1,5 @@
+error: could not read git remote: repository does not exist
+
+Suggestions:
+  • Run from inside a git repository with a GitHub, Bitbucket, or GitLab remote
+  • Or specify the organization: circleci runner open --org <vcs>/<org>

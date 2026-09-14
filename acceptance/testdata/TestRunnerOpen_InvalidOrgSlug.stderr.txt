@@ -1,0 +1,5 @@
+error: "myorg" is not a valid organization slug.
+
+Suggestions:
+  • Provide the org slug as <vcs>/<org> (e.g. gh/myorg)
+  • Or omit --org to infer it from the current git repository's remote

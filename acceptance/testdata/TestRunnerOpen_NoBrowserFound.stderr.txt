@@ -1,0 +1,2 @@
+No browser found. Please open the following URL in your browser:
+https://app.circleci.com/runners/gh/myorg/inventory
