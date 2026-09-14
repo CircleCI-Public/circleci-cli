@@ -17,7 +17,7 @@ require (
 	github.com/cli/browser v1.3.0
 	github.com/itchyny/gojq v0.12.19
 	github.com/pete-woods/go-expect v0.1.4
-	golang.org/x/image v0.44.0
+	golang.org/x/image v0.46.0
 	golang.org/x/sys v0.48.0
 	gotest.tools/v3 v3.5.2
 )
@@ -55,7 +55,7 @@ require (
 	golang.org/x/exp v0.0.0-20231006140011-7918f672742d // indirect
 	golang.org/x/net v0.55.0 // indirect
 	golang.org/x/sync v0.23.0 // indirect
-	golang.org/x/text v0.41.0 // indirect
+	golang.org/x/text v0.42.0 // indirect
 )
 
 replace charm.land/glamour/v2 => github.com/pete-woods/glamour/v2 v2.0.0-20260911153037-b9898ea48492
