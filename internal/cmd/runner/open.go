@@ -23,10 +23,13 @@
 package runner
 
 import (
+	"fmt"
+
 	"github.com/MakeNowJust/heredoc"
 	"github.com/spf13/cobra"
 
 	"github.com/CircleCI-Public/circleci-cli/clikit/browser"
+	clierrors "github.com/CircleCI-Public/circleci-cli/clikit/errors"
 	"github.com/CircleCI-Public/circleci-cli/clikit/iostream"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmdutil"
 )
@@ -71,7 +74,13 @@ func newOpenCmd() *cobra.Command {
 
 			u, err := cmdutil.RunnersURL(appURL, slug)
 			if err != nil {
-				return err
+				return clierrors.New("runner.invalid_org_slug", "Invalid organization slug",
+					fmt.Sprintf("%q is not a valid organization slug.", slug)).
+					WithSuggestions(
+						"Provide the org slug as <vcs>/<org> (e.g. gh/myorg)",
+						"Or omit --org to infer it from the current git repository's remote",
+					).
+					WithExitCode(clierrors.ExitBadArguments)
 			}
 
 			return browser.OpenURLOrPrint(iostream.Err(ctx), u)

@@ -27,6 +27,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"testing"
@@ -1422,4 +1423,164 @@ func TestRunnerConfig_NoArgs(t *testing.T) {
 	assert.Check(t, cmp.Equal(result.ExitCode, 2))
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
 	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+}
+
+// --- open ---
+//
+// runner open never calls the CircleCI API, so these tests don't spin up a
+// fake server. They reuse the browser-shadowing helpers from
+// login_agent_test.go (installFakeBrowserOpener, withPathPrefix) to assert on
+// what URL the CLI hands the browser opener without ever opening one.
+
+func TestRunnerOpen_DefaultOrgFromGitRemote(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("cli/browser opens the browser via a Windows syscall, so it cannot be shadowed on PATH")
+	}
+
+	dir := t.TempDir()
+	initGitRepoWithRemote(t, dir, "https://github.com/my-org/my-repo.git")
+
+	openedPath := filepath.Join(t.TempDir(), "opened.txt")
+	binDir := installFakeBrowserOpener(t, openedPath)
+
+	env := testenv.New(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"runner", "open"},
+		Env:     withPathPrefix(env.Environ(), binDir),
+		WorkDir: dir,
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 0), "stderr: %s", result.Stderr)
+
+	opened, err := os.ReadFile(openedPath)
+	assert.NilError(t, err)
+	assert.Check(t, cmp.Equal(strings.TrimSpace(string(opened)), "https://app.circleci.com/runners/gh/my-org/inventory"))
+}
+
+func TestRunnerOpen_OrgFlag(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("cli/browser opens the browser via a Windows syscall, so it cannot be shadowed on PATH")
+	}
+
+	openedPath := filepath.Join(t.TempDir(), "opened.txt")
+	binDir := installFakeBrowserOpener(t, openedPath)
+
+	env := testenv.New(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"runner", "open", "--org", "gh/other-org"},
+		Env:     withPathPrefix(env.Environ(), binDir),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 0), "stderr: %s", result.Stderr)
+
+	opened, err := os.ReadFile(openedPath)
+	assert.NilError(t, err)
+	assert.Check(t, cmp.Equal(strings.TrimSpace(string(opened)), "https://app.circleci.com/runners/gh/other-org/inventory"))
+}
+
+func TestRunnerOpen_CustomHost(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("cli/browser opens the browser via a Windows syscall, so it cannot be shadowed on PATH")
+	}
+
+	openedPath := filepath.Join(t.TempDir(), "opened.txt")
+	binDir := installFakeBrowserOpener(t, openedPath)
+
+	env := testenv.New(t)
+	env.CircleCIURL = "https://circleci.example.com"
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"runner", "open", "--org", "gh/myorg"},
+		Env:     withPathPrefix(env.Environ(), binDir),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 0), "stderr: %s", result.Stderr)
+
+	opened, err := os.ReadFile(openedPath)
+	assert.NilError(t, err)
+	assert.Check(t, cmp.Equal(strings.TrimSpace(string(opened)), "https://app.circleci.example.com/runners/gh/myorg/inventory"))
+}
+
+// TestRunnerOpen_NoBrowserFound covers the fallback for a headless machine:
+// with no browser opener anywhere on PATH, the CLI must print the URL
+// instead of failing.
+func TestRunnerOpen_NoBrowserFound(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("cli/browser opens the browser via a Windows syscall, so PATH has no effect on whether one is found")
+	}
+
+	env := testenv.New(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"runner", "open", "--org", "gh/myorg"},
+		Env:     withPathReplaced(env.Environ(), t.TempDir()),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 0), "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+}
+
+// TestRunnerOpen_NoGitRemoteNoOrg covers running outside any git checkout
+// with no --org override: the CLI can't infer an organization and must fail
+// with a structured, bad-arguments error rather than a bare Go error.
+func TestRunnerOpen_NoGitRemoteNoOrg(t *testing.T) {
+	env := testenv.New(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"runner", "open"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 2))
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+}
+
+// TestRunnerOpen_InvalidOrgSlug covers ONP-3562's reported bug: an --org
+// value with no <vcs>/<org> separator used to bubble up a bare Go error
+// ("invalid org slug: ...") with exit code 1 instead of a structured
+// bad-arguments error.
+func TestRunnerOpen_InvalidOrgSlug(t *testing.T) {
+	env := testenv.New(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"runner", "open", "--org", "myorg"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 2))
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+}
+
+// withPathReplaced returns environ with PATH replaced (not prefixed) by dir,
+// so no real browser opener on the host machine can be found.
+func withPathReplaced(environ []string, dir string) []string {
+	out := make([]string, 0, len(environ))
+	found := false
+	for _, e := range environ {
+		if strings.HasPrefix(e, "PATH=") {
+			out = append(out, "PATH="+dir)
+			found = true
+			continue
+		}
+		out = append(out, e)
+	}
+	if !found {
+		out = append(out, "PATH="+dir)
+	}
+	return out
 }
