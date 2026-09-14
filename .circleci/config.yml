@@ -246,9 +246,7 @@ workflows:
                 command: |
                   brew update
                   rm -f /opt/homebrew/bin/circleci
-                  brew tap circleci-public/homebrew-circleci
-                  brew trust circleci-public/homebrew-circleci
-                  brew install circleci@next
+                  brew install circleci-public/circleci/circleci@next
           requires:
             - deploy
           filters:
