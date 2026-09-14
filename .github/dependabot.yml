@@ -1,13 +1,31 @@
 version: 2
 updates:
+  # The root module and clikit are one build, not two. The root go.mod carries
+  # `replace github.com/CircleCI-Public/circleci-cli/clikit => ./clikit`, so every
+  # dependency clikit requires also appears in the root module graph. Bumping one
+  # module's go.mod on its own leaves the other stale and reds every CI job with
+  # `go: updates to go.mod needed`, so both directories live in a single update
+  # entry: `group-by: dependency-name` puts both go.mod edits in one pull request
+  # instead of opening two PRs that are each incomplete.
+  #
+  # Grouping cannot fix every case: for a dependency that is direct in clikit but
+  # only indirect in the root go.mod, Dependabot leaves the root pin alone, because
+  # it does not update indirect requirements. Those PRs still go red — amend
+  # `task mod-tidy` into the commit.
   - package-ecosystem: "gomod"
-    directory: "/"
+    directories:
+      - "/"
+      - "/clikit"
     schedule:
       interval: "weekly"
-  - package-ecosystem: "gomod"
-    directory: "/clikit"
-    schedule:
-      interval: "weekly"
+    groups:
+      gomod:
+        patterns:
+          - "*"
+        group-by: dependency-name
+
+  # tools/ is a standalone module and nothing replaces into it, so its updates
+  # cannot desync the root module.
   - package-ecosystem: "gomod"
     directory: "/tools"
     schedule:
