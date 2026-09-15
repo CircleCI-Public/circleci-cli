@@ -559,8 +559,8 @@ func TestRunnerResourceClassDelete_Force(t *testing.T) {
 		reqs := fake.AllRequests()
 		assert.Assert(t, cmp.Len(reqs, 2))
 		assert.Check(t, cmp.Equal(reqs[0].Method, http.MethodGet))
-		assert.Check(t, cmp.Equal(reqs[0].URL.Path, "/api/v3/runner/resource"))
-		assert.Check(t, cmp.Equal(reqs[0].URL.Query().Get("namespace"), "my-org"))
+		assert.Check(t, cmp.Equal(reqs[0].URL.Path, "/api/v3/runner/resource-classes"))
+		assert.Check(t, cmp.Equal(reqs[0].URL.Query().Get("filter[slug]"), "my-org/linux-runner"))
 
 		assert.Check(t, cmp.DeepEqual(reqs[1], httprecorder.Request{
 			Method: http.MethodDelete,
