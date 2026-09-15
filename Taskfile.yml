@@ -372,7 +372,7 @@ tasks:
       NAME: '{{if not (eq OS "windows")}}ci tests{{else}}windows tests{{end}}'
     cmds:
       - mkdir -p {{.RESULTS_DIR}}
-      - circleci testsuite "{{.NAME}}"
+      - circleci testsuite run "{{.NAME}}"
 
   ci:check:
     desc: Check no uncommitted diffs after generate/fmt/tidy

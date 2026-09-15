@@ -443,6 +443,7 @@ func NewCircleCI(t *testing.T, tokens ...string) *CircleCI {
 	r.Post("/api/v3/runner/resource", f.handleCreateResourceClass)
 	r.Delete("/api/v3/runner/resource/{id}", f.handleDeleteResourceClass)
 	r.Delete("/api/v3/runner/resource/{id}/force", f.handleForceDeleteResourceClass)
+	r.Get("/api/v3/runner/resource-classes", f.handleListResourceClassesV3)
 	r.Get("/api/v3/runner/token", f.handleListRunnerTokens)
 	r.Post("/api/v3/runner/token", f.handleCreateRunnerToken)
 	r.Delete("/api/v3/runner/token/{id}", f.handleDeleteRunnerToken)
@@ -1838,6 +1839,34 @@ func (f *CircleCI) handleListResourceClasses(w http.ResponseWriter, r *http.Requ
 		items = append(items, resourceClassEntity(rc))
 	}
 	render.JSON(w, r, map[string]any{"items": items})
+}
+
+// handleListResourceClassesV3 serves GET /api/v3/runner/resource-classes, which
+// accepts filter[slug]=namespace/name and returns a v3 collection envelope.
+func (f *CircleCI) handleListResourceClassesV3(w http.ResponseWriter, r *http.Request) {
+	slug := r.URL.Query().Get("filter[slug]")
+	f.mu.RLock()
+	all := f.resourceClasses
+	deleted := f.deletedRCs
+	f.mu.RUnlock()
+
+	items := []any{}
+	for _, rc := range all {
+		if deleted[rc.Slug] {
+			continue
+		}
+		if slug != "" && rc.Slug != slug {
+			continue
+		}
+		items = append(items, map[string]any{
+			"id": rc.ID,
+			"attributes": map[string]any{
+				"resource_class": rc.Slug,
+				"description":    rc.Description,
+			},
+		})
+	}
+	render.JSON(w, r, map[string]any{"data": items})
 }
 
 func (f *CircleCI) handleCreateResourceClass(w http.ResponseWriter, r *http.Request) {

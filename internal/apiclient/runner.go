@@ -118,24 +118,46 @@ func (c *Client) CreateResourceClass(ctx context.Context, resourceClass, descrip
 // class matches the slug.
 var ErrResourceClassNotFound = errors.New("resource class not found")
 
-// ResourceClassByName returns the resource class with the given namespace/name
-// slug. It lists the slug's namespace to find it.
-func (c *Client) ResourceClassByName(ctx context.Context, resourceClass string) (*ResourceClass, error) {
-	namespace, _, ok := strings.Cut(resourceClass, "/")
-	if !ok || namespace == "" {
-		return nil, fmt.Errorf("%w: %q is not in namespace/name form", ErrResourceClassNotFound, resourceClass)
-	}
+// v3ResourceClassItem is the per-item shape returned by the v3 resource-classes list endpoint.
+type v3ResourceClassItem struct {
+	ID         string `json:"id"`
+	Attributes struct {
+		ResourceClass string `json:"resource_class"`
+		Description   string `json:"description"`
+	} `json:"attributes"`
+}
 
-	classes, err := c.ListResourceClassesByNamespace(ctx, namespace)
+// GetResourceClassBySlug looks up a single resource class by its namespace/name slug via the
+// v3 filter[slug] endpoint. Returns ErrResourceClassNotFound when the class does not exist or
+// the caller is not authorized.
+func (c *Client) GetResourceClassBySlug(ctx context.Context, slug string) (*ResourceClass, error) {
+	var resp struct {
+		Data []v3ResourceClassItem `json:"data"`
+	}
+	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodGet, "/api/v3/runner/resource-classes",
+		httpcl.QueryParam("filter[slug]", slug),
+		httpcl.JSONDecoder(&resp),
+	))
 	if err != nil {
 		return nil, err
 	}
-	for _, rc := range classes {
-		if rc.ResourceClass == resourceClass {
-			return &rc, nil
-		}
+	if len(resp.Data) == 0 {
+		return nil, fmt.Errorf("%w: %q", ErrResourceClassNotFound, slug)
 	}
-	return nil, fmt.Errorf("%w: %q", ErrResourceClassNotFound, resourceClass)
+	item := resp.Data[0]
+	return &ResourceClass{
+		ID:            item.ID,
+		ResourceClass: item.Attributes.ResourceClass,
+		Description:   item.Attributes.Description,
+	}, nil
+}
+
+// ResourceClassByName returns the resource class with the given namespace/name slug.
+func (c *Client) ResourceClassByName(ctx context.Context, resourceClass string) (*ResourceClass, error) {
+	if !strings.Contains(resourceClass, "/") {
+		return nil, fmt.Errorf("%w: %q is not in namespace/name form", ErrResourceClassNotFound, resourceClass)
+	}
+	return c.GetResourceClassBySlug(ctx, resourceClass)
 }
 
 // DeleteResourceClass deletes a runner resource class by its id, along with any
