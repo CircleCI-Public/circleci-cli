@@ -49,6 +49,7 @@ func NewOrgCmd() *cobra.Command {
 
 	cmdutil.AddGroup(cmd, "General commands",
 		newListCmd(),
+		newCreateCmd(),
 	)
 	cmdutil.AddGroup(cmd, "Subcommands",
 		newSettingsCmd(),

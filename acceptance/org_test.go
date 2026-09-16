@@ -110,3 +110,102 @@ func TestOrgList_Empty(t *testing.T) {
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
 	assert.Check(t, cmp.Contains(result.Stderr, "No organizations found"))
 }
+
+func TestOrgCreate(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	fake.SetCreateOrgResponse(map[string]any{
+		"id":       "a0000000-0000-4000-8000-0000000c0009",
+		"name":     "acme",
+		"slug":     "circleci/9YytKzouJxzu4TjCRFqAoD",
+		"vcs_type": "circleci",
+	})
+
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"org", "create", "acme"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+}
+
+func TestOrgCreate_JSON(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	fake.SetCreateOrgResponse(map[string]any{
+		"id":       "a0000000-0000-4000-8000-0000000c0009",
+		"name":     "acme",
+		"slug":     "circleci/9YytKzouJxzu4TjCRFqAoD",
+		"vcs_type": "circleci",
+	})
+
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"org", "create", "acme", "--json"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+
+	var out map[string]any
+	assert.NilError(t, json.Unmarshal([]byte(result.Stdout), &out))
+	assert.Check(t, cmp.DeepEqual(out, map[string]any{
+		"id":       "a0000000-0000-4000-8000-0000000c0009",
+		"name":     "acme",
+		"slug":     "circleci/9YytKzouJxzu4TjCRFqAoD",
+		"vcs_type": "circleci",
+	}))
+}
+
+// TestOrgCreate_MissingName covers the argument check: a name cannot be guessed
+// from anything, so the command says what is missing rather than calling the API.
+func TestOrgCreate_MissingName(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"org", "create"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 2))
+	assert.Check(t, cmp.Contains(result.Stderr, "Required argument missing: <name>"))
+}
+
+// TestOrgCreate_Rejected covers a create the API refuses, e.g. a name already
+// taken. The command reports it rather than printing a half-finished success.
+func TestOrgCreate_Rejected(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	fake.SetCreateOrgResponse(nil)
+
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"org", "create", "acme"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 4))
+	assert.Check(t, cmp.Contains(result.Stderr, "org creation not configured"))
+	assert.Check(t, cmp.Contains(result.Stderr, "circleci org list"))
+}

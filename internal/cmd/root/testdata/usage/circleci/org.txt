@@ -1,5 +1,6 @@
 Usage:  circleci org <command> [flags]
 
 Available commands:
+  create
   list
   setting

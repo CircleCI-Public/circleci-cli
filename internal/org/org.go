@@ -57,14 +57,13 @@ func Require(ctx context.Context, client *apiclient.Client) ([]apiclient.Collabo
 		if iostream.IsInteractive(ctx) {
 			return promptCreateOrg(ctx, client)
 		}
+		// The create command leads: it is the one route out of here that does not
+		// require leaving the terminal, which matters most to the callers that
+		// reach this branch — a non-interactive session has nobody to send to a
+		// browser in the first place.
 		suggestions := []string{
+			"Create one: circleci org create <name>",
 			"Ask an admin to invite you to an existing organization",
-		}
-		if appURL, err := cmdutil.AppURL(ctx); err == nil {
-			suggestions = []string{
-				fmt.Sprintf("Create or join an organization at %s", appURL),
-				"Ask an admin to invite you to an existing organization",
-			}
 		}
 		return nil, clierrors.New("org.none_found", "No organizations found",
 			"Your account is not a member of any CircleCI organizations.").
