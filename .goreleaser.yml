@@ -87,6 +87,36 @@ nfpms:
       - deb
       - rpm
 
+# The image goes to the same Docker Hub repository v0 published to
+# (circleci/circleci-cli, 5.8M pulls), but only under an exact version tag and a
+# moving `v1` tag. `latest` there still points at the last v0 image and is left
+# alone on purpose: the two CLIs are not flag-compatible, so nobody tracking
+# `latest` gets moved to v1 without asking for it.
+#
+# GoReleaser needs the docker CLI already logged in — .circleci/config.yml does
+# that from DOCKER_HUB_USERNAME / DOCKER_HUB_PASSWORD in the devex-release
+# context, and skips the login (so the snapshot build still runs) when they are
+# absent. Multi-platform push also needs a `docker-container` buildx driver;
+# the default `docker` driver cannot push a manifest list.
+dockers_v2:
+  - images:
+      - circleci/circleci-cli
+    tags:
+      - "{{ .Version }}"
+      - v1
+    platforms:
+      - linux/amd64
+      - linux/arm64
+    labels:
+      org.opencontainers.image.title: circleci
+      org.opencontainers.image.description: CircleCI command line tool.
+      org.opencontainers.image.url: https://cli.circleci.com
+      org.opencontainers.image.source: https://github.com/CircleCI-Public/circleci-cli
+      org.opencontainers.image.version: "{{ .Version }}"
+      org.opencontainers.image.revision: "{{ .FullCommit }}"
+      org.opencontainers.image.created: "{{ .Date }}"
+      org.opencontainers.image.licenses: MIT
+
 notarize:
   macos:
     - enabled: '{{ isEnvSet "QUILL_SIGN_P12" }}'

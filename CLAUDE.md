@@ -103,7 +103,8 @@ clikit/                   Terminal I/O + presentation layer — its own Go modul
                           for extension authors (below).
 share/                    Shipped man pages + bash/zsh completions.
 skills/circleci/          Agent skill shipped with the CLI.
-packaging/                Distribution packaging assets (deb).
+packaging/                Distribution packaging assets: deb copyright, Docker Hub overview.
+Dockerfile                The published container image (cimg/base + the release binary).
 tools/                    Standalone build tooling — its own Go module.
 docs/                     Hugo website, blog posts, terminal demo recordings.
 internal/                 Everything else (below).
