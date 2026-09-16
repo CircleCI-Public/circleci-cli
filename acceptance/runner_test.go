@@ -627,8 +627,7 @@ func TestRunnerResourceClassDelete_Force_RemovesTokens(t *testing.T) {
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
-	assert.Check(t, cmp.Equal(list.ExitCode, 0), "stderr: %s", list.Stderr)
-	assert.Check(t, cmp.Equal(strings.TrimSpace(list.Stdout), "[]"))
+	assert.Check(t, cmp.Equal(list.ExitCode, clierrors.ExitNotFound))
 }
 
 func TestRunnerResourceClassDelete_NotFound(t *testing.T) {
@@ -797,6 +796,7 @@ func TestRunnerTokenList_JQ(t *testing.T) {
 
 func TestRunnerTokenList_Empty(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
+	fake.AddResourceClass(fakeRC("11111111-1111-4111-8111-111111111111", "my-org/linux-runner", "Linux amd64 runner"))
 	env := testenv.New(t)
 	env.Token = testToken
 	env.CircleCIURL = fake.URL()

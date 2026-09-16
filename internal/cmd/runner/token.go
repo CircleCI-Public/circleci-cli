@@ -133,8 +133,10 @@ func runTokenList(ctx context.Context, client *apiclient.Client, org, resourceCl
 		rc, err := client.ResourceClassByName(ctx, resourceClass)
 		if err != nil {
 			if errors.Is(err, apiclient.ErrResourceClassNotFound) {
-				// Deleted or nonexistent — treat as no tokens.
-				return printTokenList(ctx, nil, resourceClass, jsonOut)
+				return clierrors.New("runner.not_found", "Not found",
+					fmt.Sprintf("No runner resource class named %q.", resourceClass)).
+					WithSuggestions("List available resource classes with: circleci runner resource-class list").
+					WithExitCode(clierrors.ExitNotFound)
 			}
 			if httpcl.HasStatusCode(err, http.StatusNotFound) {
 				return runnerNotEnabledErr()
