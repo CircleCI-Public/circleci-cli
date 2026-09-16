@@ -1,0 +1,33 @@
+FROM alpine:3.24
+
+LABEL maintainer="Developer Experience Team <developer_experience@circleci.com>"
+
+# TARGETPLATFORM is a buildx predefined build arg ("linux/amd64", "linux/arm64")
+# and has to be re-declared to be usable in a COPY. GoReleaser's dockers_v2 pipe
+# stages each platform's binary under that exact path in the build context.
+ARG TARGETPLATFORM
+
+# The update notifier is TTY-gated already, but be explicit: an image is a
+# pinned artifact, so "a newer release is available" is never actionable from
+# inside a container.
+ENV CIRCLE_NO_UPDATE_CHECK=1
+
+# ca-certificates for the API's TLS, git and ssh because project slug and branch
+# detection read the checkout's git remote.
+#
+# Unlike the cimg/base image, this one RUNs something, and it runs it once per
+# platform in the manifest — so the builder needs binfmt/QEMU registered for the
+# foreign architecture. .circleci/config.yml installs it before goreleaser runs.
+RUN apk add --no-cache ca-certificates git openssh-client
+
+COPY $TARGETPLATFORM/circleci /usr/local/bin/circleci
+
+# Mount a checkout here (`-v "$PWD:/project"`) to run against local files. The
+# cimg/base image inherits /home/circleci/project from its base instead.
+WORKDIR /project
+
+# No ENTRYPOINT — deliberately unlike v0's alpine image, which had
+# ENTRYPOINT ["circleci"]. Both v1 images are invoked the same way
+# (`docker run <image> circleci ...`), and an entrypoint would stop this one
+# being usable as a `docker:` executor image. Anyone moving from the v0
+# `:alpine` tag has to add `circleci` to the command.

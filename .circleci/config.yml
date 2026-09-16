@@ -34,6 +34,13 @@ commands:
   setup-docker:
     steps:
       - run:
+          name: Register QEMU for cross-architecture builds
+          # Dockerfile.alpine RUNs `apk add`, once per platform in the manifest,
+          # so building its arm64 half on an amd64 host needs binfmt handlers
+          # registered. Idempotent, and a no-op for the cimg/base image, which
+          # only COPYs.
+          command: docker run --privileged --rm tonistiigi/binfmt --install arm64
+      - run:
           name: Create a buildx builder
           # The machine image's default buildx driver is `docker`, which can
           # neither build for two platforms in one invocation nor push a
@@ -159,15 +166,17 @@ jobs:
     parameters:
       executor:
         type: executor
+      tag:
+        type: string
     executor: << parameters.executor >>
     steps:
       - run:
-          name: Verify the published Docker image
+          name: Verify circleci/circleci-cli:<< parameters.tag >>
           # Printing the arch inside the container makes the log say which half
           # of the manifest ran. A tag missing this platform fails here anyway —
           # the arm machine images carry no binfmt, so there is nothing to
           # silently emulate an amd64-only image with.
-          command: docker run --rm circleci/circleci-cli:v1 sh -c 'uname -m; circleci version'
+          command: docker run --rm circleci/circleci-cli:<< parameters.tag >> sh -c 'uname -m; circleci version'
 
   docs:
     executor: linux
@@ -308,6 +317,9 @@ workflows:
               executor:
                 - linux
                 - linux-arm
+              tag:
+                - v1
+                - v1-alpine
           requires:
             - deploy
           filters:
