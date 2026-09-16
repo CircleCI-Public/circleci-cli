@@ -1,0 +1,38 @@
+Create an organization
+
+## Usage
+
+`circleci org create <name> [flags]`
+
+## Arguments
+
+`<name>` is the name for the new organization.
+
+## Flags
+
+| Flag          | Description                                                                       |
+| ------------- | --------------------------------------------------------------------------------- |
+| `--jq string` | Process values from the response using jq syntax (see `circleci help formatting`) |
+| `--json`      | Output as JSON                                                                    |
+
+Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `circleci --help`.
+
+## Examples
+
+- Create an organization: 
+  `circleci org create acme`
+- Create one and output as JSON for scripting: 
+  `circleci org create acme --json`
+- Capture the slug to pass to --org: 
+  `circleci org create acme --json --jq '.slug'`
+
+## Details
+
+Create a CircleCI-native organization owned by your account.
+
+VCS-backed organizations (gh/..., bb/...) are imported when you sign in
+or install the CircleCI GitHub App, so only CircleCI-native ones are
+created here. The new org's slug is what --org takes elsewhere.
+
+JSON fields: id, name, slug, vcs_type
+

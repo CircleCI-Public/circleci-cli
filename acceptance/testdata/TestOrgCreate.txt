@@ -1,0 +1,4 @@
+✓ Created organization acme
+  Slug: circleci/9YytKzouJxzu4TjCRFqAoD
+
+Next: circleci project create --org circleci/9YytKzouJxzu4TjCRFqAoD

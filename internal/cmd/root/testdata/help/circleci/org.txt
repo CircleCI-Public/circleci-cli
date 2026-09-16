@@ -6,9 +6,10 @@ Manage CircleCI organizations
 
 ## General Commands
 
-| Command | Description                      |
-| ------- | -------------------------------- |
-| `list`  | List organizations you belong to |
+| Command  | Description                      |
+| -------- | -------------------------------- |
+| `create` | Create an organization           |
+| `list`   | List organizations you belong to |
 
 ## Subcommands
 
