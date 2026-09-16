@@ -104,7 +104,7 @@ clikit/                   Terminal I/O + presentation layer — its own Go modul
 share/                    Shipped man pages + bash/zsh completions.
 skills/circleci/          Agent skill shipped with the CLI.
 packaging/                Distribution packaging assets: deb copyright, Docker Hub overview.
-Dockerfile                The published container image (cimg/base + the release binary).
+Dockerfile{,.alpine}      The published container images (cimg/base and Alpine variants).
 tools/                    Standalone build tooling — its own Go module.
 docs/                     Hugo website, blog posts, terminal demo recordings.
 internal/                 Everything else (below).

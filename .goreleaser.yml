@@ -99,11 +99,37 @@ nfpms:
 # absent. Multi-platform push also needs a `docker-container` buildx driver;
 # the default `docker` driver cannot push a manifest list.
 dockers_v2:
-  - images:
+  # Both variants need an explicit id: the default is the project name, and two
+  # entries sharing one id is a config error.
+  - id: cimg
+    images:
       - circleci/circleci-cli
     tags:
       - "{{ .Version }}"
       - v1
+    platforms:
+      - linux/amd64
+      - linux/arm64
+    labels:
+      org.opencontainers.image.title: circleci
+      org.opencontainers.image.description: CircleCI command line tool.
+      org.opencontainers.image.url: https://cli.circleci.com
+      org.opencontainers.image.source: https://github.com/CircleCI-Public/circleci-cli
+      org.opencontainers.image.version: "{{ .Version }}"
+      org.opencontainers.image.revision: "{{ .FullCommit }}"
+      org.opencontainers.image.created: "{{ .Date }}"
+      org.opencontainers.image.licenses: MIT
+
+  # The small variant, carried over from v0 (whose `:alpine` tag is still pulled
+  # daily). Same tags with an `-alpine` suffix; v0's `alpine` and `0.1.x-alpine`
+  # tags stay where they are.
+  - id: alpine
+    dockerfile: Dockerfile.alpine
+    images:
+      - circleci/circleci-cli
+    tags:
+      - "{{ .Version }}-alpine"
+      - v1-alpine
     platforms:
       - linux/amd64
       - linux/arm64
