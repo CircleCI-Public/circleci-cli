@@ -4170,10 +4170,7 @@ List tokens for a resource class
 List authentication tokens for runner resource classes.
 
 Without --resource-class, lists tokens for all resource classes
-you have access to.
-
-Token values are never shown after creation. This command lists
-token metadata (ID, nickname, creation date) only.
+in the organization (--org or inferred from the git remote).
 
 JSON fields: id, resource_class, nickname, created_at
 
@@ -4181,6 +4178,7 @@ JSON fields: id, resource_class, nickname, created_at
 | ------------------------- | --------------------------------------------------------------------------------- |
 | `--jq string`             | Process values from the response using jq syntax (see `circleci help formatting`) |
 | `--json`                  | Output as JSON                                                                    |
+| `--org string`            | Organization slug (e.g. gh/myorg) or UUID; defaults to git remote                 |
 | `--resource-class string` | Filter by resource class (namespace/name)                                         |
 
 
@@ -4191,8 +4189,10 @@ JSON fields: id, resource_class, nickname, created_at
 
 **Examples:**
 
-- List tokens across all resource classes: 
+- List tokens for all resource classes in the org inferred from the git remote: 
   `circleci runner token list`
+- List tokens for all resource classes in a specific org: 
+  `circleci runner token list --org gh/my-org`
 - List tokens for a specific resource class: 
   `circleci runner token list --resource-class my-org/my-runner`
 - Output as JSON: 
@@ -4796,13 +4796,15 @@ Guided onboarding: generate config, sign up, connect project
 
 Prompts for repo setup or signup unless --scan or --signup is given. Writes a
 starter config if none exists, creates and follows the project, adds a trigger.
+--org is required when you belong to several orgs and cannot be prompted.
 
-| Flag               | Description                                                 |
-| ------------------ | ----------------------------------------------------------- |
-| `--no-browser`     | Print the signup URL instead of opening a browser           |
-| `--repo-id string` | Repository ID, if it cannot be resolved from the git remote |
-| `--scan`           | Skip prompt: set up this repo on CircleCI                   |
-| `--signup`         | Skip prompt: sign up for CircleCI                           |
+| Flag               | Description                                                        |
+| ------------------ | ------------------------------------------------------------------ |
+| `--no-browser`     | Print the signup URL instead of opening a browser                  |
+| `--org string`     | Organization slug (e.g. gh/myorg) or UUID to set the project up in |
+| `--repo-id string` | Repository ID, if it cannot be resolved from the git remote        |
+| `--scan`           | Skip prompt: set up this repo on CircleCI                          |
+| `--signup`         | Skip prompt: sign up for CircleCI                                  |
 
 
 **Arguments:**
@@ -4815,14 +4817,10 @@ starter config if none exists, creates and follows the project, adds a trigger.
   `circleci onboard`
 - Set up the current directory (skip the choice prompt): 
   `circleci onboard --scan`
-- Set up and wire up the first pipeline without prompts: 
-  `circleci onboard --scan --repo-id 123456789`
+- Set up in a named org (required when you belong to several): 
+  `circleci onboard --scan --org gh/acme`
 - Sign up for CircleCI (no repo needed): 
   `circleci onboard --signup`
-- Onboard a specific project path: 
-  `circleci onboard --scan ./my-app`
-- Print the signup URL instead of opening a browser: 
-  `circleci onboard --signup --no-browser`
 
 ### `circleci setting <command>`
 
