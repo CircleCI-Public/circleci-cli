@@ -296,10 +296,8 @@ func buildSlug(host, org, repo string) (string, error) {
 		vcs = "gh"
 	case strings.Contains(host, "bitbucket"):
 		vcs = "bb"
-	case strings.Contains(host, "gitlab"):
-		vcs = "gl"
 	default:
-		return "", fmt.Errorf("unsupported VCS host %q (expected github.com, bitbucket.org, or gitlab.com)", host)
+		return "", fmt.Errorf("unsupported VCS host %q (expected github.com or bitbucket.org)", host)
 	}
 	return fmt.Sprintf("%s/%s/%s", vcs, org, repo), nil
 }

@@ -45,8 +45,7 @@ func newOpenCmd() *cobra.Command {
 			default web browser.
 
 			The organization is inferred from the current git repository's remote
-			unless overridden with --org. Supports GitHub, Bitbucket, and GitLab
-			remotes.
+			unless overridden with --org. Supports GitHub and Bitbucket remotes.
 		`),
 		Example: heredoc.Doc(`
 			# Open runners for the org inferred from git remote

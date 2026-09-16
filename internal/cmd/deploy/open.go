@@ -44,8 +44,8 @@ func newOpenCmd() *cobra.Command {
 			default web browser.
 
 			The project is inferred from the current git repository's remote
-			unless overridden with --project. Supports GitHub, Bitbucket, and
-			GitLab remotes.
+			unless overridden with --project. Supports GitHub and Bitbucket
+			remotes.
 		`),
 		Example: heredoc.Doc(`
 			# Open the deploys page for the current project
@@ -65,7 +65,7 @@ func newOpenCmd() *cobra.Command {
 					return clierrors.New("git.detect_failed",
 						"Could not detect project from git remote", err.Error()).
 						WithSuggestions(
-							"Run from inside a git repository with a GitHub, Bitbucket, or GitLab remote",
+							"Run from inside a git repository with a GitHub or Bitbucket remote",
 							"Or specify the project: circleci deploy open --project gh/org/repo",
 						).
 						WithExitCode(clierrors.ExitBadArguments)

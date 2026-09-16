@@ -27,6 +27,5 @@ Open the CircleCI contexts settings page for an organization in your
 default web browser.
 
 The organization is inferred from the current git repository's remote
-unless overridden with --org. Supports GitHub, Bitbucket, and GitLab
-remotes.
+unless overridden with --org. Supports GitHub and Bitbucket remotes.
 

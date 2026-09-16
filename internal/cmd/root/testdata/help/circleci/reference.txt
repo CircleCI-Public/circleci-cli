@@ -650,7 +650,7 @@ Open the CircleCI runs page for the current project in your
 default web browser.
 
 The project is inferred from the current git repository's remote.
-Supports GitHub, Bitbucket, and GitLab remotes.
+Supports GitHub and Bitbucket remotes.
 
 Use --current-branch or --branch/-b to filter runs to a specific branch.
 
@@ -1314,8 +1314,7 @@ Open the CircleCI contexts settings page for an organization in your
 default web browser.
 
 The organization is inferred from the current git repository's remote
-unless overridden with --org. Supports GitHub, Bitbucket, and GitLab
-remotes.
+unless overridden with --org. Supports GitHub and Bitbucket remotes.
 
 | Flag           | Description                                               |
 | -------------- | --------------------------------------------------------- |
@@ -1735,8 +1734,8 @@ Open the CircleCI deploys page for the current project in your
 default web browser.
 
 The project is inferred from the current git repository's remote
-unless overridden with --project. Supports GitHub, Bitbucket, and
-GitLab remotes.
+unless overridden with --project. Supports GitHub and Bitbucket
+remotes.
 
 | Flag               | Description                                             |
 | ------------------ | ------------------------------------------------------- |
@@ -3529,8 +3528,8 @@ Open the CircleCI project page for the current project in your
 default web browser.
 
 The project is inferred from the current git repository's remote
-unless overridden with --project. Supports GitHub, Bitbucket, and
-GitLab remotes.
+unless overridden with --project. Supports GitHub and Bitbucket
+remotes.
 
 | Flag               | Description                                             |
 | ------------------ | ------------------------------------------------------- |
@@ -3820,8 +3819,7 @@ Open the CircleCI runners inventory page for an organization in your
 default web browser.
 
 The organization is inferred from the current git repository's remote
-unless overridden with --org. Supports GitHub, Bitbucket, and GitLab
-remotes.
+unless overridden with --org. Supports GitHub and Bitbucket remotes.
 
 | Flag           | Description                                               |
 | -------------- | --------------------------------------------------------- |
