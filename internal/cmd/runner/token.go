@@ -24,10 +24,12 @@ package runner
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net/http"
 
 	"github.com/MakeNowJust/heredoc"
+	"github.com/google/uuid"
 	"github.com/spf13/cobra"
 
 	clierrors "github.com/CircleCI-Public/circleci-cli/clikit/errors"
@@ -35,7 +37,6 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/clikit/mdtable"
 	"github.com/CircleCI-Public/circleci-cli/internal/apiclient"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmdutil"
-	"github.com/CircleCI-Public/circleci-cli/internal/gitremote"
 	"github.com/CircleCI-Public/circleci-cli/internal/httpcl"
 )
 
@@ -68,6 +69,7 @@ func newTokenCmd() *cobra.Command {
 
 func newTokenListCmd() *cobra.Command {
 	var resourceClass string
+	var org string
 	var jsonOut bool
 
 	cmd := &cobra.Command{
@@ -78,16 +80,16 @@ func newTokenListCmd() *cobra.Command {
 			List authentication tokens for runner resource classes.
 
 			Without --resource-class, lists tokens for all resource classes
-			you have access to.
-
-			Token values are never shown after creation. This command lists
-			token metadata (ID, nickname, creation date) only.
+			in the organization (--org or inferred from the git remote).
 
 			JSON fields: id, resource_class, nickname, created_at
 		`),
 		Example: heredoc.Doc(`
-			# List tokens across all resource classes
+			# List tokens for all resource classes in the org inferred from the git remote
 			$ circleci runner token list
+
+			# List tokens for all resource classes in a specific org
+			$ circleci runner token list --org gh/my-org
 
 			# List tokens for a specific resource class
 			$ circleci runner token list --resource-class my-org/my-runner
@@ -104,10 +106,11 @@ func newTokenListCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return runTokenList(ctx, client, resourceClass, jsonOut)
+			return runTokenList(ctx, client, org, resourceClass, jsonOut)
 		},
 	}
 
+	cmdutil.AddOrgFlag(cmd, &org, cmdutil.OrgFlag{DefaultsToGitRemote: true})
 	cmd.Flags().StringVar(&resourceClass, "resource-class", "", "Filter by resource class (namespace/name)")
 	cmdutil.AddJSONFlag(cmd, &jsonOut)
 	cmdutil.AddJQFlag(cmd)
@@ -121,35 +124,48 @@ type tokenOutput struct {
 	CreatedAt     string `json:"created_at"`
 }
 
-func runTokenList(ctx context.Context, client *apiclient.Client, resourceClass string, jsonOut bool) error {
-	var resourceClasses []string
+func runTokenList(ctx context.Context, client *apiclient.Client, org, resourceClass string, jsonOut bool) error {
+	// rcs is the set of resource classes whose tokens we list, each carrying
+	// both ID (for the V3 filter) and ResourceClass slug (for output reconstruction).
+	var rcs []apiclient.ResourceClass
+
 	if resourceClass != "" {
-		resourceClasses = []string{resourceClass}
-	} else {
-		namespace, err := gitremote.DetectNamespace()
+		rc, err := client.ResourceClassByName(ctx, resourceClass)
 		if err != nil {
-			return clierrors.New("runner.namespace_required", "Namespace required",
-				"Could not detect organization namespace from git remote.").
-				WithSuggestions("Specify a resource class: circleci runner token list --resource-class <namespace/name>").
-				WithExitCode(clierrors.ExitBadArguments)
-		}
-		classes, apiErr2 := client.ListResourceClassesByNamespace(ctx, namespace)
-		if apiErr2 != nil {
-			if httpcl.HasStatusCode(apiErr2, http.StatusNotFound) {
+			if errors.Is(err, apiclient.ErrResourceClassNotFound) {
+				// Deleted or nonexistent — treat as no tokens.
+				return printTokenList(ctx, nil, resourceClass, jsonOut)
+			}
+			if httpcl.HasStatusCode(err, http.StatusNotFound) {
 				return runnerNotEnabledErr()
 			}
-			return apiErr(apiErr2, namespace)
+			return apiErr(err, resourceClass)
 		}
-		for _, rc := range classes {
-			resourceClasses = append(resourceClasses, rc.ResourceClass)
+		rcs = []apiclient.ResourceClass{*rc}
+	} else {
+		orgID, err := cmdutil.ResolveOrgSlugOrID(ctx, client, org, "circleci runner token list")
+		if err != nil {
+			return err
 		}
+		classes, err := client.ListResourceClassesByOrg(ctx, orgID)
+		if err != nil {
+			if httpcl.HasStatusCode(err, http.StatusNotFound) {
+				return runnerNotEnabledErr()
+			}
+			return apiErr(err, orgID.String())
+		}
+		rcs = classes
 	}
 
 	var out []tokenOutput
-	for _, rc := range resourceClasses {
-		tokens, err := client.ListRunnerTokens(ctx, rc)
+	for _, rc := range rcs {
+		rcID, err := uuid.Parse(rc.ID)
 		if err != nil {
-			return apiErr(err, rc)
+			return apiErr(err, rc.ResourceClass)
+		}
+		tokens, err := client.ListRunnerTokensV3(ctx, rcID, rc.ResourceClass)
+		if err != nil {
+			return apiErr(err, rc.ResourceClass)
 		}
 		for _, t := range tokens {
 			out = append(out, tokenOutput{
@@ -161,6 +177,10 @@ func runTokenList(ctx context.Context, client *apiclient.Client, resourceClass s
 		}
 	}
 
+	return printTokenList(ctx, out, resourceClass, jsonOut)
+}
+
+func printTokenList(ctx context.Context, out []tokenOutput, resourceClass string, jsonOut bool) error {
 	if jsonOut {
 		if out == nil {
 			out = []tokenOutput{}
@@ -247,7 +267,26 @@ type tokenCreateOutput struct {
 }
 
 func runTokenCreate(ctx context.Context, client *apiclient.Client, resourceClass, nickname string, jsonOut bool) error {
-	tok, err := client.CreateRunnerToken(ctx, resourceClass, nickname)
+	rc, err := client.ResourceClassByName(ctx, resourceClass)
+	if err != nil {
+		if errors.Is(err, apiclient.ErrResourceClassNotFound) {
+			return clierrors.New("runner.not_found", "Not found",
+				fmt.Sprintf("No runner resource class named %q.", resourceClass)).
+				WithSuggestions("List available resource classes with: circleci runner resource-class list").
+				WithExitCode(clierrors.ExitNotFound)
+		}
+		if httpcl.HasStatusCode(err, http.StatusNotFound) {
+			return runnerNotEnabledErr()
+		}
+		return apiErr(err, resourceClass)
+	}
+
+	rcID, err := uuid.Parse(rc.ID)
+	if err != nil {
+		return apiErr(err, resourceClass)
+	}
+
+	tok, err := client.CreateRunnerTokenV3(ctx, rcID, resourceClass, nickname)
 	if err != nil {
 		return apiErr(err, resourceClass)
 	}
@@ -347,7 +386,7 @@ func runTokenDelete(ctx context.Context, client *apiclient.Client,
 		return err
 	}
 
-	if err := client.DeleteRunnerToken(ctx, tokenID); err != nil {
+	if err := client.DeleteRunnerTokenV3(ctx, tokenID); err != nil {
 		return apiErr(err, tokenID)
 	}
 

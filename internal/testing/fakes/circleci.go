@@ -453,6 +453,9 @@ func NewCircleCI(t *testing.T, tokens ...string) *CircleCI {
 	r.Get("/api/v3/runner/token", f.handleListRunnerTokens)
 	r.Post("/api/v3/runner/token", f.handleCreateRunnerToken)
 	r.Delete("/api/v3/runner/token/{id}", f.handleDeleteRunnerToken)
+	r.Get("/api/v3/runner/tokens", f.handleListRunnerTokensV3)
+	r.Post("/api/v3/runner/tokens", f.handleCreateRunnerTokenV3)
+	r.Delete("/api/v3/runner/tokens/{id}", f.handleDeleteRunnerTokenV3)
 	// Namespace (v3) routes.
 	r.Get("/api/v3/namespaces", f.handleRESTGetNamespaceByName)
 	r.Get("/api/v3/namespaces/{id}", f.handleRESTGetNamespaceByID)
@@ -1997,6 +2000,137 @@ func (f *CircleCI) handleCreateRunnerToken(w http.ResponseWriter, r *http.Reques
 }
 
 func (f *CircleCI) handleDeleteRunnerToken(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	f.mu.Lock()
+	found := false
+	for _, tokens := range f.runnerTokens {
+		for _, tok := range tokens {
+			if tok.ID == id {
+				found = true
+				break
+			}
+		}
+		if found {
+			break
+		}
+	}
+	if found {
+		f.deletedTokens[id] = true
+	}
+	f.mu.Unlock()
+
+	if !found {
+		render.Status(r, http.StatusNotFound)
+		render.JSON(w, r, map[string]any{"message": "not found"})
+		return
+	}
+	render.JSON(w, r, map[string]any{"message": "Deleted."})
+}
+
+// --- V3 runner token handlers (/api/v3/runner/tokens) ---
+
+// runnerTokenV3ListEntity renders a token as a V3 list item. List items carry
+// only attributes; the resource class is reconstructed by the CLI from its filter.
+func runnerTokenV3ListEntity(t RunnerToken) map[string]any {
+	return map[string]any{
+		"id": t.ID,
+		"attributes": map[string]any{
+			"nickname":   t.Nickname,
+			"created_at": t.CreatedAt,
+		},
+	}
+}
+
+// runnerTokenV3CreateEntity renders a token as a V3 create response. Token value
+// is included only when set.
+func runnerTokenV3CreateEntity(t RunnerToken) map[string]any {
+	attrs := map[string]any{
+		"nickname":   t.Nickname,
+		"created_at": t.CreatedAt,
+	}
+	if t.Token != "" {
+		attrs["token"] = t.Token
+	}
+	return map[string]any{"id": t.ID, "attributes": attrs}
+}
+
+func (f *CircleCI) handleListRunnerTokensV3(w http.ResponseWriter, r *http.Request) {
+	rcID := r.URL.Query().Get("filter[resource_class_id]")
+
+	f.mu.RLock()
+	var rcSlug string
+	for _, rc := range f.resourceClasses {
+		if rc.ID == rcID {
+			rcSlug = rc.Slug
+			break
+		}
+	}
+	tokens := f.runnerTokens[rcSlug]
+	deleted := f.deletedTokens
+	f.mu.RUnlock()
+
+	items := []any{}
+	for _, tok := range tokens {
+		if !deleted[tok.ID] {
+			items = append(items, runnerTokenV3ListEntity(tok))
+		}
+	}
+	render.JSON(w, r, map[string]any{"data": items})
+}
+
+func (f *CircleCI) handleCreateRunnerTokenV3(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		References struct {
+			ResourceClass struct {
+				ID string `json:"id"`
+			} `json:"resource_class"`
+		} `json:"references"`
+		Nickname string `json:"nickname"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		render.Status(r, http.StatusBadRequest)
+		render.JSON(w, r, map[string]any{"message": "invalid body"})
+		return
+	}
+
+	f.mu.RLock()
+	status, override := f.runnerTokenCreateStatus, f.runnerTokenCreateBody
+	f.mu.RUnlock()
+	if status != 0 {
+		render.Status(r, status)
+		if override == nil {
+			override = map[string]any{"message": "runner token creation failed"}
+		}
+		render.JSON(w, r, override)
+		return
+	}
+
+	rcID := body.References.ResourceClass.ID
+	f.mu.RLock()
+	var rcSlug string
+	for _, rc := range f.resourceClasses {
+		if rc.ID == rcID {
+			rcSlug = rc.Slug
+			break
+		}
+	}
+	f.mu.RUnlock()
+
+	tok := RunnerToken{
+		ID:            fmt.Sprintf("tok-%s", rcSlug),
+		ResourceClass: rcSlug,
+		Nickname:      body.Nickname,
+		CreatedAt:     "2026-01-01T00:00:00Z",
+		Token:         "fake-runner-token-value",
+	}
+	f.mu.Lock()
+	f.runnerTokens[rcSlug] = append(f.runnerTokens[rcSlug], tok)
+	f.mu.Unlock()
+	render.Status(r, http.StatusCreated)
+	render.JSON(w, r, map[string]any{"data": runnerTokenV3CreateEntity(tok)})
+}
+
+func (f *CircleCI) handleDeleteRunnerTokenV3(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	f.mu.Lock()
 	found := false

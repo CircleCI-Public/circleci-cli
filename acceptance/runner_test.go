@@ -651,20 +651,17 @@ func TestRunnerResourceClassDelete_NotFound(t *testing.T) {
 
 // --- token list ---
 
-// Without --resource-class every resource class in the namespace is enumerated.
+// Without --resource-class every resource class in the org is enumerated.
 func TestRunnerTokenList_EnumeratesEveryResourceClass(t *testing.T) {
 	fake, env := setupRunnerFake(t)
 	fake.AddResourceClass(fakeRC("33333333-3333-4333-8333-333333333333", "my-org/idle-runner", "No runners attached"))
 	fake.AddRunnerToken("my-org/idle-runner", fakeToken("tok-id-9", "my-org/idle-runner", "idle-token"))
 
-	dir := t.TempDir()
-	initGitRepoWithRemote(t, dir, "git@github.com:my-org/some-repo.git")
-
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"runner", "token", "list", "--json"},
+		Args:    []string{"runner", "token", "list", "--org", testRunnerOrgID, "--json"},
 		Env:     env.Environ(),
-		WorkDir: dir,
+		WorkDir: t.TempDir(),
 	})
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
@@ -680,6 +677,40 @@ func TestRunnerTokenList_EnumeratesEveryResourceClass(t *testing.T) {
 	}
 	assert.Check(t, cmp.Contains(ids, "tok-id-9"))
 	assert.Check(t, cmp.Len(ids, 3))
+}
+
+func TestRunnerTokenList_NoOrgDetermined(t *testing.T) {
+	// Outside any git checkout with no --org and no --resource-class, the CLI
+	// must fail with a structured bad-arguments error.
+	env := testenv.New(t)
+	env.Token = testToken
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"runner", "token", "list"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, clierrors.ExitBadArguments))
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+}
+
+func TestRunnerTokenList_Org(t *testing.T) {
+	fake, env := setupRunnerFake(t)
+	fake.AddOrg(testRunnerOrgID, "gh/my-org", "My Org", "github")
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"runner", "token", "list", "--org", "gh/my-org"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 0))
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 }
 
 func TestRunnerTokenList(t *testing.T) {
@@ -798,15 +829,24 @@ func TestRunnerTokenCreate(t *testing.T) {
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
 	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 
-	t.Run("check request", func(t *testing.T) {
-		assert.Check(t, cmp.DeepEqual(fake.LastRequest(), &httprecorder.Request{
+	t.Run("check requests", func(t *testing.T) {
+		reqs := fake.AllRequests()
+		assert.Assert(t, cmp.Len(reqs, 2))
+
+		// First: resolve resource class by slug to get UUID.
+		assert.Check(t, cmp.Equal(reqs[0].Method, http.MethodGet))
+		assert.Check(t, cmp.Equal(reqs[0].URL.Path, "/api/v3/runner/resource-classes"))
+		assert.Check(t, cmp.Equal(reqs[0].URL.Query().Get("filter[slug]"), "my-org/linux-runner"))
+
+		// Second: create token via V3 using the resource class UUID.
+		assert.Check(t, cmp.DeepEqual(reqs[1], httprecorder.Request{
 			Method: http.MethodPost,
-			URL:    url.URL{Path: "/api/v3/runner/token"},
+			URL:    url.URL{Path: "/api/v3/runner/tokens"},
 			Header: http.Header{
 				"Authorization": {"Bearer test-token"},
 				"User-Agent":    {httpcl.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
 			},
-			Body: new(`{"nickname":"my-server","resource_class":"my-org/linux-runner"}`),
+			Body: new(`{"nickname":"my-server","references":{"resource_class":{"id":"11111111-1111-4111-8111-111111111111"}}}`),
 		}, ignoreCommonHeaders))
 	})
 }
@@ -882,7 +922,7 @@ func TestRunnerTokenDelete(t *testing.T) {
 	t.Run("check request", func(t *testing.T) {
 		assert.Check(t, cmp.DeepEqual(fake.LastRequest(), &httprecorder.Request{
 			Method: http.MethodDelete,
-			URL:    url.URL{Path: "/api/v3/runner/token/tok-id-1"},
+			URL:    url.URL{Path: "/api/v3/runner/tokens/tok-id-1"},
 			Header: http.Header{
 				"Authorization": {"Bearer test-token"},
 				"User-Agent":    {httpcl.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
