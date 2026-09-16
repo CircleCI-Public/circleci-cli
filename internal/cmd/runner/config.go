@@ -24,10 +24,12 @@ package runner
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 
 	"github.com/MakeNowJust/heredoc"
+	"github.com/google/uuid"
 	"github.com/spf13/cobra"
 
 	clierrors "github.com/CircleCI-Public/circleci-cli/clikit/errors"
@@ -210,7 +212,23 @@ func configWriteErr(err error) *clierrors.CLIError {
 }
 
 func runConfigCreateToken(ctx context.Context, client *apiclient.Client, resourceClass, nickname string) (string, error) {
-	tok, err := client.CreateRunnerToken(ctx, resourceClass, nickname)
+	rc, err := client.ResourceClassByName(ctx, resourceClass)
+	if err != nil {
+		if errors.Is(err, apiclient.ErrResourceClassNotFound) {
+			return "", clierrors.New("runner.not_found", "Not found",
+				"No runner resource class named "+resourceClass+".").
+				WithSuggestions("List available resource classes with: circleci runner resource-class list").
+				WithExitCode(clierrors.ExitNotFound)
+		}
+		return "", apiErr(err, resourceClass)
+	}
+
+	rcID, err := uuid.Parse(rc.ID)
+	if err != nil {
+		return "", apiErr(err, resourceClass)
+	}
+
+	tok, err := client.CreateRunnerTokenV3(ctx, rcID, resourceClass, nickname)
 	if err != nil {
 		return "", apiErr(err, resourceClass)
 	}

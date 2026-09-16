@@ -210,6 +210,80 @@ func (c *Client) DeleteRunnerToken(ctx context.Context, tokenID string) error {
 	return err
 }
 
+// v3RunnerTokenItem is a token item from the V3 /runner/tokens endpoint.
+// List items carry only attributes; the resource class is not included.
+type v3RunnerTokenItem struct {
+	ID         string `json:"id"`
+	Attributes struct {
+		Nickname  string `json:"nickname"`
+		CreatedAt string `json:"created_at"`
+		Token     string `json:"token,omitempty"`
+	} `json:"attributes"`
+}
+
+// ListRunnerTokensV3 returns tokens for the given resource class UUID, using the
+// V3 /runner/tokens endpoint. The ResourceClass field in returned tokens is
+// filled from rcSlug since the V3 list response does not carry a resource class.
+func (c *Client) ListRunnerTokensV3(ctx context.Context, rcID uuid.UUID, rcSlug string) ([]RunnerToken, error) {
+	var resp struct {
+		Data []v3RunnerTokenItem `json:"data"`
+	}
+	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodGet, "/api/v3/runner/tokens",
+		httpcl.QueryParam("filter[resource_class_id]", rcID.String()),
+		httpcl.JSONDecoder(&resp),
+	))
+	if err != nil {
+		return nil, err
+	}
+	tokens := make([]RunnerToken, len(resp.Data))
+	for i, t := range resp.Data {
+		tokens[i] = RunnerToken{
+			ID:            t.ID,
+			ResourceClass: rcSlug,
+			Nickname:      t.Attributes.Nickname,
+			CreatedAt:     t.Attributes.CreatedAt,
+		}
+	}
+	return tokens, nil
+}
+
+// CreateRunnerTokenV3 creates a new token for the given resource class UUID using
+// the V3 /runner/tokens endpoint. The ResourceClass field is filled from rcSlug.
+func (c *Client) CreateRunnerTokenV3(ctx context.Context, rcID uuid.UUID, rcSlug, nickname string) (*RunnerToken, error) {
+	body := map[string]any{
+		"references": map[string]any{
+			"resource_class": map[string]any{"id": rcID.String()},
+		},
+		"nickname": nickname,
+	}
+	var resp struct {
+		Data v3RunnerTokenItem `json:"data"`
+	}
+	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodPost, "/api/v3/runner/tokens",
+		httpcl.Body(body),
+		httpcl.JSONDecoder(&resp),
+	))
+	if err != nil {
+		return nil, err
+	}
+	t := resp.Data
+	return &RunnerToken{
+		ID:            t.ID,
+		ResourceClass: rcSlug,
+		Nickname:      t.Attributes.Nickname,
+		CreatedAt:     t.Attributes.CreatedAt,
+		Token:         t.Attributes.Token,
+	}, nil
+}
+
+// DeleteRunnerTokenV3 deletes a runner token by its ID using the V3 /runner/tokens endpoint.
+func (c *Client) DeleteRunnerTokenV3(ctx context.Context, tokenID string) error {
+	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodDelete, "/api/v3/runner/tokens/%s",
+		httpcl.RouteParams(tokenID),
+	))
+	return err
+}
+
 // ListRunnerInstancesByOrg returns the live runner instances for an
 // organization, identified by its UUID.
 func (c *Client) ListRunnerInstancesByOrg(ctx context.Context, orgID uuid.UUID) ([]RunnerInstance, error) {
