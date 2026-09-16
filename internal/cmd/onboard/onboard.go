@@ -38,6 +38,7 @@ func NewOnboardCmd() *cobra.Command {
 		noBrowser bool
 		scan      bool
 		signup    bool
+		org       string
 		repoID    string
 	)
 
@@ -53,6 +54,7 @@ func NewOnboardCmd() *cobra.Command {
 		Long: heredoc.Doc(`
 			Prompts for repo setup or signup unless --scan or --signup is given. Writes a
 			starter config if none exists, creates and follows the project, adds a trigger.
+			--org is required when you belong to several orgs and cannot be prompted.
 		`),
 		Example: heredoc.Doc(`
 			# Interactive mode: choose repo setup or signup
@@ -61,17 +63,11 @@ func NewOnboardCmd() *cobra.Command {
 			# Set up the current directory (skip the choice prompt)
 			$ circleci onboard --scan
 
-			# Set up and wire up the first pipeline without prompts
-			$ circleci onboard --scan --repo-id 123456789
+			# Set up in a named org (required when you belong to several)
+			$ circleci onboard --scan --org gh/acme
 
 			# Sign up for CircleCI (no repo needed)
 			$ circleci onboard --signup
-
-			# Onboard a specific project path
-			$ circleci onboard --scan ./my-app
-
-			# Print the signup URL instead of opening a browser
-			$ circleci onboard --signup --no-browser
 		`),
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -95,6 +91,7 @@ func NewOnboardCmd() *cobra.Command {
 				ConfigPath:    configPath,
 				Scan:          scan,
 				Signup:        signup,
+				Org:           org,
 				RepoID:        repoID,
 			})
 		},
@@ -103,6 +100,7 @@ func NewOnboardCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&noBrowser, "no-browser", false, "Print the signup URL instead of opening a browser")
 	cmd.Flags().BoolVar(&scan, "scan", false, "Skip prompt: set up this repo on CircleCI")
 	cmd.Flags().BoolVar(&signup, "signup", false, "Skip prompt: sign up for CircleCI")
+	cmdutil.AddOrgFlag(cmd, &org, cmdutil.OrgFlag{Purpose: "to set the project up in"})
 	cmd.Flags().StringVar(&repoID, "repo-id", "", "Repository ID, if it cannot be resolved from the git remote")
 	return cmd
 }
