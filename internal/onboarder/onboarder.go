@@ -30,6 +30,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 
 	tea "charm.land/bubbletea/v2"
 
@@ -97,6 +98,12 @@ type Options struct {
 	SecureStorage bool
 	Scan          bool
 	Signup        bool
+	// Org is the organization to set the project up in, as a slug (gh/acme) or a
+	// UUID. When empty the organization is auto-selected if the account has
+	// exactly one, and prompted for otherwise; a session that cannot be prompted
+	// is an error rather than a silent no-op, because there is nothing onboard
+	// can do without one. See selectOrg.
+	Org string
 	// RepoID is the provider's repository ID used to wire up the first pipeline
 	// definition and trigger. When empty it is resolved through the integration
 	// that owns the checkout's remote; if that cannot resolve it, pipeline setup is
@@ -223,14 +230,17 @@ func postSignupGuidance(ctx context.Context, dir string, opts Options) error {
 
 	client, err := cmdutil.LoadClient(ctx)
 	if err != nil {
-		return stopWithGuidance(ctx)
+		return stopOrFail(ctx, err)
 	}
 
 	orgs, err := org.Require(ctx, client)
 	if err != nil {
-		return stopWithGuidance(ctx)
+		return stopOrFail(ctx, err)
 	}
-	selectedOrg := selectOrg(ctx, orgs)
+	selectedOrg, err := selectOrg(ctx, orgs, opts.Org)
+	if err != nil {
+		return err
+	}
 	if selectedOrg == nil {
 		return stopWithGuidance(ctx)
 	}
@@ -289,8 +299,14 @@ func postSignupGuidance(ctx context.Context, dir string, opts Options) error {
 				return nil
 			}
 		case err != nil:
-			iostream.ErrPrintf(ctx, "%s Could not create project: %s\n", iostream.SymbolWarn(ctx), err)
-			return stopWithGuidance(ctx)
+			return stopOrFail(ctx, clierrors.New("onboard.project_create_failed",
+				"Could not create the project",
+				fmt.Sprintf("Creating project %q in %s failed: %s.", name, selectedOrg.Slug, err)).
+				WithSuggestions(
+					"Run 'circleci project create' to create it directly",
+					"Check you have permission to create projects in this organization",
+				).
+				WithExitCode(clierrors.ExitAPIError))
 		default:
 			proj = created
 			iostream.Printf(ctx, "%s Project created: %s\n", iostream.SymbolOK(ctx), proj.Name)
@@ -311,15 +327,43 @@ func postSignupGuidance(ctx context.Context, dir string, opts Options) error {
 	return setupFirstPipeline(ctx, client, appURL, proj, remote, opts)
 }
 
-// selectOrg picks the organization to create the project in, returning nil when
-// the user cannot be asked or declines.
-func selectOrg(ctx context.Context, orgs []apiclient.Collaboration) *apiclient.Collaboration {
+// selectOrg picks the organization to create the project in. A nil result with
+// no error means the user was asked and declined, which callers fall back to
+// manual guidance for.
+//
+// ref is an --org value: a slug or a UUID, matched against the organizations the
+// account belongs to. An unmatched one is an error rather than a prompt — the
+// user named an organization, so quietly setting up a different one is the worst
+// available answer.
+//
+// With no ref and no way to prompt, this is an error too. The alternative is the
+// behaviour this replaced: printing guidance and exiting 0, having created
+// nothing, which is indistinguishable from success to every caller that is not a
+// human reading stdout. onboard is exposed as an MCP tool, so that caller is
+// routinely not a human.
+func selectOrg(ctx context.Context, orgs []apiclient.Collaboration, ref string) (*apiclient.Collaboration, error) {
+	if ref != "" {
+		if match := matchOrg(orgs, ref); match != nil {
+			iostream.Printf(ctx, "%s Using organization %s\n", iostream.SymbolOK(ctx), match.Slug)
+			return match, nil
+		}
+		return nil, clierrors.New("onboard.org_not_found", "Organization not found",
+			fmt.Sprintf("You are not a member of an organization matching %q.", ref)).
+			WithSuggestions(orgSuggestions(orgs)...).
+			WithExitCode(clierrors.ExitBadArguments)
+	}
+
 	if len(orgs) == 1 {
 		iostream.Printf(ctx, "%s Using organization %s\n", iostream.SymbolOK(ctx), orgs[0].Slug)
-		return &orgs[0]
+		return &orgs[0], nil
 	}
 	if !iostream.IsInteractive(ctx) {
-		return nil
+		return nil, clierrors.New("onboard.org_required", "Multiple organizations",
+			"You belong to more than one organization, and this session cannot prompt for one.").
+			WithSuggestions(append(
+				[]string{"Pass the organization: circleci onboard --scan --org <slug>"},
+				orgSuggestions(orgs)...)...).
+			WithExitCode(clierrors.ExitBadArguments)
 	}
 
 	iostream.ErrPrintf(ctx, "\nLet's create your CircleCI project.\n\n")
@@ -333,9 +377,52 @@ func selectOrg(ctx context.Context, orgs []apiclient.Collaboration) *apiclient.C
 	idx, err := iostream.PromptSelect(ctx,
 		"Which organization should this project belong to?", labels)
 	if err != nil || idx < 0 {
-		return nil
+		return nil, nil
 	}
-	return &orgs[idx]
+	return &orgs[idx], nil
+}
+
+// matchOrg resolves an --org value against the account's organizations. A slug
+// is compared case-insensitively because a VCS slug carries the account's own
+// casing (gh/CircleCI-Public), which nobody types reliably; a UUID is compared
+// the same way for the same reason.
+func matchOrg(orgs []apiclient.Collaboration, ref string) *apiclient.Collaboration {
+	for i := range orgs {
+		if strings.EqualFold(orgs[i].Slug, ref) || strings.EqualFold(orgs[i].ID, ref) {
+			return &orgs[i]
+		}
+	}
+	return nil
+}
+
+// orgSuggestions lists the account's organizations as error suggestions, capped
+// so an account in dozens of them still produces a readable error.
+func orgSuggestions(orgs []apiclient.Collaboration) []string {
+	const maxListed = 10
+	slugs := make([]string, 0, len(orgs))
+	for _, o := range orgs {
+		slugs = append(slugs, o.Slug)
+	}
+	if len(slugs) > maxListed {
+		return []string{fmt.Sprintf("Your organizations: %s (and %d more — see circleci org list)",
+			strings.Join(slugs[:maxListed], ", "), len(slugs)-maxListed)}
+	}
+	return []string{"Your organizations: " + strings.Join(slugs, ", ")}
+}
+
+// stopOrFail degrades to manual guidance for a human, and reports err to
+// everyone else.
+//
+// Printing how to connect the repository by hand and exiting 0 is a fair answer
+// for someone reading a terminal: the work is not done, but they can see that and
+// they have the command that finishes it. It is the wrong answer for a program,
+// which sees a zero exit and concludes onboarding succeeded. onboard is exposed
+// as an MCP tool, so a program is a routine caller.
+func stopOrFail(ctx context.Context, err error) error {
+	if !iostream.IsInteractive(ctx) {
+		return err
+	}
+	return stopWithGuidance(ctx)
 }
 
 // stopWithGuidance prints how to connect the repository by hand and ends the run

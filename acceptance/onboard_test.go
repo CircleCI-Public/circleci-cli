@@ -920,6 +920,9 @@ func TestOnboard_PostSignup_ClassicOrg_FollowsProject(t *testing.T) {
 	assert.Check(t, cmp.Contains(result.Stdout, "Commit and push .circleci/config.yml"))
 }
 
+// TestOnboard_PostSignup_NoOrgs covers an account in no organization at all. A
+// non-interactive run reports that: nothing was created, so exiting 0 would tell
+// a caller the opposite of what happened.
 func TestOnboard_PostSignup_NoOrgs(t *testing.T) {
 	dir := t.TempDir()
 	initGitDir(t, dir)
@@ -933,10 +936,14 @@ func TestOnboard_PostSignup_NoOrgs(t *testing.T) {
 		WorkDir: t.TempDir(),
 	})
 
-	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
-	assert.Check(t, cmp.Contains(result.Stdout, "circleci project create"))
+	assert.Check(t, cmp.Equal(result.ExitCode, 5))
+	assert.Check(t, cmp.Contains(result.Stderr, "not a member of any CircleCI organizations"))
 }
 
+// TestOnboard_PostSignup_CreateFails covers a rejected project create. The
+// project is the thing the rest of the flow hangs off, so a run that could not
+// create one has done nothing and must say so rather than print guidance and
+// exit 0.
 func TestOnboard_PostSignup_CreateFails(t *testing.T) {
 	dir, fake, env := onboardRepo(t)
 	fake.SetCreateProjectResponse(nil)
@@ -947,9 +954,9 @@ func TestOnboard_PostSignup_CreateFails(t *testing.T) {
 		WorkDir: dir,
 	})
 
-	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
-	assert.Check(t, cmp.Contains(result.Stderr, "Could not create project"))
-	assert.Check(t, cmp.Contains(result.Stdout, "circleci project create"))
+	assert.Check(t, cmp.Equal(result.ExitCode, 4))
+	assert.Check(t, cmp.Contains(result.Stderr, `Creating project "my-repo" in circleci/myorg failed`))
+	assert.Check(t, cmp.Contains(result.Stderr, "circleci project create"))
 }
 
 // onboardRepo builds the fixture shared by the post-signup tests: a checkout with
@@ -1320,4 +1327,139 @@ func awaitOnboardProps(t *testing.T, segment *fakesegment.Service) map[string]an
 		return poll.Continue("no command_invocation event yet")
 	})
 	return props
+}
+
+// multiOrgOnboardRepo is onboardRepo for an account in two organizations, which
+// is what makes the organization choice load-bearing.
+func multiOrgOnboardRepo(t *testing.T) (string, *fakes.CircleCI, *testenv.TestEnv) {
+	t.Helper()
+	dir, fake, env := onboardRepo(t)
+	fake.SetCollaborations(
+		fakes.Collaboration{ID: onboardOrgID, Name: "myorg", Slug: "circleci/myorg", VCSType: "circleci"},
+		fakes.Collaboration{
+			ID:   "b0000000-0000-4000-8000-00000000000b",
+			Name: "otherorg", Slug: "gh/otherorg", VCSType: "github",
+		},
+	)
+	return dir, fake, env
+}
+
+// TestOnboard_MultipleOrgs_RequiresOrg is a regression test for onboard printing
+// guidance and exiting 0, having created nothing, when it could not ask which
+// organization to use. Exit 0 with no work done is indistinguishable from success
+// to every caller that is not a human reading stdout, and onboard is exposed as
+// an MCP tool, so that caller is routinely not a human.
+func TestOnboard_MultipleOrgs_RequiresOrg(t *testing.T) {
+	dir, _, env := multiOrgOnboardRepo(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"onboard", "--scan"},
+		Env:     env.Environ(),
+		WorkDir: dir,
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 2))
+	assert.Check(t, cmp.Contains(result.Stderr, "You belong to more than one organization"))
+	assert.Check(t, cmp.Contains(result.Stderr, "circleci onboard --scan --org <slug>"))
+	assert.Check(t, cmp.Contains(result.Stderr, "circleci/myorg, gh/otherorg"))
+}
+
+func TestOnboard_OrgFlag_SelectsOrg(t *testing.T) {
+	dir, fake, env := multiOrgOnboardRepo(t)
+	addFirstPipelineResponses(fake)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary: binaryPath,
+		Args: []string{"onboard", "--scan", "--org", "circleci/myorg",
+			"--repo-id", onboardRepoExternalID},
+		Env:     env.Environ(),
+		WorkDir: dir,
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, cmp.Contains(result.Stdout, "Using organization circleci/myorg"))
+	assert.Check(t, cmp.Contains(result.Stdout, "Project created: my-repo"))
+	assert.Check(t, cmp.Contains(result.Stdout, "Trigger created: all-pushes"))
+}
+
+// TestOnboard_OrgFlag_AcceptsUUID covers --org taking an organization UUID, the
+// same as every other command's --org.
+func TestOnboard_OrgFlag_AcceptsUUID(t *testing.T) {
+	dir, fake, env := multiOrgOnboardRepo(t)
+	addFirstPipelineResponses(fake)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary: binaryPath,
+		Args: []string{"onboard", "--scan", "--org", onboardOrgID,
+			"--repo-id", onboardRepoExternalID},
+		Env:     env.Environ(),
+		WorkDir: dir,
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, cmp.Contains(result.Stdout, "Using organization circleci/myorg"))
+}
+
+// TestOnboard_OrgFlag_NotAMember covers a named organization that does not
+// resolve: the user said which one, so setting up a different one silently would
+// be the worst available answer.
+func TestOnboard_OrgFlag_NotAMember(t *testing.T) {
+	dir, _, env := multiOrgOnboardRepo(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"onboard", "--scan", "--org", "gh/not-mine"},
+		Env:     env.Environ(),
+		WorkDir: dir,
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 2))
+	assert.Check(t, cmp.Contains(result.Stderr, `not a member of an organization matching "gh/not-mine"`))
+	assert.Check(t, cmp.Contains(result.Stderr, "circleci/myorg, gh/otherorg"))
+}
+
+// TestOnboard_MultipleOrgs_Interactive_Picks is the counterpart to
+// TestOnboard_MultipleOrgs_RequiresOrg: the same account, at a terminal, still
+// picks its organization from the list. --org is what a session that cannot be
+// prompted needs, not a new requirement for everyone.
+func TestOnboard_MultipleOrgs_Interactive_Picks(t *testing.T) {
+	dir, fake, env := multiOrgOnboardRepo(t)
+	addFirstPipelineResponses(fake)
+
+	console := binary.RunCLIInteractive(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"onboard", "--scan", "--repo-id", onboardRepoExternalID},
+		Env:     env.Environ(),
+		WorkDir: dir,
+	})
+
+	assert.Assert(t, t.Run("confirms the preamble", func(t *testing.T) {
+		_, err := console.ExpectString("Press Enter to continue")
+		assert.NilError(t, err)
+		_, err = console.Send("\r")
+		assert.NilError(t, err)
+	}))
+
+	assert.Assert(t, t.Run("offers both organizations", func(t *testing.T) {
+		_, err := console.ExpectString("Which organization should this project belong to?")
+		assert.NilError(t, err)
+		_, err = console.ExpectString("circleci/myorg")
+		assert.NilError(t, err)
+		_, err = console.ExpectString("gh/otherorg")
+		assert.NilError(t, err)
+	}))
+
+	assert.Assert(t, t.Run("sets the project up in the chosen one", func(t *testing.T) {
+		// Enter takes the highlighted organization, then the project name
+		// default, which is the repository's own name.
+		_, err := console.Send("\r")
+		assert.NilError(t, err)
+		_, err = console.ExpectString("Project name")
+		assert.NilError(t, err)
+		_, err = console.Send("\r")
+		assert.NilError(t, err)
+		_, err = console.ExpectString("Project created: my-repo")
+		assert.NilError(t, err)
+	}))
 }
