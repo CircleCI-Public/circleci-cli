@@ -162,21 +162,23 @@ jobs:
           name: Verify circleci binary
           command: circleci version
 
+  # Matrixed over the executors rather than over the tags: only the architecture
+  # needs a machine of its own, so each job checks both variants. Printing the
+  # arch inside the container makes the log say which half of the manifest ran. A
+  # tag missing this platform fails here anyway — the arm machine images carry no
+  # binfmt, so there is nothing to silently emulate an amd64-only image with.
   smoke-test-docker:
     parameters:
       executor:
         type: executor
-      tag:
-        type: string
     executor: << parameters.executor >>
     steps:
       - run:
-          name: Verify circleci/circleci-cli:<< parameters.tag >>
-          # Printing the arch inside the container makes the log say which half
-          # of the manifest ran. A tag missing this platform fails here anyway —
-          # the arm machine images carry no binfmt, so there is nothing to
-          # silently emulate an amd64-only image with.
-          command: docker run --rm circleci/circleci-cli:<< parameters.tag >> sh -c 'uname -m; circleci version'
+          name: Verify circleci/circleci-cli:v1
+          command: docker run --rm circleci/circleci-cli:v1 sh -c 'uname -m; circleci version'
+      - run:
+          name: Verify circleci/circleci-cli:v1-alpine
+          command: docker run --rm circleci/circleci-cli:v1-alpine sh -c 'uname -m; circleci version'
 
   docs:
     executor: linux
@@ -317,9 +319,6 @@ workflows:
               executor:
                 - linux
                 - linux-arm
-              tag:
-                - v1
-                - v1-alpine
           requires:
             - deploy
           filters:
