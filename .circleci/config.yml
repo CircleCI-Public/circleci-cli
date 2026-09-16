@@ -29,6 +29,27 @@ commands:
             sh -c "$(curl --location https://taskfile.dev/install.sh)" -- -d -b "$HOME/.local/bin"
             echo 'export PATH="$HOME/.local/bin:$PATH"' >> "$BASH_ENV"
 
+  # GoReleaser's dockers_v2 pipe shells out to `docker buildx build`, so the
+  # builder and the registry login have to exist before it runs.
+  setup-docker:
+    steps:
+      - run:
+          name: Create a buildx builder
+          # The machine image's default buildx driver is `docker`, which can
+          # neither build for two platforms in one invocation nor push a
+          # manifest list. A docker-container driver can do both.
+          command: docker buildx create --use --driver docker-container
+      - run:
+          name: Log in to Docker Hub
+          # Absent on branch dry-runs, which have no context: the snapshot build
+          # still exercises the Dockerfile, it just pushes nothing.
+          command: |
+            if [ -z "${DOCKER_HUB_USERNAME:-}" ]; then
+              echo "No Docker Hub credentials — skipping login (snapshot builds do not push)."
+              exit 0
+            fi
+            echo "$DOCKER_HUB_PASSWORD" | docker login --username "$DOCKER_HUB_USERNAME" --password-stdin
+
   store_results:
     steps:
       - store_test_results:
@@ -97,6 +118,7 @@ jobs:
           - run: task ci:release
     steps:
       - setup
+      - setup-docker
       - run: sudo apt update --yes
       - run:
           name: Install snapcraft
@@ -247,6 +269,29 @@ workflows:
                   brew update
                   rm -f /opt/homebrew/bin/circleci
                   brew install circleci-public/circleci/circleci@next
+          requires:
+            - deploy
+          filters:
+            branches:
+              only: main
+
+      - smoke-test:
+          name: smoke-test-docker
+          executor: linux
+          install-steps:
+            # The image has no entrypoint (it has to stay usable as a `docker:`
+            # executor image), so wrap it in a shim on PATH and let the shared
+            # verify step run `circleci version` through the container. This
+            # overwrites the machine image's preinstalled v0 CLI, which is fine:
+            # the job runs nothing else.
+            - run:
+                name: Install circleci from the published Docker image
+                command: |
+                  docker pull circleci/circleci-cli:v1
+                  printf '%s\n' '#!/bin/sh' \
+                    'exec docker run --rm circleci/circleci-cli:v1 circleci "$@"' \
+                    | sudo tee /usr/local/bin/circleci >/dev/null
+                  sudo chmod +x /usr/local/bin/circleci
           requires:
             - deploy
           filters:
