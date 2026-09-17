@@ -11,11 +11,17 @@ The `--provider` flag names the event source. `github_app` is the default.
 | `github_app` | A repository in a GitHub org with the CircleCI GitHub App installed |
 | `github_server` | A repository on a self-hosted GitHub Enterprise Server |
 | `github_oauth` | A repository connected through the legacy GitHub OAuth integration |
+| `origin` | A repository in Cursor, reached through the CircleCI Origin app |
 | `webhook` | An inbound HTTP webhook, for sources CircleCI does not integrate with directly |
 | `schedule` | A time-based schedule rather than a repository event |
 
-The three repository-backed providers need `--repo-id`, the repository's external ID
+The four repository-backed providers need `--repo-id`, the repository's external ID
 as the provider knows it. `webhook` and `schedule` do not.
+
+`origin` additionally needs `--repo-full-name`, the repository's `owner/repo` name.
+Origin addresses repositories by owner and name and offers no lookup by id, so the name
+is what resolves the repository; a name and an ID that disagree are rejected. The GitHub
+providers key repositories by ID alone and ignore the flag.
 
 ## Event presets
 

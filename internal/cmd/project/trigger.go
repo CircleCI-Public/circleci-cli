@@ -43,6 +43,16 @@ var repoProviders = map[string]bool{
 	"github_app":    true,
 	"github_server": true,
 	"github_oauth":  true,
+	"origin":        true,
+}
+
+// fullNameProviders are the event source providers that address a repository by
+// owner and name rather than by id, and so need the full name as well as the
+// repository ID. Origin exposes no lookup by id, so the full name is what
+// resolves the repository at all; the API rejects a trigger without it and
+// rejects a pair that names two different repositories.
+var fullNameProviders = map[string]bool{
+	"origin": true,
 }
 
 // validProviders lists the allowed values for --provider.
@@ -50,6 +60,7 @@ var validProviders = []string{
 	"github_app",
 	"github_server",
 	"github_oauth",
+	"origin",
 	"webhook",
 	"schedule",
 }
@@ -310,6 +321,7 @@ func newTriggerCreateCmd() *cobra.Command {
 		pipelineDefinitionID string
 		provider             string
 		repoID               string
+		repoFullName         string
 		eventPreset          string
 		configRef            string
 		checkoutRef          string
@@ -321,10 +333,9 @@ func newTriggerCreateCmd() *cobra.Command {
 		Short: "Create a new project trigger",
 		Long: heredoc.Docf(`
 			Create a new trigger for a CircleCI project, connecting an event source to a
-			pipeline definition so that matching events start a pipeline run.
-
-			Required values are prompted for in a terminal, and must be flags otherwise.
-			Run %[1]scircleci help triggers%[1]s for what each provider and event preset means.
+			pipeline definition so that matching events start a pipeline run. Required
+			values prompt in a terminal. Run %[1]scircleci help triggers%[1]s for what each
+			provider and event preset means.
 
 			JSON fields: id, created_at, event_name, event_preset, config_ref, checkout_ref, disabled
 		`, "`"),
@@ -334,11 +345,12 @@ func newTriggerCreateCmd() *cobra.Command {
 			    --pipeline-definition-id a1b2c3d4-... \
 			    --repo-id 123456789
 
-			# Create a trigger for a GitHub Server installation
+			# Create a trigger for a Cursor repository (Origin needs the owner/name too)
 			$ circleci project trigger create \
-			    --provider github_server \
+			    --provider origin \
 			    --pipeline-definition-id a1b2c3d4-... \
-			    --repo-id 123456789
+			    --repo-id repo_01abc \
+			    --repo-full-name myorg/myrepo
 
 			# Create a trigger with event filtering and output as JSON
 			$ circleci project trigger create \
@@ -354,7 +366,7 @@ func newTriggerCreateCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return runTriggerCreate(ctx, client, projectSlug, projectID, pipelineDefinitionID, provider, repoID, eventPreset, configRef, checkoutRef, jsonOut)
+			return runTriggerCreate(ctx, client, projectSlug, projectID, pipelineDefinitionID, provider, repoID, repoFullName, eventPreset, configRef, checkoutRef, jsonOut)
 		},
 	}
 
@@ -362,7 +374,8 @@ func newTriggerCreateCmd() *cobra.Command {
 	cmd.Flags().StringVar(&projectID, "project-id", "", "Project UUID (overrides --project)")
 	cmd.Flags().StringVar(&pipelineDefinitionID, "pipeline-definition-id", "", "Pipeline definition ID (required)")
 	cmd.Flags().StringVar(&provider, "provider", "github_app", fmt.Sprintf("Event source provider (one of: %s)", strings.Join(validProviders, ", ")))
-	cmd.Flags().StringVar(&repoID, "repo-id", "", "Repository external ID (required for github_app, github_server, github_oauth)")
+	cmd.Flags().StringVar(&repoID, "repo-id", "", "Repository external ID (required for github_app, github_server, github_oauth, origin)")
+	cmd.Flags().StringVar(&repoFullName, "repo-full-name", "", "Repository owner/name (required for origin)")
 	cmd.Flags().StringVar(&eventPreset, "event-preset", "", fmt.Sprintf("Event preset for filtering trigger events (one of: %s)", strings.Join(validEventPresets, ", ")))
 	cmd.Flags().StringVar(&configRef, "config-ref", "", "Git ref for fetching config (only needed when config repo differs from event source repo)")
 	cmd.Flags().StringVar(&checkoutRef, "checkout-ref", "", "Git ref for checking out code (only needed when checkout repo differs from event source repo)")
@@ -385,7 +398,7 @@ type triggerCreateOutput struct {
 func runTriggerCreate(
 	ctx context.Context,
 	client *apiclient.Client,
-	projectSlug, projectID, pipelineDefinitionID, provider, repoID, eventPreset, configRef, checkoutRef string,
+	projectSlug, projectID, pipelineDefinitionID, provider, repoID, repoFullName, eventPreset, configRef, checkoutRef string,
 	jsonOut bool,
 ) error {
 	if err := validateProvider(provider); err != nil {
@@ -439,6 +452,32 @@ func runTriggerCreate(
 		}
 	}
 
+	// Origin addresses a repository by owner and name and offers no lookup by id,
+	// so the full name is required alongside --repo-id rather than decorative.
+	if repoFullName == "" && fullNameProviders[provider] {
+		if !iostream.IsInteractive(ctx) {
+			return clierrors.New("args.missing_flag", "Missing required flag",
+				fmt.Sprintf("--repo-full-name is required for provider %q in non-interactive mode.", provider)).
+				WithSuggestions(
+					"Pass --repo-full-name <owner>/<repo>",
+					"It must name the same repository as --repo-id",
+				).
+				WithExitCode(clierrors.ExitBadArguments)
+		}
+		var promptErr error
+		repoFullName, promptErr = iostream.PromptText(ctx,
+			"Repository owner/name",
+			"e.g. myorg/myrepo")
+		if promptErr != nil {
+			return promptErr
+		}
+		if repoFullName == "" {
+			return clierrors.New("trigger.create_cancelled", "Aborted",
+				"No repository owner/name entered.").
+				WithExitCode(clierrors.ExitCancelled)
+		}
+	}
+
 	if eventPreset != "" {
 		if err := validateEventPreset(eventPreset); err != nil {
 			return err
@@ -450,6 +489,7 @@ func runTriggerCreate(
 		PipelineDefinitionID: pipelineDefinitionID,
 		Provider:             provider,
 		RepoID:               repoID,
+		RepoFullName:         repoFullName,
 		EventPreset:          eventPreset,
 		ConfigRef:            configRef,
 		CheckoutRef:          checkoutRef,

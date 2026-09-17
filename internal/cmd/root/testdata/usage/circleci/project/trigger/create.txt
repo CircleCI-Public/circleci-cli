@@ -10,6 +10,7 @@ Flags:
       --pipeline-definition-id string   Pipeline definition ID (required)
       --project string                  Project slug (e.g. gh/org/repo); defaults to git remote
       --project-id string               Project UUID (overrides --project)
-      --provider string                 Event source provider (one of: github_app, github_server, github_oauth, webhook, schedule) (default "github_app")
-      --repo-id string                  Repository external ID (required for github_app, github_server, github_oauth)
+      --provider string                 Event source provider (one of: github_app, github_server, github_oauth, origin, webhook, schedule) (default "github_app")
+      --repo-full-name string           Repository owner/name (required for origin)
+      --repo-id string                  Repository external ID (required for github_app, github_server, github_oauth, origin)
   

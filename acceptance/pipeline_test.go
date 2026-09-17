@@ -47,6 +47,8 @@ const (
 	pipelineProjectID = "a0000000-0000-4000-8000-0000000b0001"
 	pipelineDefID     = "pdef-uuid-0001"
 	pipelineRepoID    = "987654321"
+	// Origin repository ids are opaque text rather than numeric.
+	pipelineOriginRepoID = "repo_01abc"
 )
 
 // fakePipelineDefPayload builds a v3 pipeline data entity with both sources
@@ -290,6 +292,128 @@ func TestPipelineCreate_InvalidConfigProvider(t *testing.T) {
 
 	assert.Equal(t, result.ExitCode, 2, "stderr: %s", result.Stderr)
 	assert.Check(t, strings.Contains(result.Stderr, "bitbucket"))
+}
+
+// Origin keys repositories by a text id and resolves them by owner and name, so
+// both travel on the create. The repo full name is load-bearing there, not
+// decorative as it is for the GitHub providers.
+func TestPipelineCreate_Origin(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	fake.AddProjectBySlug("gh/myorg/myrepo", pipelineProjectID, "myrepo", "a0000000-0000-4000-8000-0000000b0003")
+	fake.SetCreatePipelineDefinitionResponse(pipelineProjectID,
+		fakePipelineDefPayload(pipelineDefID, "my-pipeline", "origin", pipelineOriginRepoID, ".circleci/config.yml", "origin", pipelineOriginRepoID),
+	)
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary: binaryPath,
+		Args: []string{
+			"pipeline", "create",
+			"--project-id", pipelineProjectID,
+			"--name", "my-pipeline",
+			"--config-provider", "origin",
+			"--config-repo-id", pipelineOriginRepoID,
+			"--config-repo-full-name", "myorg/myrepo",
+			"--config-file", ".circleci/config.yml",
+			"--checkout-provider", "origin",
+			"--checkout-repo-id", pipelineOriginRepoID,
+			"--checkout-repo-full-name", "myorg/myrepo",
+		},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, strings.Contains(result.Stdout, pipelineDefID))
+
+	t.Run("check request", func(t *testing.T) {
+		assert.Check(t, cmp.DeepEqual(fake.LastRequest(), &httprecorder.Request{
+			Method: http.MethodPost,
+			URL:    url.URL{Path: "/api/v3/pipelines"},
+			Header: http.Header{
+				"Authorization": {"Bearer test-token"},
+				"User-Agent":    {httpcl.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
+			},
+			Body: new(`{"data":{"attributes":{"name":"my-pipeline","config":{"type":"vcs","file_path":".circleci/config.yml","vcs":{"provider":"origin","repo_id":"` + pipelineOriginRepoID + `","repo_full_name":"myorg/myrepo"}},"checkout":{"vcs":{"provider":"origin","repo_id":"` + pipelineOriginRepoID + `","repo_full_name":"myorg/myrepo"}}},"references":{"project":{"id":"` + pipelineProjectID + `"}}}}`),
+		}, ignoreCommonHeaders))
+	})
+}
+
+func TestPipelineCreate_OriginMissingConfigRepoFullName(t *testing.T) {
+	_, env := setupPipelineFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary: binaryPath,
+		Args: []string{
+			"pipeline", "create",
+			"--project-id", pipelineProjectID,
+			"--name", "my-pipeline",
+			"--config-provider", "origin",
+			"--config-repo-id", pipelineOriginRepoID,
+			"--config-file", ".circleci/config.yml",
+			"--checkout-provider", "origin",
+			"--checkout-repo-id", pipelineOriginRepoID,
+			"--checkout-repo-full-name", "myorg/myrepo",
+		},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 2, "stderr: %s", result.Stderr)
+	assert.Check(t, strings.Contains(result.Stderr, "--config-repo-full-name"))
+}
+
+func TestPipelineCreate_OriginMissingCheckoutRepoFullName(t *testing.T) {
+	_, env := setupPipelineFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary: binaryPath,
+		Args: []string{
+			"pipeline", "create",
+			"--project-id", pipelineProjectID,
+			"--name", "my-pipeline",
+			"--config-provider", "origin",
+			"--config-repo-id", pipelineOriginRepoID,
+			"--config-repo-full-name", "myorg/myrepo",
+			"--config-file", ".circleci/config.yml",
+			"--checkout-provider", "origin",
+			"--checkout-repo-id", pipelineOriginRepoID,
+		},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 2, "stderr: %s", result.Stderr)
+	assert.Check(t, strings.Contains(result.Stderr, "--checkout-repo-full-name"))
+}
+
+// A GitHub provider keys repositories by id alone, so an unasked-for full name is
+// not invented for it even when one is passed.
+func TestPipelineCreate_GitHubAppIgnoresRepoFullName(t *testing.T) {
+	fake, env := setupPipelineFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary: binaryPath,
+		Args: []string{
+			"pipeline", "create",
+			"--project-id", pipelineProjectID,
+			"--name", "my-pipeline",
+			"--config-provider", "github_app",
+			"--config-repo-id", pipelineRepoID,
+			"--config-file", ".circleci/config.yml",
+			"--checkout-provider", "github_app",
+			"--checkout-repo-id", pipelineRepoID,
+		},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	body := fake.LastRequest().Body
+	assert.Assert(t, body != nil)
+	assert.Check(t, !strings.Contains(*body, "repo_full_name"), "body: %s", *body)
 }
 
 func TestPipelineCreate_WithGitHubActionsFileType(t *testing.T) {
