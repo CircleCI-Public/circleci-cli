@@ -670,7 +670,7 @@ func TestPipelineRun_WithParams(t *testing.T) {
 				"Authorization": {"Bearer test-token"},
 				"User-Agent":    {httpcl.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
 			},
-			Body: new(`{"parameters":{"deploy_env":"staging","run_tests":"true"}}`),
+			Body: new(`{"parameters":{"deploy_env":"staging","run_tests":true}}`),
 		}, ignoreCommonHeaders))
 	})
 }

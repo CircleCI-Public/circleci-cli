@@ -25,7 +25,6 @@ package pipeline
 import (
 	"context"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/MakeNowJust/heredoc"
@@ -152,9 +151,11 @@ func runRun(ctx context.Context, client *apiclient.Client, projectSlug, definiti
 		return err
 	}
 
-	parameters, err := parseParams(rawParams)
+	parameters, err := cmdutil.ParseParams(rawParams)
 	if err != nil {
-		return err
+		return clierrors.New("pipeline.run.invalid_param", "Invalid parameter",
+			err.Error()).
+			WithExitCode(clierrors.ExitBadArguments)
 	}
 
 	input := apiclient.TriggerPipelineRunInput{
@@ -291,21 +292,4 @@ func resolveBranch(ctx context.Context, projInfo *apiclient.ProjectInfo, current
 		return v, nil
 	}
 	return options[idx], nil
-}
-
-func parseParams(raw []string) (map[string]any, error) {
-	if len(raw) == 0 {
-		return nil, nil
-	}
-	out := make(map[string]any, len(raw))
-	for _, p := range raw {
-		k, v, ok := strings.Cut(p, "=")
-		if !ok || k == "" {
-			return nil, clierrors.New("pipeline.run.invalid_param", "Invalid parameter",
-				fmt.Sprintf("%q is not in key=value format", p)).
-				WithExitCode(clierrors.ExitBadArguments)
-		}
-		out[k] = v
-	}
-	return out, nil
 }
