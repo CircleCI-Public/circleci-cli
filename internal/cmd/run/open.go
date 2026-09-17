@@ -52,7 +52,7 @@ func newOpenCmd() *cobra.Command {
 			default web browser.
 
 			The project is inferred from the current git repository's remote.
-			Supports GitHub, Bitbucket, and GitLab remotes.
+			Supports GitHub and Bitbucket remotes.
 
 			Use --current-branch or --branch/-b to filter runs to a specific branch.
 		`),

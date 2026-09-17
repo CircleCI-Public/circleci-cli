@@ -27,6 +27,6 @@ Open the CircleCI project page for the current project in your
 default web browser.
 
 The project is inferred from the current git repository's remote
-unless overridden with --project. Supports GitHub, Bitbucket, and
-GitLab remotes.
+unless overridden with --project. Supports GitHub and Bitbucket
+remotes.
 

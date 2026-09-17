@@ -66,8 +66,6 @@ func TestSlugFromRemote(t *testing.T) {
 			{name: "github with .git suffix", url: "git@github.com:myorg/myrepo.git", wantSlug: "gh/myorg/myrepo"},
 			{name: "github without .git suffix", url: "git@github.com:myorg/myrepo", wantSlug: "gh/myorg/myrepo"},
 			{name: "bitbucket", url: "git@bitbucket.org:myorg/myrepo.git", wantSlug: "bb/myorg/myrepo"},
-			{name: "gitlab", url: "git@gitlab.com:myorg/myrepo.git", wantSlug: "gl/myorg/myrepo"},
-			{name: "self-hosted gitlab", url: "git@gitlab.mycompany.com:myorg/myrepo.git", wantSlug: "gl/myorg/myrepo"},
 		})
 	})
 
@@ -84,7 +82,6 @@ func TestSlugFromRemote(t *testing.T) {
 			{name: "https github without .git suffix", url: "https://github.com/myorg/myrepo", wantSlug: "gh/myorg/myrepo"},
 			{name: "plain http github", url: "http://github.com/myorg/myrepo.git", wantSlug: "gh/myorg/myrepo"},
 			{name: "https bitbucket", url: "https://bitbucket.org/myorg/myrepo.git", wantSlug: "bb/myorg/myrepo"},
-			{name: "https gitlab", url: "https://gitlab.com/myorg/myrepo.git", wantSlug: "gl/myorg/myrepo"},
 		})
 	})
 
@@ -95,9 +92,16 @@ func TestSlugFromRemote(t *testing.T) {
 		})
 	})
 
+	// GitLab belongs here rather than beside GitHub and Bitbucket: it is only
+	// usable through standalone projects, whose slug is
+	// "circleci/<base58 org id>/<base58 project id>" — nothing a remote URL can
+	// be turned into. A "gl/org/repo" slug would parse and then 404.
 	t.Run("unsupported hosts and unparseable URLs return an error", func(t *testing.T) {
 		run(t, []testCase{
 			{name: "unsupported host", url: "git@codeberg.org:myorg/myrepo.git", wantError: `unsupported VCS host "codeberg.org"`},
+			{name: "gitlab", url: "git@gitlab.com:myorg/myrepo.git", wantError: `unsupported VCS host "gitlab.com"`},
+			{name: "self-hosted gitlab", url: "git@gitlab.mycompany.com:myorg/myrepo.git", wantError: `unsupported VCS host "gitlab.mycompany.com"`},
+			{name: "https gitlab", url: "https://gitlab.com/myorg/myrepo.git", wantError: `unsupported VCS host "gitlab.com"`},
 			{name: "unrecognised format", url: "not-a-url", wantError: "unrecognised git remote URL format"},
 			{name: "empty string", url: "", wantError: "unrecognised git remote URL format"},
 		})

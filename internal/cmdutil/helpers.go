@@ -130,7 +130,7 @@ func WriteJSON(w io.Writer, v any) error {
 // variadic args (e.g. "Or specify the project with --project gh/org/repo").
 func GitDetectErr(err error, suggestions ...string) *clierrors.CLIError {
 	all := append(
-		[]string{"Run from inside a git repository with a GitHub, Bitbucket, or GitLab remote"},
+		[]string{"Run from inside a git repository with a GitHub or Bitbucket remote"},
 		suggestions...,
 	)
 	return clierrors.New("git.detect_failed", "Could not detect project from git", err.Error()).
