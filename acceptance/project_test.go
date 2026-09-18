@@ -738,6 +738,8 @@ const (
 	triggerPipelineDefID = "pdef-uuid-5678"
 	triggerRepoID        = "987654321"
 	triggerID            = "trig-uuid-abcd"
+	// Origin repository ids are opaque text rather than numeric.
+	triggerOriginRepoID = "repo_01abc"
 )
 
 var triggerFixture = map[string]any{
@@ -943,6 +945,61 @@ func TestProjectTriggerCreate_MissingRepoID(t *testing.T) {
 
 	assert.Equal(t, result.ExitCode, 2, "stderr: %s", result.Stderr)
 	assert.Check(t, strings.Contains(result.Stderr, "--repo-id"))
+}
+
+// Origin resolves a repository by owner and name, so the trigger carries the full
+// name alongside the opaque repo id.
+func TestProjectTriggerCreate_Origin(t *testing.T) {
+	fake, env := setupTriggerFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary: binaryPath,
+		Args: []string{
+			"project", "trigger", "create",
+			"--project", "gh/myorg/alpha",
+			"--pipeline-definition-id", triggerPipelineDefID,
+			"--provider", "origin",
+			"--repo-id", triggerOriginRepoID,
+			"--repo-full-name", "myorg/myrepo",
+		},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, strings.Contains(result.Stdout, triggerID))
+
+	t.Run("check request", func(t *testing.T) {
+		assert.Check(t, cmp.DeepEqual(fake.LastRequest(), &httprecorder.Request{
+			Method: http.MethodPost,
+			URL:    url.URL{Path: "/api/v3/triggers", RawQuery: "filter%5Bproject_id%5D=" + triggerProjectID},
+			Header: http.Header{
+				"Authorization": {"Bearer test-token"},
+				"User-Agent":    {httpcl.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
+			},
+			Body: new(`{"data":{"attributes":{"is_disabled":false,"event":{"type":"vcs","vcs":{"provider":"origin","repo_id":"` + triggerOriginRepoID + `","repo_full_name":"myorg/myrepo"}}},"references":{"pipeline":{"id":"` + triggerPipelineDefID + `"}}}}`),
+		}, ignoreCommonHeaders))
+	})
+}
+
+func TestProjectTriggerCreate_OriginMissingRepoFullName(t *testing.T) {
+	_, env := setupTriggerFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary: binaryPath,
+		Args: []string{
+			"project", "trigger", "create",
+			"--project", "gh/myorg/alpha",
+			"--pipeline-definition-id", triggerPipelineDefID,
+			"--provider", "origin",
+			"--repo-id", triggerOriginRepoID,
+		},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 2, "stderr: %s", result.Stderr)
+	assert.Check(t, strings.Contains(result.Stderr, "--repo-full-name"))
 }
 
 func TestProjectTriggerCreate_ProjectNotFound(t *testing.T) {
