@@ -575,27 +575,27 @@ CircleCI compiles into workflows. Attach triggers to a definition with
 
 Create a pipeline definition
 
-Create a new pipeline definition for a project: where CircleCI finds the
-config YAML and which repository to check out. Attach triggers afterwards
-with `circleci project trigger create`. Required flags must be
-given in non-interactive mode; a terminal prompts.
+Create a pipeline definition: where CircleCI finds the config YAML and which
+repository to check out. Add a trigger next with `project trigger create`.
 
 JSON fields: id, name, description, created_at, config_source.provider, config_source.file_path, config_source.repo.external_id, config_source.repo.full_name, checkout_source.provider, checkout_source.repo.external_id, checkout_source.repo.full_name
 
-| Flag                         | Description                                                                       |
-| ---------------------------- | --------------------------------------------------------------------------------- |
-| `--checkout-provider string` | Checkout source provider (one of: github_app, github_server)                      |
-| `--checkout-repo-id string`  | Checkout source repo external ID                                                  |
-| `--config-file string`       | Config file path (e.g. .circleci/config.yml)                                      |
-| `--config-file-type string`  | Config file type, omit for standard CircleCI YAML (one of: github-actions)        |
-| `--config-provider string`   | Config source provider (one of: github_app, github_server, circleci)              |
-| `--config-repo-id string`    | Config source repo external ID (required for github_app, github_server)           |
-| `--description string`       | Pipeline definition description                                                   |
-| `--jq string`                | Process values from the response using jq syntax (see `circleci help formatting`) |
-| `--json`                     | Output as JSON                                                                    |
-| `--name string`              | Pipeline definition name (required)                                               |
-| `--project string`           | Project slug (e.g. gh/org/repo); defaults to git remote                           |
-| `--project-id string`        | Project UUID (overrides --project)                                                |
+| Flag                               | Description                                                                       |
+| ---------------------------------- | --------------------------------------------------------------------------------- |
+| `--checkout-provider string`       | Checkout source provider (one of: github_app, github_server, origin)              |
+| `--checkout-repo-full-name string` | Checkout source repo owner/name (required for origin)                             |
+| `--checkout-repo-id string`        | Checkout source repo external ID                                                  |
+| `--config-file string`             | Config file path (e.g. .circleci/config.yml)                                      |
+| `--config-file-type string`        | Config file type, omit for standard CircleCI YAML (one of: github-actions)        |
+| `--config-provider string`         | Config source provider (one of: github_app, github_server, circleci, origin)      |
+| `--config-repo-full-name string`   | Config source repo owner/name (required for origin)                               |
+| `--config-repo-id string`          | Config source repo external ID (required for github_app, github_server, origin)   |
+| `--description string`             | Pipeline definition description                                                   |
+| `--jq string`                      | Process values from the response using jq syntax (see `circleci help formatting`) |
+| `--json`                           | Output as JSON                                                                    |
+| `--name string`                    | Pipeline definition name (required)                                               |
+| `--project string`                 | Project slug (e.g. gh/org/repo); defaults to git remote                           |
+| `--project-id string`              | Project UUID (overrides --project)                                                |
 
 
 **Examples:**
@@ -604,8 +604,8 @@ JSON fields: id, name, description, created_at, config_source.provider, config_s
   `circleci pipeline create --project gh/myorg/myrepo --name "my-pipeline" --config-provider github_app --config-repo-id 123456789 --config-file .circleci/config.yml --checkout-provider github_app --checkout-repo-id 123456789`
 - Create with a description and output as JSON: 
   `circleci pipeline create --name "release-pipeline" --description "Runs on tagged releases" --config-provider github_app --config-repo-id 123456789 --config-file .circleci/release.yml --checkout-provider github_app --checkout-repo-id 123456789 --json`
-- Create using a direct project UUID (skips project info lookup): 
-  `circleci pipeline create --project-id a1b2c3d4-... --name "nightly" --config-provider github_app --config-repo-id 123456789 --config-file .circleci/nightly.yml --checkout-provider github_app --checkout-repo-id 123456789`
+- Create for a Cursor repository (Origin needs the owner/name too): 
+  `circleci pipeline create --project-id a1b2c3d4-... --name "my-pipeline" --config-provider origin --config-repo-id repo_01abc --config-repo-full-name myorg/myrepo --config-file .circleci/config.yml --checkout-provider origin --checkout-repo-id repo_01abc --checkout-repo-full-name myorg/myrepo`
 
 #### `circleci pipeline list [flags]`
 
@@ -3825,10 +3825,9 @@ connected via the CircleCI GitHub App are supported.
 Create a new project trigger
 
 Create a new trigger for a CircleCI project, connecting an event source to a
-pipeline definition so that matching events start a pipeline run.
-
-Required values are prompted for in a terminal, and must be flags otherwise.
-Run `circleci help triggers` for what each provider and event preset means.
+pipeline definition so that matching events start a pipeline run. Required
+values prompt in a terminal. Run `circleci help triggers` for what each
+provider and event preset means.
 
 JSON fields: id, created_at, event_name, event_preset, config_ref, checkout_ref, disabled
 
@@ -3842,16 +3841,17 @@ JSON fields: id, created_at, event_name, event_preset, config_ref, checkout_ref,
 | `--pipeline-definition-id string` | Pipeline definition ID (required)                                                                                                                                                                                                                                                                                                                       |
 | `--project string`                | Project slug (e.g. gh/org/repo); defaults to git remote                                                                                                                                                                                                                                                                                                 |
 | `--project-id string`             | Project UUID (overrides --project)                                                                                                                                                                                                                                                                                                                      |
-| `--provider string`               | Event source provider (one of: github_app, github_server, github_oauth, webhook, schedule) (default "github_app")                                                                                                                                                                                                                                       |
-| `--repo-id string`                | Repository external ID (required for github_app, github_server, github_oauth)                                                                                                                                                                                                                                                                           |
+| `--provider string`               | Event source provider (one of: github_app, github_server, github_oauth, origin, webhook, schedule) (default "github_app")                                                                                                                                                                                                                               |
+| `--repo-full-name string`         | Repository owner/name (required for origin)                                                                                                                                                                                                                                                                                                             |
+| `--repo-id string`                | Repository external ID (required for github_app, github_server, github_oauth, origin)                                                                                                                                                                                                                                                                   |
 
 
 **Examples:**
 
 - Create a GitHub App trigger (provider defaults to github_app): 
   `circleci project trigger create --pipeline-definition-id a1b2c3d4-... --repo-id 123456789`
-- Create a trigger for a GitHub Server installation: 
-  `circleci project trigger create --provider github_server --pipeline-definition-id a1b2c3d4-... --repo-id 123456789`
+- Create a trigger for a Cursor repository (Origin needs the owner/name too): 
+  `circleci project trigger create --provider origin --pipeline-definition-id a1b2c3d4-... --repo-id repo_01abc --repo-full-name myorg/myrepo`
 - Create a trigger with event filtering and output as JSON: 
   `circleci project trigger create --pipeline-definition-id a1b2c3d4-... --repo-id 123456789 --event-preset all-pushes --json`
 
