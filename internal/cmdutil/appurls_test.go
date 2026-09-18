@@ -47,12 +47,6 @@ func TestRunSlugURL(t *testing.T) {
 		assert.Check(t, cmp.Equal(got, "https://app.circleci.com/pipelines/bb/myorg/myrepo"))
 	})
 
-	t.Run("gitlab project", func(t *testing.T) {
-		got, err := RunSlugURL(testAppURL, "gl/my-group/my-project")
-		assert.NilError(t, err)
-		assert.Check(t, cmp.Equal(got, "https://app.circleci.com/pipelines/gl/my-group/my-project"))
-	})
-
 	t.Run("invalid slug", func(t *testing.T) {
 		_, err := RunSlugURL(testAppURL, "invalid")
 		assert.Check(t, err != nil, "expected error for invalid slug")
@@ -101,7 +95,6 @@ func TestVCSSlug(t *testing.T) {
 		{"GitHub", "gh"},
 		{"github", "gh"},
 		{"Bitbucket", "bb"},
-		{"GitLab", "gl"},
 		{"unknown", "unknown"},
 	}
 	for _, c := range cases {

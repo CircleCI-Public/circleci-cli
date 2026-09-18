@@ -211,8 +211,6 @@ func vcsLong(short string) string {
 		return "github"
 	case "bb":
 		return "bitbucket"
-	case "gl":
-		return "gitlab"
 	default:
 		return short
 	}

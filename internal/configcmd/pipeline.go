@@ -90,9 +90,6 @@ func LocalPipelineValues(params map[string]any) map[string]any {
 			case "bb":
 				gitURL = fmt.Sprintf("https://bitbucket.org/%s/%s", org, repo)
 				projectType = "bitbucket"
-			case "gl":
-				gitURL = fmt.Sprintf("https://gitlab.com/%s/%s", org, repo)
-				projectType = "gitlab"
 			}
 		}
 	}
