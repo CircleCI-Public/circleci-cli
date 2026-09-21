@@ -198,11 +198,17 @@ var helpTopics = []helpTopic{
 			| %[1]sgithub_app%[1]s | A repository in a GitHub org with the CircleCI GitHub App installed |
 			| %[1]sgithub_server%[1]s | A repository on a self-hosted GitHub Enterprise Server |
 			| %[1]sgithub_oauth%[1]s | A repository connected through the legacy GitHub OAuth integration |
+			| %[1]sorigin%[1]s | A repository in Cursor, reached through the CircleCI Origin app |
 			| %[1]swebhook%[1]s | An inbound HTTP webhook, for sources CircleCI does not integrate with directly |
 			| %[1]sschedule%[1]s | A time-based schedule rather than a repository event |
 
-			The three repository-backed providers need %[1]s--repo-id%[1]s, the repository's external ID
+			The four repository-backed providers need %[1]s--repo-id%[1]s, the repository's external ID
 			as the provider knows it. %[1]swebhook%[1]s and %[1]sschedule%[1]s do not.
+
+			%[1]sorigin%[1]s additionally needs %[1]s--repo-full-name%[1]s, the repository's %[1]sowner/repo%[1]s name.
+			Origin addresses repositories by owner and name and offers no lookup by id, so the name
+			is what resolves the repository; a name and an ID that disagree are rejected. The GitHub
+			providers key repositories by ID alone and ignore the flag.
 
 			## Event presets
 

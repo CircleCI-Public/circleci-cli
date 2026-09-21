@@ -20,4 +20,39 @@
 //
 // SPDX-License-Identifier: MIT
 
-package run
+package cmdutil
+
+import (
+	"fmt"
+	"strconv"
+	"strings"
+)
+
+// ParseParams converts ["key=value", ...] into a map, coercing values to bool
+// or int64 where unambiguous. "true"/"false" become bool; numeric strings
+// become int64; everything else stays a string.
+func ParseParams(raw []string) (map[string]any, error) {
+	if len(raw) == 0 {
+		return nil, nil
+	}
+	out := make(map[string]any, len(raw))
+	for _, p := range raw {
+		k, v, found := strings.Cut(p, "=")
+		if !found || k == "" {
+			return nil, fmt.Errorf("%q is not valid: expected key=value", p)
+		}
+		switch v {
+		case "true":
+			out[k] = true
+		case "false":
+			out[k] = false
+		default:
+			if n, err := strconv.ParseInt(v, 10, 64); err == nil {
+				out[k] = n
+			} else {
+				out[k] = v
+			}
+		}
+	}
+	return out, nil
+}

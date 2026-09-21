@@ -133,8 +133,6 @@ func VCSSlug(provider string) string {
 		return "gh"
 	case "bitbucket":
 		return "bb"
-	case "gitlab":
-		return "gl"
 	default:
 		return provider
 	}

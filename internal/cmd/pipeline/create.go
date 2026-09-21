@@ -37,39 +37,54 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/internal/cmdutil"
 )
 
-var validConfigProviders = []string{"github_app", "github_server", "circleci"}
-var validCheckoutProviders = []string{"github_app", "github_server"}
+var validConfigProviders = []string{"github_app", "github_server", "circleci", "origin"}
+var validCheckoutProviders = []string{"github_app", "github_server", "origin"}
 var validConfigFileTypes = []string{"github-actions"}
 
 // repoConfigProviders are config source providers that require a repo external ID.
 var repoConfigProviders = map[string]bool{
 	"github_app":    true,
 	"github_server": true,
+	"origin":        true,
+}
+
+// fullNameProviders are providers that address a repository by owner and name
+// rather than by id, and so need the full name as well as the external ID.
+// Origin exposes no lookup by id, so the full name is what resolves the
+// repository at all; the API rejects a write without it and rejects a pair that
+// names two different repositories.
+var fullNameProviders = map[string]bool{
+	"origin": true,
+}
+
+// createInput is the flag set of `pipeline create`. The flags are passed as one
+// value rather than a dozen positional strings, so two adjacent ones cannot be
+// transposed at the call site without the compiler noticing.
+type createInput struct {
+	projectSlug          string
+	projectID            string
+	name                 string
+	description          string
+	configProvider       string
+	configRepoID         string
+	configRepoFullName   string
+	configFile           string
+	configFileType       string
+	checkoutProvider     string
+	checkoutRepoID       string
+	checkoutRepoFullName string
+	jsonOut              bool
 }
 
 func newCreateCmd() *cobra.Command {
-	var (
-		projectSlug      string
-		projectID        string
-		name             string
-		description      string
-		configProvider   string
-		configRepoID     string
-		configFile       string
-		configFileType   string
-		checkoutProvider string
-		checkoutRepoID   string
-		jsonOut          bool
-	)
+	var in createInput
 
 	cmd := &cobra.Command{
 		Use:   "create",
 		Short: "Create a pipeline definition",
 		Long: heredoc.Docf(`
-			Create a new pipeline definition for a project: where CircleCI finds the
-			config YAML and which repository to check out. Attach triggers afterwards
-			with %[1]scircleci project trigger create%[1]s. Required flags must be
-			given in non-interactive mode; a terminal prompts.
+			Create a pipeline definition: where CircleCI finds the config YAML and which
+			repository to check out. Add a trigger next with %[1]sproject trigger create%[1]s.
 
 			JSON fields: id, name, description, created_at, config_source.provider, config_source.file_path, config_source.repo.external_id, config_source.repo.full_name, checkout_source.provider, checkout_source.repo.external_id, checkout_source.repo.full_name
 		`, "`"),
@@ -95,15 +110,17 @@ func newCreateCmd() *cobra.Command {
 			    --checkout-repo-id 123456789 \
 			    --json
 
-			# Create using a direct project UUID (skips project info lookup)
+			# Create for a Cursor repository (Origin needs the owner/name too)
 			$ circleci pipeline create \
 			    --project-id a1b2c3d4-... \
-			    --name "nightly" \
-			    --config-provider github_app \
-			    --config-repo-id 123456789 \
-			    --config-file .circleci/nightly.yml \
-			    --checkout-provider github_app \
-			    --checkout-repo-id 123456789
+			    --name "my-pipeline" \
+			    --config-provider origin \
+			    --config-repo-id repo_01abc \
+			    --config-repo-full-name myorg/myrepo \
+			    --config-file .circleci/config.yml \
+			    --checkout-provider origin \
+			    --checkout-repo-id repo_01abc \
+			    --checkout-repo-full-name myorg/myrepo
 		`),
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -112,23 +129,23 @@ func newCreateCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return runCreate(ctx, client, projectSlug, projectID, name, description,
-				configProvider, configRepoID, configFile, configFileType,
-				checkoutProvider, checkoutRepoID, jsonOut)
+			return runCreate(ctx, client, in)
 		},
 	}
 
-	cmd.Flags().StringVar(&projectSlug, "project", "", "Project slug (e.g. gh/org/repo); defaults to git remote")
-	cmd.Flags().StringVar(&projectID, "project-id", "", "Project UUID (overrides --project)")
-	cmd.Flags().StringVar(&name, "name", "", "Pipeline definition name (required)")
-	cmd.Flags().StringVar(&description, "description", "", "Pipeline definition description")
-	cmd.Flags().StringVar(&configProvider, "config-provider", "", fmt.Sprintf("Config source provider (one of: %s)", strings.Join(validConfigProviders, ", ")))
-	cmd.Flags().StringVar(&configRepoID, "config-repo-id", "", "Config source repo external ID (required for github_app, github_server)")
-	cmd.Flags().StringVar(&configFile, "config-file", "", "Config file path (e.g. .circleci/config.yml)")
-	cmd.Flags().StringVar(&configFileType, "config-file-type", "", fmt.Sprintf("Config file type, omit for standard CircleCI YAML (one of: %s)", strings.Join(validConfigFileTypes, ", ")))
-	cmd.Flags().StringVar(&checkoutProvider, "checkout-provider", "", fmt.Sprintf("Checkout source provider (one of: %s)", strings.Join(validCheckoutProviders, ", ")))
-	cmd.Flags().StringVar(&checkoutRepoID, "checkout-repo-id", "", "Checkout source repo external ID")
-	cmdutil.AddJSONFlag(cmd, &jsonOut)
+	cmd.Flags().StringVar(&in.projectSlug, "project", "", "Project slug (e.g. gh/org/repo); defaults to git remote")
+	cmd.Flags().StringVar(&in.projectID, "project-id", "", "Project UUID (overrides --project)")
+	cmd.Flags().StringVar(&in.name, "name", "", "Pipeline definition name (required)")
+	cmd.Flags().StringVar(&in.description, "description", "", "Pipeline definition description")
+	cmd.Flags().StringVar(&in.configProvider, "config-provider", "", fmt.Sprintf("Config source provider (one of: %s)", strings.Join(validConfigProviders, ", ")))
+	cmd.Flags().StringVar(&in.configRepoID, "config-repo-id", "", "Config source repo external ID (required for github_app, github_server, origin)")
+	cmd.Flags().StringVar(&in.configRepoFullName, "config-repo-full-name", "", "Config source repo owner/name (required for origin)")
+	cmd.Flags().StringVar(&in.configFile, "config-file", "", "Config file path (e.g. .circleci/config.yml)")
+	cmd.Flags().StringVar(&in.configFileType, "config-file-type", "", fmt.Sprintf("Config file type, omit for standard CircleCI YAML (one of: %s)", strings.Join(validConfigFileTypes, ", ")))
+	cmd.Flags().StringVar(&in.checkoutProvider, "checkout-provider", "", fmt.Sprintf("Checkout source provider (one of: %s)", strings.Join(validCheckoutProviders, ", ")))
+	cmd.Flags().StringVar(&in.checkoutRepoID, "checkout-repo-id", "", "Checkout source repo external ID")
+	cmd.Flags().StringVar(&in.checkoutRepoFullName, "checkout-repo-full-name", "", "Checkout source repo owner/name (required for origin)")
+	cmdutil.AddJSONFlag(cmd, &in.jsonOut)
 	cmdutil.AddJQFlag(cmd)
 
 	return cmd
@@ -143,34 +160,26 @@ type createOutput struct {
 	CheckoutSource *apiclient.PipelineDefinitionSource `json:"checkout_source,omitempty"`
 }
 
-func runCreate(
-	ctx context.Context,
-	client *apiclient.Client,
-	projectSlug, projectID string,
-	name, description string,
-	configProvider, configRepoID, configFile, configFileType string,
-	checkoutProvider, checkoutRepoID string,
-	jsonOut bool,
-) error {
-	resolvedProjectID, err := cmdutil.ResolveProjectID(ctx, client, projectSlug, projectID)
+func runCreate(ctx context.Context, client *apiclient.Client, in createInput) error {
+	resolvedProjectID, err := cmdutil.ResolveProjectID(ctx, client, in.projectSlug, in.projectID)
 	if err != nil {
 		return err
 	}
 
-	name, err = resolveRequired(ctx, name, "Pipeline definition name", "e.g. my-pipeline", "", "--name is required")
+	in.name, err = resolveRequired(ctx, in.name, "Pipeline definition name", "e.g. my-pipeline", "", "--name is required")
 	if err != nil {
 		return err
 	}
 
-	configProvider, err = resolveRequiredSelect(ctx, configProvider, "Config source provider", validConfigProviders, "--config-provider is required")
+	in.configProvider, err = resolveRequiredSelect(ctx, in.configProvider, "Config source provider", validConfigProviders, "--config-provider is required")
 	if err != nil {
 		return err
 	}
-	if err := validateConfigProvider(configProvider); err != nil {
+	if err := validateConfigProvider(in.configProvider); err != nil {
 		return err
 	}
-	if configFileType != "" {
-		if err := validateConfigFileType(configFileType); err != nil {
+	if in.configFileType != "" {
+		if err := validateConfigFileType(in.configFileType); err != nil {
 			return err
 		}
 	}
@@ -183,40 +192,57 @@ func runCreate(
 		repoOpts = collectRepoOptions(defs)
 	}
 
-	if repoConfigProviders[configProvider] {
-		configRepoID, err = resolveRepoIDFromOptions(ctx, repoOpts, configRepoID, "Config repo external ID", "--config-repo-id is required for provider "+configProvider)
+	// configRepo stays zero for a hosted config (the circleci provider), which has
+	// no repository at all; the checkout then has nothing to default to.
+	var configRepo repoOption
+	if repoConfigProviders[in.configProvider] {
+		configRepo, err = resolveRepoFromOptions(ctx, in.configProvider, repoOpts, in.configRepoID, "Config repo external ID", "--config-repo-id is required for provider "+in.configProvider)
+		if err != nil {
+			return err
+		}
+		in.configRepoID = configRepo.id
+		in.configRepoFullName, err = resolveRepoFullName(ctx, in.configProvider, in.configRepoFullName, configRepo,
+			"Config repo owner/name", "--config-repo-full-name is required for provider "+in.configProvider)
 		if err != nil {
 			return err
 		}
 	}
 
-	configFile, err = resolveRequired(ctx, configFile, "Config file path", ".circleci/config.yml", ".circleci/config.yml", "--config-file is required")
+	in.configFile, err = resolveRequired(ctx, in.configFile, "Config file path", ".circleci/config.yml", ".circleci/config.yml", "--config-file is required")
 	if err != nil {
 		return err
 	}
 
-	checkoutProvider, err = resolveRequiredSelect(ctx, checkoutProvider, "Checkout source provider", validCheckoutProviders, "--checkout-provider is required")
+	in.checkoutProvider, err = resolveRequiredSelect(ctx, in.checkoutProvider, "Checkout source provider", validCheckoutProviders, "--checkout-provider is required")
 	if err != nil {
 		return err
 	}
-	if err := validateCheckoutProvider(checkoutProvider); err != nil {
+	if err := validateCheckoutProvider(in.checkoutProvider); err != nil {
 		return err
 	}
 
-	checkoutRepoID, err = resolveCheckoutRepoID(ctx, repoOpts, checkoutRepoID, configRepoID)
+	checkoutRepo, err := resolveCheckoutRepo(ctx, in.checkoutProvider, repoOpts, in.checkoutRepoID, configRepo)
+	if err != nil {
+		return err
+	}
+	in.checkoutRepoID = checkoutRepo.id
+	in.checkoutRepoFullName, err = resolveRepoFullName(ctx, in.checkoutProvider, in.checkoutRepoFullName, checkoutRepo,
+		"Checkout repo owner/name", "--checkout-repo-full-name is required for provider "+in.checkoutProvider)
 	if err != nil {
 		return err
 	}
 
 	resp, err := client.CreatePipelineDefinition(ctx, resolvedProjectID, apiclient.CreatePipelineDefinitionInput{
-		Name:             name,
-		Description:      description,
-		ConfigProvider:   configProvider,
-		ConfigRepoID:     configRepoID,
-		ConfigFilePath:   configFile,
-		ConfigFileType:   configFileType,
-		CheckoutProvider: checkoutProvider,
-		CheckoutRepoID:   checkoutRepoID,
+		Name:                 in.name,
+		Description:          in.description,
+		ConfigProvider:       in.configProvider,
+		ConfigRepoID:         in.configRepoID,
+		ConfigRepoFullName:   in.configRepoFullName,
+		ConfigFilePath:       in.configFile,
+		ConfigFileType:       in.configFileType,
+		CheckoutProvider:     in.checkoutProvider,
+		CheckoutRepoID:       in.checkoutRepoID,
+		CheckoutRepoFullName: in.checkoutRepoFullName,
 	})
 	if err != nil {
 		return cmdutil.APIErr(err, resolvedProjectID,
@@ -235,7 +261,7 @@ func runCreate(
 		CheckoutSource: resp.CheckoutSource,
 	}
 
-	if jsonOut {
+	if in.jsonOut {
 		return iostream.PrintJSON(ctx, out)
 	}
 
@@ -289,9 +315,14 @@ func resolveRequiredSelect(ctx context.Context, val, prompt string, options []st
 	return options[idx], nil
 }
 
+// repoOption is a repository the project already has a pipeline definition for.
+// It carries the full name as well as the id because a provider that addresses
+// repositories by owner and name needs both, and an existing definition is an
+// authoritative source for the pairing.
 type repoOption struct {
-	id    string
-	label string
+	id       string
+	fullName string
+	label    string
 }
 
 func collectRepoOptions(defs []apiclient.PipelineDefinition) []repoOption {
@@ -307,15 +338,31 @@ func collectRepoOptions(defs []apiclient.PipelineDefinition) []repoOption {
 			if src.Repo.FullName != "" {
 				label = fmt.Sprintf("%s (%s)", src.Repo.FullName, src.Repo.ExternalID)
 			}
-			opts = append(opts, repoOption{id: src.Repo.ExternalID, label: label})
+			opts = append(opts, repoOption{
+				id:       src.Repo.ExternalID,
+				fullName: src.Repo.FullName,
+				label:    label,
+			})
 		}
 	}
 	return opts
 }
 
-func pickFromRepoOptions(ctx context.Context, opts []repoOption, prompt string) (string, error) {
+// repoFor returns the option describing the repository with this id, so a
+// flag-supplied id still picks up the full name and label the project already
+// knows. An id no definition names yields an option carrying just the id.
+func repoFor(opts []repoOption, id string) repoOption {
+	for _, o := range opts {
+		if o.id == id {
+			return o
+		}
+	}
+	return repoOption{id: id}
+}
+
+func pickFromRepoOptions(ctx context.Context, provider string, opts []repoOption, prompt string) (repoOption, error) {
 	if len(opts) == 0 {
-		return promptRepoID(ctx, prompt)
+		return promptRepoID(ctx, provider, prompt)
 	}
 
 	const enterManually = "Enter manually..."
@@ -327,39 +374,39 @@ func pickFromRepoOptions(ctx context.Context, opts []repoOption, prompt string) 
 
 	idx, err := iostream.PromptSelect(ctx, prompt, labels)
 	if err != nil {
-		return "", err
+		return repoOption{}, err
 	}
 	if idx < 0 {
-		return "", clierrors.New("create.cancelled", "Aborted", "No repo selected.").
+		return repoOption{}, clierrors.New("create.cancelled", "Aborted", "No repo selected.").
 			WithExitCode(clierrors.ExitCancelled)
 	}
 	if labels[idx] == enterManually {
-		return promptRepoID(ctx, prompt)
+		return promptRepoID(ctx, provider, prompt)
 	}
-	return opts[idx].id, nil
+	return opts[idx], nil
 }
 
-func resolveRepoIDFromOptions(ctx context.Context, opts []repoOption, val, prompt, errMsg string) (string, error) {
+func resolveRepoFromOptions(ctx context.Context, provider string, opts []repoOption, val, prompt, errMsg string) (repoOption, error) {
 	if val != "" {
-		return val, nil
+		return repoFor(opts, val), nil
 	}
 	if !iostream.IsInteractive(ctx) {
-		return "", clierrors.New("args.missing_flag", "Missing required flag", errMsg).
+		return repoOption{}, clierrors.New("args.missing_flag", "Missing required flag", errMsg).
 			WithSuggestions(
 				"Pass "+strings.Fields(errMsg)[0]+" <value>",
 				"Run with --help for flag descriptions",
 			).
 			WithExitCode(clierrors.ExitBadArguments)
 	}
-	return pickFromRepoOptions(ctx, opts, prompt)
+	return pickFromRepoOptions(ctx, provider, opts, prompt)
 }
 
-func resolveCheckoutRepoID(ctx context.Context, opts []repoOption, val, configRepoID string) (string, error) {
+func resolveCheckoutRepo(ctx context.Context, provider string, opts []repoOption, val string, configRepo repoOption) (repoOption, error) {
 	if val != "" {
-		return val, nil
+		return repoFor(opts, val), nil
 	}
 	if !iostream.IsInteractive(ctx) {
-		return "", clierrors.New("args.missing_flag", "Missing required flag", "--checkout-repo-id is required").
+		return repoOption{}, clierrors.New("args.missing_flag", "Missing required flag", "--checkout-repo-id is required").
 			WithSuggestions(
 				"Pass --checkout-repo-id <value>",
 				"Run with --help for flag descriptions",
@@ -367,44 +414,70 @@ func resolveCheckoutRepoID(ctx context.Context, opts []repoOption, val, configRe
 			WithExitCode(clierrors.ExitBadArguments)
 	}
 
-	if configRepoID == "" {
-		return pickFromRepoOptions(ctx, opts, "Checkout repo external ID")
+	if configRepo.id == "" {
+		return pickFromRepoOptions(ctx, provider, opts, "Checkout repo external ID")
 	}
 
-	configLabel := configRepoID
-	for _, o := range opts {
-		if o.id == configRepoID {
-			configLabel = o.label
-			break
-		}
+	configLabel := configRepo.label
+	if configLabel == "" {
+		configLabel = configRepo.id
 	}
 
 	const other = "Other..."
 	idx, err := iostream.PromptSelect(ctx, "Checkout repo external ID", []string{configLabel, other})
 	if err != nil {
-		return "", err
+		return repoOption{}, err
 	}
 	switch idx {
 	case -1:
-		return "", clierrors.New("create.cancelled", "Aborted", "No repo selected.").
+		return repoOption{}, clierrors.New("create.cancelled", "Aborted", "No repo selected.").
 			WithExitCode(clierrors.ExitCancelled)
 	case 0:
-		return configRepoID, nil
+		return configRepo, nil
 	default:
-		return pickFromRepoOptions(ctx, opts, "Checkout repo external ID")
+		return pickFromRepoOptions(ctx, provider, opts, "Checkout repo external ID")
 	}
 }
 
-func promptRepoID(ctx context.Context, prompt string) (string, error) {
-	v, err := iostream.PromptText(ctx, prompt, "e.g. 123456789")
+// resolveRepoFullName returns the repo full name to send for a source. For a
+// provider that keys repositories by id the name is decorative, so whatever was
+// passed is forwarded untouched and nothing is guessed. For a provider that
+// addresses repositories by owner and name it is required: an explicit flag wins,
+// then the name carried by the repository that was resolved, then a prompt.
+func resolveRepoFullName(
+	ctx context.Context, provider, val string, repo repoOption, prompt, errMsg string,
+) (string, error) {
+	if !fullNameProviders[provider] {
+		return val, nil
+	}
+	if val != "" {
+		return val, nil
+	}
+	if repo.fullName != "" {
+		return repo.fullName, nil
+	}
+	return resolveRequired(ctx, "", prompt, "e.g. myorg/myrepo", "", errMsg)
+}
+
+// repoIDExample is a sample external repository id in the shape the provider
+// uses: opaque text for Origin, a number for the GitHub providers.
+func repoIDExample(provider string) string {
+	if provider == "origin" {
+		return "e.g. repo_01abc"
+	}
+	return "e.g. 123456789"
+}
+
+func promptRepoID(ctx context.Context, provider, prompt string) (repoOption, error) {
+	v, err := iostream.PromptText(ctx, prompt, repoIDExample(provider))
 	if err != nil {
-		return "", err
+		return repoOption{}, err
 	}
 	if v == "" {
-		return "", clierrors.New("create.cancelled", "Aborted", "No value entered for: "+prompt).
+		return repoOption{}, clierrors.New("create.cancelled", "Aborted", "No value entered for: "+prompt).
 			WithExitCode(clierrors.ExitCancelled)
 	}
-	return v, nil
+	return repoOption{id: v}, nil
 }
 
 func validateConfigProvider(v string) *clierrors.CLIError {

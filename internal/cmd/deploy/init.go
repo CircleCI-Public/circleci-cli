@@ -230,8 +230,6 @@ func providerName(slug string) string {
 		return "github"
 	case "bb":
 		return "bitbucket"
-	case "gl":
-		return "gitlab"
 	default:
 		return slug
 	}

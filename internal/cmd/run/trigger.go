@@ -24,9 +24,6 @@ package run
 
 import (
 	"context"
-	"fmt"
-	"strconv"
-	"strings"
 
 	"github.com/MakeNowJust/heredoc"
 	"github.com/spf13/cobra"
@@ -115,7 +112,7 @@ func runTrigger(ctx context.Context, client *apiclient.Client, projectSlug, bran
 		}
 	}
 
-	parsedParams, err := parseParams(params)
+	parsedParams, err := cmdutil.ParseParams(params)
 	if err != nil {
 		return clierrors.New("args.invalid_parameter", "Invalid run parameter",
 			err.Error()).
@@ -140,32 +137,4 @@ func runTrigger(ctx context.Context, client *apiclient.Client, projectSlug, bran
 
 	iostream.Printf(ctx, "Triggered run #%d (%s) on %s\n", resp.Number, resp.ID, effectiveBranch)
 	return nil
-}
-
-// parseParams converts ["key=value", ...] into a map, coercing values to bool
-// or int where unambiguous.
-func parseParams(params []string) (map[string]any, error) {
-	if len(params) == 0 {
-		return nil, nil
-	}
-	result := make(map[string]any, len(params))
-	for _, p := range params {
-		k, v, found := strings.Cut(p, "=")
-		if !found || k == "" {
-			return nil, fmt.Errorf("%q is not valid: expected key=value", p)
-		}
-		switch v {
-		case "true":
-			result[k] = true
-		case "false":
-			result[k] = false
-		default:
-			if n, err := strconv.ParseInt(v, 10, 64); err == nil {
-				result[k] = n
-			} else {
-				result[k] = v
-			}
-		}
-	}
-	return result, nil
 }
