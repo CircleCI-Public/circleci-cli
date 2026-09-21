@@ -39,6 +39,8 @@ import (
 func newListCmd() *cobra.Command {
 	var (
 		projectSlug string
+		orgWide     bool
+		limit       int
 		jsonOut     bool
 	)
 
@@ -47,11 +49,11 @@ func newListCmd() *cobra.Command {
 		Aliases: []string{"ls"},
 		Short:   "List recent deploys",
 		Long: heredoc.Doc(`
-			List deploys for a CircleCI project.
+			List deploys for a CircleCI project or org.
 
-			The project is inferred from the current git repository's remote
-			unless overridden with --project. Each deploy shows the component,
-			version, status, type, and when it was created.
+			The project is inferred from the current git remote unless overridden
+			with --project. Use --org-wide to list across all projects in the org.
+			Raise --limit (default 10) to see more results; pass 0 for all.
 
 			JSON fields: id, component_name, version, type, status, is_rollback, pipeline_id, workflow_id, created_at, ended_at
 		`),
@@ -59,8 +61,11 @@ func newListCmd() *cobra.Command {
 			# List the 10 most recent deploys (auto-detect project from git remote)
 			$ circleci deploy list
 
-			# List for a specific project
-			$ circleci deploy list --project gh/myorg/myrepo
+			# List 50 most recent deploys across the entire org
+			$ circleci deploy list --org-wide --limit 50
+
+			# List org-wide deploys for a specific org (via any project in it)
+			$ circleci deploy list --org-wide --project gh/myorg/myrepo
 
 			# Output as JSON for scripting
 			$ circleci deploy list --json
@@ -72,11 +77,13 @@ func newListCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return runList(ctx, client, projectSlug, jsonOut)
+			return runList(ctx, client, projectSlug, orgWide, limit, jsonOut)
 		},
 	}
 
 	cmd.Flags().StringVar(&projectSlug, "project", "", "Project slug (e.g. gh/org/repo); defaults to git remote")
+	cmd.Flags().BoolVar(&orgWide, "org-wide", false, "list deploys across all projects in the org")
+	cmd.Flags().IntVar(&limit, "limit", 10, "max number of deploys to return (0 = all)")
 	cmdutil.AddJSONFlag(cmd, &jsonOut)
 	cmdutil.AddJQFlag(cmd)
 
@@ -96,7 +103,7 @@ type deployEntry struct {
 	EndedAt       string `json:"ended_at,omitempty"`
 }
 
-func runList(ctx context.Context, client *apiclient.Client, projectSlug string, jsonOut bool) error {
+func runList(ctx context.Context, client *apiclient.Client, projectSlug string, orgWide bool, limit int, jsonOut bool) error {
 	if projectSlug == "" {
 		info, err := gitremote.Detect()
 		if err != nil {
@@ -114,7 +121,12 @@ func runList(ctx context.Context, client *apiclient.Client, projectSlug string, 
 			"Use 'circleci project list' to see followed projects")
 	}
 
-	deployments, err := client.ListDeployments(ctx, proj.OrgID.String(), proj.ID.String(), 10)
+	filterProjectID := proj.ID.String()
+	if orgWide {
+		filterProjectID = ""
+	}
+
+	deployments, err := client.ListDeployments(ctx, proj.OrgID.String(), filterProjectID, limit)
 	if err != nil {
 		return apiErr(err, projectSlug)
 	}
