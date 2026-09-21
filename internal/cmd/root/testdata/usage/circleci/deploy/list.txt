@@ -4,5 +4,7 @@ Flags:
   -h, --help             help for list
       --jq string        Process values from the response using jq syntax
       --json             Output as JSON
+      --limit int        max number of deploys to return (0 = all) (default 10)
+      --org-wide         list deploys across all projects in the org
       --project string   Project slug (e.g. gh/org/repo); defaults to git remote
   
