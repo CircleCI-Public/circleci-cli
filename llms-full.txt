@@ -1863,11 +1863,11 @@ Works offline — no API calls required.
 
 List recent deploys
 
-List deploys for a CircleCI project.
+List deploys for a CircleCI project or org.
 
-The project is inferred from the current git repository's remote
-unless overridden with --project. Each deploy shows the component,
-version, status, type, and when it was created.
+The project is inferred from the current git remote unless overridden
+with --project. Use --org-wide to list across all projects in the org.
+Raise --limit (default 10) to see more results; pass 0 for all.
 
 JSON fields: id, component_name, version, type, status, is_rollback, pipeline_id, workflow_id, created_at, ended_at
 
@@ -1875,6 +1875,8 @@ JSON fields: id, component_name, version, type, status, is_rollback, pipeline_id
 | ------------------ | --------------------------------------------------------------------------------- |
 | `--jq string`      | Process values from the response using jq syntax (see `circleci help formatting`) |
 | `--json`           | Output as JSON                                                                    |
+| `--limit int`      | max number of deploys to return (0 = all) (default 10)                            |
+| `--org-wide`       | list deploys across all projects in the org                                       |
 | `--project string` | Project slug (e.g. gh/org/repo); defaults to git remote                           |
 
 
@@ -1887,8 +1889,10 @@ JSON fields: id, component_name, version, type, status, is_rollback, pipeline_id
 
 - List the 10 most recent deploys (auto-detect project from git remote): 
   `circleci deploy list`
-- List for a specific project: 
-  `circleci deploy list --project gh/myorg/myrepo`
+- List 50 most recent deploys across the entire org: 
+  `circleci deploy list --org-wide --limit 50`
+- List org-wide deploys for a specific org (via any project in it): 
+  `circleci deploy list --org-wide --project gh/myorg/myrepo`
 - Output as JSON for scripting: 
   `circleci deploy list --json`
 
