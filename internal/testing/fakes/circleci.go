@@ -1453,12 +1453,21 @@ type RunV3 struct {
 	Revision       string
 	OriginRepoURL  string
 	Errors         []RunError
+	Warnings       []RunWarning
 }
 
 // RunError is a config/setup error attached to a run, surfaced by run get.
 type RunError struct {
 	Type    string
 	Message string
+}
+
+// RunWarning is a non-fatal warning attached to a fake run.
+type RunWarning struct {
+	Type        string
+	Message     string
+	Description string
+	URL         string
 }
 
 // AddRunV3 registers a run served by GET /api/v3/runs/<id> and included in the
@@ -1495,6 +1504,20 @@ func runV3Entity(run RunV3) map[string]any {
 			errs = append(errs, map[string]any{"type": e.Type, "message": e.Message})
 		}
 		attrs["errors"] = errs
+	}
+	if len(run.Warnings) > 0 {
+		warns := make([]any, 0, len(run.Warnings))
+		for _, w := range run.Warnings {
+			warn := map[string]any{"type": w.Type, "message": w.Message}
+			if w.Description != "" {
+				warn["description"] = w.Description
+			}
+			if w.URL != "" {
+				warn["url"] = w.URL
+			}
+			warns = append(warns, warn)
+		}
+		attrs["warnings"] = warns
 	}
 	vcs := map[string]any{
 		"branch":   run.Branch,

@@ -364,6 +364,65 @@ func TestRunGet_WithErrors_JSON(t *testing.T) {
 	assert.Check(t, cmp.Equal(errs[0].(map[string]any)["message"], "Could not find config file"))
 }
 
+func TestRunGet_WithWarnings(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	runID := getRunID
+
+	run := fakeRunV3(runID, runTestProjectID, "ended", "succeeded", "main", "abc1234def5678")
+	run.Warnings = []fakes.RunWarning{
+		{Type: "config_deprecated_syntax", Message: "Pipeline uses deprecated syntax", URL: "https://circleci.com/docs/deprecations"},
+	}
+	fake.AddRunV3(runID, runTestProjectID, run)
+
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"run", "get", runID},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0)
+	assert.Check(t, golden.String(normalizeAppHost(result.Stdout, fake.URL()), t.Name()+".txt"))
+}
+
+func TestRunGet_WithWarnings_JSON(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	runID := getRunID
+
+	run := fakeRunV3(runID, runTestProjectID, "ended", "succeeded", "main", "abc1234def5678")
+	run.Warnings = []fakes.RunWarning{
+		{Type: "config_deprecated_syntax", Message: "Pipeline uses deprecated syntax", URL: "https://circleci.com/docs/deprecations"},
+	}
+	fake.AddRunV3(runID, runTestProjectID, run)
+
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"run", "get", "--json", runID},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0)
+
+	var out map[string]any
+	err := json.Unmarshal([]byte(result.Stdout), &out)
+	assert.NilError(t, err)
+	warns, ok := out["warnings"].([]any)
+	assert.Assert(t, ok)
+	assert.Assert(t, cmp.Len(warns, 1))
+	assert.Check(t, cmp.Equal(warns[0].(map[string]any)["type"], "config_deprecated_syntax"))
+	assert.Check(t, cmp.Equal(warns[0].(map[string]any)["message"], "Pipeline uses deprecated syntax"))
+	assert.Check(t, cmp.Equal(warns[0].(map[string]any)["url"], "https://circleci.com/docs/deprecations"))
+}
+
 func TestRunGet_NotFound(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
 
@@ -1486,6 +1545,69 @@ func TestRunList_JSON_Color(t *testing.T) {
 
 	assert.Equal(t, result.ExitCode, 0)
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".json"))
+}
+
+func TestRunList_WithWarnings(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	slug := watchSlug
+	addProjectBySlug(fake, slug, runTestProjectID)
+
+	run1 := fakeRunV3("e0000000-0000-4000-8000-000000000001", runTestProjectID, "ended", "succeeded", "main", "abc1234def5678")
+	run1.Warnings = []fakes.RunWarning{{Type: "config_deprecated_syntax", Message: "Deprecated syntax"}}
+	fake.AddRunV3("e0000000-0000-4000-8000-000000000001", runTestProjectID, run1)
+
+	run2 := fakeRunV3("e0000000-0000-4000-8000-000000000002", runTestProjectID, "ended", "succeeded", "feature", "deadbeef12345678")
+	fake.AddRunV3("e0000000-0000-4000-8000-000000000002", runTestProjectID, run2)
+
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"run", "list", "--project", slug},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+}
+
+func TestRunList_WithWarnings_JSON(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	slug := watchSlug
+	addProjectBySlug(fake, slug, runTestProjectID)
+
+	run1 := fakeRunV3("e0000000-0000-4000-8000-000000000001", runTestProjectID, "ended", "succeeded", "main", "abc1234def5678")
+	run1.Warnings = []fakes.RunWarning{
+		{Type: "config_deprecated_syntax", Message: "Deprecated syntax", URL: "https://circleci.com/docs/deprecations"},
+	}
+	fake.AddRunV3("e0000000-0000-4000-8000-000000000001", runTestProjectID, run1)
+
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"run", "list", "--project", slug, "--json"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+
+	var out []map[string]any
+	err := json.Unmarshal([]byte(result.Stdout), &out)
+	assert.NilError(t, err)
+	assert.Assert(t, cmp.Len(out, 1))
+	warns, ok := out[0]["warnings"].([]any)
+	assert.Assert(t, ok)
+	assert.Assert(t, cmp.Len(warns, 1))
+	assert.Check(t, cmp.Equal(warns[0].(map[string]any)["type"], "config_deprecated_syntax"))
+	assert.Check(t, cmp.Equal(warns[0].(map[string]any)["message"], "Deprecated syntax"))
+	assert.Check(t, cmp.Equal(warns[0].(map[string]any)["url"], "https://circleci.com/docs/deprecations"))
 }
 
 func TestRunList_NoToken(t *testing.T) {
