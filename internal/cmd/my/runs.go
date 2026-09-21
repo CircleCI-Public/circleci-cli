@@ -89,16 +89,17 @@ func newRunsCmd() *cobra.Command {
 }
 
 type runEntry struct {
-	Project        string    `json:"project,omitempty"`
-	ProjectID      string    `json:"project_id,omitempty"`
-	ID             uuid.UUID `json:"id"`
-	Phase          string    `json:"phase"`
-	Outcome        string    `json:"outcome,omitempty"`
-	CurrentOutcome string    `json:"current_outcome,omitempty"`
-	Branch         string    `json:"branch,omitempty"`
-	Tag            string    `json:"tag,omitempty"`
-	Revision       string    `json:"revision,omitempty"`
-	CreatedAt      string    `json:"created_at"`
+	Project        string                 `json:"project,omitempty"`
+	ProjectID      string                 `json:"project_id,omitempty"`
+	ID             uuid.UUID              `json:"id"`
+	Phase          string                 `json:"phase"`
+	Outcome        string                 `json:"outcome,omitempty"`
+	CurrentOutcome string                 `json:"current_outcome,omitempty"`
+	Branch         string                 `json:"branch,omitempty"`
+	Tag            string                 `json:"tag,omitempty"`
+	Revision       string                 `json:"revision,omitempty"`
+	CreatedAt      string                 `json:"created_at"`
+	Warnings       []apiclient.RunWarning `json:"warnings,omitempty"`
 }
 
 func runMyRuns(ctx context.Context, client *apiclient.Client, limit int, jsonOut bool) error {
@@ -155,6 +156,7 @@ func toEntry(r *apiclient.RunV3, project, projectID string) runEntry {
 		Tag:            r.Tag,
 		Revision:       rev,
 		CreatedAt:      r.CreatedAt.Format("2006-01-02 15:04 UTC"),
+		Warnings:       r.Warnings,
 	}
 }
 
@@ -169,13 +171,17 @@ func printRuns(ctx context.Context, entries []runEntry) {
 		if project == "" {
 			project = "(unknown)"
 		}
+		status := apiclient.PhaseOutcomeStatus(e.Phase, e.Outcome, e.CurrentOutcome)
+		if len(e.Warnings) > 0 {
+			status += " :warning:"
+		}
 		table.Row(
 			project,
 			refDisplay(e.Branch, e.Tag),
 			e.Revision,
 			"`"+e.ID.String()+"`",
 			e.CreatedAt,
-			apiclient.PhaseOutcomeStatus(e.Phase, e.Outcome, e.CurrentOutcome),
+			status,
 		)
 	}
 	b.WriteString(table.Render())

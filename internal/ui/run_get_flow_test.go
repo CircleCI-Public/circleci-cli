@@ -302,7 +302,7 @@ func TestRunGetFlow_WorkflowPickerShowsRunErrors(t *testing.T) {
 	waitForOutput(t, tm, "Select a workflow")
 
 	v := flowSnapshot(t, tm)
-	assert.Check(t, cmp.Contains(v, "config-fetch: No configuration was found in your project."))
+	assert.Check(t, cmp.Contains(v, "\u2717 No configuration was found in your project."))
 }
 
 // TestRunGetFlow_ToggleCyclesScopes drives the switch key through the full cycle:

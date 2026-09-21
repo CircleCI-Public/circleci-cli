@@ -24,6 +24,7 @@ package apiclient
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
@@ -37,16 +38,39 @@ import (
 // --- V3 wire types ---
 
 type runAttributesWire struct {
-	Phase          string         `json:"phase"`
-	Outcome        string         `json:"outcome,omitempty"`
-	CurrentOutcome string         `json:"current_outcome,omitempty"`
-	CreatedAt      time.Time      `json:"created_at"`
-	Errors         []runErrorWire `json:"errors,omitempty"`
+	Phase          string           `json:"phase"`
+	Outcome        string           `json:"outcome,omitempty"`
+	CurrentOutcome string           `json:"current_outcome,omitempty"`
+	CreatedAt      time.Time        `json:"created_at"`
+	Errors         []runErrorWire   `json:"errors,omitempty"`
+	Warnings       []runWarningWire `json:"warnings,omitempty"`
 }
 
 type runErrorWire struct {
 	Type    string `json:"type"`
 	Message string `json:"message"`
+}
+
+type runWarningWire struct {
+	Type        string          `json:"type"`
+	Message     string          `json:"message"`
+	Description string          `json:"description,omitempty"`
+	RawURL      json.RawMessage `json:"url,omitempty"`
+}
+
+func (w runWarningWire) url() string {
+	if len(w.RawURL) == 0 {
+		return ""
+	}
+	var bare string
+	if json.Unmarshal(w.RawURL, &bare) == nil {
+		return bare
+	}
+	var wrapped struct{ Value string }
+	if json.Unmarshal(w.RawURL, &wrapped) == nil {
+		return wrapped.Value
+	}
+	return ""
 }
 
 type runVCSWire struct {
@@ -110,6 +134,13 @@ type RunError struct {
 	Message string `json:"message"`
 }
 
+type RunWarning struct {
+	Type        string `json:"type"`
+	Message     string `json:"message"`
+	Description string `json:"description,omitempty"`
+	URL         string `json:"url,omitempty"`
+}
+
 // RunCommit holds the commit metadata attached to a run event.
 type RunCommit struct {
 	Subject     string `json:"subject,omitempty"`
@@ -120,18 +151,19 @@ type RunCommit struct {
 
 // RunV3 holds run detail from the V3 API.
 type RunV3 struct {
-	ID             uuid.UUID  `json:"id"`
-	Phase          string     `json:"phase"`
-	Outcome        string     `json:"outcome,omitempty"`
-	CurrentOutcome string     `json:"current_outcome,omitempty"`
-	Branch         string     `json:"branch,omitempty"`
-	Tag            string     `json:"tag,omitempty"`
-	Revision       string     `json:"revision,omitempty"`
-	RepositoryURL  string     `json:"repository_url,omitempty"`
-	Commit         *RunCommit `json:"commit,omitempty"`
-	CreatedAt      time.Time  `json:"created_at"`
-	ProjectID      uuid.UUID  `json:"project_id"`
-	Errors         []RunError `json:"errors,omitempty"`
+	ID             uuid.UUID    `json:"id"`
+	Phase          string       `json:"phase"`
+	Outcome        string       `json:"outcome,omitempty"`
+	CurrentOutcome string       `json:"current_outcome,omitempty"`
+	Branch         string       `json:"branch,omitempty"`
+	Tag            string       `json:"tag,omitempty"`
+	Revision       string       `json:"revision,omitempty"`
+	RepositoryURL  string       `json:"repository_url,omitempty"`
+	Commit         *RunCommit   `json:"commit,omitempty"`
+	CreatedAt      time.Time    `json:"created_at"`
+	ProjectID      uuid.UUID    `json:"project_id"`
+	Errors         []RunError   `json:"errors,omitempty"`
+	Warnings       []RunWarning `json:"warnings,omitempty"`
 }
 
 // Status derives a display status from phase and outcome.
@@ -165,6 +197,14 @@ func (w runWire) toRunV3() *RunV3 {
 	}
 	for _, e := range a.Errors {
 		r.Errors = append(r.Errors, RunError(e))
+	}
+	for _, w := range a.Warnings {
+		r.Warnings = append(r.Warnings, RunWarning{
+			Type:        w.Type,
+			Message:     w.Message,
+			Description: w.Description,
+			URL:         w.url(),
+		})
 	}
 	return r
 }

@@ -63,6 +63,20 @@ func runFailureReport(ctx context.Context, client *apiclient.Client, r *apiclien
 		out.WriteString("\n")
 	}
 
+	if len(r.Warnings) > 0 {
+		out.WriteString("## run warnings\n\n")
+		for _, w := range r.Warnings {
+			fmt.Fprintf(&out, "- \u26a0 %s\n", strings.TrimSpace(w.Message))
+			if w.Description != "" {
+				fmt.Fprintf(&out, "  %s\n", w.Description)
+			}
+			if w.URL != "" {
+				fmt.Fprintf(&out, "  \u2192 %s\n", w.URL)
+			}
+		}
+		out.WriteString("\n")
+	}
+
 	for _, wf := range workflows {
 		wfWritten := false
 

@@ -44,6 +44,7 @@ type Pipeline struct {
 	TriggerParameters *PipelineTriggerParameters `json:"trigger_parameters,omitempty"`
 	VCS               *PipelineVCS               `json:"vcs,omitempty"`
 	Errors            []PipelineError            `json:"errors,omitempty"`
+	Warnings          []PipelineWarning          `json:"warnings,omitempty"`
 }
 
 // PipelineTrigger describes what triggered a pipeline.
@@ -92,6 +93,13 @@ type VCSCommit struct {
 type PipelineError struct {
 	Type    string `json:"type"`
 	Message string `json:"message"`
+}
+
+type PipelineWarning struct {
+	Type        string `json:"type"`
+	Message     string `json:"message"`
+	Description string `json:"description,omitempty"`
+	URL         string `json:"url,omitempty"`
 }
 
 // GetPipeline fetches a single pipeline by its UUID.
