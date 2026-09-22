@@ -27,6 +27,7 @@
 package gitremote
 
 import (
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"os"
@@ -64,6 +65,30 @@ var (
 	// matches https://github.com/org/repo.git
 	httpsRemote = regexp.MustCompile(`^https?://([^/]+)/([^/]+)/(.+?)(?:\.git)?$`)
 )
+
+var (
+	// ErrSHARepoInaccessible is returned by ExpandSHA when the local git
+	// repository cannot be opened, so a short SHA cannot be expanded.
+	ErrSHARepoInaccessible = errors.New("local git repository is not accessible")
+	// ErrSHANotFound is returned by ExpandSHA when the short SHA does not
+	// resolve to any object in the local repository.
+	ErrSHANotFound = errors.New("SHA not found in local repository")
+	// ErrSHAAmbiguous is returned by ExpandSHA when the short SHA is a prefix of
+	// more than one commit in the local repository, so expanding it would pick
+	// one arbitrarily.
+	ErrSHAAmbiguous = errors.New("SHA prefix matches more than one commit")
+	// ErrSHATooShort is returned by ExpandSHA for a prefix below
+	// MinSHAPrefixLen, which git itself refuses to abbreviate to.
+	ErrSHATooShort = errors.New("SHA prefix is too short to identify a commit")
+)
+
+// MinSHAPrefixLen is the shortest abbreviated SHA that may be expanded, matching
+// git's own floor (MINIMUM_ABBREV). Below it, a prefix carries so little
+// information that it is far more likely to be a typo than an abbreviation.
+const MinSHAPrefixLen = 4
+
+// fullSHALen is the length of an unabbreviated SHA-1 object ID in hex.
+const fullSHALen = 40
 
 // DetectNamespace returns the organization name (namespace) from the git remote.
 // For a slug like "gh/myorg/myrepo" it returns "myorg".
@@ -372,6 +397,137 @@ func gitCurrentBranch(repo *git.Repository) (string, error) {
 		return "", err
 	}
 	return head.Name().Short(), nil
+}
+
+// ExpandSHA resolves an abbreviated git SHA against the repository containing
+// the current working directory. See ExpandSHAIn for the contract.
+func ExpandSHA(sha string) (string, error) {
+	cwd, err := os.Getwd()
+	if err != nil {
+		return sha, ErrSHARepoInaccessible
+	}
+	return ExpandSHAIn(cwd, sha)
+}
+
+// ExpandSHAIn attempts to resolve an abbreviated git SHA to its full
+// 40-character form using the repository containing dir. It returns the expanded
+// SHA, lowercased, and nil on success. On failure it returns the original input
+// unchanged — so callers can quote what the user typed — and one of
+// ErrSHATooShort, ErrSHARepoInaccessible, ErrSHANotFound or ErrSHAAmbiguous.
+// A SHA that is already 40 characters is lowercased and returned without opening
+// a repository, so callers holding a full SHA never depend on local git state.
+//
+// sha must already be known to be hex; callers validate that themselves, since a
+// non-SHA argument is a bad-argument error rather than a git failure.
+//
+// Expansion matches object-ID prefixes only. Deliberately not ResolveRevision:
+// that resolves any revision expression, so a hex-looking branch or tag name
+// ("1234", "deadbeef", a 20260101 date tag) would expand to that ref's tip and
+// silently watch the wrong commit, and it reports no error for a prefix matching
+// several commits — it returns whichever the object store enumerates first.
+func ExpandSHAIn(dir, sha string) (string, error) {
+	norm := strings.ToLower(sha)
+	if len(norm) == fullSHALen {
+		return norm, nil
+	}
+	if len(norm) < MinSHAPrefixLen {
+		return sha, ErrSHATooShort
+	}
+	repo, err := openRepoIn(dir)
+	if err != nil {
+		return sha, ErrSHARepoInaccessible
+	}
+	defer func() { _ = repo.Close() }()
+
+	commits := commitsWithPrefix(repo, norm)
+	switch len(commits) {
+	case 0:
+		return sha, ErrSHANotFound
+	case 1:
+		return commits[0].String(), nil
+	default:
+		return sha, ErrSHAAmbiguous
+	}
+}
+
+// commitsWithPrefix returns the distinct commits whose object ID starts with the
+// lowercase hex prefix. Objects that are not commits are skipped, and an
+// annotated tag is peeled to the commit it points at, so the result holds only
+// hashes that can appear as a pipeline revision. A prefix naming several objects
+// that peel to the same commit counts once, since there is nothing ambiguous
+// about it from the caller's point of view.
+func commitsWithPrefix(repo *git.Repository, prefix string) []plumbing.Hash {
+	// hex.DecodeString only decodes whole bytes, so a prefix of odd length is
+	// narrowed by its even part and the dangling nybble is filtered below.
+	evenHex := prefix[:len(prefix)&^1]
+	raw, err := hex.DecodeString(evenHex)
+	if err != nil {
+		return nil
+	}
+
+	var (
+		out  []plumbing.Hash
+		seen = map[plumbing.Hash]bool{}
+	)
+	for _, h := range hashesWithPrefix(repo, raw) {
+		if !strings.HasPrefix(h.String(), prefix) {
+			continue
+		}
+		commit, ok := peelToCommit(repo, h)
+		if !ok || seen[commit] {
+			continue
+		}
+		seen[commit] = true
+		out = append(out, commit)
+	}
+	return out
+}
+
+// hashesWithPrefix lists every object ID in the repository beginning with the
+// given raw byte prefix. The filesystem object storage can answer this directly;
+// anything else is walked object by object.
+func hashesWithPrefix(repo *git.Repository, prefix []byte) []plumbing.Hash {
+	type prefixIndexer interface {
+		HashesWithPrefix(prefix []byte) ([]plumbing.Hash, error)
+	}
+	if idx, ok := repo.Storer.(prefixIndexer); ok {
+		hashes, err := idx.HashesWithPrefix(prefix)
+		if err != nil {
+			return nil
+		}
+		return hashes
+	}
+
+	iter, err := repo.Storer.IterEncodedObjects(plumbing.AnyObject)
+	if err != nil {
+		return nil
+	}
+	var hashes []plumbing.Hash
+	_ = iter.ForEach(func(obj plumbing.EncodedObject) error {
+		if h := obj.Hash(); h.HasPrefix(prefix) {
+			hashes = append(hashes, h)
+		}
+		return nil
+	})
+	return hashes
+}
+
+// peelToCommit resolves an object ID to a commit: commits are returned as-is,
+// annotated tags are followed to their target, and anything else (a blob or a
+// tree) reports false.
+func peelToCommit(repo *git.Repository, h plumbing.Hash) (plumbing.Hash, bool) {
+	if _, err := repo.CommitObject(h); err == nil {
+		return h, true
+	}
+	tag, err := repo.TagObject(h)
+	if err != nil {
+		return plumbing.ZeroHash, false
+	}
+	commit, err := tag.Commit()
+	if err != nil {
+		return plumbing.ZeroHash, false
+	}
+	return commit.Hash, true
 }
 
 // gitDefaultBranch returns the short name of the remote default branch (e.g.

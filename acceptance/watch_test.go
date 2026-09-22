@@ -25,9 +25,11 @@ package acceptance_test
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"testing"
@@ -45,6 +47,11 @@ import (
 const watchSlug = "gh/testorg/testrepo"
 const watchProjectID = "a0000000-0000-4000-8000-00000000fff0"
 
+// watchRevision is the fixture run's commit, full length because that is the
+// only form the V3 search matches — the fake now filters on it, so a --sha test
+// passes only when the CLI sends this exact value.
+const watchRevision = "abc1234def5678abcdef1234567890abcdef1234"
+
 // setupWatchFake builds a fake with one run whose single workflow has the
 // given status. It registers the run in both V2 (for number lookup and
 // workflow fetching) and V3 (for run detail), plus project info for
@@ -52,14 +59,14 @@ const watchProjectID = "a0000000-0000-4000-8000-00000000fff0"
 func setupWatchFake(t *testing.T, runID, wfID, wfStatus string) (*fakes.CircleCI, *testenv.TestEnv) {
 	t.Helper()
 	v2Run := fakeRun(runID, 75, "created", watchSlug, "main")
-	v2Run.Revision = "abc1234def5678abcdef"
+	v2Run.Revision = watchRevision
 
 	// Map V2 workflow status to V3 outcome for the run.
 	v3Outcome := wfStatus
 	if v3Outcome == "success" {
 		v3Outcome = "succeeded"
 	}
-	v3Run := fakeRunV3(runID, watchProjectID, "ended", v3Outcome, "main", "abc1234def5678abcdef")
+	v3Run := fakeRunV3(runID, watchProjectID, "ended", v3Outcome, "main", watchRevision)
 
 	fake := fakes.NewCircleCI(t)
 	addProjectBySlug(fake, watchSlug, watchProjectID)
@@ -224,7 +231,7 @@ func TestRunWatch_SHA(t *testing.T) {
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary: binaryPath,
-		Args: []string{"run", "watch", "--sha", "abc1234",
+		Args: []string{"run", "watch", "--sha", watchRevision,
 			"--project", watchSlug, "--branch", "main"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -232,6 +239,170 @@ func TestRunWatch_SHA(t *testing.T) {
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
 	assert.Check(t, cmp.Contains(result.Stderr, "succeeded"), "stderr: %s", result.Stderr)
+}
+
+// --- --sha: a short SHA is expanded against the local repo before searching ---
+
+// The point of the feature, end to end: the run is registered under its full
+// 40-character revision and the fake's search matches that exactly, so the run
+// comes back only if the CLI expanded the abbreviation first. A wrong or
+// unexpanded SHA reaching the filter fails this test rather than passing
+// silently.
+func TestRunWatch_SHA_ShortExpandsAgainstLocalRepo(t *testing.T) {
+	repoDir := t.TempDir()
+	fullSHA := initGitRepoWithCommit(t, repoDir)
+
+	runID := "f0000000-0000-4000-8000-00000000000a"
+	v3Run := fakeRunV3(runID, watchProjectID, "ended", "succeeded", "main", fullSHA)
+
+	fake := fakes.NewCircleCI(t)
+	addProjectBySlug(fake, watchSlug, watchProjectID)
+	fake.AddRunV3(runID, watchProjectID, v3Run)
+	fake.AddRunWorkflowsV3(runID, fakeWorkflowV3(
+		"b0000000-0000-4000-8000-0000000f000a", "build", runID, watchProjectID, "ended", "succeeded"))
+
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"run", "watch", "--sha", fullSHA[:7], "--project", watchSlug},
+		Env:     env.Environ(),
+		WorkDir: repoDir,
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, cmp.Contains(result.Stderr, "succeeded"), "stderr: %s", result.Stderr)
+	assertSearchedForRevision(t, fake, fullSHA)
+}
+
+// --- --sha: uppercase abbreviation resolves the same commit ---
+
+// git accepts an uppercase object ID and so must the CLI: go-git's prefix
+// matching compares against a lowercase hash, so an odd-length uppercase
+// abbreviation was reported as a commit that does not exist.
+func TestRunWatch_SHA_UppercaseShortExpands(t *testing.T) {
+	repoDir := t.TempDir()
+	fullSHA := initGitRepoWithCommit(t, repoDir)
+
+	runID := "f0000000-0000-4000-8000-00000000000b"
+	v3Run := fakeRunV3(runID, watchProjectID, "ended", "succeeded", "main", fullSHA)
+
+	fake := fakes.NewCircleCI(t)
+	addProjectBySlug(fake, watchSlug, watchProjectID)
+	fake.AddRunV3(runID, watchProjectID, v3Run)
+	fake.AddRunWorkflowsV3(runID, fakeWorkflowV3(
+		"b0000000-0000-4000-8000-0000000f000b", "build", runID, watchProjectID, "ended", "succeeded"))
+
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"run", "watch", "--sha", strings.ToUpper(fullSHA[:7]), "--project", watchSlug},
+		Env:     env.Environ(),
+		WorkDir: repoDir,
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assertSearchedForRevision(t, fake, fullSHA)
+}
+
+// assertSearchedForRevision pins the expanded SHA reaching the API: the run
+// search must filter on exactly this revision. Asserting on the recorded request
+// rather than only on the exit code is what keeps these tests honest — the
+// command could otherwise find the fixture run while sending anything at all.
+func assertSearchedForRevision(t *testing.T, fake *fakes.CircleCI, revision string) {
+	t.Helper()
+	want := fmt.Sprintf("pipeline.git.revision == %q", revision)
+	var seen []string
+	for _, req := range fake.AllRequests() {
+		if req.URL.Path != "/api/v3/runs/search" || req.Body == nil {
+			continue
+		}
+		var body struct {
+			Filter string `json:"filter"`
+		}
+		assert.NilError(t, req.Decode(&body))
+		if strings.Contains(body.Filter, want) {
+			return
+		}
+		seen = append(seen, body.Filter)
+	}
+	t.Errorf("no run search filtered on %s; filters sent: %q", want, seen)
+}
+
+// --- --sha: a commit absent from the local repo → exit 5 ---
+
+func TestRunWatch_SHA_ShortNotInLocalRepo(t *testing.T) {
+	repoDir := t.TempDir()
+	initGitRepoWithCommit(t, repoDir)
+
+	fake := fakes.NewCircleCI(t)
+	addProjectBySlug(fake, watchSlug, watchProjectID)
+
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"run", "watch", "--sha", "abc1234", "--project", watchSlug},
+		Env:     env.Environ(),
+		WorkDir: repoDir,
+	})
+
+	assert.Equal(t, result.ExitCode, 5, "stderr: %s", result.Stderr) // ExitNotFound
+	assert.Check(t, cmp.Contains(result.Stderr, "does not exist in the local repository"), "stderr: %s", result.Stderr)
+}
+
+// --- --sha: a prefix below git's own floor → exit 2 before any git work ---
+
+func TestRunWatch_SHA_TooShort(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	addProjectBySlug(fake, watchSlug, watchProjectID)
+
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"run", "watch", "--sha", "ab", "--project", watchSlug},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 2, "stderr: %s", result.Stderr) // ExitBadArguments
+	assert.Check(t, cmp.Contains(result.Stderr, "too short to identify a commit"), "stderr: %s", result.Stderr)
+}
+
+// initGitRepoWithCommit creates a git repository in dir with one commit and
+// returns that commit's full 40-character SHA. The real git binary is used
+// rather than go-git, so the repository on disk is exactly what a user's
+// checkout looks like.
+func initGitRepoWithCommit(t *testing.T, dir string) string {
+	t.Helper()
+	runGit := func(args ...string) string {
+		t.Helper()
+		cmd := exec.Command("git", args...)
+		cmd.Dir = dir
+		cmd.Env = append(os.Environ(),
+			"GIT_AUTHOR_NAME=Test", "GIT_AUTHOR_EMAIL=test@example.com",
+			"GIT_COMMITTER_NAME=Test", "GIT_COMMITTER_EMAIL=test@example.com",
+		)
+		out, err := cmd.CombinedOutput()
+		assert.NilError(t, err, "git %s: %s", strings.Join(args, " "), out)
+		return strings.TrimSpace(string(out))
+	}
+
+	runGit("init", "--initial-branch=main")
+	assert.NilError(t, os.WriteFile(filepath.Join(dir, "README"), []byte("test\n"), 0o644))
+	runGit("add", "README")
+	runGit("commit", "-m", "initial commit")
+	return runGit("rev-parse", "HEAD")
 }
 
 // --- --sha: not found within wait window → exit 5 ---
@@ -247,7 +418,7 @@ func TestRunWatch_SHA_NotFound(t *testing.T) {
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary: binaryPath,
-		Args: []string{"run", "watch", "--sha", "deadbeef",
+		Args: []string{"run", "watch", "--sha", "deadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
 			"--project", watchSlug, "--branch", "main"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
@@ -255,6 +426,53 @@ func TestRunWatch_SHA_NotFound(t *testing.T) {
 
 	assert.Equal(t, result.ExitCode, 5, "stderr: %s", result.Stderr) // ExitNotFound
 	assert.Check(t, cmp.Contains(result.Stderr, "No run found"), "stderr: %s", result.Stderr)
+}
+
+// --- --sha: short SHA outside a git repo → exit 2 (bad arguments) ---
+
+func TestRunWatch_SHA_ShortOutsideGitRepo(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	addProjectBySlug(fake, watchSlug, watchProjectID)
+
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary: binaryPath,
+		Args: []string{"run", "watch", "--sha", "abc1234",
+			"--project", watchSlug, "--branch", "main"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 2, "stderr: %s", result.Stderr) // ExitBadArguments
+	assert.Check(t, cmp.Contains(result.Stderr, "local git repository is not accessible"), "stderr: %s", result.Stderr)
+}
+
+// --- --sha: a revision that is not a hex SHA → exit 2 without any API call ---
+
+// A branch name is the likely mistake here, and it must not reach local
+// expansion: go-git would resolve it to that branch's tip and watch the wrong
+// commit. No project is registered on the fake, so reaching the API at all would
+// surface as a different exit code.
+func TestRunWatch_SHA_NotHex(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary: binaryPath,
+		Args: []string{"run", "watch", "--sha", "main",
+			"--project", watchSlug, "--branch", "main"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 2, "stderr: %s", result.Stderr) // ExitBadArguments
+	assert.Check(t, cmp.Contains(result.Stderr, "does not look like a commit SHA"), "stderr: %s", result.Stderr)
 }
 
 // --- --failfast: exit immediately when a job fails, without waiting for the rest of the run ---
