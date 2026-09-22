@@ -1,3 +1,7 @@
+If you have not already agreed to Runner Terms in a signed Order, then by continuing to install Runner, you are agreeing to CircleCI's Runner Terms which are found at: https://circleci.com/legal/runner-terms/.
+If you already agreed to Runner Terms in a signed Order, the Runner Terms in the signed Order supersede the Runner Terms in the web address above.
+If you did not already agree to Runner Terms through a signed Order and do not agree to the Runner Terms in the web address above, please do not install or use Runner.
+
 error: Resource class "my-org/new-runner" was created and token tok-id-9 was generated, but the API did not return the token value. It cannot be retrieved later.
 
 Suggestions:

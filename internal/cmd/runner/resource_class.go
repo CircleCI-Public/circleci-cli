@@ -174,6 +174,12 @@ func runResourceClassList(ctx context.Context, client *apiclient.Client, org, na
 // install instructions referring to the "default" token stay accurate.
 const defaultTokenNickname = "default"
 
+var runnerTermsNotice = heredoc.Doc(`
+	If you have not already agreed to Runner Terms in a signed Order, then by continuing to install Runner, you are agreeing to CircleCI's Runner Terms which are found at: https://circleci.com/legal/runner-terms/.
+	If you already agreed to Runner Terms in a signed Order, the Runner Terms in the signed Order supersede the Runner Terms in the web address above.
+	If you did not already agree to Runner Terms through a signed Order and do not agree to the Runner Terms in the web address above, please do not install or use Runner.
+`)
+
 func newResourceClassCreateCmd() *cobra.Command {
 	var description string
 	var generateToken bool
@@ -237,6 +243,8 @@ type resourceClassCreateOutput struct {
 }
 
 func runResourceClassCreate(ctx context.Context, client *apiclient.Client, resourceClass, description string, generateToken, jsonOut bool) error {
+	iostream.ErrPrintf(ctx, "%s\n", runnerTermsNotice)
+
 	rc, err := client.CreateResourceClass(ctx, resourceClass, description)
 	if err != nil {
 		return apiErr(err, resourceClass)

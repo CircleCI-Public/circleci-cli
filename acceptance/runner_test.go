@@ -269,6 +269,7 @@ func TestRunnerResourceClassCreate(t *testing.T) {
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 
 	t.Run("check request", func(t *testing.T) {
 		assert.Check(t, cmp.DeepEqual(fake.LastRequest(), &httprecorder.Request{
@@ -318,6 +319,9 @@ func TestRunnerResourceClassCreate_JSON(t *testing.T) {
 	assert.Check(t, cmp.Equal(out["description"], "New runner"))
 
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".json"))
+	// The Runner Terms notice is a compliance requirement, not command output,
+	// so --json must not suppress it.
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 }
 
 func TestRunnerResourceClassCreate_JSON_Color(t *testing.T) {
@@ -347,6 +351,7 @@ func TestRunnerResourceClassCreate_GenerateToken(t *testing.T) {
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 
 	// The token is data, so it belongs on stdout only.
 	leaked := strings.Contains(result.Stderr, "fake-runner-token-value")
