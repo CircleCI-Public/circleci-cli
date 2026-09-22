@@ -288,6 +288,31 @@ With --pinned: alias, function, version.
 - Get just the names: 
   `circleci function list --json --jq '.[].name'`
 
+#### `circleci function update <alias> [flags]`
+
+Change the version a declared function is pinned to
+
+Re-pin a declared function to its latest release.
+
+The argument is the alias the function is declared under, which
+`function list --pinned` reports.
+
+| Flag                  | Description                                                       |
+| --------------------- | ----------------------------------------------------------------- |
+| `-c, --config string` | path to the pipeline config file (default ".circleci/config.yml") |
+| `-n, --dry-run`       | show the change without writing it                                |
+| `--version string`    | version to pin (default: the latest release)                      |
+
+
+**Examples:**
+
+- Move a pin to the latest release: 
+  `circleci function update setup-go`
+- Pin an exact version: 
+  `circleci function update setup-go --version v0.5.1-684fd5b`
+- Preview the change without writing it: 
+  `circleci function update setup-go --dry-run`
+
 ### `circleci job <command>`
 
 Inspect a job's details, output and artifacts

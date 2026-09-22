@@ -4,3 +4,4 @@ Available commands:
   add
   get
   list
+  update

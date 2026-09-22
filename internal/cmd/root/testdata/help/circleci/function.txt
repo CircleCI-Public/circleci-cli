@@ -6,11 +6,12 @@ Discover and declare CircleCI functions
 
 ## Commands
 
-| Command | Description                               |
-| ------- | ----------------------------------------- |
-| `add`   | Declare a function in the pipeline config |
-| `get`   | Show a function's versions and arguments  |
-| `list`  | List published CircleCI functions         |
+| Command  | Description                                         |
+| -------- | --------------------------------------------------- |
+| `add`    | Declare a function in the pipeline config           |
+| `get`    | Show a function's versions and arguments            |
+| `list`   | List published CircleCI functions                   |
+| `update` | Change the version a declared function is pinned to |
 
 ## Flags
 

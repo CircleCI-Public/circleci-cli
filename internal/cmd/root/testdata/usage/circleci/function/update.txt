@@ -1,0 +1,8 @@
+Usage:  circleci function update <alias> [flags]
+
+Flags:
+  -c, --config string    path to the pipeline config file (default ".circleci/config.yml")
+  -n, --dry-run          show the change without writing it
+  -h, --help             help for update
+      --version string   version to pin (default: the latest release)
+  

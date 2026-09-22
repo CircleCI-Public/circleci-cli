@@ -1,0 +1,32 @@
+Change the version a declared function is pinned to
+
+## Usage
+
+`circleci function update <alias> [flags]`
+
+## Flags
+
+| Flag                  | Description                                                       |
+| --------------------- | ----------------------------------------------------------------- |
+| `-c, --config string` | path to the pipeline config file (default ".circleci/config.yml") |
+| `-n, --dry-run`       | show the change without writing it                                |
+| `--version string`    | version to pin (default: the latest release)                      |
+
+Global flags: `--debug`, `--no-color`, `-q, --quiet` — see `circleci --help`.
+
+## Examples
+
+- Move a pin to the latest release: 
+  `circleci function update setup-go`
+- Pin an exact version: 
+  `circleci function update setup-go --version v0.5.1-684fd5b`
+- Preview the change without writing it: 
+  `circleci function update setup-go --dry-run`
+
+## Details
+
+Re-pin a declared function to its latest release.
+
+The argument is the alias the function is declared under, which
+`function list --pinned` reports.
+

@@ -362,3 +362,40 @@ func TestFunctionAddOptions(t *testing.T) {
 		assert.Check(t, cmp.Contains(result.Stderr, "No config file at"))
 	})
 }
+
+func TestFunctionUpdate(t *testing.T) {
+	env := setupFunctionFake(t)
+	dir := writeFnConfig(t, `version: 2.1
+
+functions:
+  # pinned deliberately
+  setup-go: `+setupGoName+`@v0.9.0-aaa1111
+`)
+
+	result := runFunctionIn(t, env, dir, "update", "setup-go")
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+
+	t.Run("The reference moves and the comment survives", func(t *testing.T) {
+		got := readFnConfig(t, dir)
+		assert.Check(t, cmp.Contains(got, "setup-go: "+setupGoName+"@"+setupGoLatest))
+		assert.Check(t, cmp.Contains(got, "# pinned deliberately"))
+	})
+
+	t.Run("Re-running it is a no-op", func(t *testing.T) {
+		again := runFunctionIn(t, env, dir, "update", "setup-go")
+		assert.Check(t, cmp.Equal(again.ExitCode, 0))
+		assert.Check(t, cmp.Contains(again.Stdout, "already pinned"))
+	})
+}
+
+func TestFunctionUpdateNotDeclared(t *testing.T) {
+	env := setupFunctionFake(t)
+	dir := writeFnConfig(t, baseConfig)
+
+	result := runFunctionIn(t, env, dir, "update", "setup-go")
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 5))
+	assert.Check(t, cmp.Contains(result.Stderr, "no entry in the functions block"))
+}
