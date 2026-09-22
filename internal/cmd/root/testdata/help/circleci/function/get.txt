@@ -1,0 +1,36 @@
+Show a function's versions and arguments
+
+## Usage
+
+`circleci function get <name> [flags]`
+
+Aliases: `circleci function show`
+
+## Flags
+
+| Flag               | Description                                                                       |
+| ------------------ | --------------------------------------------------------------------------------- |
+| `--jq string`      | Process values from the response using jq syntax (see `circleci help formatting`) |
+| `--json`           | Output as JSON                                                                    |
+| `--version string` | version to show (default: the latest release)                                     |
+
+Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `circleci --help`.
+
+## Examples
+
+- Show a function at its latest version: 
+  `circleci function get setup-go`
+- Show a specific version, or a function published elsewhere: 
+  `circleci function get github.com/myorg/my-fn --version v1.0.0`
+- List the arguments it accepts: 
+  `circleci function get setup-go --json --jq '.flags[].name'`
+
+## Details
+
+Show a function's published versions and the arguments one accepts.
+
+A bare name resolves against `github.com/circleci-functions`.
+
+JSON fields: id, name, description, version, latest_version,
+versions, flags.
+

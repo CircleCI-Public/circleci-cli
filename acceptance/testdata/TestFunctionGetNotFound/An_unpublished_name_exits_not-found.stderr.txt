@@ -1,0 +1,6 @@
+Fetching github.com/circleci-functions/setup-nothing...
+error: No published function found for "github.com/circleci-functions/setup-nothing".
+
+Suggestions:
+  • Run 'circleci function list' to see published functions
+  • Functions published under the legacy circleci/<name> prefix are not listed

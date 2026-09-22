@@ -495,6 +495,7 @@ func NewCircleCI(t *testing.T, tokens ...string) *CircleCI {
 	r.Post("/api/v3/orb/versions/{id}/promote", f.handleOrbPromoteVersion)
 	r.Get("/api/v3/orb/categories", f.handleOrbListCategories)
 	r.Get("/api/v3/function/packages", f.handleListFunctions)
+	r.Get("/api/v3/function/versions/{id}", f.handleGetFunctionVersion)
 	r.Delete("/api/v3/projects/{projectID}/dlc", f.handleDLCPurge)
 	// Wildcard route for artifact downloads — populated via AddStaticFile before requests.
 	r.Get("/artifacts/*", f.handleStaticFile)
@@ -5643,7 +5644,7 @@ func (f *CircleCI) AddFunction(name, description string, versions ...string) {
 	f.mu.Unlock()
 
 	for _, v := range versions {
-		f.addFunctionVersion(name, v, map[string]any{
+		f.AddFunctionVersion(name, v, map[string]any{
 			"name":        path.Base(name),
 			"description": description,
 			"version":     v,
@@ -5659,16 +5660,18 @@ func (f *CircleCI) SetFunctionListStatus(status int) {
 	f.functionListStatus = status
 }
 
-// addFunctionVersion publishes a version of an already-added function.
+// AddFunctionVersion publishes a version of an already-added function.
 // Re-adding a version replaces its descriptor rather than publishing a second
 // entry, so AddFunction can seed versions and a caller can enrich one of them.
-func (f *CircleCI) addFunctionVersion(name, version string, descriptor map[string]any) {
+func (f *CircleCI) AddFunctionVersion(name, version string, descriptor map[string]any) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
 	fnID, ok := f.functionsByName[name]
 	if !ok {
-		return
+		// Silently ignoring this would leave the version unpublished and the
+		// test passing vacuously against the seed descriptor.
+		panic(fmt.Sprintf("fakes: AddFunctionVersion(%q): call AddFunction first", name))
 	}
 
 	for _, id := range f.fnVersionsByFnID[fnID] {
@@ -5737,5 +5740,32 @@ func (f *CircleCI) handleListFunctions(w http.ResponseWriter, r *http.Request) {
 	render.JSON(w, r, map[string]any{
 		"data": items,
 		"page": map[string]any{"next": nil, "prev": nil},
+	})
+}
+
+func (f *CircleCI) handleGetFunctionVersion(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+
+	f.mu.RLock()
+	defer f.mu.RUnlock()
+
+	v, ok := f.functionVersions[id]
+	if !ok {
+		render.Status(r, http.StatusNotFound)
+		render.JSON(w, r, map[string]any{"message": "function version not found"})
+		return
+	}
+
+	render.JSON(w, r, map[string]any{
+		"data": map[string]any{
+			"id": v.ID,
+			"attributes": map[string]any{
+				"version":    v.Version,
+				"descriptor": v.Descriptor,
+			},
+			"references": map[string]any{
+				"function": map[string]any{"id": v.FunctionID},
+			},
+		},
 	})
 }

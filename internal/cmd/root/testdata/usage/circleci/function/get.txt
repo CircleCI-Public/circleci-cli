@@ -1,0 +1,8 @@
+Usage:  circleci function get <name> [flags]
+
+Flags:
+  -h, --help             help for get
+      --jq string        Process values from the response using jq syntax
+      --json             Output as JSON
+      --version string   version to show (default: the latest release)
+  

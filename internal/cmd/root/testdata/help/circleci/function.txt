@@ -6,9 +6,10 @@ Discover CircleCI functions
 
 ## Commands
 
-| Command | Description                       |
-| ------- | --------------------------------- |
-| `list`  | List published CircleCI functions |
+| Command | Description                              |
+| ------- | ---------------------------------------- |
+| `get`   | Show a function's versions and arguments |
+| `list`  | List published CircleCI functions        |
 
 ## Flags
 
@@ -18,8 +19,8 @@ Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `ci
 
 - List published functions: 
   `circleci function list`
-- Output as JSON: 
-  `circleci function list --json`
+- Show a function's versions and arguments: 
+  `circleci function get setup-go`
 - Get just the names: 
   `circleci function list --json --jq '.[].name'`
 

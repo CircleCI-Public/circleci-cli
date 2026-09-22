@@ -1,4 +1,5 @@
 Usage:  circleci function <command> [flags]
 
 Available commands:
+  get
   list

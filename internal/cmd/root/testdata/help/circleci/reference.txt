@@ -193,10 +193,42 @@ A function is a versioned binary invoked as a step. Run
 
 - List published functions: 
   `circleci function list`
-- Output as JSON: 
-  `circleci function list --json`
+- Show a function's versions and arguments: 
+  `circleci function get setup-go`
 - Get just the names: 
   `circleci function list --json --jq '.[].name'`
+
+#### `circleci function get <name> [flags]`
+
+Show a function's versions and arguments
+
+Show a function's published versions and the arguments one accepts.
+
+A bare name resolves against `github.com/circleci-functions`.
+
+JSON fields: id, name, description, version, latest_version,
+versions, flags.
+
+| Flag               | Description                                                                       |
+| ------------------ | --------------------------------------------------------------------------------- |
+| `--jq string`      | Process values from the response using jq syntax (see `circleci help formatting`) |
+| `--json`           | Output as JSON                                                                    |
+| `--version string` | version to show (default: the latest release)                                     |
+
+
+**Aliases:**
+
+
+`circleci function show`
+
+**Examples:**
+
+- Show a function at its latest version: 
+  `circleci function get setup-go`
+- Show a specific version, or a function published elsewhere: 
+  `circleci function get github.com/myorg/my-fn --version v1.0.0`
+- List the arguments it accepts: 
+  `circleci function get setup-go --json --jq '.flags[].name'`
 
 #### `circleci function list [flags]`
 

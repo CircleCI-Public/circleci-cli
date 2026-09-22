@@ -1,0 +1,7 @@
+Fetching github.com/circleci-functions/setup-go...
+error: Function "github.com/circleci-functions/setup-go" has no published version "v9.9.9".
+Published: v0.5.1-684fd5b, v0.9.0-aaa1111
+
+Suggestions:
+  • Omit --version to use the latest release
+  • Run 'circleci function get github.com/circleci-functions/setup-go' to see every published version
