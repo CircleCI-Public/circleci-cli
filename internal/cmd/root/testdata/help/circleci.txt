@@ -12,7 +12,7 @@ Work with CircleCI from the command line.
 | ------------ | ------------------------------------------------ |
 | `artifact`   | List and download a job's artifact files         |
 | `config`     | Generate, validate, process and pack config YAML |
-| `function`   | Discover CircleCI functions                      |
+| `function`   | Discover and declare CircleCI functions          |
 | `job`        | Inspect a job's details, output and artifacts    |
 | `pipeline`   | Manage the pipeline definitions a run executes   |
 | `run`        | Trigger, watch and cancel pipeline runs          |

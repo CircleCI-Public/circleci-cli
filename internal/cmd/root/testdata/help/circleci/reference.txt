@@ -182,9 +182,9 @@ JSON fields (--json): valid (bool), compiled_yaml (string, when valid), errors (
 
 ### `circleci function <command>`
 
-Discover CircleCI functions
+Discover and declare CircleCI functions
 
-Discover the CircleCI functions published for use in your config.
+Discover published CircleCI functions and declare them in your config.
 
 A function is a versioned binary invoked as a step. Run
 `circleci help functions` for the config syntax.
@@ -195,8 +195,35 @@ A function is a versioned binary invoked as a step. Run
   `circleci function list`
 - Show a function's versions and arguments: 
   `circleci function get setup-go`
-- Get just the names: 
-  `circleci function list --json --jq '.[].name'`
+- Declare one in .circleci/config.yml: 
+  `circleci function add setup-go`
+
+#### `circleci function add <name> [flags]`
+
+Declare a function in the pipeline config
+
+Resolve a function's latest version and declare it in the
+`functions` block of the pipeline config.
+
+The alias a step invokes defaults to the function's name; `-fn` is
+appended if the config already uses that name.
+
+| Flag                  | Description                                                       |
+| --------------------- | ----------------------------------------------------------------- |
+| `--as string`         | alias a step invokes it by (default: the function's name)         |
+| `-c, --config string` | path to the pipeline config file (default ".circleci/config.yml") |
+| `-n, --dry-run`       | show the change without writing it                                |
+| `--version string`    | version to pin (default: the latest release)                      |
+
+
+**Examples:**
+
+- Declare a function at its latest version: 
+  `circleci function add setup-go`
+- Declare a specific version under a chosen alias: 
+  `circleci function add setup-go --version v0.5.1-684fd5b --as go`
+- Preview the change without writing it: 
+  `circleci function add setup-go --dry-run`
 
 #### `circleci function get <name> [flags]`
 

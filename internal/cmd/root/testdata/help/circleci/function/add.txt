@@ -1,0 +1,34 @@
+Declare a function in the pipeline config
+
+## Usage
+
+`circleci function add <name> [flags]`
+
+## Flags
+
+| Flag                  | Description                                                       |
+| --------------------- | ----------------------------------------------------------------- |
+| `--as string`         | alias a step invokes it by (default: the function's name)         |
+| `-c, --config string` | path to the pipeline config file (default ".circleci/config.yml") |
+| `-n, --dry-run`       | show the change without writing it                                |
+| `--version string`    | version to pin (default: the latest release)                      |
+
+Global flags: `--debug`, `--no-color`, `-q, --quiet` — see `circleci --help`.
+
+## Examples
+
+- Declare a function at its latest version: 
+  `circleci function add setup-go`
+- Declare a specific version under a chosen alias: 
+  `circleci function add setup-go --version v0.5.1-684fd5b --as go`
+- Preview the change without writing it: 
+  `circleci function add setup-go --dry-run`
+
+## Details
+
+Resolve a function's latest version and declare it in the
+`functions` block of the pipeline config.
+
+The alias a step invokes defaults to the function's name; `-fn` is
+appended if the config already uses that name.
+

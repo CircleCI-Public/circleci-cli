@@ -25,6 +25,7 @@ package function_test
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"gotest.tools/v3/assert"
@@ -78,4 +79,118 @@ functions:
 		_, err := function.ListPins(filepath.Join(t.TempDir(), "nope.yml"))
 		assert.Check(t, cmp.ErrorContains(err, "No config file at"))
 	})
+}
+
+func read(t *testing.T, path string) string {
+	t.Helper()
+	data, err := os.ReadFile(path) //nolint:gosec // test-controlled path
+	assert.NilError(t, err)
+	return string(data)
+}
+
+var setupGoRef = function.Reference{
+	Path:    "github.com/circleci-functions/setup-go",
+	Version: "v0.5.1-684fd5b",
+}
+
+func TestAddPin(t *testing.T) {
+	t.Run("A config with no functions: block gains one", func(t *testing.T) {
+		path := write(t, "version: 2.1\n\njobs:\n  build:\n    steps:\n      - checkout\n")
+		assert.NilError(t, function.AddPin(path, "setup-go", setupGoRef))
+		assert.Check(t, cmp.Contains(read(t, path),
+			"functions:\n  setup-go: github.com/circleci-functions/setup-go@v0.5.1-684fd5b"))
+	})
+
+	t.Run("An existing block gains an entry and keeps its comments", func(t *testing.T) {
+		path := write(t, `version: 2.1
+
+# functions we depend on
+functions:
+  # pinned deliberately
+  setup-node: github.com/circleci-functions/setup-node@v0.1.0-cc33dd4
+`)
+		assert.NilError(t, function.AddPin(path, "setup-go", setupGoRef))
+
+		got := read(t, path)
+		assert.Check(t, cmp.Contains(got, "# functions we depend on"))
+		assert.Check(t, cmp.Contains(got, "# pinned deliberately"))
+		assert.Check(t, cmp.Contains(got, "setup-node: github.com/circleci-functions/setup-node@v0.1.0-cc33dd4"))
+		assert.Check(t, cmp.Contains(got, "setup-go: github.com/circleci-functions/setup-go@v0.5.1-684fd5b"))
+	})
+
+	t.Run("Declaring the same alias twice is refused and writes nothing", func(t *testing.T) {
+		path := write(t, "version: 2.1\nfunctions:\n  setup-go: github.com/circleci-functions/setup-go@v0.1.0\n")
+		err := function.AddPin(path, "setup-go", setupGoRef)
+		assert.Check(t, cmp.ErrorContains(err, "already has an entry"))
+		assert.Check(t, cmp.Contains(read(t, path), "setup-go@v0.1.0"))
+	})
+
+	t.Run("Every byte the entry does not occupy is left alone", func(t *testing.T) {
+		before := "version: 2.1\n\n# our orbs\norbs:\n  node: circleci/node@5.0.0\n\nfunctions:\n  setup-node: github.com/circleci-functions/setup-node@v0.1.0-cc33dd4\n\njobs:\n  build:\n    docker:\n      - image: \"cimg/base:2024.01\"\n    steps: [checkout]\n"
+		path := write(t, before)
+		assert.NilError(t, function.AddPin(path, "setup-go", setupGoRef))
+
+		want := strings.Replace(before,
+			"  setup-node: github.com/circleci-functions/setup-node@v0.1.0-cc33dd4\n",
+			"  setup-node: github.com/circleci-functions/setup-node@v0.1.0-cc33dd4\n  setup-go: "+setupGoRef.String()+"\n",
+			1)
+		assert.Check(t, cmp.Equal(read(t, path), want))
+	})
+
+	t.Run("The block's own indentation is matched", func(t *testing.T) {
+		path := write(t, "version: 2.1\nfunctions:\n    setup-node: github.com/circleci-functions/setup-node@v0.1.0-cc33dd4\njobs: {}\n")
+		assert.NilError(t, function.AddPin(path, "setup-go", setupGoRef))
+		assert.Check(t, cmp.Contains(read(t, path), "\n    setup-go: "+setupGoRef.String()+"\n"))
+	})
+
+	t.Run("CRLF line endings are not mixed", func(t *testing.T) {
+		path := write(t, "version: 2.1\r\n\r\njobs: {}\r\n")
+		assert.NilError(t, function.AddPin(path, "setup-go", setupGoRef))
+		got := read(t, path)
+		assert.Check(t, cmp.Contains(got, "\r\nfunctions:\r\n  setup-go: "+setupGoRef.String()+"\r\n"))
+		assert.Check(t, !strings.Contains(strings.ReplaceAll(got, "\r\n", ""), "\n"), "stray LF among CRLF endings")
+	})
+
+	t.Run("A functions: key that is not a map of declarations is refused", func(t *testing.T) {
+		// The block name can hold YAML anchors, which ListPins tolerates. Adding
+		// a second functions: key would make the file unparseable.
+		before := "version: 2.1\nfunctions: &defs\n  - one\njobs: {}\n"
+		path := write(t, before)
+		err := function.AddPin(path, "setup-go", setupGoRef)
+		assert.Check(t, cmp.ErrorContains(err, "not a plain map"))
+		assert.Check(t, cmp.Equal(read(t, path), before))
+	})
+}
+
+func TestConflicts(t *testing.T) {
+	path := write(t, `version: 2.1
+orbs:
+  setup-go: circleci/go@1.0.0
+commands:
+  build-it:
+    steps:
+      - checkout
+functions:
+  setup-node: github.com/circleci-functions/setup-node@v0.1.0
+`)
+
+	for alias, want := range map[string]string{
+		"setup-go":   "orb",
+		"build-it":   "command",
+		"setup-node": "", // an existing declaration is a re-pin, not a clash
+		"fresh":      "",
+	} {
+		t.Run(alias, func(t *testing.T) {
+			got, err := function.Conflicts(path, alias)
+			assert.NilError(t, err)
+			assert.Check(t, cmp.Equal(got, want))
+		})
+	}
+}
+
+func TestValidateAlias(t *testing.T) {
+	assert.Check(t, function.ValidateAlias("setup-go"))
+	// A slash would be read as naming one of the function's commands.
+	assert.Check(t, function.ValidateAlias("setup-go/cache") != nil)
+	assert.Check(t, function.ValidateAlias("1st") != nil)
 }

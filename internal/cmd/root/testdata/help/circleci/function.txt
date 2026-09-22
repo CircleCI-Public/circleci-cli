@@ -1,4 +1,4 @@
-Discover CircleCI functions
+Discover and declare CircleCI functions
 
 ## Usage
 
@@ -6,10 +6,11 @@ Discover CircleCI functions
 
 ## Commands
 
-| Command | Description                              |
-| ------- | ---------------------------------------- |
-| `get`   | Show a function's versions and arguments |
-| `list`  | List published CircleCI functions        |
+| Command | Description                               |
+| ------- | ----------------------------------------- |
+| `add`   | Declare a function in the pipeline config |
+| `get`   | Show a function's versions and arguments  |
+| `list`  | List published CircleCI functions         |
 
 ## Flags
 
@@ -21,12 +22,12 @@ Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `ci
   `circleci function list`
 - Show a function's versions and arguments: 
   `circleci function get setup-go`
-- Get just the names: 
-  `circleci function list --json --jq '.[].name'`
+- Declare one in .circleci/config.yml: 
+  `circleci function add setup-go`
 
 ## Details
 
-Discover the CircleCI functions published for use in your config.
+Discover published CircleCI functions and declare them in your config.
 
 A function is a versioned binary invoked as a step. Run
 `circleci help functions` for the config syntax.
