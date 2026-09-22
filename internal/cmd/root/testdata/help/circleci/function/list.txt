@@ -8,19 +8,21 @@ Aliases: `circleci function ls`
 
 ## Flags
 
-| Flag          | Description                                                                       |
-| ------------- | --------------------------------------------------------------------------------- |
-| `--jq string` | Process values from the response using jq syntax (see `circleci help formatting`) |
-| `--json`      | Output as JSON                                                                    |
+| Flag                  | Description                                                                       |
+| --------------------- | --------------------------------------------------------------------------------- |
+| `-c, --config string` | path to the pipeline config file (default ".circleci/config.yml")                 |
+| `--jq string`         | Process values from the response using jq syntax (see `circleci help formatting`) |
+| `--json`              | Output as JSON                                                                    |
+| `--pinned`            | list the functions declared in the local config                                   |
 
-Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `circleci --help`.
+Global flags: `--debug`, `--no-color`, `-q, --quiet` — see `circleci --help`.
 
 ## Examples
 
 - List published functions: 
   `circleci function list`
-- Output as JSON: 
-  `circleci function list --json`
+- List what this repository declares: 
+  `circleci function list --pinned`
 - Get just the names: 
   `circleci function list --json --jq '.[].name'`
 
@@ -29,4 +31,5 @@ Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `ci
 List every published CircleCI function and its versions.
 
 JSON fields: id, name, description, latest_version, versions.
+With --pinned: alias, function, version.
 

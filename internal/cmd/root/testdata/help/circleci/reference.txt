@@ -237,11 +237,14 @@ List published CircleCI functions
 List every published CircleCI function and its versions.
 
 JSON fields: id, name, description, latest_version, versions.
+With --pinned: alias, function, version.
 
-| Flag          | Description                                                                       |
-| ------------- | --------------------------------------------------------------------------------- |
-| `--jq string` | Process values from the response using jq syntax (see `circleci help formatting`) |
-| `--json`      | Output as JSON                                                                    |
+| Flag                  | Description                                                                       |
+| --------------------- | --------------------------------------------------------------------------------- |
+| `-c, --config string` | path to the pipeline config file (default ".circleci/config.yml")                 |
+| `--jq string`         | Process values from the response using jq syntax (see `circleci help formatting`) |
+| `--json`              | Output as JSON                                                                    |
+| `--pinned`            | list the functions declared in the local config                                   |
 
 
 **Aliases:**
@@ -253,8 +256,8 @@ JSON fields: id, name, description, latest_version, versions.
 
 - List published functions: 
   `circleci function list`
-- Output as JSON: 
-  `circleci function list --json`
+- List what this repository declares: 
+  `circleci function list --pinned`
 - Get just the names: 
   `circleci function list --json --jq '.[].name'`
 

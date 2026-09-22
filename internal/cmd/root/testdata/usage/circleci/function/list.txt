@@ -1,7 +1,9 @@
 Usage:  circleci function list [flags]
 
 Flags:
-  -h, --help        help for list
-      --jq string   Process values from the response using jq syntax
-      --json        Output as JSON
+  -c, --config string   path to the pipeline config file (default ".circleci/config.yml")
+  -h, --help            help for list
+      --jq string       Process values from the response using jq syntax
+      --json            Output as JSON
+      --pinned          list the functions declared in the local config
   
