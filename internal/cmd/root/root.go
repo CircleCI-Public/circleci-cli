@@ -47,6 +47,7 @@ import (
 	cmdenv "github.com/CircleCI-Public/circleci-cli/internal/cmd/env"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmd/envvar"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmd/extension"
+	cmdfunction "github.com/CircleCI-Public/circleci-cli/internal/cmd/function"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmd/job"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmd/migrate"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmd/my"
@@ -244,6 +245,7 @@ func NewRootCmd(version string) *cobra.Command {
 	cmd.AddCommand(deploy.NewDeployCmd())
 	cmd.AddCommand(cmdenv.NewEnvCmd())
 	cmd.AddCommand(envvar.NewEnvVarCmd())
+	cmd.AddCommand(cmdfunction.NewFunctionCmd())
 	cmd.AddCommand(job.NewJobCmd())
 	cmd.AddCommand(my.NewMyCmd())
 	cmd.AddCommand(pipeline.NewPipelineCmd())

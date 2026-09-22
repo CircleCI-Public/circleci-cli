@@ -12,6 +12,7 @@ Work with CircleCI from the command line.
 | ------------ | ------------------------------------------------ |
 | `artifact`   | List and download a job's artifact files         |
 | `config`     | Generate, validate, process and pack config YAML |
+| `function`   | Discover CircleCI functions                      |
 | `job`        | Inspect a job's details, output and artifacts    |
 | `pipeline`   | Manage the pipeline definitions a run executes   |
 | `run`        | Trigger, watch and cancel pipeline runs          |
@@ -69,6 +70,7 @@ Work with CircleCI from the command line.
 | ----------------- | ------------------------------------------------------------- |
 | `environment`     | Environment variables that can be used with circleci          |
 | `formatting`      | Formatting options for JSON data exported from circleci       |
+| `functions`       | Declaring and invoking CircleCI functions in your config      |
 | `getting-started` | Install, authenticate, and start using circleci               |
 | `reference`       | A comprehensive reference of all circleci commands            |
 | `telemetry`       | Information about telemetry in circleci                       |

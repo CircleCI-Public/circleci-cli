@@ -32,6 +32,7 @@ import (
 	"github.com/MakeNowJust/heredoc"
 	"github.com/spf13/cobra"
 
+	clierrors "github.com/CircleCI-Public/circleci-cli/clikit/errors"
 	"github.com/CircleCI-Public/circleci-cli/clikit/iostream"
 )
 
@@ -242,6 +243,62 @@ var helpTopics = []helpTopic{
 		`, "`"),
 	},
 	{
+		name:  "functions",
+		short: "Declaring and invoking CircleCI functions in your config",
+		long: heredoc.Docf(`
+			A function is a versioned binary invoked as a step. Declare it once in the
+			top-level %[1]sfunctions%[1]s block, then name it directly wherever a step goes.
+
+			## Declaring
+
+			Each entry maps an alias to a pinned reference, %[1]s<path>@<version>%[1]s:
+
+			%[2]syaml
+			functions:
+			  setup-go: github.com/circleci-functions/setup-go@v0.5.1-684fd5b
+			%[2]s
+
+			The alias is the name a step invokes, and yours to choose. It must not clash
+			with an orb, a command, or a built-in step in the same config. The path is
+			%[1]shost.tld/org/name%[1]s and the version a semver tag led by %[1]sv%[1]s. Both halves are
+			required: an unpinned function is rejected, so a config always records exactly
+			which build ran.
+
+			## Invoking
+
+			Name the alias where a step goes. Arguments go under %[1]swith%[1]s, and %[1]sid%[1]s labels the
+			step so later steps can refer to its output:
+
+			%[2]syaml
+			jobs:
+			  build:
+			    steps:
+			      - setup-go:
+			          id: go
+			          with: {version: "1.24"}
+			%[2]s
+
+			Arguments are passed to a binary, so each value must be a single value rather
+			than a list or a map. A step with no arguments can be written bare, the way
+			%[1]scheckout%[1]s is. Naming one of the function's commands after a %[1]s/%[1]s —
+			%[1]ssetup-go/cache%[1]s — runs that command instead of the function's root; one level
+			only.
+
+			## Where functions come from
+
+			Functions are published independently of your config and discovered through
+			CircleCI, not fetched from your repository. %[1]scircleci function list%[1]s shows what
+			is published. Only functions published under a %[1]shost.tld/org/name%[1]s identifier
+			are listed.
+		`, "`", "```"),
+		example: heredoc.Docf(`
+			### See what is published
+			%[1]s$ circleci function list%[1]s
+			### Read the versions as JSON
+			%[1]s$ circleci function list --json --jq '.[] | {name, latest_version}'%[1]s
+		`, "`"),
+	},
+	{
 		name:  "reference",
 		short: "A comprehensive reference of all circleci commands",
 	},
@@ -301,11 +358,17 @@ var helpTopics = []helpTopic{
 
 func newCmdHelpTopic(ht helpTopic, initConfig func(cmd *cobra.Command) (func(), error)) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:         ht.name,
-		Short:       ht.short,
-		Long:        ht.long,
-		Example:     ht.example,
-		Hidden:      true,
+		Use:     ht.name,
+		Short:   ht.short,
+		Long:    ht.long,
+		Example: ht.example,
+		Hidden:  true,
+		// A topic is runnable so that an argument is an error rather than
+		// ignored. Cobra returns flag.ErrHelp for a command with no RunE before
+		// it validates arguments, so a topic one plural away from a real command
+		// group ("functions" vs "function") would answer `circleci functions
+		// list` with the topic on stdout and exit 0.
+		RunE:        helpTopicRunE,
 		Annotations: map[string]string{HelpTopicAnnotation: "true"},
 	}
 
@@ -330,6 +393,22 @@ func newCmdHelpTopic(ht helpTopic, initConfig func(cmd *cobra.Command) (func(), 
 	})
 
 	return cmd
+}
+
+// helpTopicRunE prints the topic when invoked bare, and rejects any argument:
+// a topic has no subcommands, so an argument means the user was reaching for a
+// command of a similar name.
+func helpTopicRunE(cmd *cobra.Command, args []string) error {
+	if len(args) == 0 {
+		return cmd.Help()
+	}
+	return clierrors.New("help.topic_not_a_command", "Not a command",
+		fmt.Sprintf("%q is a help topic, not a command, and takes no arguments.", cmd.Name())).
+		WithSuggestions(
+			fmt.Sprintf("Read the topic: circleci help %s", cmd.Name()),
+			"List the available commands: circleci --help",
+		).
+		WithExitCode(clierrors.ExitBadArguments)
 }
 
 func helpTopicHelpFunc(ctx context.Context, command *cobra.Command) {

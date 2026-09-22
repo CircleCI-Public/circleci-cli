@@ -1,0 +1,32 @@
+Discover CircleCI functions
+
+## Usage
+
+`circleci function <command> [flags]`
+
+## Commands
+
+| Command | Description                       |
+| ------- | --------------------------------- |
+| `list`  | List published CircleCI functions |
+
+## Flags
+
+Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `circleci --help`.
+
+## Examples
+
+- List published functions: 
+  `circleci function list`
+- Output as JSON: 
+  `circleci function list --json`
+- Get just the names: 
+  `circleci function list --json --jq '.[].name'`
+
+## Details
+
+Discover the CircleCI functions published for use in your config.
+
+A function is a versioned binary invoked as a step. Run
+`circleci help functions` for the config syntax.
+

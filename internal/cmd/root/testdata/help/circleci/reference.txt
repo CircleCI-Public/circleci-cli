@@ -180,6 +180,52 @@ JSON fields (--json): valid (bool), compiled_yaml (string, when valid), errors (
 - Validate and output as JSON: 
   `circleci config validate --json`
 
+### `circleci function <command>`
+
+Discover CircleCI functions
+
+Discover the CircleCI functions published for use in your config.
+
+A function is a versioned binary invoked as a step. Run
+`circleci help functions` for the config syntax.
+
+**Examples:**
+
+- List published functions: 
+  `circleci function list`
+- Output as JSON: 
+  `circleci function list --json`
+- Get just the names: 
+  `circleci function list --json --jq '.[].name'`
+
+#### `circleci function list [flags]`
+
+List published CircleCI functions
+
+List every published CircleCI function and its versions.
+
+JSON fields: id, name, description, latest_version, versions.
+
+| Flag          | Description                                                                       |
+| ------------- | --------------------------------------------------------------------------------- |
+| `--jq string` | Process values from the response using jq syntax (see `circleci help formatting`) |
+| `--json`      | Output as JSON                                                                    |
+
+
+**Aliases:**
+
+
+`circleci function ls`
+
+**Examples:**
+
+- List published functions: 
+  `circleci function list`
+- Output as JSON: 
+  `circleci function list --json`
+- Get just the names: 
+  `circleci function list --json --jq '.[].name'`
+
 ### `circleci job <command>`
 
 Inspect a job's details, output and artifacts

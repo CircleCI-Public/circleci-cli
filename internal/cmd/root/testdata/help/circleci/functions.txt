@@ -1,0 +1,52 @@
+# Functions
+A function is a versioned binary invoked as a step. Declare it once in the
+top-level `functions` block, then name it directly wherever a step goes.
+
+## Declaring
+
+Each entry maps an alias to a pinned reference, `<path>@<version>`:
+
+```yaml
+functions:
+  setup-go: github.com/circleci-functions/setup-go@v0.5.1-684fd5b
+```
+
+The alias is the name a step invokes, and yours to choose. It must not clash
+with an orb, a command, or a built-in step in the same config. The path is
+`host.tld/org/name` and the version a semver tag led by `v`. Both halves are
+required: an unpinned function is rejected, so a config always records exactly
+which build ran.
+
+## Invoking
+
+Name the alias where a step goes. Arguments go under `with`, and `id` labels the
+step so later steps can refer to its output:
+
+```yaml
+jobs:
+  build:
+    steps:
+      - setup-go:
+          id: go
+          with: {version: "1.24"}
+```
+
+Arguments are passed to a binary, so each value must be a single value rather
+than a list or a map. A step with no arguments can be written bare, the way
+`checkout` is. Naming one of the function's commands after a `/` —
+`setup-go/cache` — runs that command instead of the function's root; one level
+only.
+
+## Where functions come from
+
+Functions are published independently of your config and discovered through
+CircleCI, not fetched from your repository. `circleci function list` shows what
+is published. Only functions published under a `host.tld/org/name` identifier
+are listed.
+
+
+## Examples
+### See what is published
+`$ circleci function list`
+### Read the versions as JSON
+`$ circleci function list --json --jq '.[] | {name, latest_version}'`

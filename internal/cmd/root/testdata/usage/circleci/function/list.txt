@@ -1,0 +1,7 @@
+Usage:  circleci function list [flags]
+
+Flags:
+  -h, --help        help for list
+      --jq string   Process values from the response using jq syntax
+      --json        Output as JSON
+  

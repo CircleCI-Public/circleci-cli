@@ -1,0 +1,32 @@
+List published CircleCI functions
+
+## Usage
+
+`circleci function list [flags]`
+
+Aliases: `circleci function ls`
+
+## Flags
+
+| Flag          | Description                                                                       |
+| ------------- | --------------------------------------------------------------------------------- |
+| `--jq string` | Process values from the response using jq syntax (see `circleci help formatting`) |
+| `--json`      | Output as JSON                                                                    |
+
+Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `circleci --help`.
+
+## Examples
+
+- List published functions: 
+  `circleci function list`
+- Output as JSON: 
+  `circleci function list --json`
+- Get just the names: 
+  `circleci function list --json --jq '.[].name'`
+
+## Details
+
+List every published CircleCI function and its versions.
+
+JSON fields: id, name, description, latest_version, versions.
+
