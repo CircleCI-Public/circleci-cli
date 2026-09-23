@@ -340,6 +340,38 @@ func TestFunctionAdd_JSON(t *testing.T) {
 	assert.Check(t, cmp.Contains(readFnConfig(t, dir), "setup-go: "+setupGoName+"@"+setupGoLatest))
 }
 
+func TestFunctionAddAliasConflict(t *testing.T) {
+	env := setupFunctionFake(t)
+	dir := writeFnConfig(t, `version: 2.1
+
+orbs:
+  setup-go: circleci/go@1.0.0
+`)
+
+	result := runFunctionIn(t, env, dir, "add", "setup-go")
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, cmp.Contains(readFnConfig(t, dir), "setup-go-fn: "+setupGoName+"@"+setupGoLatest))
+	assert.Check(t, cmp.Contains(result.Stderr, `Aliased as "setup-go-fn"`))
+	assert.Check(t, cmp.Contains(result.Stderr, "already names an orb"))
+
+	t.Run("The orb entry is untouched", func(t *testing.T) {
+		assert.Check(t, cmp.Contains(readFnConfig(t, dir), "setup-go: circleci/go@1.0.0"))
+	})
+}
+
+func TestFunctionAddExplicitAliasConflict(t *testing.T) {
+	env := setupFunctionFake(t)
+	dir := writeFnConfig(t, "version: 2.1\n\norbs:\n  go: circleci/go@1.0.0\n")
+	before := readFnConfig(t, dir)
+
+	result := runFunctionIn(t, env, dir, "add", "setup-go", "--as", "go")
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 2))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+	assert.Check(t, cmp.Equal(readFnConfig(t, dir), before), "an explicit alias must not be renamed")
+}
+
 func TestFunctionAddOptions(t *testing.T) {
 	env := setupFunctionFake(t)
 

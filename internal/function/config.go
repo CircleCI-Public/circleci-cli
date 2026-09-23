@@ -179,6 +179,33 @@ func CheckAdd(configPath, alias string) error {
 	return checkAddable(doc, configPath, alias)
 }
 
+// Conflicts reports what else in the config already claims alias: "orb",
+// "command", or "" when nothing does.
+//
+// Built-in step names are not checked. They are not in the file being read, and
+// a copy of that list here would drift from the one config validation
+// enforces, so a clash with a built-in stays its job to report.
+func Conflicts(configPath, alias string) (string, error) {
+	doc, err := readConfig(configPath)
+	if err != nil {
+		return "", err
+	}
+
+	for _, section := range []struct{ key, kind string }{
+		{"orbs", "orb"},
+		{"commands", "command"},
+	} {
+		block := resolve(findMappingValue(doc, section.key))
+		if block == nil || block.Kind != yaml.MappingNode {
+			continue
+		}
+		if findMappingValue(block, alias) != nil {
+			return section.kind, nil
+		}
+	}
+	return "", nil
+}
+
 // AddPin adds alias → ref to the functions: block, creating the block when the
 // config has none. It fails if alias is already declared.
 func AddPin(configPath, alias string, ref Reference) error {
