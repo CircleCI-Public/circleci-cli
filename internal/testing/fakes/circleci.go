@@ -32,6 +32,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"path"
 	"slices"
 	"strconv"
 	"strings"
@@ -182,12 +183,24 @@ type CircleCI struct {
 	// POST /api/v3/orb/packages/{id}/add-category, so a test can exercise how a
 	// caller copes with the registry refusing a category.
 	orbAddCategoryStatus int
-	orbCategoriesByName  map[string]string        // name → id
-	orbValidateResponse  *orbFakeValidateResponse // override for validate/process responses
-	orbCreatedPackages   []Orb                    // packages created via POST
-	orbCreatedVersions   []OrbVersion             // versions created via POST
-	orbUnlistedPackages  map[string]bool          // id → unlisted
-	orbCategoryMembers   map[string][]string      // packageID → []categoryID
+	orbCategoriesByName  map[string]string // name → id
+
+	// Function state (v3). Entity ids are arbitrary UUIDs, so a caller that
+	// builds an id instead of following a reference fails against this fake.
+	functions        map[string]Function
+	functionsByName  map[string]string // VCS-style name → id
+	functionNames    []string          // names in the order they were added, so the list route has a defined order
+	functionVersions map[string]FnVersion
+	fnVersionsByFnID map[string][]string // function id → ordered version ids
+	// functionListStatus, when non-zero, is the HTTP status returned for every
+	// GET /api/v3/function/packages, so a test can exercise how a caller copes
+	// with an installation that does not serve functions.
+	functionListStatus  int
+	orbValidateResponse *orbFakeValidateResponse // override for validate/process responses
+	orbCreatedPackages  []Orb                    // packages created via POST
+	orbCreatedVersions  []OrbVersion             // versions created via POST
+	orbUnlistedPackages map[string]bool          // id → unlisted
+	orbCategoryMembers  map[string][]string      // packageID → []categoryID
 
 	// Namespace state (served via /graphql-unstable).
 	namespaces        map[string]Namespace // namespace id → namespace
@@ -323,6 +336,10 @@ func NewCircleCI(t *testing.T, tokens ...string) *CircleCI {
 		orbVersionsByOrbID:                map[string][]string{},
 		orbCategories:                     map[string]OrbCategory{},
 		orbCategoriesByName:               map[string]string{},
+		functions:                         map[string]Function{},
+		functionsByName:                   map[string]string{},
+		functionVersions:                  map[string]FnVersion{},
+		fnVersionsByFnID:                  map[string][]string{},
 		orbUnlistedPackages:               map[string]bool{},
 		orbCategoryMembers:                map[string][]string{},
 		dlcPurgeStatus:                    map[string]int{},
@@ -483,6 +500,7 @@ func NewCircleCI(t *testing.T, tokens ...string) *CircleCI {
 	r.Get("/api/v3/orb/versions/{id}/source", f.handleOrbGetVersionSource)
 	r.Post("/api/v3/orb/versions/{id}/promote", f.handleOrbPromoteVersion)
 	r.Get("/api/v3/orb/categories", f.handleOrbListCategories)
+	r.Get("/api/v3/function/packages", f.handleListFunctions)
 	r.Delete("/api/v3/projects/{projectID}/dlc", f.handleDLCPurge)
 	// Wildcard route for artifact downloads — populated via AddStaticFile before requests.
 	r.Get("/artifacts/*", f.handleStaticFile)
@@ -5770,5 +5788,137 @@ func (f *CircleCI) handleUpdateOrgSettingsV3(w http.ResponseWriter, r *http.Requ
 
 	render.JSON(w, r, map[string]any{
 		"data": map[string]any{"attributes": attrs},
+	})
+}
+
+// --- Functions (v3) ---
+
+// Function is a stored published function, keyed by its VCS-style name.
+type Function struct {
+	ID          string
+	Name        string
+	Description string
+	Latest      string
+}
+
+// FnVersion is a stored function version and the descriptor published with it.
+type FnVersion struct {
+	ID         string
+	FunctionID string
+	Version    string
+	Descriptor map[string]any
+}
+
+// AddFunction stores a published function. The first version given becomes the
+// latest release, which is not necessarily the highest version published.
+func (f *CircleCI) AddFunction(name, description string, versions ...string) {
+	f.mu.Lock()
+	id := uuid.New().String()
+	latest := ""
+	if len(versions) > 0 {
+		latest = versions[0]
+	}
+	f.functions[id] = Function{ID: id, Name: name, Description: description, Latest: latest}
+	if _, seen := f.functionsByName[name]; !seen {
+		f.functionNames = append(f.functionNames, name)
+	}
+	f.functionsByName[name] = id
+	f.mu.Unlock()
+
+	for _, v := range versions {
+		f.addFunctionVersion(name, v, map[string]any{
+			"name":        path.Base(name),
+			"description": description,
+			"version":     v,
+		})
+	}
+}
+
+// SetFunctionListStatus makes every GET /api/v3/function/packages fail with the
+// given status, as an installation without the functions API would.
+func (f *CircleCI) SetFunctionListStatus(status int) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.functionListStatus = status
+}
+
+// addFunctionVersion publishes a version of an already-added function.
+// Re-adding a version replaces its descriptor rather than publishing a second
+// entry, so AddFunction can seed versions and a caller can enrich one of them.
+func (f *CircleCI) addFunctionVersion(name, version string, descriptor map[string]any) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
+	fnID, ok := f.functionsByName[name]
+	if !ok {
+		return
+	}
+
+	for _, id := range f.fnVersionsByFnID[fnID] {
+		if existing, ok := f.functionVersions[id]; ok && existing.Version == version {
+			existing.Descriptor = descriptor
+			f.functionVersions[id] = existing
+			return
+		}
+	}
+
+	id := uuid.New().String()
+	f.functionVersions[id] = FnVersion{ID: id, FunctionID: fnID, Version: version, Descriptor: descriptor}
+	f.fnVersionsByFnID[fnID] = append(f.fnVersionsByFnID[fnID], id)
+}
+
+// functionEntityLocked renders a function as a v3 data entity. Callers hold at
+// least a read lock.
+func (f *CircleCI) functionEntityLocked(fn Function) map[string]any {
+	versions := []any{}
+	for _, vID := range f.fnVersionsByFnID[fn.ID] {
+		v, ok := f.functionVersions[vID]
+		if !ok {
+			continue
+		}
+		versions = append(versions, map[string]any{
+			"id":         v.ID,
+			"attributes": map[string]any{"version": v.Version},
+		})
+	}
+
+	return map[string]any{
+		"id": fn.ID,
+		"attributes": map[string]any{
+			"name":           fn.Name,
+			"description":    fn.Description,
+			"latest_version": fn.Latest,
+		},
+		"references": map[string]any{"versions": versions},
+	}
+}
+
+func (f *CircleCI) handleListFunctions(w http.ResponseWriter, r *http.Request) {
+	nameFilter := r.URL.Query().Get("filter[name]")
+
+	f.mu.RLock()
+	defer f.mu.RUnlock()
+
+	if f.functionListStatus != 0 {
+		render.Status(r, f.functionListStatus)
+		render.JSON(w, r, map[string]any{"message": "not found"})
+		return
+	}
+
+	// Insertion order, not sorted: the CLI must pass the server's order through
+	// rather than impose one of its own.
+	items := []any{}
+	for _, name := range f.functionNames {
+		if nameFilter != "" && name != nameFilter {
+			continue
+		}
+		if fn, ok := f.functions[f.functionsByName[name]]; ok {
+			items = append(items, f.functionEntityLocked(fn))
+		}
+	}
+
+	render.JSON(w, r, map[string]any{
+		"data": items,
+		"page": map[string]any{"next": nil, "prev": nil},
 	})
 }
