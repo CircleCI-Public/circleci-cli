@@ -1,0 +1,8 @@
+Usage:  circleci runner resource-class update <namespace>/<name> [flags]
+
+Flags:
+      --description string   New description for the resource class (use "" to clear)
+  -h, --help                 help for update
+      --jq string            Process values from the response using jq syntax
+      --json                 Output as JSON
+  
