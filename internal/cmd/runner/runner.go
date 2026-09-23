@@ -68,7 +68,7 @@ func apiErr(err error, subject string) *clierrors.CLIError {
 
 func runnerNotEnabledErr() *clierrors.CLIError {
 	return clierrors.New("runner.not_enabled", "Runner not available",
-		"Self-hosted runners are not available for this token or account. The API returned 404.").
+		"Self-hosted runners are not available for this token, or the token cannot access this organization's runners.").
 		WithSuggestions(
 			"Confirm your token can view or administer self-hosted runners",
 			"Confirm the token belongs to the organization that owns the resource class",

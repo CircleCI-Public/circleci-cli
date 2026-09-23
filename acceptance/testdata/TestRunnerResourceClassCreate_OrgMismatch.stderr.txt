@@ -1,0 +1,9 @@
+If you have not already agreed to Runner Terms in a signed Order, then by continuing to install Runner, you are agreeing to CircleCI's Runner Terms which are found at: https://circleci.com/legal/runner-terms/.
+If you already agreed to Runner Terms in a signed Order, the Runner Terms in the signed Order supersede the Runner Terms in the web address above.
+If you did not already agree to Runner Terms through a signed Order and do not agree to the Runner Terms in the web address above, please do not install or use Runner.
+
+error: Organization a1a1a1a1-1111-4111-8111-a1a1a1a1a1a1 is not permitted to create "my-org/mismatched-runner". Either your token lacks admin access to this organization, or the namespace "my-org" belongs to a different organization.
+
+Suggestions:
+  • Confirm your token has admin access to the target organization
+  • Confirm the namespace belongs to the organization given by --org
