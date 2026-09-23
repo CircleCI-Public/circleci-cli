@@ -275,3 +275,94 @@ func TestFunctionListPinned(t *testing.T) {
 		assert.Check(t, cmp.Contains(result.Stderr, "No functions declared"))
 	})
 }
+
+func readFnConfig(t *testing.T, dir string) string {
+	t.Helper()
+	data, err := os.ReadFile(filepath.Join(dir, ".circleci", "config.yml")) //nolint:gosec // test-controlled path
+	assert.NilError(t, err)
+	return string(data)
+}
+
+const baseConfig = `version: 2.1
+
+jobs:
+  build:
+    steps:
+      - checkout
+`
+
+func TestFunctionAdd(t *testing.T) {
+	env := setupFunctionFake(t)
+	dir := writeFnConfig(t, baseConfig)
+
+	result := runFunctionIn(t, env, dir, "add", "setup-go")
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+
+	t.Run("The declaration is written as a full reference", func(t *testing.T) {
+		assert.Check(t, cmp.Contains(readFnConfig(t, dir),
+			"functions:\n  setup-go: "+setupGoName+"@"+setupGoLatest))
+	})
+
+	t.Run("The rest of the config survives", func(t *testing.T) {
+		assert.Check(t, cmp.Contains(readFnConfig(t, dir), "- checkout"))
+	})
+
+	t.Run("Declaring it twice is refused", func(t *testing.T) {
+		again := runFunctionIn(t, env, dir, "add", "setup-go")
+		assert.Check(t, cmp.Equal(again.ExitCode, 2))
+		assert.Check(t, cmp.Contains(again.Stderr, "already has an entry"))
+	})
+
+	t.Run("and a dry run reports the same refusal", func(t *testing.T) {
+		again := runFunctionIn(t, env, dir, "add", "setup-go", "--dry-run")
+		assert.Check(t, cmp.Equal(again.ExitCode, 2))
+		assert.Check(t, cmp.Contains(again.Stderr, "already has an entry"))
+	})
+}
+
+func TestFunctionAdd_JSON(t *testing.T) {
+	env := setupFunctionFake(t)
+	dir := writeFnConfig(t, baseConfig)
+
+	result := runFunctionIn(t, env, dir, "add", "setup-go", "--json")
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+
+	var out map[string]any
+	assert.NilError(t, json.Unmarshal([]byte(result.Stdout), &out))
+	assert.Check(t, cmp.DeepEqual(out, map[string]any{
+		"alias":    "setup-go",
+		"function": setupGoName,
+		"version":  setupGoLatest,
+		"config":   ".circleci/config.yml",
+	}))
+	assert.Check(t, cmp.Contains(readFnConfig(t, dir), "setup-go: "+setupGoName+"@"+setupGoLatest))
+}
+
+func TestFunctionAddOptions(t *testing.T) {
+	env := setupFunctionFake(t)
+
+	t.Run("--as chooses the alias and --version the pin", func(t *testing.T) {
+		dir := writeFnConfig(t, baseConfig)
+		result := runFunctionIn(t, env, dir, "add", "setup-go", "--as", "go", "--version", "v0.9.0-aaa1111")
+		assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+		assert.Check(t, cmp.Contains(readFnConfig(t, dir), "go: "+setupGoName+"@v0.9.0-aaa1111"))
+	})
+
+	t.Run("--dry-run leaves the file byte-identical", func(t *testing.T) {
+		dir := writeFnConfig(t, baseConfig)
+		before := readFnConfig(t, dir)
+
+		result := runFunctionIn(t, env, dir, "add", "setup-go", "--dry-run")
+		assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+		assert.Check(t, cmp.Contains(result.Stdout, "Would add"))
+		assert.Check(t, cmp.Equal(readFnConfig(t, dir), before))
+	})
+
+	t.Run("A missing config file reports the path", func(t *testing.T) {
+		result := runFunction(t, env, "add", "setup-go")
+		assert.Check(t, cmp.Equal(result.ExitCode, 5))
+		assert.Check(t, cmp.Contains(result.Stderr, "No config file at"))
+	})
+}
