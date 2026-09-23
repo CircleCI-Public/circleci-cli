@@ -1,0 +1,5 @@
+Fetching github.com/circleci-functions/setup-go...
+error: Function "github.com/circleci-functions/setup-go" has no published versions.
+
+Suggestions:
+  • Run 'circleci function list' to see published functions and their versions

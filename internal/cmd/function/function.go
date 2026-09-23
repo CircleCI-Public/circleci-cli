@@ -45,8 +45,8 @@ func NewFunctionCmd() *cobra.Command {
 			# List published functions
 			$ circleci function list
 
-			# Output as JSON
-			$ circleci function list --json
+			# Show a function's versions
+			$ circleci function get setup-go
 
 			# Get just the names
 			$ circleci function list --json --jq '.[].name'
@@ -56,6 +56,6 @@ func NewFunctionCmd() *cobra.Command {
 		FParseErrWhitelist: cobra.FParseErrWhitelist{UnknownFlags: true},
 	}
 
-	cmdutil.AddGroup(cmd, "Commands", newListCmd())
+	cmdutil.AddGroup(cmd, "Commands", newListCmd(), newGetCmd())
 	return cmd
 }

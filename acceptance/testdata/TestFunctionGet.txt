@@ -1,0 +1,15 @@
+# github.com/circleci-functions/setup-go
+
+Install a Go toolchain and link it onto PATH for later steps.
+
+Example:
+  circleci run setup-go@<version> -- --version 1.22
+
+**Version:** v0.5.1-684fd5b
+**Latest:** v0.5.1-684fd5b
+
+## Published versions
+| Version        |
+| -------------- |
+| v0.5.1-684fd5b |
+| v0.9.0-aaa1111 |

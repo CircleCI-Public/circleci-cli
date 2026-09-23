@@ -24,12 +24,18 @@ package apiclient
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"net/http"
 
 	"github.com/google/uuid"
 
 	"github.com/CircleCI-Public/circleci-cli/internal/httpcl"
 )
+
+// ErrFunctionNotFound is returned when a function is not published, or is
+// published under a name the discovery API does not list.
+var ErrFunctionNotFound = errors.New("function not found")
 
 // Function is a published CircleCI function. Name is the VCS-style identifier
 // it is published under, e.g. "github.com/circleci-functions/setup-go".
@@ -45,6 +51,16 @@ type Function struct {
 type FunctionVersion struct {
 	ID      uuid.UUID
 	Version string
+}
+
+// Find returns the named version, or false when it is not published.
+func (f *Function) Find(version string) (FunctionVersion, bool) {
+	for _, v := range f.Versions {
+		if v.Version == version {
+			return v, true
+		}
+	}
+	return FunctionVersion{}, false
 }
 
 type functionWire struct {
@@ -100,4 +116,26 @@ func (c *Client) ListFunctions(ctx context.Context) ([]*Function, error) {
 		cursor = *page.Page.Next
 	}
 	return result, nil
+}
+
+// GetFunctionByName resolves a function by its VCS-style name. An unknown name,
+// and any name the API does not consider discoverable, comes back as an empty
+// collection rather than a 404.
+func (c *Client) GetFunctionByName(ctx context.Context, name string) (*Function, error) {
+	var env v3List[functionWire]
+	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodGet, "/api/v3/function/packages",
+		filterParam("name", name),
+		httpcl.JSONDecoder(&env),
+	))
+	if err != nil {
+		return nil, err
+	}
+	// Matching the name here as well keeps a server that ignores or loosens the
+	// filter from answering with a different function.
+	for i := range env.Data {
+		if env.Data[i].Attributes.Name == name {
+			return env.Data[i].toFunction(), nil
+		}
+	}
+	return nil, fmt.Errorf("%w: %q", ErrFunctionNotFound, name)
 }

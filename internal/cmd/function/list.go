@@ -140,5 +140,5 @@ func summarize(description string) string {
 		first = strings.TrimSpace(string(rs[:descriptionMax])) + "…"
 	}
 	// Escape after truncating, so a cut can never split the escape sequence.
-	return strings.ReplaceAll(first, "|", `\|`)
+	return tableCell(first)
 }
