@@ -27,6 +27,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/spf13/cobra"
+
 	clierrors "github.com/CircleCI-Public/circleci-cli/clikit/errors"
 	"github.com/CircleCI-Public/circleci-cli/internal/apiclient"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmdutil"
@@ -87,4 +89,21 @@ func versionNotPublishedErr(name, version string, available []string) error {
 func tableCell(s string) string {
 	s = strings.Join(strings.Fields(s), " ")
 	return strings.ReplaceAll(s, "|", `\|`)
+}
+
+// defaultConfigPath is where a pipeline config lives unless --config says so.
+const defaultConfigPath = ".circleci/config.yml"
+
+// addConfigFlag adds the pipeline-config path flag. It shadows the root
+// --config, which names the CLI's own settings file, as config validate does.
+func addConfigFlag(cmd *cobra.Command) {
+	cmd.Flags().StringP("config", "c", defaultConfigPath, "path to the pipeline config file")
+}
+
+func configPath(cmd *cobra.Command) string {
+	path, _ := cmd.Flags().GetString("config")
+	if path == "" {
+		return defaultConfigPath
+	}
+	return path
 }
