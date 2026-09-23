@@ -1,0 +1,5 @@
+error: Alias "setup-go" is declared as "v0.1.0", which is not a <path>@<version> reference.
+
+Suggestions:
+  • Edit the entry to host.tld/org/name@version, as in setup-go: github.com/circleci-functions/<name>@<version>
+  • Or delete the entry, then run: circleci function add <name> --as setup-go

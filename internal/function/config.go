@@ -23,6 +23,7 @@
 package function
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"path"
@@ -37,6 +38,9 @@ import (
 
 // blockKey is the top-level config key holding function declarations.
 const blockKey = "functions"
+
+// ErrNotPinned is returned when an alias has no entry in the functions: block.
+var ErrNotPinned = errors.New("function not declared")
 
 var aliasPattern = regexp.MustCompile(`\A[A-Za-z][A-Za-z0-9_-]*\z`)
 
@@ -408,4 +412,115 @@ func lineEOL(line string) string {
 	default:
 		return ""
 	}
+}
+
+// FindPin returns the pin for alias, or ErrNotPinned.
+func FindPin(configPath, alias string) (Pin, error) {
+	pins, err := ListPins(configPath)
+	if err != nil {
+		return Pin{}, err
+	}
+	for _, p := range pins {
+		if p.Alias == alias {
+			return p, nil
+		}
+	}
+	return Pin{}, fmt.Errorf("%w: %q", ErrNotPinned, alias)
+}
+
+// UpdatePin replaces the reference alias is declared as, in place, so the
+// entry keeps its position and any comment attached to it.
+func UpdatePin(configPath, alias string, ref Reference) error {
+	data, doc, mode, err := loadForEdit(configPath)
+	if err != nil {
+		return err
+	}
+
+	// Deliberately not resolved: an aliased block lives elsewhere in the file,
+	// and rewriting there would edit whatever else points at the same anchor.
+	block := findMappingValue(doc, blockKey)
+	if block == nil || emptyBlock(block) {
+		return fmt.Errorf("%w: %q", ErrNotPinned, alias)
+	}
+	if block.Kind != yaml.MappingNode || block.Style != 0 {
+		return notDeclarationsErr(configPath)
+	}
+
+	key, value := findMappingEntry(block, alias)
+	if value == nil || value.Kind != yaml.ScalarNode || lastLine(value) != key.Line {
+		return fmt.Errorf("%w: %q", ErrNotPinned, alias)
+	}
+
+	lines := splitLines(data)
+	i := key.Line - 1
+	eol := lineEOL(lines[i])
+	body := strings.TrimSuffix(lines[i], eol)
+
+	// An anchored node starts at its "&name", not at the scalar. The anchor is
+	// written back so anything aliasing it still resolves, now to the new value.
+	start, anchor := value.Column-1, ""
+	if value.Anchor != "" {
+		anchor = "&" + value.Anchor + " "
+		start += len(value.Anchor) + 1
+		for start < len(body) && (body[start] == ' ' || body[start] == '\t') {
+			start++
+		}
+	}
+
+	// Rewritten from the key so a quoted old value goes with it — the new
+	// reference never needs quoting. The indentation before the key and
+	// anything after the value, such as a trailing comment, are kept verbatim.
+	lines[i] = body[:key.Column-1] + alias + ": " + anchor + ref.String() +
+		body[scalarEnd(body, start):] + eol
+	return write(configPath, joinLines(lines), mode)
+}
+
+// scalarEnd is the offset just past the scalar token starting at start, so what
+// follows it on the line can be preserved.
+func scalarEnd(line string, start int) int {
+	if start >= len(line) {
+		return len(line)
+	}
+	quote := line[start]
+	if quote != '"' && quote != '\'' {
+		// A plain scalar ends at a comment — a '#' after a space or tab — or at
+		// the end of the line. Back up over the whitespace before a comment so
+		// its spacing survives too.
+		for i := start + 1; i < len(line); i++ {
+			if line[i] != '#' || (line[i-1] != ' ' && line[i-1] != '\t') {
+				continue
+			}
+			end := i
+			for end > start && (line[end-1] == ' ' || line[end-1] == '\t') {
+				end--
+			}
+			return end
+		}
+		return len(line)
+	}
+	for i := start + 1; i < len(line); i++ {
+		switch {
+		case quote == '"' && line[i] == '\\':
+			i++
+		case line[i] != quote:
+		case quote == '\'' && i+1 < len(line) && line[i+1] == '\'':
+			i++ // '' is an escaped quote inside a single-quoted scalar
+		default:
+			return i + 1
+		}
+	}
+	return len(line)
+}
+
+// findMappingEntry returns the key and value nodes for key in a mapping.
+func findMappingEntry(node *yaml.Node, key string) (k, v *yaml.Node) {
+	if node == nil || node.Kind != yaml.MappingNode {
+		return nil, nil
+	}
+	for i := 0; i+1 < len(node.Content); i += 2 {
+		if node.Content[i].Value == key {
+			return node.Content[i], node.Content[i+1]
+		}
+	}
+	return nil, nil
 }
