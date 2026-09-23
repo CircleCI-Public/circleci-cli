@@ -34,10 +34,10 @@ import (
 func NewFunctionCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "function <command>",
-		Short:   "Discover CircleCI functions",
+		Short:   "Discover and declare CircleCI functions",
 		GroupID: "ci",
 		Long: heredoc.Doc(`
-			Discover the CircleCI functions published for use in your config.
+			Discover published CircleCI functions and declare them in your config.
 
 			A function is a versioned binary invoked as a step.
 		`),
@@ -48,14 +48,14 @@ func NewFunctionCmd() *cobra.Command {
 			# Show a function's versions and arguments
 			$ circleci function get setup-go
 
-			# Get just the names
-			$ circleci function list --json --jq '.[].name'
+			# Declare one in .circleci/config.yml
+			$ circleci function add setup-go
 		`),
 		Hidden:             true,
 		RunE:               cmdutil.GroupRunE,
 		FParseErrWhitelist: cobra.FParseErrWhitelist{UnknownFlags: true},
 	}
 
-	cmdutil.AddGroup(cmd, "Commands", newListCmd(), newGetCmd())
+	cmdutil.AddGroup(cmd, "Commands", newListCmd(), newGetCmd(), newAddCmd())
 	return cmd
 }
