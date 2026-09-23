@@ -54,6 +54,14 @@ func notFoundErr(name string) error {
 		WithExitCode(clierrors.ExitNotFound)
 }
 
+// versionErr maps a failure to fetch a version the function's own references
+// point at, so a 404 is not reported as the function itself being missing.
+func versionErr(err error, name, version string) error {
+	return cmdutil.APIErr(err, name+"@"+version,
+		"function.version_not_found", "Could not fetch published version %q.",
+		"Run 'circleci function get "+name+"' to see every published version")
+}
+
 func noVersionsErr(name string) error {
 	return clierrors.New("function.no_versions", "No published versions",
 		fmt.Sprintf("Function %q has no published versions.", name)).

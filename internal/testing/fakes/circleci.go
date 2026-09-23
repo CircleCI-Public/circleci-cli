@@ -501,6 +501,7 @@ func NewCircleCI(t *testing.T, tokens ...string) *CircleCI {
 	r.Post("/api/v3/orb/versions/{id}/promote", f.handleOrbPromoteVersion)
 	r.Get("/api/v3/orb/categories", f.handleOrbListCategories)
 	r.Get("/api/v3/function/packages", f.handleListFunctions)
+	r.Get("/api/v3/function/versions/{id}", f.handleGetFunctionVersion)
 	r.Delete("/api/v3/projects/{projectID}/dlc", f.handleDLCPurge)
 	// Wildcard route for artifact downloads — populated via AddStaticFile before requests.
 	r.Get("/artifacts/*", f.handleStaticFile)
@@ -5922,5 +5923,32 @@ func (f *CircleCI) handleListFunctions(w http.ResponseWriter, r *http.Request) {
 	render.JSON(w, r, map[string]any{
 		"data": items,
 		"page": map[string]any{"next": nil, "prev": nil},
+	})
+}
+
+func (f *CircleCI) handleGetFunctionVersion(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+
+	f.mu.RLock()
+	defer f.mu.RUnlock()
+
+	v, ok := f.functionVersions[id]
+	if !ok {
+		render.Status(r, http.StatusNotFound)
+		render.JSON(w, r, map[string]any{"message": "function version not found"})
+		return
+	}
+
+	render.JSON(w, r, map[string]any{
+		"data": map[string]any{
+			"id": v.ID,
+			"attributes": map[string]any{
+				"version":    v.Version,
+				"descriptor": v.Descriptor,
+			},
+			"references": map[string]any{
+				"function": map[string]any{"id": v.FunctionID},
+			},
+		},
 	})
 }
