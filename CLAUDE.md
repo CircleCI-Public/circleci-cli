@@ -102,7 +102,6 @@ agents/                   Design guidelines (normative — see above).
 clikit/                   Terminal I/O + presentation layer — its own Go module, published
                           for extension authors (below).
 share/                    Shipped man pages + bash/zsh completions.
-skills/circleci/          Agent skill shipped with the CLI.
 packaging/                Distribution packaging assets: deb copyright, Docker Hub overview.
 Dockerfile{,.alpine}      The published container images (cimg/base and Alpine variants).
 tools/                    Standalone build tooling — its own Go module.
