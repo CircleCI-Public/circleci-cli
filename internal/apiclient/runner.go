@@ -28,6 +28,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 
@@ -51,16 +52,24 @@ type RunnerToken struct {
 	Token string `json:"token,omitempty"`
 }
 
-// RunnerInstance is a live runner agent connected to CircleCI.
-type RunnerInstance struct {
-	ResourceClass  string `json:"resource_class"`
-	Hostname       string `json:"hostname"`
-	Name           string `json:"name"`
-	FirstConnected string `json:"first_connected"`
-	LastConnected  string `json:"last_connected"`
-	LastUsed       string `json:"last_used"`
-	IP             string `json:"ip"`
-	Version        string `json:"version"`
+// RunnerAgent is a connected runner agent returned by GET /api/v3/runner/agents.
+type RunnerAgent struct {
+	ID         uuid.UUID `json:"id"`
+	Attributes struct {
+		Name             string    `json:"name"`
+		IsBusy           bool      `json:"is_busy"`
+		Version          string    `json:"version"`
+		FirstConnectedAt time.Time `json:"first_connected_at"`
+		LastConnectedAt  time.Time `json:"last_connected_at"`
+	} `json:"attributes"`
+	References struct {
+		ResourceClass struct {
+			ID         uuid.UUID `json:"id"`
+			Attributes struct {
+				ResourceClass string `json:"resource_class"`
+			} `json:"attributes"`
+		} `json:"resource_class"`
+	} `json:"references"`
 }
 
 // ListResourceClassesByOrg returns the resource classes for an organization,
@@ -308,35 +317,47 @@ func (c *Client) DeleteRunnerTokenV3(ctx context.Context, tokenID string) error 
 	return err
 }
 
-// ListRunnerInstancesByOrg returns the live runner instances for an
-// organization, identified by its UUID.
-func (c *Client) ListRunnerInstancesByOrg(ctx context.Context, orgID uuid.UUID) ([]RunnerInstance, error) {
-	var resp struct {
-		Items []RunnerInstance `json:"items"`
-	}
-	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodGet, "/api/v3/runner",
-		httpcl.QueryParam("org-id", orgID.String()),
-		httpcl.JSONDecoder(&resp),
-	))
-	if err != nil {
-		return nil, err
-	}
-	return resp.Items, nil
+// agentPageLimit is the largest page[limit] GET /api/v3/runner/agents accepts; a bigger value is
+// rejected with a 400 rather than clamped.
+const agentPageLimit = 250
+
+// ListRunnerAgentsByOrg returns every connected agent in an organization.
+func (c *Client) ListRunnerAgentsByOrg(ctx context.Context, orgID uuid.UUID) ([]RunnerAgent, error) {
+	return c.listRunnerAgents(ctx, "org_id", orgID.String())
 }
 
-// ListRunnerInstances returns live runner instances filtered by resource class
-// and/or namespace. Either filter may be empty.
-func (c *Client) ListRunnerInstances(ctx context.Context, resourceClass, namespace string) ([]RunnerInstance, error) {
-	var resp struct {
-		Items []RunnerInstance `json:"items"`
+// ListRunnerAgentsByResourceClass returns every connected agent of one resource class, named by
+// its namespace/name slug.
+func (c *Client) ListRunnerAgentsByResourceClass(ctx context.Context, resourceClass string) ([]RunnerAgent, error) {
+	return c.listRunnerAgents(ctx, "resource_class", resourceClass)
+}
+
+// ListRunnerAgentsByNamespace returns every connected agent across a namespace's resource classes.
+func (c *Client) ListRunnerAgentsByNamespace(ctx context.Context, namespace string) ([]RunnerAgent, error) {
+	return c.listRunnerAgents(ctx, "namespace", namespace)
+}
+
+// listRunnerAgents pages GET /api/v3/runner/agents under one filter. The endpoint takes exactly one
+// and serves 20 per page by default, so every scope has to follow the cursor to return them all.
+func (c *Client) listRunnerAgents(ctx context.Context, filter, value string) ([]RunnerAgent, error) {
+	var all []RunnerAgent
+	cursor := ""
+
+	for {
+		var env v3List[RunnerAgent]
+		_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodGet, "/api/v3/runner/agents",
+			filterParam(filter, value),
+			pageLimit(agentPageLimit),
+			pageCursor(cursor),
+			httpcl.JSONDecoder(&env),
+		))
+		if err != nil {
+			return nil, err
+		}
+		all = append(all, env.Data...)
+		if env.Page.Next == nil || *env.Page.Next == "" {
+			return all, nil
+		}
+		cursor = *env.Page.Next
 	}
-	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodGet, "/api/v3/runner",
-		httpcl.OptionalQueryParam("resource-class", resourceClass),
-		httpcl.OptionalQueryParam("namespace", namespace),
-		httpcl.JSONDecoder(&resp),
-	))
-	if err != nil {
-		return nil, err
-	}
-	return resp.Items, nil
 }

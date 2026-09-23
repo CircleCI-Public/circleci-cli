@@ -103,7 +103,7 @@ type CircleCI struct {
 	// Runner (v3) state.
 	resourceClasses []ResourceClass          // all resource classes
 	runnerTokens    map[string][]RunnerToken // resource class slug → tokens
-	runnerInstances []RunnerInstance         // all instances
+	runnerAgents    []RunnerAgent            // all agents
 
 	runnerTokenCreateStatus   int // 0 = default success response
 	runnerTokenCreateBody     any
@@ -283,7 +283,7 @@ func NewCircleCI(t *testing.T, tokens ...string) *CircleCI {
 		workflowsV3NotFound:               map[string]bool{},
 		resourceClasses:                   []ResourceClass{},
 		runnerTokens:                      map[string][]RunnerToken{},
-		runnerInstances:                   []RunnerInstance{},
+		runnerAgents:                      []RunnerAgent{},
 		deletedTokens:                     map[string]bool{},
 		deletedRCs:                        map[string]bool{},
 		forbiddenRunnerOrgs:               map[string]bool{},
@@ -444,12 +444,13 @@ func NewCircleCI(t *testing.T, tokens ...string) *CircleCI {
 	r.Get("/api/v3/runs", f.handleListMyRunsV3)
 	r.Get("/api/v3/runs/{id}", f.handleGetRunV3)
 	r.Post("/api/v3/runs/search", f.handleSearchRunsV3)
-	// Runner (v3) routes. GET /runner lists instances, scoped by ?org-id=,
-	// ?resource-class= and/or ?namespace=. List/create/delete for resource
-	// classes all live on /runner/resource-classes: GET accepts
-	// filter[org_id]= and/or filter[slug]=, POST creates one, and DELETE
-	// /{id} removes one (optionally ?force=true).
-	r.Get("/api/v3/runner", f.handleRunnerList)
+	// Runner (v3) routes. GET /runner/agents lists agents under exactly one of
+	// filter[org_id]=, filter[resource_class]= or filter[namespace]=.
+	// List/create/delete for resource classes all live on
+	// /runner/resource-classes: GET accepts filter[org_id]= and/or
+	// filter[slug]=, POST creates one, and DELETE /{id} removes one
+	// (optionally ?force=true).
+	r.Get("/api/v3/runner/agents", f.handleListRunnerAgents)
 	r.Get("/api/v3/runner/resource-classes", f.handleListResourceClassesV3)
 	r.Post("/api/v3/runner/resource-classes/{id}/update", f.handleUpdateResourceClass)
 	r.Post("/api/v3/runner/resource-classes", f.handleCreateResourceClassV3)
@@ -1752,17 +1753,16 @@ type RunnerToken struct {
 	Token         string
 }
 
-// RunnerInstance is a stored runner instance served by the runner instance
-// list, filtered by resource-class or namespace prefix.
-type RunnerInstance struct {
+// RunnerAgent is a stored runner agent served by GET /api/v3/runner/agents, scoped by
+// filter[resource_class], filter[namespace] or filter[org_id].
+type RunnerAgent struct {
+	ID             string
 	ResourceClass  string
-	Hostname       string
 	Name           string
 	Version        string
-	IP             string
+	IsBusy         bool
 	FirstConnected string
 	LastConnected  string
-	LastUsed       string
 }
 
 // AddResourceClass registers a runner resource class.
@@ -1779,11 +1779,11 @@ func (f *CircleCI) AddRunnerToken(resourceClass string, token RunnerToken) {
 	f.runnerTokens[resourceClass] = append(f.runnerTokens[resourceClass], token)
 }
 
-// AddRunnerInstance adds a runner instance to the fake server's list.
-func (f *CircleCI) AddRunnerInstance(instance RunnerInstance) {
+// AddRunnerAgent adds a runner agent to the fake server's list.
+func (f *CircleCI) AddRunnerAgent(agent RunnerAgent) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	f.runnerInstances = append(f.runnerInstances, instance)
+	f.runnerAgents = append(f.runnerAgents, agent)
 }
 
 // runnerTokenEntity renders a stored RunnerToken, including the secret value
@@ -1801,33 +1801,28 @@ func runnerTokenEntity(t RunnerToken) map[string]any {
 	return m
 }
 
-// runnerInstanceEntity renders a stored RunnerInstance as its wire object.
-func runnerInstanceEntity(i RunnerInstance) map[string]any {
+// runnerAgentEntity renders a stored RunnerAgent as its V3 entity, referencing rcID as its
+// resource class.
+func runnerAgentEntity(a RunnerAgent, rcID string) map[string]any {
 	return map[string]any{
-		"resource_class":  i.ResourceClass,
-		"hostname":        i.Hostname,
-		"name":            i.Name,
-		"version":         i.Version,
-		"ip":              i.IP,
-		"first_connected": i.FirstConnected,
-		"last_connected":  i.LastConnected,
-		"last_used":       i.LastUsed,
+		"id": a.ID,
+		"attributes": map[string]any{
+			"name":               a.Name,
+			"is_busy":            a.IsBusy,
+			"version":            a.Version,
+			"first_connected_at": a.FirstConnected,
+			"last_connected_at":  a.LastConnected,
+		},
+		"references": map[string]any{
+			"resource_class": map[string]any{
+				"id":         rcID,
+				"attributes": map[string]any{"resource_class": a.ResourceClass},
+			},
+		},
 	}
 }
 
 // --- Runner handlers ---
-
-// handleRunnerList serves GET /api/v3/runner, returning runner instances scoped
-// by ?resource-class=, ?org-id= or ?namespace=.
-func (f *CircleCI) handleRunnerList(w http.ResponseWriter, r *http.Request) {
-	q := r.URL.Query()
-	if q.Get("resource-class") != "" || q.Get("org-id") != "" || q.Get("namespace") != "" {
-		f.handleListRunnerInstances(w, r)
-		return
-	}
-	render.Status(r, http.StatusBadRequest)
-	render.JSON(w, r, map[string]any{"message": "must specify one of org-id, resource-class, or namespace"})
-}
 
 // resourceClassForbiddenBody is the error body returned for both the
 // org-scoped list 403 and the namespace/org mismatch 403 on create.
@@ -2278,24 +2273,58 @@ func (f *CircleCI) handleDeleteRunnerTokenV3(w http.ResponseWriter, r *http.Requ
 	render.JSON(w, r, map[string]any{"message": "Deleted."})
 }
 
-func (f *CircleCI) handleListRunnerInstances(w http.ResponseWriter, r *http.Request) {
-	rc := r.URL.Query().Get("resource-class")
-	ns := r.URL.Query().Get("namespace")
+// handleListRunnerAgents serves GET /api/v3/runner/agents, cursor-paginated with the offset as the
+// opaque cursor.
+func (f *CircleCI) handleListRunnerAgents(w http.ResponseWriter, r *http.Request) {
+	q := r.URL.Query()
+	rc := q.Get("filter[resource_class]")
+	ns := q.Get("filter[namespace]")
+	org := q.Get("filter[org_id]")
+
+	if rc == "" && ns == "" && org == "" {
+		render.Status(r, http.StatusBadRequest)
+		render.JSON(w, r, map[string]any{
+			"error": map[string]any{"title": "A filter parameter is required."},
+		})
+		return
+	}
+
 	f.mu.RLock()
-	all := f.runnerInstances
+	all := f.runnerAgents
+	classes := f.resourceClasses
 	f.mu.RUnlock()
 
-	items := []any{}
-	for _, inst := range all {
-		if rc != "" && inst.ResourceClass != rc {
-			continue
-		}
-		if ns != "" && !strings.HasPrefix(inst.ResourceClass, ns+"/") {
-			continue
-		}
-		items = append(items, runnerInstanceEntity(inst))
+	rcIDs := make(map[string]string, len(classes))
+	for _, c := range classes {
+		rcIDs[c.Slug] = c.ID
 	}
-	render.JSON(w, r, map[string]any{"items": items})
+
+	// The fake keeps one org, so an org filter matches every stored agent.
+	results := []any{}
+	for _, a := range all {
+		if rc != "" && a.ResourceClass != rc {
+			continue
+		}
+		if ns != "" && !strings.HasPrefix(a.ResourceClass, ns+"/") {
+			continue
+		}
+		results = append(results, runnerAgentEntity(a, rcIDs[a.ResourceClass]))
+	}
+
+	offset, _ := strconv.Atoi(q.Get("page[cursor]"))
+	if offset > len(results) {
+		offset = len(results)
+	}
+	page := results[offset:]
+	if size, err := strconv.Atoi(q.Get("page[limit]")); err == nil && size > 0 && len(page) > size {
+		page = page[:size]
+	}
+
+	body := map[string]any{"data": page}
+	if next := offset + len(page); next < len(results) {
+		body["page"] = map[string]any{"next": strconv.Itoa(next)}
+	}
+	render.JSON(w, r, body)
 }
 
 // --- Auth helpers ---
