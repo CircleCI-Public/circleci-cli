@@ -53,6 +53,14 @@ type FunctionVersion struct {
 	Version string
 }
 
+// FunctionDescriptor is a version's published descriptor. Content is untyped
+// because a descriptor is served exactly as published and its shape can differ
+// between versions of the same function.
+type FunctionDescriptor struct {
+	Version string
+	Content map[string]any
+}
+
 // Find returns the named version, or false when it is not published.
 func (f *Function) Find(version string) (FunctionVersion, bool) {
 	for _, v := range f.Versions {
@@ -138,4 +146,27 @@ func (c *Client) GetFunctionByName(ctx context.Context, name string) (*Function,
 		}
 	}
 	return nil, fmt.Errorf("%w: %q", ErrFunctionNotFound, name)
+}
+
+// GetFunctionVersion gets a version's descriptor. The id must come from a
+// function's references: ids are assigned by the API and one built any other
+// way will not resolve.
+func (c *Client) GetFunctionVersion(ctx context.Context, id uuid.UUID) (*FunctionDescriptor, error) {
+	var env v3Entity[struct {
+		Attributes struct {
+			Version    string         `json:"version"`
+			Descriptor map[string]any `json:"descriptor"`
+		} `json:"attributes"`
+	}]
+	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodGet, "/api/v3/function/versions/%s",
+		httpcl.RouteParams(id),
+		httpcl.JSONDecoder(&env),
+	))
+	if err != nil {
+		return nil, err
+	}
+	return &FunctionDescriptor{
+		Version: env.Data.Attributes.Version,
+		Content: env.Data.Attributes.Descriptor,
+	}, nil
 }
