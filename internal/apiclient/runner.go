@@ -160,6 +160,23 @@ func (c *Client) ResourceClassByName(ctx context.Context, resourceClass string) 
 	return c.GetResourceClassBySlug(ctx, resourceClass)
 }
 
+// UpdateResourceClass updates the description of a runner resource class.
+// The body is flat ({description: ...}), not the data envelope other v3 writes use.
+func (c *Client) UpdateResourceClass(ctx context.Context, id uuid.UUID, description string) (*ResourceClass, error) {
+	body := map[string]any{"description": description}
+	var rc ResourceClass
+	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodPost,
+		"/api/v3/runner/resource-classes/%s/update",
+		httpcl.RouteParams(id.String()),
+		httpcl.Body(body),
+		httpcl.JSONDecoder(&rc),
+	))
+	if err != nil {
+		return nil, err
+	}
+	return &rc, nil
+}
+
 // DeleteResourceClass deletes a runner resource class by its id, along with any
 // tokens issued for it.
 func (c *Client) DeleteResourceClass(ctx context.Context, id uuid.UUID) error {

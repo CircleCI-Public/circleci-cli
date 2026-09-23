@@ -59,6 +59,7 @@ func newResourceClassCmd() *cobra.Command {
 	)
 	cmdutil.AddGroup(cmd, "Targeted commands",
 		newResourceClassDeleteCmd(),
+		newResourceClassUpdateCmd(),
 	)
 
 	return cmd
@@ -288,6 +289,130 @@ func runResourceClassCreate(ctx context.Context, client *apiclient.Client, resou
 	if out.Token != "" {
 		iostream.Printf(ctx, "\nToken (save this — it will not be shown again):\n%s\n", out.Token)
 	}
+	return nil
+}
+
+// --- resource-class update ---
+
+func newResourceClassUpdateCmd() *cobra.Command {
+	var description string
+	var jsonOut bool
+
+	cmd := &cobra.Command{
+		Use:   "update <namespace>/<name>",
+		Short: "Update a runner resource class",
+		Annotations: map[string]string{
+			"help:arguments": heredoc.Docf(`
+				The resource class to update, given in the form %[1]snamespace/name%[1]s,
+				where namespace is your organization name (for example, %[1]smy-org/my-runner%[1]s).
+			`, "`"),
+		},
+		Long: heredoc.Doc(`
+			Update a CircleCI runner resource class.
+
+			Only the description can be changed. The resource class name and ID
+			cannot be modified after creation.
+
+			JSON fields: id, resource_class, description
+		`),
+		Example: heredoc.Doc(`
+			# Update the description of a resource class
+			$ circleci runner resource-class update my-org/my-runner --description "Linux amd64 runner"
+
+			# Clear the description
+			$ circleci runner resource-class update my-org/my-runner --description ""
+
+			# Update and output the result as JSON
+			$ circleci runner resource-class update my-org/my-runner --description "ARM runner" --json
+		`),
+		Args: cobra.MaximumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if cliErr := cmdutil.RequireArgs(args, "namespace/name"); cliErr != nil {
+				return cliErr
+			}
+			if !cmd.Flags().Changed("description") {
+				return clierrors.New("runner.description_required", "Description required",
+					"--description is required; use --description \"\" to clear the description.").
+					WithExitCode(clierrors.ExitBadArguments)
+			}
+			ctx := cmd.Context()
+			client, err := cmdutil.LoadClient(ctx)
+			if err != nil {
+				return err
+			}
+			return runResourceClassUpdate(ctx, client, args[0], description, jsonOut)
+		},
+	}
+
+	cmd.Flags().StringVar(&description, "description", "", "New description for the resource class (use \"\" to clear)")
+	cmdutil.AddJSONFlag(cmd, &jsonOut)
+	cmdutil.AddJQFlag(cmd)
+	return cmd
+}
+
+type resourceClassUpdateOutput struct {
+	ID            string `json:"id"`
+	ResourceClass string `json:"resource_class"`
+	Description   string `json:"description"`
+}
+
+func runResourceClassUpdate(ctx context.Context, client *apiclient.Client,
+	resourceClass, description string, jsonOut bool) error {
+	if namespace, _, ok := strings.Cut(resourceClass, "/"); !ok || namespace == "" {
+		return clierrors.New("runner.malformed_resource_class", "Malformed resource class",
+			fmt.Sprintf("%q is not in namespace/name form.", resourceClass)).
+			WithSuggestions("Give the resource class as <namespace>/<name>, for example my-org/my-runner").
+			WithExitCode(clierrors.ExitBadArguments)
+	}
+
+	rc, err := client.ResourceClassByName(ctx, resourceClass)
+	if err != nil {
+		if errors.Is(err, apiclient.ErrResourceClassNotFound) {
+			return clierrors.New("runner.not_found", "Not found",
+				fmt.Sprintf("No runner resource class named %q.", resourceClass)).
+				WithSuggestions("List available resource classes with: circleci runner resource-class list").
+				WithExitCode(clierrors.ExitNotFound)
+		}
+		if httpcl.HasStatusCode(err, http.StatusNotFound) {
+			return runnerNotEnabledErr()
+		}
+		return apiErr(err, resourceClass)
+	}
+
+	id, err := uuid.Parse(rc.ID)
+	if err != nil {
+		return apiErr(err, resourceClass)
+	}
+
+	updated, err := client.UpdateResourceClass(ctx, id, description)
+	if err != nil {
+		if httpcl.HasStatusCode(err, http.StatusNotFound) {
+			return clierrors.New("runner.not_found", "Not found",
+				fmt.Sprintf("No runner resource class named %q.", resourceClass)).
+				WithSuggestions("List available resource classes with: circleci runner resource-class list").
+				WithExitCode(clierrors.ExitNotFound)
+		}
+		return apiErr(err, resourceClass)
+	}
+
+	out := resourceClassUpdateOutput{
+		ID:            updated.ID,
+		ResourceClass: updated.ResourceClass,
+		Description:   updated.Description,
+	}
+
+	if jsonOut {
+		return iostream.PrintJSON(ctx, out)
+	}
+
+	var md strings.Builder
+	md.WriteString("# Updated Resource Class\n")
+	_, _ = fmt.Fprintf(&md, "- Resource Class: %s\n", out.ResourceClass)
+	if out.Description != "" {
+		_, _ = fmt.Fprintf(&md, "- Description: %s\n", out.Description)
+	}
+	_, _ = fmt.Fprintf(&md, "- ID: `%s`\n", out.ID)
+	iostream.PrintMarkdown(ctx, md.String())
 	return nil
 }
 

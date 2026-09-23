@@ -450,6 +450,7 @@ func NewCircleCI(t *testing.T, tokens ...string) *CircleCI {
 	r.Delete("/api/v3/runner/resource/{id}", f.handleDeleteResourceClass)
 	r.Delete("/api/v3/runner/resource/{id}/force", f.handleForceDeleteResourceClass)
 	r.Get("/api/v3/runner/resource-classes", f.handleListResourceClassesV3)
+	r.Post("/api/v3/runner/resource-classes/{id}/update", f.handleUpdateResourceClass)
 	r.Get("/api/v3/runner/token", f.handleListRunnerTokens)
 	r.Post("/api/v3/runner/token", f.handleCreateRunnerToken)
 	r.Delete("/api/v3/runner/token/{id}", f.handleDeleteRunnerToken)
@@ -1893,6 +1894,47 @@ func (f *CircleCI) handleCreateResourceClass(w http.ResponseWriter, r *http.Requ
 	f.mu.Unlock()
 	render.Status(r, http.StatusCreated)
 	render.JSON(w, r, resourceClassEntity(rc))
+}
+
+// handleUpdateResourceClass serves POST /api/v3/runner/resource-classes/{id}/update.
+// It updates the description of the resource class and returns the updated object.
+func (f *CircleCI) handleUpdateResourceClass(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	var body struct {
+		Description string `json:"description"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		render.Status(r, http.StatusBadRequest)
+		render.JSON(w, r, map[string]any{"message": "invalid body"})
+		return
+	}
+	f.mu.Lock()
+	idx := -1
+	for i, rc := range f.resourceClasses {
+		if rc.ID == id {
+			idx = i
+			break
+		}
+	}
+	if idx >= 0 {
+		f.resourceClasses[idx].Description = body.Description
+	}
+	var updated ResourceClass
+	if idx >= 0 {
+		updated = f.resourceClasses[idx]
+	}
+	f.mu.Unlock()
+
+	if idx < 0 {
+		render.Status(r, http.StatusNotFound)
+		render.JSON(w, r, map[string]any{"message": "not found"})
+		return
+	}
+	render.JSON(w, r, map[string]any{
+		"id":             updated.ID,
+		"resource_class": updated.Slug,
+		"description":    updated.Description,
+	})
 }
 
 // handleDeleteResourceClass serves DELETE /api/v3/runner/resource/{id}, which

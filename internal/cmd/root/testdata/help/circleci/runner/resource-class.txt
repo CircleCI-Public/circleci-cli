@@ -16,6 +16,7 @@ Manage runner resource classes
 | Command  | Description                    |
 | -------- | ------------------------------ |
 | `delete` | Delete a runner resource class |
+| `update` | Update a runner resource class |
 
 ## Flags
 

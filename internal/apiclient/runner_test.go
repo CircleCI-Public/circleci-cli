@@ -31,6 +31,7 @@ import (
 	"testing"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/google/uuid"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/assert/cmp"
 
@@ -38,11 +39,17 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/internal/apiclient"
 )
 
-// newRunnerFake builds a minimal fake that responds to the v3 resource-classes list endpoint.
+// newRunnerFake builds a minimal fake that responds to the v3 resource-classes endpoints.
 // The handler maps filter[slug] values to pre-registered items; unknown slugs return an
-// empty collection.
+// empty collection. The update endpoint stores changes in-memory.
 func newRunnerFake(t *testing.T, items map[string]apiclient.ResourceClass) *apiclient.Client {
 	t.Helper()
+
+	byID := make(map[string]*apiclient.ResourceClass)
+	for _, rc := range items {
+		rc := rc
+		byID[rc.ID] = &rc
+	}
 
 	r := chi.NewMux()
 	r.Get("/api/v3/runner/resource-classes", func(w http.ResponseWriter, r *http.Request) {
@@ -64,6 +71,26 @@ func newRunnerFake(t *testing.T, items map[string]apiclient.ResourceClass) *apic
 
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(map[string]any{"data": data})
+	})
+	r.Post("/api/v3/runner/resource-classes/{id}/update", func(w http.ResponseWriter, r *http.Request) {
+		id := chi.URLParam(r, "id")
+		rc, ok := byID[id]
+		if !ok {
+			w.WriteHeader(http.StatusNotFound)
+			_ = json.NewEncoder(w).Encode(map[string]any{"message": "not found"})
+			return
+		}
+		var body struct {
+			Description string `json:"description"`
+		}
+		_ = json.NewDecoder(r.Body).Decode(&body)
+		rc.Description = body.Description
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"id":             rc.ID,
+			"resource_class": rc.ResourceClass,
+			"description":    rc.Description,
+		})
 	})
 
 	srv := httptest.NewServer(r)
@@ -125,5 +152,35 @@ func TestResourceClassByName(t *testing.T) {
 	t.Run("unknown name returns ErrResourceClassNotFound", func(t *testing.T) {
 		_, err := client.ResourceClassByName(ctx, "acme/unknown")
 		assert.Check(t, errors.Is(err, apiclient.ErrResourceClassNotFound))
+	})
+}
+
+func TestUpdateResourceClass(t *testing.T) {
+	ctx := iostream.Testing(context.Background())
+
+	seeded := apiclient.ResourceClass{
+		ID:            "550e8400-e29b-41d4-a716-446655440002",
+		ResourceClass: "my-ns/my-runner",
+		Description:   "original description",
+	}
+	client := newRunnerFake(t, map[string]apiclient.ResourceClass{
+		"my-ns/my-runner": seeded,
+	})
+
+	id, err := uuid.Parse(seeded.ID)
+	assert.NilError(t, err)
+
+	t.Run("updates description", func(t *testing.T) {
+		rc, err := client.UpdateResourceClass(ctx, id, "updated description")
+		assert.NilError(t, err)
+		assert.Check(t, cmp.Equal(rc.ID, seeded.ID))
+		assert.Check(t, cmp.Equal(rc.ResourceClass, seeded.ResourceClass))
+		assert.Check(t, cmp.Equal(rc.Description, "updated description"))
+	})
+
+	t.Run("unknown id returns error", func(t *testing.T) {
+		unknownID := uuid.MustParse("00000000-0000-0000-0000-000000000000")
+		_, err := client.UpdateResourceClass(ctx, unknownID, "new desc")
+		assert.Check(t, err != nil)
 	})
 }

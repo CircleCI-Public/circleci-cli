@@ -653,6 +653,114 @@ func TestRunnerResourceClassDelete_NotFound(t *testing.T) {
 	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 }
 
+// --- resource-class update ---
+
+func TestRunnerResourceClassUpdate(t *testing.T) {
+	fake, env := setupRunnerFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"runner", "resource-class", "update", "my-org/linux-runner", "--description", "Updated description"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 0))
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+
+	t.Run("check request", func(t *testing.T) {
+		reqs := fake.AllRequests()
+		// First: resolve resource class by slug to get UUID.
+		assert.Assert(t, cmp.Len(reqs, 2))
+		assert.Check(t, cmp.Equal(reqs[0].Method, http.MethodGet))
+		assert.Check(t, cmp.Equal(reqs[0].URL.Path, "/api/v3/runner/resource-classes"))
+		assert.Check(t, cmp.Equal(reqs[0].URL.Query().Get("filter[slug]"), "my-org/linux-runner"))
+
+		// Second: update via POST /resource-classes/{id}/update.
+		assert.Check(t, cmp.DeepEqual(reqs[1], httprecorder.Request{
+			Method: http.MethodPost,
+			URL:    url.URL{Path: "/api/v3/runner/resource-classes/11111111-1111-4111-8111-111111111111/update"},
+			Header: http.Header{
+				"Authorization": {"Bearer test-token"},
+				"User-Agent":    {httpcl.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
+			},
+			Body: new(`{"description":"Updated description"}`),
+		}, ignoreCommonHeaders))
+	})
+}
+
+func TestRunnerResourceClassUpdate_JSON(t *testing.T) {
+	_, env := setupRunnerFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"runner", "resource-class", "update", "my-org/linux-runner", "--description", "New desc", "--json"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+
+	var out map[string]any
+	err := json.Unmarshal([]byte(result.Stdout), &out)
+	assert.NilError(t, err)
+	assert.Check(t, cmp.Equal(out["resource_class"], "my-org/linux-runner"))
+	assert.Check(t, cmp.Equal(out["description"], "New desc"))
+	assert.Check(t, out["id"] != "", "expected non-empty id")
+
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".json"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+}
+
+func TestRunnerResourceClassUpdate_NotFound(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"runner", "resource-class", "update", "my-org/nonexistent", "--description", "New desc"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 5))
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+}
+
+func TestRunnerResourceClassUpdate_MissingArg(t *testing.T) {
+	_, env := setupRunnerFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"runner", "resource-class", "update", "--description", "New desc"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 2))
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+}
+
+func TestRunnerResourceClassUpdate_NoDescription(t *testing.T) {
+	_, env := setupRunnerFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"runner", "resource-class", "update", "my-org/linux-runner"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 2))
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+}
+
 // --- token list ---
 
 // Without --resource-class every resource class in the org is enumerated.
