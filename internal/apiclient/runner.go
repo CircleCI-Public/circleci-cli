@@ -64,67 +64,67 @@ type RunnerInstance struct {
 }
 
 // ListResourceClassesByOrg returns the resource classes for an organization,
-// identified by its UUID. Uses the runner API at runner.circleci.com (or the
-// configured server host).
+// identified by its UUID, via the v3 filter[org_id] endpoint.
 func (c *Client) ListResourceClassesByOrg(ctx context.Context, orgID uuid.UUID) ([]ResourceClass, error) {
-	var resp struct {
-		Items []ResourceClass `json:"items"`
-	}
-	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodGet, "/api/v3/runner/resource",
-		httpcl.QueryParam("org-id", orgID.String()),
+	var resp v3List[v3ResourceClassItem]
+	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodGet, "/api/v3/runner/resource-classes",
+		filterParam("org_id", orgID.String()),
 		httpcl.JSONDecoder(&resp),
 	))
 	if err != nil {
 		return nil, err
 	}
-	return resp.Items, nil
-}
-
-// ListResourceClassesByNamespace returns the resource classes for a namespace
-// (organization name). Uses the runner API at runner.circleci.com (or the
-// configured server host).
-func (c *Client) ListResourceClassesByNamespace(ctx context.Context, namespace string) ([]ResourceClass, error) {
-	var resp struct {
-		Items []ResourceClass `json:"items"`
+	classes := make([]ResourceClass, len(resp.Data))
+	for i, item := range resp.Data {
+		classes[i] = item.toResourceClass()
 	}
-	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodGet, "/api/v3/runner/resource",
-		httpcl.QueryParam("namespace", namespace),
-		httpcl.JSONDecoder(&resp),
-	))
-	if err != nil {
-		return nil, err
-	}
-	return resp.Items, nil
-}
-
-// CreateResourceClass creates a new runner resource class.
-func (c *Client) CreateResourceClass(ctx context.Context, resourceClass, description string) (*ResourceClass, error) {
-	body := map[string]any{
-		"resource_class": resourceClass,
-		"description":    description,
-	}
-	var rc ResourceClass
-	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodPost, "/api/v3/runner/resource",
-		httpcl.Body(body),
-		httpcl.JSONDecoder(&rc),
-	))
-	if err != nil {
-		return nil, err
-	}
-	return &rc, nil
+	return classes, nil
 }
 
 // ErrResourceClassNotFound is returned by ResourceClassByName when no resource
 // class matches the slug.
 var ErrResourceClassNotFound = errors.New("resource class not found")
 
-// v3ResourceClassItem is the per-item shape returned by the v3 resource-classes list endpoint.
+// v3ResourceClassItem is the per-item shape returned by the v3 resource-classes endpoints.
 type v3ResourceClassItem struct {
 	ID         string `json:"id"`
 	Attributes struct {
 		ResourceClass string `json:"resource_class"`
 		Description   string `json:"description"`
 	} `json:"attributes"`
+}
+
+func (item v3ResourceClassItem) toResourceClass() ResourceClass {
+	return ResourceClass{
+		ID:            item.ID,
+		ResourceClass: item.Attributes.ResourceClass,
+		Description:   item.Attributes.Description,
+	}
+}
+
+// CreateResourceClass creates a new runner resource class owned by orgID.
+func (c *Client) CreateResourceClass(ctx context.Context, orgID uuid.UUID, resourceClass, description string) (*ResourceClass, error) {
+	body := map[string]any{
+		"data": map[string]any{
+			"attributes": map[string]any{
+				"resource_class": resourceClass,
+				"description":    description,
+			},
+			"references": map[string]any{
+				"org": map[string]any{"id": orgID.String()},
+			},
+		},
+	}
+	var resp v3Entity[v3ResourceClassItem]
+	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodPost, "/api/v3/runner/resource-classes",
+		httpcl.Body(body),
+		httpcl.JSONDecoder(&resp),
+	))
+	if err != nil {
+		return nil, err
+	}
+	rc := resp.Data.toResourceClass()
+	return &rc, nil
 }
 
 // GetResourceClassBySlug looks up a single resource class by its namespace/name slug via the
@@ -144,12 +144,8 @@ func (c *Client) GetResourceClassBySlug(ctx context.Context, slug string) (*Reso
 	if len(resp.Data) == 0 {
 		return nil, fmt.Errorf("%w: %q", ErrResourceClassNotFound, slug)
 	}
-	item := resp.Data[0]
-	return &ResourceClass{
-		ID:            item.ID,
-		ResourceClass: item.Attributes.ResourceClass,
-		Description:   item.Attributes.Description,
-	}, nil
+	rc := resp.Data[0].toResourceClass()
+	return &rc, nil
 }
 
 // ResourceClassByName returns the resource class with the given namespace/name slug.
@@ -177,13 +173,24 @@ func (c *Client) UpdateResourceClass(ctx context.Context, id uuid.UUID, descript
 	return &rc, nil
 }
 
-// DeleteResourceClass deletes a runner resource class by its id, along with any
-// tokens issued for it.
-func (c *Client) DeleteResourceClass(ctx context.Context, id uuid.UUID) error {
-	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodDelete, "/api/v3/runner/resource/%s/force",
+// DeleteResourceClass deletes a runner resource class by its id. With force,
+// any tokens issued for it are deleted too; without it, the server rejects
+// the delete (409) if tokens still exist.
+func (c *Client) DeleteResourceClass(ctx context.Context, id uuid.UUID, force bool) error {
+	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodDelete, "/api/v3/runner/resource-classes/%s",
 		httpcl.RouteParams(id.String()),
+		httpcl.OptionalQueryParam("force", forceParam(force)),
 	))
 	return err
+}
+
+// forceParam renders force as the query value DeleteResourceClass sends, or ""
+// (omitted by OptionalQueryParam) when force is false.
+func forceParam(force bool) string {
+	if !force {
+		return ""
+	}
+	return "true"
 }
 
 // ListRunnerTokens returns tokens for the given resource class.

@@ -1,0 +1,7 @@
+error: Self-hosted runners are not available for this token, or the token cannot access this organization's runners.
+
+Suggestions:
+  • Confirm your token can view or administer self-hosted runners
+  • Confirm the token belongs to the organization that owns the resource class
+
+Reference: https://circleci.com/docs/guides/execution-runner/runner-overview/

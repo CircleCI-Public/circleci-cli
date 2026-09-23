@@ -105,10 +105,13 @@ type CircleCI struct {
 	runnerTokens    map[string][]RunnerToken // resource class slug → tokens
 	runnerInstances []RunnerInstance         // all instances
 
-	runnerTokenCreateStatus int // 0 = default success response
-	runnerTokenCreateBody   any
-	deletedTokens           map[string]bool // token id → deleted
-	deletedRCs              map[string]bool // resource class → deleted
+	runnerTokenCreateStatus   int // 0 = default success response
+	runnerTokenCreateBody     any
+	deletedTokens             map[string]bool // token id → deleted
+	deletedRCs                map[string]bool // resource class → deleted
+	forbiddenRunnerOrgs       map[string]bool // org id → answer 403 on runner resource-class list
+	resourceClassDeleteStatus int             // 0 = default found/tokens-exist logic
+	resourceClassDeleteBody   any
 
 	// Project / env-var state.
 	followedProjects    []FollowedProject      // projects for GET /api/v1.1/projects
@@ -283,6 +286,7 @@ func NewCircleCI(t *testing.T, tokens ...string) *CircleCI {
 		runnerInstances:                   []RunnerInstance{},
 		deletedTokens:                     map[string]bool{},
 		deletedRCs:                        map[string]bool{},
+		forbiddenRunnerOrgs:               map[string]bool{},
 		followedProjects:                  []FollowedProject{},
 		followedSlugs:                     map[string]bool{},
 		envVars:                           map[string][]EnvVar{},
@@ -440,17 +444,16 @@ func NewCircleCI(t *testing.T, tokens ...string) *CircleCI {
 	r.Get("/api/v3/runs", f.handleListMyRunsV3)
 	r.Get("/api/v3/runs/{id}", f.handleGetRunV3)
 	r.Post("/api/v3/runs/search", f.handleSearchRunsV3)
-	// Runner (v3) routes. GET /runner lists instances (scoped by ?org-id= and/or
-	// ?resource-class=); GET /runner/resource lists resource classes (scoped by
-	// ?org-id= and/or ?namespace=). GET /runner also still accepts ?namespace=
-	// for the legacy dispatch path.
+	// Runner (v3) routes. GET /runner lists instances, scoped by ?org-id=,
+	// ?resource-class= and/or ?namespace=. List/create/delete for resource
+	// classes all live on /runner/resource-classes: GET accepts
+	// filter[org_id]= and/or filter[slug]=, POST creates one, and DELETE
+	// /{id} removes one (optionally ?force=true).
 	r.Get("/api/v3/runner", f.handleRunnerList)
-	r.Get("/api/v3/runner/resource", f.handleListResourceClasses)
-	r.Post("/api/v3/runner/resource", f.handleCreateResourceClass)
-	r.Delete("/api/v3/runner/resource/{id}", f.handleDeleteResourceClass)
-	r.Delete("/api/v3/runner/resource/{id}/force", f.handleForceDeleteResourceClass)
 	r.Get("/api/v3/runner/resource-classes", f.handleListResourceClassesV3)
 	r.Post("/api/v3/runner/resource-classes/{id}/update", f.handleUpdateResourceClass)
+	r.Post("/api/v3/runner/resource-classes", f.handleCreateResourceClassV3)
+	r.Delete("/api/v3/runner/resource-classes/{id}", f.handleDeleteResourceClassV3)
 	r.Get("/api/v3/runner/token", f.handleListRunnerTokens)
 	r.Post("/api/v3/runner/token", f.handleCreateRunnerToken)
 	r.Delete("/api/v3/runner/token/{id}", f.handleDeleteRunnerToken)
@@ -1728,10 +1731,14 @@ func (f *CircleCI) handleCancelWorkflow(w http.ResponseWriter, r *http.Request) 
 // ResourceClass is a stored runner resource class served by the runner
 // resource-class list and create endpoints. Slug is the "resource_class" wire
 // field (e.g. "my-org/linux-runner"); the list filters on its namespace prefix.
+// OrgID records the owning organization, modeling namespace ownership: create
+// requests are 403'd when they target a namespace already claimed by a
+// different org, and filter[org_id] on the list only returns matching classes.
 type ResourceClass struct {
 	ID          string
 	Slug        string
 	Description string
+	OrgID       string
 }
 
 // RunnerToken is a stored runner token served by the runner token list and
@@ -1779,15 +1786,6 @@ func (f *CircleCI) AddRunnerInstance(instance RunnerInstance) {
 	f.runnerInstances = append(f.runnerInstances, instance)
 }
 
-// resourceClassEntity renders a stored ResourceClass as its wire object.
-func resourceClassEntity(rc ResourceClass) map[string]any {
-	return map[string]any{
-		"id":             rc.ID,
-		"resource_class": rc.Slug,
-		"description":    rc.Description,
-	}
-}
-
 // runnerTokenEntity renders a stored RunnerToken, including the secret value
 // only when set (create responses carry it; the list does not).
 func runnerTokenEntity(t RunnerToken) map[string]any {
@@ -1831,34 +1829,34 @@ func (f *CircleCI) handleRunnerList(w http.ResponseWriter, r *http.Request) {
 	render.JSON(w, r, map[string]any{"message": "must specify one of org-id, resource-class, or namespace"})
 }
 
-func (f *CircleCI) handleListResourceClasses(w http.ResponseWriter, r *http.Request) {
-	ns := r.URL.Query().Get("namespace")
-	f.mu.RLock()
-	all := f.resourceClasses
-	deleted := f.deletedRCs
-	f.mu.RUnlock()
-
-	items := []any{}
-	for _, rc := range all {
-		if deleted[rc.Slug] {
-			continue
-		}
-		if ns != "" && !strings.HasPrefix(rc.Slug, ns+"/") {
-			continue
-		}
-		items = append(items, resourceClassEntity(rc))
+// resourceClassForbiddenBody is the error body returned for both the
+// org-scoped list 403 and the namespace/org mismatch 403 on create.
+func resourceClassForbiddenBody() map[string]any {
+	return map[string]any{
+		"error": map[string]any{"title": "Not permitted to perform this action for this organization."},
 	}
-	render.JSON(w, r, map[string]any{"items": items})
 }
 
 // handleListResourceClassesV3 serves GET /api/v3/runner/resource-classes, which
-// accepts filter[slug]=namespace/name and returns a v3 collection envelope.
+// accepts filter[slug]=namespace/name and/or filter[org_id]=, and returns a v3
+// collection envelope. A filter[org_id] naming an org registered via
+// ForbidRunnerOrg answers 403, simulating a token that cannot view that
+// organization's runners.
 func (f *CircleCI) handleListResourceClassesV3(w http.ResponseWriter, r *http.Request) {
 	slug := r.URL.Query().Get("filter[slug]")
+	orgID := r.URL.Query().Get("filter[org_id]")
+
 	f.mu.RLock()
+	forbidden := orgID != "" && f.forbiddenRunnerOrgs[orgID]
 	all := f.resourceClasses
 	deleted := f.deletedRCs
 	f.mu.RUnlock()
+
+	if forbidden {
+		render.Status(r, http.StatusForbidden)
+		render.JSON(w, r, resourceClassForbiddenBody())
+		return
+	}
 
 	items := []any{}
 	for _, rc := range all {
@@ -1866,6 +1864,9 @@ func (f *CircleCI) handleListResourceClassesV3(w http.ResponseWriter, r *http.Re
 			continue
 		}
 		if slug != "" && rc.Slug != slug {
+			continue
+		}
+		if orgID != "" && rc.OrgID != orgID {
 			continue
 		}
 		items = append(items, map[string]any{
@@ -1879,21 +1880,78 @@ func (f *CircleCI) handleListResourceClassesV3(w http.ResponseWriter, r *http.Re
 	render.JSON(w, r, map[string]any{"data": items})
 }
 
-func (f *CircleCI) handleCreateResourceClass(w http.ResponseWriter, r *http.Request) {
-	var body map[string]any
+// ForbidRunnerOrg makes GET /runner/resource-classes?filter[org_id]=<orgID> answer
+// with a 403, simulating a token that cannot view that organization's runners.
+func (f *CircleCI) ForbidRunnerOrg(orgID string) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.forbiddenRunnerOrgs[orgID] = true
+}
+
+// handleCreateResourceClassV3 serves POST /api/v3/runner/resource-classes. It
+// models the server's namespace-ownership check: a namespace with no existing
+// resource class accepts any owning org, but a namespace already claimed by
+// one org is 403'd for any other org.
+func (f *CircleCI) handleCreateResourceClassV3(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		Data struct {
+			Attributes struct {
+				ResourceClass string `json:"resource_class"`
+				Description   string `json:"description"`
+			} `json:"attributes"`
+			References struct {
+				Org struct {
+					ID string `json:"id"`
+				} `json:"org"`
+			} `json:"references"`
+		} `json:"data"`
+	}
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		render.Status(r, http.StatusBadRequest)
 		render.JSON(w, r, map[string]any{"message": "invalid body"})
 		return
 	}
-	slug, _ := body["resource_class"].(string)
-	desc, _ := body["description"].(string)
-	rc := ResourceClass{ID: fmt.Sprintf("rc-%s", slug), Slug: slug, Description: desc}
+
+	slug := body.Data.Attributes.ResourceClass
+	desc := body.Data.Attributes.Description
+	orgID := body.Data.References.Org.ID
+	namespace, _, _ := strings.Cut(slug, "/")
+
 	f.mu.Lock()
-	f.resourceClasses = append(f.resourceClasses, rc)
+	mismatch := false
+	for _, existing := range f.resourceClasses {
+		if f.deletedRCs[existing.Slug] {
+			continue
+		}
+		existingNamespace, _, _ := strings.Cut(existing.Slug, "/")
+		if existingNamespace == namespace && existing.OrgID != orgID {
+			mismatch = true
+			break
+		}
+	}
+	var rc ResourceClass
+	if !mismatch {
+		rc = ResourceClass{ID: fmt.Sprintf("rc-%s", slug), Slug: slug, Description: desc, OrgID: orgID}
+		f.resourceClasses = append(f.resourceClasses, rc)
+	}
 	f.mu.Unlock()
+
+	if mismatch {
+		render.Status(r, http.StatusForbidden)
+		render.JSON(w, r, resourceClassForbiddenBody())
+		return
+	}
+
 	render.Status(r, http.StatusCreated)
-	render.JSON(w, r, resourceClassEntity(rc))
+	render.JSON(w, r, map[string]any{
+		"data": map[string]any{
+			"id": rc.ID,
+			"attributes": map[string]any{
+				"resource_class": rc.Slug,
+				"description":    rc.Description,
+			},
+		},
+	})
 }
 
 // handleUpdateResourceClass serves POST /api/v3/runner/resource-classes/{id}/update.
@@ -1937,18 +1995,38 @@ func (f *CircleCI) handleUpdateResourceClass(w http.ResponseWriter, r *http.Requ
 	})
 }
 
-// handleDeleteResourceClass serves DELETE /api/v3/runner/resource/{id}, which
-// refuses with 409 while the resource class still has tokens.
-func (f *CircleCI) handleDeleteResourceClass(w http.ResponseWriter, r *http.Request) {
-	f.deleteResourceClass(w, r, false)
+// SetResourceClassDeleteResponse overrides the response to DELETE
+// /runner/resource-classes/{id}, bypassing the fake's normal found/tokens-exist
+// logic. Use it to simulate a conflict or error independent of the fake's own
+// token bookkeeping. A nil body sends a generic error message.
+func (f *CircleCI) SetResourceClassDeleteResponse(status int, body any) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.resourceClassDeleteStatus = status
+	f.resourceClassDeleteBody = body
 }
 
-// handleForceDeleteResourceClass serves DELETE /api/v3/runner/resource/{id}/force,
-// which deletes the resource class and its tokens.
-func (f *CircleCI) handleForceDeleteResourceClass(w http.ResponseWriter, r *http.Request) {
-	f.deleteResourceClass(w, r, true)
+// handleDeleteResourceClassV3 serves DELETE /api/v3/runner/resource-classes/{id},
+// honoring ?force=true.
+func (f *CircleCI) handleDeleteResourceClassV3(w http.ResponseWriter, r *http.Request) {
+	f.mu.RLock()
+	status := f.resourceClassDeleteStatus
+	body := f.resourceClassDeleteBody
+	f.mu.RUnlock()
+	if status != 0 {
+		render.Status(r, status)
+		if body == nil {
+			body = map[string]any{"message": "error"}
+		}
+		render.JSON(w, r, body)
+		return
+	}
+	force := r.URL.Query().Get("force") == "true"
+	f.deleteResourceClass(w, r, force)
 }
 
+// deleteResourceClass implements the found/404, tokens-exist/409 (when not
+// forced), and success logic shared by handleDeleteResourceClassV3.
 func (f *CircleCI) deleteResourceClass(w http.ResponseWriter, r *http.Request, force bool) {
 	id := chi.URLParam(r, "id")
 	f.mu.Lock()

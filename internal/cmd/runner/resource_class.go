@@ -95,17 +95,23 @@ func newResourceClassListCmd() *cobra.Command {
 			$ circleci runner resource-class list --org gh/my-org --json
 		`),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if namespace != "" {
+				return clierrors.New("runner.namespace_filter_unsupported", "--namespace is no longer supported",
+					"The API this command now uses cannot filter by a bare namespace.").
+					WithSuggestions("Use --org instead: circleci runner resource-class list --org <vcs>/<org>").
+					WithExitCode(clierrors.ExitBadArguments)
+			}
 			ctx := cmd.Context()
 			client, err := cmdutil.LoadClient(ctx)
 			if err != nil {
 				return err
 			}
-			return runResourceClassList(ctx, client, org, namespace, jsonOut)
+			return runResourceClassList(ctx, client, org, jsonOut)
 		},
 	}
 
 	cmdutil.AddOrgFlag(cmd, &org, cmdutil.OrgFlag{DefaultsToGitRemote: true})
-	cmd.Flags().StringVar(&namespace, "namespace", "", "Filter by namespace (organization)")
+	cmd.Flags().StringVar(&namespace, "namespace", "", "deprecated: no longer supported, use --org")
 	cmdutil.AddJSONFlag(cmd, &jsonOut)
 	cmdutil.AddJQFlag(cmd)
 	return cmd
@@ -117,31 +123,18 @@ type resourceClassOutput struct {
 	Description   string `json:"description"`
 }
 
-func runResourceClassList(ctx context.Context, client *apiclient.Client, org, namespace string, jsonOut bool) error {
-	// List by org UUID when --org (slug or UUID) is given or can be inferred
-	// from the git remote. When only a namespace filter is supplied, keep the
-	// legacy namespace-based listing and skip org resolution.
-	var (
-		classes []apiclient.ResourceClass
-		subject = namespace
-		err     error
-	)
-	if org != "" || namespace == "" {
-		var orgID uuid.UUID
-		orgID, err = cmdutil.ResolveOrgSlugOrID(ctx, client, org, "circleci runner resource-class list")
-		if err != nil {
-			return err
-		}
-		subject = orgID.String()
-		classes, err = client.ListResourceClassesByOrg(ctx, orgID)
-	} else {
-		classes, err = client.ListResourceClassesByNamespace(ctx, namespace)
-	}
+func runResourceClassList(ctx context.Context, client *apiclient.Client, org string, jsonOut bool) error {
+	orgID, err := cmdutil.ResolveOrgSlugOrID(ctx, client, org, "circleci runner resource-class list")
 	if err != nil {
-		if httpcl.HasStatusCode(err, http.StatusNotFound) {
+		return err
+	}
+
+	classes, err := client.ListResourceClassesByOrg(ctx, orgID)
+	if err != nil {
+		if httpcl.HasStatusCode(err, http.StatusNotFound) || httpcl.HasStatusCode(err, http.StatusForbidden) {
 			return runnerNotEnabledErr()
 		}
-		return apiErr(err, subject)
+		return apiErr(err, orgID.String())
 	}
 
 	out := make([]resourceClassOutput, len(classes))
@@ -182,6 +175,7 @@ var runnerTermsNotice = heredoc.Doc(`
 `)
 
 func newResourceClassCreateCmd() *cobra.Command {
+	var org string
 	var description string
 	var generateToken bool
 	var jsonOut bool
@@ -196,13 +190,15 @@ func newResourceClassCreateCmd() *cobra.Command {
 			`, "`"),
 		},
 		Long: heredoc.Doc(`
-			Create a new CircleCI runner resource class.
-
-			JSON fields: id, resource_class, description (token_id, token with --generate-token)
+			Create a new CircleCI runner resource class. JSON fields: id, resource_class,
+			description (token_id, token with --generate-token)
 		`),
 		Example: heredoc.Doc(`
-			# Create a resource class
+			# Create a resource class in the org inferred from the git remote
 			$ circleci runner resource-class create my-org/my-runner
+
+			# Create in a specific organization
+			$ circleci runner resource-class create my-org/my-runner --org gh/my-org
 
 			# Create with a description
 			$ circleci runner resource-class create my-org/my-runner --description "Linux amd64 runner"
@@ -223,10 +219,11 @@ func newResourceClassCreateCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return runResourceClassCreate(ctx, client, args[0], description, generateToken, jsonOut)
+			return runResourceClassCreate(ctx, client, org, args[0], description, generateToken, jsonOut)
 		},
 	}
 
+	cmdutil.AddOrgFlag(cmd, &org, cmdutil.OrgFlag{DefaultsToGitRemote: true})
 	cmd.Flags().StringVar(&description, "description", "", "Human-readable description of the resource class")
 	cmd.Flags().BoolVar(&generateToken, "generate-token", false,
 		`also create a token for the resource class, nicknamed "default"`)
@@ -243,11 +240,20 @@ type resourceClassCreateOutput struct {
 	Token         string `json:"token,omitempty"`
 }
 
-func runResourceClassCreate(ctx context.Context, client *apiclient.Client, resourceClass, description string, generateToken, jsonOut bool) error {
+func runResourceClassCreate(ctx context.Context, client *apiclient.Client,
+	org, resourceClass, description string, generateToken, jsonOut bool) error {
 	iostream.ErrPrintf(ctx, "%s\n", runnerTermsNotice)
 
-	rc, err := client.CreateResourceClass(ctx, resourceClass, description)
+	orgID, err := cmdutil.ResolveOrgSlugOrID(ctx, client, org, "circleci runner resource-class create")
 	if err != nil {
+		return err
+	}
+
+	rc, err := client.CreateResourceClass(ctx, orgID, resourceClass, description)
+	if err != nil {
+		if httpcl.HasStatusCode(err, http.StatusForbidden) {
+			return resourceClassOrgMismatchErr(orgID, resourceClass)
+		}
 		return apiErr(err, resourceClass)
 	}
 
@@ -448,6 +454,23 @@ func tokenValueMissingErr(resourceClass, tokenID string) *clierrors.CLIError {
 		WithExitCode(clierrors.ExitAPIError)
 }
 
+// resourceClassOrgMismatchErr reports a 403 from create. The server's response can't
+// distinguish "not an admin of this org" from "the namespace belongs to a different
+// org" (see requireNamespaceOwnedBy in runner-admin) -- the CLI names both possible
+// causes since it can't tell either.
+func resourceClassOrgMismatchErr(orgID uuid.UUID, resourceClass string) *clierrors.CLIError {
+	namespace, _, _ := strings.Cut(resourceClass, "/")
+	return clierrors.New("runner.create_forbidden", "Not permitted",
+		fmt.Sprintf("Organization %s is not permitted to create %q. Either your token lacks admin "+
+			"access to this organization, or the namespace %q belongs to a different organization.",
+			orgID, resourceClass, namespace)).
+		WithSuggestions(
+			"Confirm your token has admin access to the target organization",
+			"Confirm the namespace belongs to the organization given by --org",
+		).
+		WithExitCode(clierrors.ExitAPIError)
+}
+
 // --- resource-class delete ---
 
 func newResourceClassDeleteCmd() *cobra.Command {
@@ -548,7 +571,26 @@ func runResourceClassDelete(ctx context.Context, client *apiclient.Client,
 		return apiErr(err, resourceClass)
 	}
 
-	if err := client.DeleteResourceClass(ctx, id); err != nil {
+	// The user has already confirmed (via --force or the prompt) that tokens
+	// and runner connections may be removed, so the delete always requests
+	// that regardless of which path was taken.
+	if err := client.DeleteResourceClass(ctx, id, true); err != nil {
+		if httpcl.HasStatusCode(err, http.StatusConflict) {
+			detail := fmt.Sprintf("Resource class %q still has tokens in use.", resourceClass)
+			if he, ok := errors.AsType[*httpcl.HTTPError](err); ok {
+				if msg := apiclient.ParseServerMessage(he.Body); msg != "" {
+					detail += " " + msg
+				}
+			}
+			cliErr := clierrors.New("runner.delete_has_tokens", "Cannot delete resource class", detail).
+				WithExitCode(clierrors.ExitAPIError)
+			if !force {
+				cliErr = cliErr.WithSuggestions(
+					fmt.Sprintf("Retry with --force to delete its tokens too: circleci runner resource-class delete %s --force", resourceClass),
+				)
+			}
+			return cliErr
+		}
 		return apiErr(err, resourceClass)
 	}
 

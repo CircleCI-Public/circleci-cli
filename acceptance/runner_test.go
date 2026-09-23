@@ -46,9 +46,10 @@ import (
 )
 
 const testRunnerOrgID = "f22b6566-597d-46d5-ba74-99ef5bb3d85c"
+const testOtherRunnerOrgID = "a1a1a1a1-1111-4111-8111-a1a1a1a1a1a1"
 
 func fakeRC(id, slug, desc string) fakes.ResourceClass {
-	return fakes.ResourceClass{ID: id, Slug: slug, Description: desc}
+	return fakes.ResourceClass{ID: id, Slug: slug, Description: desc, OrgID: testRunnerOrgID}
 }
 
 func fakeToken(id, rc, nickname string) fakes.RunnerToken {
@@ -76,6 +77,7 @@ func fakeInstance(rc, hostname, name, version string) fakes.RunnerInstance {
 func setupRunnerFake(t *testing.T) (*fakes.CircleCI, *testenv.TestEnv) {
 	t.Helper()
 	fake := fakes.NewCircleCI(t)
+	fake.AddOrg(testRunnerOrgID, "gh/my-org", "My Org", "github")
 
 	fake.AddResourceClass(fakeRC("11111111-1111-4111-8111-111111111111", "my-org/linux-runner", "Linux amd64 runner"))
 	fake.AddResourceClass(fakeRC("22222222-2222-4222-8222-222222222222", "my-org/arm-runner", "ARM runner"))
@@ -99,7 +101,7 @@ func TestRunnerResourceClassList(t *testing.T) {
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"runner", "resource-class", "list", "--namespace", "my-org"},
+		Args:    []string{"runner", "resource-class", "list", "--org", "gh/my-org"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
@@ -113,7 +115,7 @@ func TestRunnerResourceClassList_Color(t *testing.T) {
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"runner", "resource-class", "list", "--namespace", "my-org"},
+		Args:    []string{"runner", "resource-class", "list", "--org", "gh/my-org"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 		TTY:     true,
@@ -124,6 +126,9 @@ func TestRunnerResourceClassList_Color(t *testing.T) {
 	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 }
 
+// --namespace has no V3 equivalent (the API only supports filter[org_id] and
+// filter[slug], the latter being a full namespace/name) so the flag is now a
+// clear, immediate error pointing at --org, rather than silently guessing.
 func TestRunnerResourceClassList_Namespace(t *testing.T) {
 	_, env := setupRunnerFake(t)
 
@@ -134,7 +139,7 @@ func TestRunnerResourceClassList_Namespace(t *testing.T) {
 		WorkDir: t.TempDir(),
 	})
 
-	assert.Check(t, cmp.Equal(result.ExitCode, 0))
+	assert.Check(t, cmp.Equal(result.ExitCode, clierrors.ExitBadArguments))
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
 	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 }
@@ -147,7 +152,7 @@ func TestRunnerResourceClassList_NamespaceIgnoresInstances(t *testing.T) {
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"runner", "resource-class", "list", "--namespace", "my-org", "--json"},
+		Args:    []string{"runner", "resource-class", "list", "--org", "gh/my-org", "--json"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
@@ -168,7 +173,7 @@ func TestRunnerResourceClassList_NamespaceIgnoresInstances(t *testing.T) {
 		"my-org/linux-runner", "my-org/arm-runner", "my-org/idle-runner",
 	}))
 
-	assert.Check(t, cmp.Equal(fake.LastRequest().URL.Path, "/api/v3/runner/resource"))
+	assert.Check(t, cmp.Equal(fake.LastRequest().URL.Path, "/api/v3/runner/resource-classes"))
 }
 
 func TestRunnerResourceClassList_JSON(t *testing.T) {
@@ -176,7 +181,7 @@ func TestRunnerResourceClassList_JSON(t *testing.T) {
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"runner", "resource-class", "list", "--namespace", "my-org", "--json"},
+		Args:    []string{"runner", "resource-class", "list", "--org", "gh/my-org", "--json"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
@@ -198,7 +203,7 @@ func TestRunnerResourceClassList_JSON_Color(t *testing.T) {
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"runner", "resource-class", "list", "--namespace", "my-org", "--json"},
+		Args:    []string{"runner", "resource-class", "list", "--org", "gh/my-org", "--json"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 		TTY:     true,
@@ -206,6 +211,24 @@ func TestRunnerResourceClassList_JSON_Color(t *testing.T) {
 
 	assert.Equal(t, result.ExitCode, 0)
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".json"))
+}
+
+// A filter[org_id] naming an org the token cannot view answers 403, which maps
+// to the same runnerNotEnabledErr as a 404 would.
+func TestRunnerResourceClassList_OrgForbidden(t *testing.T) {
+	fake, env := setupRunnerFake(t)
+	fake.ForbidRunnerOrg(testRunnerOrgID)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"runner", "resource-class", "list", "--org", testRunnerOrgID},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, clierrors.ExitAPIError))
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 }
 
 func TestRunnerResourceClassList_NoToken(t *testing.T) {
@@ -261,8 +284,9 @@ func TestRunnerResourceClassCreate(t *testing.T) {
 	fake, env := setupRunnerFake(t)
 
 	result := binary.RunCLI(t, binary.RunOpts{
-		Binary:  binaryPath,
-		Args:    []string{"runner", "resource-class", "create", "my-org/new-runner", "--description", "New runner"},
+		Binary: binaryPath,
+		Args: []string{"runner", "resource-class", "create", "my-org/new-runner", "--description", "New runner",
+			"--org", "gh/my-org"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
@@ -274,12 +298,12 @@ func TestRunnerResourceClassCreate(t *testing.T) {
 	t.Run("check request", func(t *testing.T) {
 		assert.Check(t, cmp.DeepEqual(fake.LastRequest(), &httprecorder.Request{
 			Method: http.MethodPost,
-			URL:    url.URL{Path: "/api/v3/runner/resource"},
+			URL:    url.URL{Path: "/api/v3/runner/resource-classes"},
 			Header: http.Header{
 				"Authorization": {"Bearer test-token"},
 				"User-Agent":    {httpcl.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
 			},
-			Body: new(`{"description":"New runner","resource_class":"my-org/new-runner"}`),
+			Body: new(`{"data":{"attributes":{"description":"New runner","resource_class":"my-org/new-runner"},"references":{"org":{"id":"f22b6566-597d-46d5-ba74-99ef5bb3d85c"}}}}`),
 		}, ignoreCommonHeaders))
 	})
 }
@@ -288,8 +312,9 @@ func TestRunnerResourceClassCreate_Color(t *testing.T) {
 	_, env := setupRunnerFake(t)
 
 	result := binary.RunCLI(t, binary.RunOpts{
-		Binary:  binaryPath,
-		Args:    []string{"runner", "resource-class", "create", "my-org/new-runner", "--description", "New runner"},
+		Binary: binaryPath,
+		Args: []string{"runner", "resource-class", "create", "my-org/new-runner", "--description", "New runner",
+			"--org", "gh/my-org"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 		TTY:     true,
@@ -304,8 +329,9 @@ func TestRunnerResourceClassCreate_JSON(t *testing.T) {
 	_, env := setupRunnerFake(t)
 
 	result := binary.RunCLI(t, binary.RunOpts{
-		Binary:  binaryPath,
-		Args:    []string{"runner", "resource-class", "create", "my-org/new-runner", "--description", "New runner", "--json"},
+		Binary: binaryPath,
+		Args: []string{"runner", "resource-class", "create", "my-org/new-runner", "--description", "New runner", "--json",
+			"--org", "gh/my-org"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
@@ -328,8 +354,9 @@ func TestRunnerResourceClassCreate_JSON_Color(t *testing.T) {
 	_, env := setupRunnerFake(t)
 
 	result := binary.RunCLI(t, binary.RunOpts{
-		Binary:  binaryPath,
-		Args:    []string{"runner", "resource-class", "create", "my-org/new-runner", "--description", "New runner", "--json"},
+		Binary: binaryPath,
+		Args: []string{"runner", "resource-class", "create", "my-org/new-runner", "--description", "New runner", "--json",
+			"--org", "gh/my-org"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 		TTY:     true,
@@ -343,8 +370,9 @@ func TestRunnerResourceClassCreate_GenerateToken(t *testing.T) {
 	fake, env := setupRunnerFake(t)
 
 	result := binary.RunCLI(t, binary.RunOpts{
-		Binary:  binaryPath,
-		Args:    []string{"runner", "resource-class", "create", "my-org/new-runner", "--generate-token"},
+		Binary: binaryPath,
+		Args: []string{"runner", "resource-class", "create", "my-org/new-runner", "--generate-token",
+			"--org", "gh/my-org"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
@@ -357,22 +385,23 @@ func TestRunnerResourceClassCreate_GenerateToken(t *testing.T) {
 	leaked := strings.Contains(result.Stderr, "fake-runner-token-value")
 	assert.Check(t, !leaked, "token value leaked into stderr: %s", result.Stderr)
 
-	// Both calls are asserted because LastRequest() would only see the token POST.
+	// Three calls: resolving --org's slug to a UUID, the resource class create,
+	// then the token create. LastRequest() would only see the last of these.
 	t.Run("check requests", func(t *testing.T) {
 		reqs := fake.AllRequests()
-		assert.Assert(t, cmp.Len(reqs, 2))
+		assert.Assert(t, cmp.Len(reqs, 3))
 
-		assert.Check(t, cmp.DeepEqual(reqs[0], httprecorder.Request{
+		assert.Check(t, cmp.DeepEqual(reqs[1], httprecorder.Request{
 			Method: http.MethodPost,
-			URL:    url.URL{Path: "/api/v3/runner/resource"},
+			URL:    url.URL{Path: "/api/v3/runner/resource-classes"},
 			Header: http.Header{
 				"Authorization": {"Bearer test-token"},
 				"User-Agent":    {httpcl.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
 			},
-			Body: new(`{"description":"","resource_class":"my-org/new-runner"}`),
+			Body: new(`{"data":{"attributes":{"description":"","resource_class":"my-org/new-runner"},"references":{"org":{"id":"f22b6566-597d-46d5-ba74-99ef5bb3d85c"}}}}`),
 		}, ignoreCommonHeaders))
 
-		assert.Check(t, cmp.DeepEqual(reqs[1], httprecorder.Request{
+		assert.Check(t, cmp.DeepEqual(reqs[2], httprecorder.Request{
 			Method: http.MethodPost,
 			URL:    url.URL{Path: "/api/v3/runner/token"},
 			Header: http.Header{
@@ -388,8 +417,9 @@ func TestRunnerResourceClassCreate_GenerateToken_Color(t *testing.T) {
 	_, env := setupRunnerFake(t)
 
 	result := binary.RunCLI(t, binary.RunOpts{
-		Binary:  binaryPath,
-		Args:    []string{"runner", "resource-class", "create", "my-org/new-runner", "--generate-token"},
+		Binary: binaryPath,
+		Args: []string{"runner", "resource-class", "create", "my-org/new-runner", "--generate-token",
+			"--org", "gh/my-org"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 		TTY:     true,
@@ -414,8 +444,9 @@ func TestRunnerResourceClassCreate_GenerateToken_LongTokenNotWrapped(t *testing.
 	})
 
 	result := binary.RunCLI(t, binary.RunOpts{
-		Binary:  binaryPath,
-		Args:    []string{"runner", "resource-class", "create", "my-org/new-runner", "--generate-token"},
+		Binary: binaryPath,
+		Args: []string{"runner", "resource-class", "create", "my-org/new-runner", "--generate-token",
+			"--org", "gh/my-org"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 		TTY:     true,
@@ -429,8 +460,9 @@ func TestRunnerResourceClassCreate_GenerateToken_JSON(t *testing.T) {
 	_, env := setupRunnerFake(t)
 
 	result := binary.RunCLI(t, binary.RunOpts{
-		Binary:  binaryPath,
-		Args:    []string{"runner", "resource-class", "create", "my-org/new-runner", "--generate-token", "--json"},
+		Binary: binaryPath,
+		Args: []string{"runner", "resource-class", "create", "my-org/new-runner", "--generate-token", "--json",
+			"--org", "gh/my-org"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
@@ -456,8 +488,9 @@ func TestRunnerResourceClassCreate_GenerateToken_NoTokenFields(t *testing.T) {
 	_, env := setupRunnerFake(t)
 
 	result := binary.RunCLI(t, binary.RunOpts{
-		Binary:  binaryPath,
-		Args:    []string{"runner", "resource-class", "create", "my-org/new-runner", "--json"},
+		Binary: binaryPath,
+		Args: []string{"runner", "resource-class", "create", "my-org/new-runner", "--json",
+			"--org", "gh/my-org"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
@@ -478,8 +511,9 @@ func TestRunnerResourceClassCreate_GenerateToken_TokenFails(t *testing.T) {
 	fake.SetRunnerTokenCreateResponse(http.StatusInternalServerError, nil)
 
 	result := binary.RunCLI(t, binary.RunOpts{
-		Binary:  binaryPath,
-		Args:    []string{"runner", "resource-class", "create", "my-org/new-runner", "--generate-token"},
+		Binary: binaryPath,
+		Args: []string{"runner", "resource-class", "create", "my-org/new-runner", "--generate-token",
+			"--org", "gh/my-org"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
@@ -496,8 +530,9 @@ func TestRunnerResourceClassCreate_GenerateToken_TokenUnauthorized(t *testing.T)
 	fake.SetRunnerTokenCreateResponse(http.StatusUnauthorized, nil)
 
 	result := binary.RunCLI(t, binary.RunOpts{
-		Binary:  binaryPath,
-		Args:    []string{"runner", "resource-class", "create", "my-org/new-runner", "--generate-token"},
+		Binary: binaryPath,
+		Args: []string{"runner", "resource-class", "create", "my-org/new-runner", "--generate-token",
+			"--org", "gh/my-org"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
@@ -518,14 +553,35 @@ func TestRunnerResourceClassCreate_GenerateToken_TokenValueMissing(t *testing.T)
 	})
 
 	result := binary.RunCLI(t, binary.RunOpts{
-		Binary:  binaryPath,
-		Args:    []string{"runner", "resource-class", "create", "my-org/new-runner", "--generate-token"},
+		Binary: binaryPath,
+		Args: []string{"runner", "resource-class", "create", "my-org/new-runner", "--generate-token",
+			"--org", "gh/my-org"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
 
 	assert.Check(t, cmp.Equal(result.ExitCode, 4))
 	assert.Check(t, cmp.Equal(result.Stdout, ""))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+}
+
+// The resource class already exists under a different org (via setupRunnerFake's
+// seeded classes owned by testRunnerOrgID); creating under a different org for
+// the same namespace should 403.
+func TestRunnerResourceClassCreate_OrgMismatch(t *testing.T) {
+	fake, env := setupRunnerFake(t)
+	fake.AddOrg(testOtherRunnerOrgID, "gh/other-org", "Other Org", "github")
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary: binaryPath,
+		Args: []string{"runner", "resource-class", "create", "my-org/mismatched-runner",
+			"--org", "gh/other-org"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, clierrors.ExitAPIError))
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
 	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 }
 
@@ -569,7 +625,10 @@ func TestRunnerResourceClassDelete_Force(t *testing.T) {
 
 		assert.Check(t, cmp.DeepEqual(reqs[1], httprecorder.Request{
 			Method: http.MethodDelete,
-			URL:    url.URL{Path: "/api/v3/runner/resource/11111111-1111-4111-8111-111111111111/force"},
+			URL: url.URL{
+				Path:     "/api/v3/runner/resource-classes/11111111-1111-4111-8111-111111111111",
+				RawQuery: "force=true",
+			},
 			Header: http.Header{
 				"Authorization": {"Bearer test-token"},
 				"User-Agent":    {httpcl.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
@@ -759,6 +818,37 @@ func TestRunnerResourceClassUpdate_NoDescription(t *testing.T) {
 	assert.Check(t, cmp.Equal(result.ExitCode, 2))
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
 	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+}
+
+// my-org/linux-runner already has tokens (see setupRunnerFake). Confirming
+// interactively, without --force, must still delete them: the prompt already
+// warns that tokens and runner connections will be removed, so the delete
+// request always carries force=true once confirmed.
+func TestRunnerResourceClassDelete_HasTokens(t *testing.T) {
+	fake, env := setupRunnerFake(t)
+
+	console := binary.RunCLIInteractive(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"runner", "resource-class", "delete", "my-org/linux-runner"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Assert(t, t.Run("confirms deletion despite existing tokens", func(t *testing.T) {
+		_, err := console.ExpectString("[y/N]")
+		assert.NilError(t, err)
+		_, err = console.Send("y")
+		assert.NilError(t, err)
+		_, err = console.ExpectString("Deleted resource class my-org/linux-runner")
+		assert.NilError(t, err)
+	}))
+
+	t.Run("check requests", func(t *testing.T) {
+		reqs := fake.AllRequests()
+		assert.Assert(t, cmp.Len(reqs, 2))
+		assert.Check(t, cmp.Equal(reqs[1].Method, http.MethodDelete))
+		assert.Check(t, cmp.Equal(reqs[1].URL.RawQuery, "force=true"))
+	})
 }
 
 // --- token list ---

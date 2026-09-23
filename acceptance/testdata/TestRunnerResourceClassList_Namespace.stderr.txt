@@ -1,0 +1,4 @@
+error: The API this command now uses cannot filter by a bare namespace.
+
+Suggestions:
+  • Use --org instead: circleci runner resource-class list --org <vcs>/<org>

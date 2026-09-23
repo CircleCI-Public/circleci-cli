@@ -39,11 +39,15 @@ import (
 // TestDeprecationWarning_SunsetInOutput checks that Deprecation + Sunset response
 // headers produce a warning on stderr while the command still succeeds.
 func TestDeprecationWarning_SunsetInOutput(t *testing.T) {
+	const orgID = "f22b6566-597d-46d5-ba74-99ef5bb3d85c"
+
 	fake := fakes.NewCircleCI(t)
+	fake.AddOrg(orgID, "gh/myns", "My NS", "github")
 	fake.AddResourceClass(fakes.ResourceClass{
 		ID:          "rc-1",
 		Slug:        "myns/myclass",
 		Description: "test class",
+		OrgID:       orgID,
 	})
 	fake.ExtraHeaders = http.Header{
 		"Deprecation": []string{"true"},
@@ -56,7 +60,7 @@ func TestDeprecationWarning_SunsetInOutput(t *testing.T) {
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"runner", "resource-class", "list", "--namespace", "myns"},
+		Args:    []string{"runner", "resource-class", "list", "--org", orgID},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
@@ -89,7 +93,7 @@ func TestGone_410ProducesUpgradeError(t *testing.T) {
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"runner", "resource-class", "list", "--namespace", "myns"},
+		Args:    []string{"runner", "resource-class", "list", "--org", "f22b6566-597d-46d5-ba74-99ef5bb3d85c"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
@@ -120,7 +124,7 @@ func TestGone_410WithServerMessageInOutput(t *testing.T) {
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"runner", "resource-class", "list", "--namespace", "myns"},
+		Args:    []string{"runner", "resource-class", "list", "--org", "f22b6566-597d-46d5-ba74-99ef5bb3d85c"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
