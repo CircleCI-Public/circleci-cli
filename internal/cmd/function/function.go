@@ -45,7 +45,7 @@ func NewFunctionCmd() *cobra.Command {
 			# List published functions
 			$ circleci function list
 
-			# Show a function's versions
+			# Show a function's versions and arguments
 			$ circleci function get setup-go
 
 			# Get just the names
