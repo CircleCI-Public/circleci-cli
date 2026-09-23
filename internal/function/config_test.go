@@ -177,6 +177,32 @@ functions:
 	})
 }
 
+func TestConflicts(t *testing.T) {
+	path := write(t, `version: 2.1
+orbs:
+  setup-go: circleci/go@1.0.0
+commands:
+  build-it:
+    steps:
+      - checkout
+functions:
+  setup-node: github.com/circleci-functions/setup-node@v0.1.0
+`)
+
+	for alias, want := range map[string]string{
+		"setup-go":   "orb",
+		"build-it":   "command",
+		"setup-node": "", // an existing declaration is a re-pin, not a clash
+		"fresh":      "",
+	} {
+		t.Run(alias, func(t *testing.T) {
+			got, err := function.Conflicts(path, alias)
+			assert.NilError(t, err)
+			assert.Check(t, cmp.Equal(got, want))
+		})
+	}
+}
+
 func TestValidateAlias(t *testing.T) {
 	assert.Check(t, function.ValidateAlias("setup-go"))
 	// A slash would be read as naming one of the function's commands.
