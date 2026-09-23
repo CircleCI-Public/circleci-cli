@@ -32,6 +32,7 @@ import (
 	clierrors "github.com/CircleCI-Public/circleci-cli/clikit/errors"
 	"github.com/CircleCI-Public/circleci-cli/internal/apiclient"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmdutil"
+	"github.com/CircleCI-Public/circleci-cli/internal/function"
 )
 
 // apiErr maps a discovery API failure onto a structured error. A name the API
@@ -106,4 +107,31 @@ func configPath(cmd *cobra.Command) string {
 		return defaultConfigPath
 	}
 	return path
+}
+
+// notDeclaredErr maps a missing functions: entry onto a structured error. Any
+// other read failure is already structured by internal/function.
+func notDeclaredErr(alias string, err error) error {
+	if !errors.Is(err, function.ErrNotPinned) {
+		return err
+	}
+	return clierrors.New("function.not_pinned", "Function not declared",
+		fmt.Sprintf("Alias %q has no entry in the functions block of the config.", alias)).
+		WithSuggestions(
+			"See what is declared: circleci function list --pinned",
+			"Declare it first: circleci function add <name> --as "+alias,
+		).
+		WithExitCode(clierrors.ExitNotFound)
+}
+
+// malformedPinErr reports an entry that is not a "<path>@<version>" reference,
+// which cannot be re-pinned because the function it names is unknown.
+func malformedPinErr(alias, value string) error {
+	return clierrors.New("function.malformed_pin", "Function declaration is malformed",
+		fmt.Sprintf("Alias %q is declared as %q, which is not a <path>@<version> reference.", alias, value)).
+		WithSuggestions(
+			"Edit the entry to host.tld/org/name@version, as in "+alias+": "+function.DefaultOrg+"/<name>@<version>",
+			"Or delete the entry, then run: circleci function add <name> --as "+alias,
+		).
+		WithExitCode(clierrors.ExitValidationFail)
 }
