@@ -4115,6 +4115,38 @@ JSON fields: id, resource_class, description
 - Output as JSON: 
   `circleci runner resource-class list --org gh/my-org --json`
 
+##### `circleci runner resource-class update <namespace>/<name> [flags]`
+
+Update a runner resource class
+
+Update a CircleCI runner resource class.
+
+Only the description can be changed. The resource class name and ID
+cannot be modified after creation.
+
+JSON fields: id, resource_class, description
+
+| Flag                   | Description                                                                       |
+| ---------------------- | --------------------------------------------------------------------------------- |
+| `--description string` | New description for the resource class (use "" to clear)                          |
+| `--jq string`          | Process values from the response using jq syntax (see `circleci help formatting`) |
+| `--json`               | Output as JSON                                                                    |
+
+
+**Arguments:**
+
+The resource class to update, given in the form `namespace/name`,
+where namespace is your organization name (for example, `my-org/my-runner`).
+
+**Examples:**
+
+- Update the description of a resource class: 
+  `circleci runner resource-class update my-org/my-runner --description "Linux amd64 runner"`
+- Clear the description: 
+  `circleci runner resource-class update my-org/my-runner --description ""`
+- Update and output the result as JSON: 
+  `circleci runner resource-class update my-org/my-runner --description "ARM runner" --json`
+
 #### `circleci runner token <command>`
 
 Manage runner tokens
