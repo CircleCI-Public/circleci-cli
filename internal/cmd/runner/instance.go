@@ -24,7 +24,6 @@ package runner
 
 import (
 	"context"
-	"net/http"
 	"time"
 
 	"github.com/MakeNowJust/heredoc"
@@ -35,7 +34,6 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/clikit/mdtable"
 	"github.com/CircleCI-Public/circleci-cli/internal/apiclient"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmdutil"
-	"github.com/CircleCI-Public/circleci-cli/internal/httpcl"
 )
 
 func newInstanceCmd() *cobra.Command {
@@ -69,10 +67,11 @@ func newInstanceListCmd() *cobra.Command {
 		Long: heredoc.Doc(`
 			List CircleCI runner instances currently connected to your organization.
 
-			STATUS is derived from last_connected: online within the last 2 minutes,
-			idle 2–30 minutes ago, offline beyond that.
+			STATUS is derived from last_connected_at (online under 2 minutes, idle
+			under 30, offline beyond). BUSY says whether the instance holds a task.
+			Hostname, IP and last-used time are not reported by the agents API.
 
-			JSON fields: resource_class, hostname, name, version, ip, status, first_connected, last_connected, last_used
+			JSON fields: id, resource_class, resource_class_id, name, version, status, is_busy, first_connected_at, last_connected_at
 		`),
 		Example: heredoc.Doc(`
 			# List connected instances for the org inferred from the git remote
@@ -84,8 +83,8 @@ func newInstanceListCmd() *cobra.Command {
 			# List instances for a specific resource class
 			$ circleci runner instance list --resource-class my-org/my-runner
 
-			# Output as JSON
-			$ circleci runner instance list --org gh/my-org --json
+			# Extract just the names
+			$ circleci runner instance list --json --jq '.[].name'
 		`),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
@@ -102,42 +101,29 @@ func newInstanceListCmd() *cobra.Command {
 	cmd.Flags().StringVar(&namespace, "namespace", "", "Filter by namespace (organization)")
 	cmdutil.AddJSONFlag(cmd, &jsonOut)
 	cmdutil.AddJQFlag(cmd)
+	cmd.MarkFlagsMutuallyExclusive("org", "resource-class", "namespace")
 	return cmd
 }
 
 type instanceOutput struct {
-	ResourceClass  string `json:"resource_class"`
-	Hostname       string `json:"hostname"`
-	Name           string `json:"name"`
-	Version        string `json:"version"`
-	IP             string `json:"ip"`
-	Status         string `json:"status"`
-	FirstConnected string `json:"first_connected"`
-	LastConnected  string `json:"last_connected"`
-	LastUsed       string `json:"last_used"`
+	ID               string `json:"id"`
+	ResourceClass    string `json:"resource_class"`
+	ResourceClassID  string `json:"resource_class_id"`
+	Name             string `json:"name"`
+	Version          string `json:"version"`
+	Status           string `json:"status"`
+	IsBusy           bool   `json:"is_busy"`
+	FirstConnectedAt string `json:"first_connected_at"`
+	LastConnectedAt  string `json:"last_connected_at"`
 }
 
-// instanceStatus derives a human-readable liveness status from last_connected.
-// The CircleCI runner API does not expose an explicit status field.
-func instanceStatus(lastConnectedAt string) string {
-	formats := []string{
-		time.RFC3339Nano,
-		time.RFC3339,
-		"2006-01-02T15:04:05.999999999Z",
-		"2006-01-02T15:04:05Z",
-	}
-	var t time.Time
-	for _, f := range formats {
-		if parsed, err := time.Parse(f, lastConnectedAt); err == nil {
-			t = parsed
-			break
-		}
-	}
-	if t.IsZero() {
+// instanceStatus derives a liveness status from last_connected_at. It is independent of is_busy,
+// which says whether a connected instance holds a task rather than whether it is still there.
+func instanceStatus(lastConnected time.Time) string {
+	if lastConnected.IsZero() {
 		return "unknown"
 	}
-	age := time.Since(t)
-	switch {
+	switch age := time.Since(lastConnected); {
 	case age < 2*time.Minute:
 		return "online"
 	case age < 30*time.Minute:
@@ -147,47 +133,61 @@ func instanceStatus(lastConnectedAt string) string {
 	}
 }
 
-func runInstanceList(ctx context.Context, client *apiclient.Client, org, resourceClass, namespace string, jsonOut bool) error {
-	// List by org UUID when --org (slug or UUID) is given or can be inferred
-	// from the git remote. When only a resource-class or namespace filter is
-	// supplied, keep the legacy filter-based listing and skip org resolution.
+// timestamp renders an API timestamp, leaving an absent one empty rather than printing the zero time.
+func timestamp(t time.Time) string {
+	if t.IsZero() {
+		return ""
+	}
+	return t.UTC().Format(time.RFC3339)
+}
+
+func yesNo(b bool) string {
+	if b {
+		return "yes"
+	}
+	return "no"
+}
+
+func runInstanceList(ctx context.Context, client *apiclient.Client,
+	org, resourceClass, namespace string, jsonOut bool) error {
+
 	var (
-		instances []apiclient.RunnerInstance
-		subject   = resourceClass
-		err       error
+		agents  []apiclient.RunnerAgent
+		subject string
+		err     error
 	)
-	if org != "" || (resourceClass == "" && namespace == "") {
+	switch {
+	case resourceClass != "":
+		subject = resourceClass
+		agents, err = client.ListRunnerAgentsByResourceClass(ctx, resourceClass)
+	case namespace != "":
+		subject = namespace
+		agents, err = client.ListRunnerAgentsByNamespace(ctx, namespace)
+	default:
 		var orgID uuid.UUID
 		orgID, err = cmdutil.ResolveOrgSlugOrID(ctx, client, org, "circleci runner instance list")
 		if err != nil {
 			return err
 		}
 		subject = orgID.String()
-		instances, err = client.ListRunnerInstancesByOrg(ctx, orgID)
-	} else {
-		instances, err = client.ListRunnerInstances(ctx, resourceClass, namespace)
+		agents, err = client.ListRunnerAgentsByOrg(ctx, orgID)
 	}
 	if err != nil {
-		// 404 on instance list means no agents are connected, not that runner is unavailable.
-		if httpcl.HasStatusCode(err, http.StatusNotFound) {
-			instances = nil
-		} else {
-			return apiErr(err, subject)
-		}
+		return apiErr(err, subject)
 	}
 
-	out := make([]instanceOutput, len(instances))
-	for i, inst := range instances {
+	out := make([]instanceOutput, len(agents))
+	for i, a := range agents {
 		out[i] = instanceOutput{
-			ResourceClass:  inst.ResourceClass,
-			Hostname:       inst.Hostname,
-			Name:           inst.Name,
-			Version:        inst.Version,
-			IP:             inst.IP,
-			Status:         instanceStatus(inst.LastConnected),
-			FirstConnected: inst.FirstConnected,
-			LastConnected:  inst.LastConnected,
-			LastUsed:       inst.LastUsed,
+			ID:               a.ID.String(),
+			ResourceClass:    a.References.ResourceClass.Attributes.ResourceClass,
+			ResourceClassID:  a.References.ResourceClass.ID.String(),
+			Name:             a.Attributes.Name,
+			Version:          a.Attributes.Version,
+			Status:           instanceStatus(a.Attributes.LastConnectedAt),
+			IsBusy:           a.Attributes.IsBusy,
+			FirstConnectedAt: timestamp(a.Attributes.FirstConnectedAt),
+			LastConnectedAt:  timestamp(a.Attributes.LastConnectedAt),
 		}
 	}
 
@@ -196,17 +196,21 @@ func runInstanceList(ctx context.Context, client *apiclient.Client, org, resourc
 	}
 
 	if len(out) == 0 {
-		if resourceClass != "" {
+		// The org is usually inferred rather than typed, so echo back only a scope the user named.
+		switch {
+		case resourceClass != "":
 			iostream.Printf(ctx, "No runner instances found for %s.\n", resourceClass)
-		} else {
+		case namespace != "":
+			iostream.Printf(ctx, "No runner instances found for %s.\n", namespace)
+		default:
 			iostream.Printf(ctx, "No runner instances found.\n")
 		}
 		return nil
 	}
 
-	table := mdtable.New("Resource Class", "Hostname", "Status", "Last Connected")
+	table := mdtable.New("Resource Class", "Name", "Status", "Busy", "Last Connected")
 	for _, inst := range out {
-		table.Row(inst.ResourceClass, inst.Hostname, inst.Status, inst.LastConnected)
+		table.Row(inst.ResourceClass, inst.Name, inst.Status, yesNo(inst.IsBusy), inst.LastConnectedAt)
 	}
 	iostream.PrintMarkdown(ctx, "# Runner Instances\n"+table.Render())
 	return nil

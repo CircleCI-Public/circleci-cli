@@ -1,0 +1,1 @@
+if any flags in the group [org resource-class namespace] are set none of the others can be; [namespace resource-class] were all set

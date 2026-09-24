@@ -1,4 +1,4 @@
 # Runner Instances
-| Resource Class      | Hostname           | Status  | Last Connected       |
-| ------------------- | ------------------ | ------- | -------------------- |
-| my-org/linux-runner | host-1.example.com | offline | 2026-04-18T12:00:00Z |
+| Resource Class      | Name     | Status  | Busy | Last Connected       |
+| ------------------- | -------- | ------- | ---- | -------------------- |
+| my-org/linux-runner | runner-1 | offline | no   | 2026-04-18T12:00:00Z |

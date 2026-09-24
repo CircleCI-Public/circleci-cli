@@ -24,6 +24,7 @@ package acceptance_test
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/url"
 	"os"
@@ -61,16 +62,15 @@ func fakeToken(id, rc, nickname string) fakes.RunnerToken {
 	}
 }
 
-func fakeInstance(rc, hostname, name, version string) fakes.RunnerInstance {
-	return fakes.RunnerInstance{
+func fakeAgent(id, rc, name, version string, busy bool) fakes.RunnerAgent {
+	return fakes.RunnerAgent{
+		ID:             id,
 		ResourceClass:  rc,
-		Hostname:       hostname,
 		Name:           name,
 		Version:        version,
-		IP:             "10.0.0.1",
+		IsBusy:         busy,
 		FirstConnected: "2026-01-01T00:00:00Z",
 		LastConnected:  "2026-04-18T12:00:00Z",
-		LastUsed:       "2026-04-18T11:00:00Z",
 	}
 }
 
@@ -85,8 +85,8 @@ func setupRunnerFake(t *testing.T) (*fakes.CircleCI, *testenv.TestEnv) {
 	fake.AddRunnerToken("my-org/linux-runner", fakeToken("tok-id-1", "my-org/linux-runner", "prod-server-1"))
 	fake.AddRunnerToken("my-org/linux-runner", fakeToken("tok-id-2", "my-org/linux-runner", "prod-server-2"))
 
-	fake.AddRunnerInstance(fakeInstance("my-org/linux-runner", "host-1.example.com", "runner-1", "1.0.0"))
-	fake.AddRunnerInstance(fakeInstance("my-org/arm-runner", "arm-host.example.com", "runner-2", "1.0.0"))
+	fake.AddRunnerAgent(fakeAgent("aaaaaaaa-1111-4111-8111-aaaaaaaaaaaa", "my-org/linux-runner", "runner-1", "1.0.0", false))
+	fake.AddRunnerAgent(fakeAgent("bbbbbbbb-2222-4222-8222-bbbbbbbbbbbb", "my-org/arm-runner", "runner-2", "1.0.0", false))
 
 	env := testenv.New(t)
 	env.Token = testToken
@@ -144,11 +144,11 @@ func TestRunnerResourceClassList_Namespace(t *testing.T) {
 	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 }
 
-func TestRunnerResourceClassList_NamespaceIgnoresInstances(t *testing.T) {
+func TestRunnerResourceClassList_NamespaceIgnoresAgents(t *testing.T) {
 	fake, env := setupRunnerFake(t)
 	fake.AddResourceClass(fakeRC("33333333-3333-4333-8333-333333333333", "my-org/idle-runner", "No runners attached"))
-	// Two instances on one class must not double it up in the listing.
-	fake.AddRunnerInstance(fakeInstance("my-org/linux-runner", "host-2.example.com", "runner-3", "1.0.0"))
+	// Two agents on one class must not double it up in the listing.
+	fake.AddRunnerAgent(fakeAgent("cccccccc-3333-4333-8333-cccccccccccc", "my-org/linux-runner", "runner-3", "1.0.0", false))
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
@@ -1332,6 +1332,44 @@ func TestRunnerInstanceList_Empty(t *testing.T) {
 	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 }
 
+// The empty message names a scope the user asked for and stays bare for an inferred org, so each
+// of the three scopes takes a different branch.
+func TestRunnerInstanceList_Empty_ResourceClass(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"runner", "instance", "list", "--resource-class", "my-org/linux-runner"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 0))
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+}
+
+func TestRunnerInstanceList_Empty_Org(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"runner", "instance", "list", "--org", testRunnerOrgID},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 0))
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+}
+
 func TestRunnerInstanceList_Org(t *testing.T) {
 	fake, env := setupRunnerFake(t)
 	fake.AddOrg(testRunnerOrgID, "gh/my-org", "My Org", "github")
@@ -1361,6 +1399,45 @@ func TestRunnerInstanceList_OrgID(t *testing.T) {
 
 	assert.Check(t, cmp.Equal(result.ExitCode, 0))
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+}
+
+// The agents API serves 20 per page, so more than one page has to be followed to the end.
+func TestRunnerInstanceList_Paginated(t *testing.T) {
+	fake, env := setupRunnerFake(t)
+	for i := 0; i < 60; i++ {
+		fake.AddRunnerAgent(fakeAgent(
+			fmt.Sprintf("dddddddd-0000-4000-8000-%012d", i),
+			"my-org/linux-runner", fmt.Sprintf("paged-%02d", i), "1.0.0", false))
+	}
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"runner", "instance", "list", "--org", testRunnerOrgID, "--json"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+
+	var out []map[string]any
+	assert.NilError(t, json.Unmarshal([]byte(result.Stdout), &out))
+	// The two fixture agents plus the 60 seeded here.
+	assert.Check(t, cmp.Len(out, 62))
+}
+
+// Cobra reports a flag-group violation as a flag error, which exits 1 here like any other.
+func TestRunnerInstanceList_ConflictingScopes(t *testing.T) {
+	_, env := setupRunnerFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"runner", "instance", "list", "--namespace", "my-org", "--resource-class", "my-org/linux-runner"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 1))
 	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 }
 

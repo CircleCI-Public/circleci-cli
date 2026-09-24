@@ -3785,10 +3785,11 @@ List connected runner instances
 
 List CircleCI runner instances currently connected to your organization.
 
-STATUS is derived from last_connected: online within the last 2 minutes,
-idle 2–30 minutes ago, offline beyond that.
+STATUS is derived from last_connected_at (online under 2 minutes, idle
+under 30, offline beyond). BUSY says whether the instance holds a task.
+Hostname, IP and last-used time are not reported by the agents API.
 
-JSON fields: resource_class, hostname, name, version, ip, status, first_connected, last_connected, last_used
+JSON fields: id, resource_class, resource_class_id, name, version, status, is_busy, first_connected_at, last_connected_at
 
 | Flag                      | Description                                                                       |
 | ------------------------- | --------------------------------------------------------------------------------- |
@@ -3812,8 +3813,8 @@ JSON fields: resource_class, hostname, name, version, ip, status, first_connecte
   `circleci runner instance list --org gh/my-org`
 - List instances for a specific resource class: 
   `circleci runner instance list --resource-class my-org/my-runner`
-- Output as JSON: 
-  `circleci runner instance list --org gh/my-org --json`
+- Extract just the names: 
+  `circleci runner instance list --json --jq '.[].name'`
 
 #### `circleci runner open [flags]`
 
