@@ -1,0 +1,5 @@
+error: Function path "circleci/setup-go" is not valid. Expected host.tld/org/name.
+
+Suggestions:
+  • Name a function as host.tld/org/name, for example github.com/circleci-functions/setup-go
+  • Run 'circleci function list' to see published functions and their versions

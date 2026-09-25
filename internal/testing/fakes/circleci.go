@@ -5826,7 +5826,7 @@ func (f *CircleCI) AddFunction(name, description string, versions ...string) {
 	f.mu.Unlock()
 
 	for _, v := range versions {
-		f.addFunctionVersion(name, v, map[string]any{
+		f.AddFunctionVersion(name, v, map[string]any{
 			"name":        path.Base(name),
 			"description": description,
 			"version":     v,
@@ -5842,16 +5842,18 @@ func (f *CircleCI) SetFunctionListStatus(status int) {
 	f.functionListStatus = status
 }
 
-// addFunctionVersion publishes a version of an already-added function.
+// AddFunctionVersion publishes a version of an already-added function.
 // Re-adding a version replaces its descriptor rather than publishing a second
 // entry, so AddFunction can seed versions and a caller can enrich one of them.
-func (f *CircleCI) addFunctionVersion(name, version string, descriptor map[string]any) {
+func (f *CircleCI) AddFunctionVersion(name, version string, descriptor map[string]any) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
 	fnID, ok := f.functionsByName[name]
 	if !ok {
-		return
+		// Silently ignoring this would leave the version unpublished and the
+		// test passing vacuously against the seed descriptor.
+		panic(fmt.Sprintf("fakes: AddFunctionVersion(%q): call AddFunction first", name))
 	}
 
 	for _, id := range f.fnVersionsByFnID[fnID] {
