@@ -51,6 +51,21 @@ func setupFunctionFake(t *testing.T) *testenv.TestEnv {
 	// server's order through rather than imposing one of its own. The released
 	// version is not the highest published, so the two stay distinguishable.
 	fake.AddFunction(setupGoName, setupGoDescription, setupGoLatest, "v0.9.0-aaa1111")
+	fake.AddFunctionVersion(setupGoName, setupGoLatest, map[string]any{
+		"name":        "setup-go",
+		"description": "Install a Go toolchain and link it onto PATH for later steps.",
+		"version":     setupGoLatest,
+		"flags": []any{
+			map[string]any{
+				"name": "version", "type": "string", "default": "stable",
+				"description": "Go version spec: a release (1.22) | stable.",
+			},
+			map[string]any{
+				"name": "cache", "type": "bool", "default": true,
+				"description": "Use the job cache.\nTurn off for hermetic builds.",
+			},
+		},
+	})
 	fake.AddFunction("github.com/circleci-functions/setup-browser-tools",
 		"Install browsers and browser-testing tools.", "v0.1.0-f29f758")
 
@@ -150,10 +165,20 @@ func TestFunctionGet_JSON(t *testing.T) {
 		delete(out, "id")
 		assert.Check(t, cmp.DeepEqual(out, map[string]any{
 			"name":           setupGoName,
-			"description":    setupGoDescription,
+			"description":    "Install a Go toolchain and link it onto PATH for later steps.",
 			"version":        setupGoLatest,
 			"latest_version": setupGoLatest,
 			"versions":       []any{setupGoLatest, "v0.9.0-aaa1111"},
+			"flags": []any{
+				map[string]any{
+					"name": "version", "type": "string", "default": "stable",
+					"description": "Go version spec: a release (1.22) | stable.",
+				},
+				map[string]any{
+					"name": "cache", "type": "bool", "default": "true",
+					"description": "Use the job cache.\nTurn off for hermetic builds.",
+				},
+			},
 		}))
 	})
 
@@ -170,6 +195,7 @@ func TestFunctionGet_JSON(t *testing.T) {
 			"version":        "v0.9.0-aaa1111",
 			"latest_version": setupGoLatest,
 			"versions":       []any{setupGoLatest, "v0.9.0-aaa1111"},
+			"flags":          []any{},
 		}))
 	})
 }

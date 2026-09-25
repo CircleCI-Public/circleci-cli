@@ -38,12 +38,13 @@ import (
 )
 
 type getEntry struct {
-	ID            uuid.UUID `json:"id"`
-	Name          string    `json:"name"`
-	Description   string    `json:"description,omitempty"`
-	Version       string    `json:"version"`
-	LatestVersion string    `json:"latest_version"`
-	Versions      []string  `json:"versions"`
+	ID            uuid.UUID       `json:"id"`
+	Name          string          `json:"name"`
+	Description   string          `json:"description,omitempty"`
+	Version       string          `json:"version"`
+	LatestVersion string          `json:"latest_version"`
+	Versions      []string        `json:"versions"`
+	Flags         []function.Flag `json:"flags"`
 }
 
 func newGetCmd() *cobra.Command {
@@ -55,14 +56,14 @@ func newGetCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "get <name>",
 		Aliases: []string{"show"},
-		Short:   "Show a function's versions",
+		Short:   "Show a function's versions and arguments",
 		Long: heredoc.Docf(`
-			Show a function's published versions.
+			Show a function's published versions and the arguments one accepts.
 
 			A bare name resolves against %[1]sgithub.com/circleci-functions%[1]s.
 
 			JSON fields: id, name, description, version, latest_version,
-			versions.
+			versions, flags.
 		`, "`"),
 		Example: heredoc.Doc(`
 			# Show a function at its latest version
@@ -71,8 +72,8 @@ func newGetCmd() *cobra.Command {
 			# Show a specific version, or a function published elsewhere
 			$ circleci function get github.com/myorg/my-fn --version v1.0.0
 
-			# List the published versions
-			$ circleci function get setup-go --json --jq '.versions[]'
+			# List the arguments it accepts
+			$ circleci function get setup-go --json --jq '.flags[].name'
 		`),
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -125,18 +126,34 @@ func runGet(ctx context.Context, client *apiclient.Client, arg, version string, 
 	}
 
 	ref, ok := fn.Find(wanted)
-	sp.Stop()
 	if !ok {
+		sp.Stop()
 		return versionNotPublishedErr(name, wanted, versions)
+	}
+
+	descriptor, err := client.GetFunctionVersion(ctx, ref.ID)
+	sp.Stop()
+	if err != nil {
+		return versionErr(err, name, ref.Version)
+	}
+
+	description := fn.Description
+	if published, ok := descriptor.Content["description"].(string); ok && published != "" {
+		description = published
+	}
+	flags := function.Flags(descriptor.Content)
+	if flags == nil {
+		flags = []function.Flag{}
 	}
 
 	entry := getEntry{
 		ID:            fn.ID,
 		Name:          fn.Name,
-		Description:   fn.Description,
+		Description:   description,
 		Version:       ref.Version,
 		LatestVersion: fn.LatestVersion,
 		Versions:      versions,
+		Flags:         flags,
 	}
 
 	if jsonOut {
@@ -153,6 +170,14 @@ func printFunction(ctx context.Context, e getEntry) {
 		md += e.Description + "\n\n"
 	}
 	md += fmt.Sprintf("**Version:** %s\n**Latest:** %s\n", e.Version, e.LatestVersion)
+
+	if len(e.Flags) > 0 {
+		table := mdtable.New("Argument", "Type", "Default", "Description")
+		for _, f := range e.Flags {
+			table.Row(tableCell(f.Name), tableCell(f.Type), tableCell(f.Default), tableCell(f.Description))
+		}
+		md += "\n## Arguments\n" + table.Render()
+	}
 
 	if len(e.Versions) > 0 {
 		table := mdtable.New("Version")

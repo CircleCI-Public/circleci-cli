@@ -2,11 +2,14 @@
 
 Install a Go toolchain and link it onto PATH for later steps.
 
-Example:
-  circleci run setup-go@<version> -- --version 1.22
-
 **Version:** v0.5.1-684fd5b
 **Latest:** v0.5.1-684fd5b
+
+## Arguments
+| Argument | Type   | Default | Description                                      |
+| -------- | ------ | ------- | ------------------------------------------------ |
+| version  | string | stable  | Go version spec: a release (1.22) \| stable.     |
+| cache    | bool   | true    | Use the job cache. Turn off for hermetic builds. |
 
 ## Published versions
 | Version        |
