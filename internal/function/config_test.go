@@ -28,6 +28,7 @@ import (
 	"strings"
 	"testing"
 
+	"gopkg.in/yaml.v3"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/assert/cmp"
 
@@ -208,4 +209,98 @@ func TestValidateAlias(t *testing.T) {
 	// A slash would be read as naming one of the function's commands.
 	assert.Check(t, function.ValidateAlias("setup-go/cache") != nil)
 	assert.Check(t, function.ValidateAlias("1st") != nil)
+}
+
+func TestUpdatePin(t *testing.T) {
+	t.Run("The version is replaced in place, keeping order and comments", func(t *testing.T) {
+		path := write(t, `version: 2.1
+functions:
+  setup-node: github.com/circleci-functions/setup-node@v0.1.0-cc33dd4
+  # pinned deliberately
+  setup-go: github.com/circleci-functions/setup-go@v0.1.0
+`)
+		assert.NilError(t, function.UpdatePin(path, "setup-go", setupGoRef))
+
+		got := read(t, path)
+		assert.Check(t, cmp.Contains(got, "setup-go: github.com/circleci-functions/setup-go@v0.5.1-684fd5b"))
+		assert.Check(t, cmp.Contains(got, "# pinned deliberately"))
+		assert.Check(t, cmp.Contains(got, "setup-node: github.com/circleci-functions/setup-node@v0.1.0-cc33dd4"))
+		assert.Check(t, strings.Index(got, "setup-node") < strings.Index(got, "setup-go:"))
+	})
+
+	t.Run("An undeclared alias yields ErrNotPinned and adds nothing", func(t *testing.T) {
+		path := write(t, "version: 2.1\nfunctions:\n  setup-node: github.com/circleci-functions/setup-node@v0.1.0\n")
+		err := function.UpdatePin(path, "setup-go", setupGoRef)
+		assert.Check(t, cmp.ErrorIs(err, function.ErrNotPinned))
+		assert.Check(t, !strings.Contains(read(t, path), "setup-go"))
+	})
+
+	t.Run("A config with no block at all is reported the same way", func(t *testing.T) {
+		err := function.UpdatePin(write(t, "version: 2.1\n"), "setup-go", setupGoRef)
+		assert.Check(t, cmp.ErrorIs(err, function.ErrNotPinned))
+	})
+
+	t.Run("A comment after a tab survives", func(t *testing.T) {
+		path := write(t, "version: 2.1\nfunctions:\n  setup-go: github.com/circleci-functions/setup-go@v0.1.0\t# keep\n")
+		assert.NilError(t, function.UpdatePin(path, "setup-go", setupGoRef))
+		assert.Check(t, cmp.Contains(read(t, path), "setup-go: "+setupGoRef.String()+"\t# keep\n"))
+	})
+
+	t.Run("A bare functions: key has nothing to update", func(t *testing.T) {
+		err := function.UpdatePin(write(t, "version: 2.1\nfunctions:\n"), "setup-go", setupGoRef)
+		assert.Check(t, cmp.ErrorIs(err, function.ErrNotPinned))
+	})
+
+	t.Run("An anchor on the value survives, so its aliases follow the update", func(t *testing.T) {
+		path := write(t, `version: 2.1
+functions:
+  setup-go: &go github.com/circleci-functions/setup-go@v0.1.0 # keep
+  other: *go
+`)
+		assert.NilError(t, function.UpdatePin(path, "setup-go", setupGoRef))
+
+		got := read(t, path)
+		assert.Check(t, cmp.Contains(got, "setup-go: &go github.com/circleci-functions/setup-go@v0.5.1-684fd5b # keep\n"))
+
+		var cfg struct {
+			Functions map[string]string `yaml:"functions"`
+		}
+		assert.NilError(t, yaml.Unmarshal([]byte(got), &cfg), "the rewritten config must still parse")
+		assert.Check(t, cmp.Equal(cfg.Functions["other"], setupGoRef.String()))
+	})
+
+	t.Run("Only the reference changes, byte for byte", func(t *testing.T) {
+		before := "version: 2.1\n\n# ours\nfunctions:\n    setup-go: github.com/circleci-functions/setup-go@v0.1.0  # do not bump\n\njobs: {}\n"
+		path := write(t, before)
+		assert.NilError(t, function.UpdatePin(path, "setup-go", setupGoRef))
+
+		want := strings.Replace(before, "setup-go@v0.1.0", "setup-go@v0.5.1-684fd5b", 1)
+		assert.Check(t, cmp.Equal(read(t, path), want))
+	})
+
+	t.Run("A quoted old value is replaced whole", func(t *testing.T) {
+		path := write(t, "version: 2.1\nfunctions:\n  setup-go: \"github.com/circleci-functions/setup-go@v0.1.0\"  # why\njobs: {}\n")
+		assert.NilError(t, function.UpdatePin(path, "setup-go", setupGoRef))
+		assert.Check(t, cmp.Contains(read(t, path),
+			"  setup-go: github.com/circleci-functions/setup-go@v0.5.1-684fd5b  # why\n"))
+	})
+
+	t.Run("A functions: key that is not a map of declarations is refused", func(t *testing.T) {
+		before := "version: 2.1\nfunctions: &defs\n  - one\njobs: {}\n"
+		path := write(t, before)
+		err := function.UpdatePin(path, "setup-go", setupGoRef)
+		assert.Check(t, cmp.ErrorContains(err, "not a plain map"))
+		assert.Check(t, cmp.Equal(read(t, path), before))
+	})
+}
+
+func TestFindPin(t *testing.T) {
+	path := write(t, "version: 2.1\nfunctions:\n  setup-go: github.com/circleci-functions/setup-go@v0.5.1-684fd5b\n")
+
+	pin, err := function.FindPin(path, "setup-go")
+	assert.NilError(t, err)
+	assert.Check(t, cmp.Equal(pin.Version, "v0.5.1-684fd5b"))
+
+	_, err = function.FindPin(path, "setup-node")
+	assert.Check(t, cmp.ErrorIs(err, function.ErrNotPinned))
 }
