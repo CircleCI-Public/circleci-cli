@@ -5044,10 +5044,17 @@ CLI command.
 ### `circleci testsuite <command> [flags]`
 
 Reduce test execution time while maintaining test confidence by running CircleCI's testsuite tooling.
-The testsuite provides three independent features:
+
+Available for free:
+- Static test splitting - split tests evenly across parallel execution nodes using previous run timings.
+- Manual rerun of failed tests - Rerun workflow from the CircleCI UI, API or CLI reruns only the tests that failed.
+
+Available as opt-in paid features:
 - Test impact analysis - run only the tests impacted by your code changes.
-- Dynamic test splitting - evenly distribute tests across parallel execution nodes.
-- Auto rerun failed tests - automatically retry failed tests.
+- Dynamic test splitting - distribute tests across parallel execution nodes as they run, reducing node idle time.
+- Auto rerun failed tests - automatically rerun failed tests during your test run.
+
+Each feature is independently enabled, configure them per suite in .circleci/test-suites.yml.
 
 | Flag        | Description                                                                                 |
 | ----------- | ------------------------------------------------------------------------------------------- |
