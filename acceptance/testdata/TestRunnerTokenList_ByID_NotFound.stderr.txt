@@ -1,0 +1,4 @@
+error: No runner resource class with ID "99999999-9999-4999-8999-999999999999".
+
+Suggestions:
+  • List available resource classes with: circleci runner resource-class list

@@ -5,5 +5,5 @@ Flags:
       --jq string               Process values from the response using jq syntax
       --json                    Output as JSON
       --org string              Organization slug (e.g. gh/myorg) or UUID; defaults to git remote
-      --resource-class string   Filter by resource class (namespace/name)
+      --resource-class string   Filter by resource class (namespace/name or ID)
   

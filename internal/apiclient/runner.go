@@ -157,6 +157,25 @@ func (c *Client) GetResourceClassBySlug(ctx context.Context, slug string) (*Reso
 	return &rc, nil
 }
 
+// GetResourceClassByID looks up a single resource class by its UUID via the v3
+// /runner/resource-classes/{id} endpoint. Returns ErrResourceClassNotFound when
+// the server answers 404.
+func (c *Client) GetResourceClassByID(ctx context.Context, id uuid.UUID) (*ResourceClass, error) {
+	var resp v3Entity[v3ResourceClassItem]
+	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodGet, "/api/v3/runner/resource-classes/%s",
+		httpcl.RouteParams(id.String()),
+		httpcl.JSONDecoder(&resp),
+	))
+	if err != nil {
+		if httpcl.HasStatusCode(err, http.StatusNotFound) {
+			return nil, fmt.Errorf("%w: %q", ErrResourceClassNotFound, id)
+		}
+		return nil, err
+	}
+	rc := resp.Data.toResourceClass()
+	return &rc, nil
+}
+
 // ResourceClassByName returns the resource class with the given namespace/name slug.
 func (c *Client) ResourceClassByName(ctx context.Context, resourceClass string) (*ResourceClass, error) {
 	if !strings.Contains(resourceClass, "/") {
@@ -254,15 +273,16 @@ type v3RunnerTokenItem struct {
 	} `json:"attributes"`
 }
 
-// ListRunnerTokensV3 returns tokens for the given resource class UUID, using the
-// V3 /runner/tokens endpoint. The ResourceClass field in returned tokens is
-// filled from rcSlug since the V3 list response does not carry a resource class.
-func (c *Client) ListRunnerTokensV3(ctx context.Context, rcID uuid.UUID, rcSlug string) ([]RunnerToken, error) {
+// ListRunnerTokensV3 returns tokens for the given namespace/name resource class,
+// using the V3 /runner/tokens endpoint, which filters by resource class only,
+// not by ID. The ResourceClass field in returned tokens is filled from
+// resourceClass since the V3 list response does not carry one.
+func (c *Client) ListRunnerTokensV3(ctx context.Context, resourceClass string) ([]RunnerToken, error) {
 	var resp struct {
 		Data []v3RunnerTokenItem `json:"data"`
 	}
 	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodGet, "/api/v3/runner/tokens",
-		httpcl.QueryParam("filter[resource_class_id]", rcID.String()),
+		httpcl.QueryParam("filter[resource_class]", resourceClass),
 		httpcl.JSONDecoder(&resp),
 	))
 	if err != nil {
@@ -272,7 +292,7 @@ func (c *Client) ListRunnerTokensV3(ctx context.Context, rcID uuid.UUID, rcSlug 
 	for i, t := range resp.Data {
 		tokens[i] = RunnerToken{
 			ID:            t.ID,
-			ResourceClass: rcSlug,
+			ResourceClass: resourceClass,
 			Nickname:      t.Attributes.Nickname,
 			CreatedAt:     t.Attributes.CreatedAt,
 		}

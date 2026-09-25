@@ -4081,7 +4081,7 @@ JSON fields: id, resource_class, nickname, created_at
 | `--jq string`             | Process values from the response using jq syntax (see `circleci help formatting`) |
 | `--json`                  | Output as JSON                                                                    |
 | `--org string`            | Organization slug (e.g. gh/myorg) or UUID; defaults to git remote                 |
-| `--resource-class string` | Filter by resource class (namespace/name)                                         |
+| `--resource-class string` | Filter by resource class (namespace/name or ID)                                   |
 
 
 **Aliases:**

@@ -111,7 +111,7 @@ func newTokenListCmd() *cobra.Command {
 	}
 
 	cmdutil.AddOrgFlag(cmd, &org, cmdutil.OrgFlag{DefaultsToGitRemote: true})
-	cmd.Flags().StringVar(&resourceClass, "resource-class", "", "Filter by resource class (namespace/name)")
+	cmd.Flags().StringVar(&resourceClass, "resource-class", "", "Filter by resource class (namespace/name or ID)")
 	cmdutil.AddJSONFlag(cmd, &jsonOut)
 	cmdutil.AddJQFlag(cmd)
 	return cmd
@@ -125,25 +125,18 @@ type tokenOutput struct {
 }
 
 func runTokenList(ctx context.Context, client *apiclient.Client, org, resourceClass string, jsonOut bool) error {
-	// rcs is the set of resource classes whose tokens we list, each carrying
-	// both ID (for the V3 filter) and ResourceClass slug (for output reconstruction).
+	// rcs is the set of resource classes whose tokens we list. Each one's
+	// ResourceClass (namespace/name) is both the V3 filter value and the output's resource_class.
 	var rcs []apiclient.ResourceClass
 
 	if resourceClass != "" {
-		rc, err := client.ResourceClassByName(ctx, resourceClass)
+		rc, err := resolveResourceClass(ctx, client, resourceClass)
 		if err != nil {
-			if errors.Is(err, apiclient.ErrResourceClassNotFound) {
-				return clierrors.New("runner.not_found", "Not found",
-					fmt.Sprintf("No runner resource class named %q.", resourceClass)).
-					WithSuggestions("List available resource classes with: circleci runner resource-class list").
-					WithExitCode(clierrors.ExitNotFound)
-			}
-			if httpcl.HasStatusCode(err, http.StatusNotFound) {
-				return runnerNotEnabledErr()
-			}
-			return apiErr(err, resourceClass)
+			return err
 		}
 		rcs = []apiclient.ResourceClass{*rc}
+		// Report the namespace/name, not the UUID, when the flag was given an ID.
+		resourceClass = rc.ResourceClass
 	} else {
 		orgID, err := cmdutil.ResolveOrgSlugOrID(ctx, client, org, "circleci runner token list")
 		if err != nil {
@@ -161,11 +154,7 @@ func runTokenList(ctx context.Context, client *apiclient.Client, org, resourceCl
 
 	var out []tokenOutput
 	for _, rc := range rcs {
-		rcID, err := uuid.Parse(rc.ID)
-		if err != nil {
-			return apiErr(err, rc.ResourceClass)
-		}
-		tokens, err := client.ListRunnerTokensV3(ctx, rcID, rc.ResourceClass)
+		tokens, err := client.ListRunnerTokensV3(ctx, rc.ResourceClass)
 		if err != nil {
 			return apiErr(err, rc.ResourceClass)
 		}
@@ -180,6 +169,38 @@ func runTokenList(ctx context.Context, client *apiclient.Client, org, resourceCl
 	}
 
 	return printTokenList(ctx, out, resourceClass, jsonOut)
+}
+
+// resolveResourceClass looks up a resource class given either its UUID or its
+// namespace/name.
+func resolveResourceClass(ctx context.Context, client *apiclient.Client, resourceClass string) (*apiclient.ResourceClass, error) {
+	id, parseErr := uuid.Parse(resourceClass)
+	isID := parseErr == nil
+
+	var rc *apiclient.ResourceClass
+	var err error
+	if isID {
+		rc, err = client.GetResourceClassByID(ctx, id)
+	} else {
+		rc, err = client.ResourceClassByName(ctx, resourceClass)
+	}
+	if err == nil {
+		return rc, nil
+	}
+
+	if errors.Is(err, apiclient.ErrResourceClassNotFound) {
+		msg := fmt.Sprintf("No runner resource class named %q.", resourceClass)
+		if isID {
+			msg = fmt.Sprintf("No runner resource class with ID %q.", resourceClass)
+		}
+		return nil, clierrors.New("runner.not_found", "Not found", msg).
+			WithSuggestions("List available resource classes with: circleci runner resource-class list").
+			WithExitCode(clierrors.ExitNotFound)
+	}
+	if httpcl.HasStatusCode(err, http.StatusNotFound) {
+		return nil, runnerNotEnabledErr()
+	}
+	return nil, apiErr(err, resourceClass)
 }
 
 func printTokenList(ctx context.Context, out []tokenOutput, resourceClass string, jsonOut bool) error {

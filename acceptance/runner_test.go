@@ -30,6 +30,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
 	"testing"
 
@@ -928,6 +929,161 @@ func TestRunnerTokenList(t *testing.T) {
 	assert.Check(t, cmp.Equal(result.ExitCode, 0))
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
 	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+}
+
+// The V3 tokens endpoint is scoped by filter[resource_class], the namespace/name. The fake
+// rejects a request without it, but this pins the exact query so that renaming
+// the filter (it was once filter[resource_class_id]) or sending the UUID instead
+// of the namespace/name fails here rather than in production.
+func TestRunnerTokenList_FiltersByResourceClass(t *testing.T) {
+	fake, env := setupRunnerFake(t)
+	fake.AddRunnerToken("my-org/arm-runner", fakeToken("tok-id-arm", "my-org/arm-runner", "arm-server"))
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"runner", "token", "list", "--resource-class", "my-org/linux-runner", "--json"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 0), "stderr: %s", result.Stderr)
+
+	t.Run("check tokens request", func(t *testing.T) {
+		var tokenReqs []httprecorder.Request
+		for _, req := range fake.AllRequests() {
+			if req.URL.Path == "/api/v3/runner/tokens" {
+				tokenReqs = append(tokenReqs, req)
+			}
+		}
+		assert.Assert(t, cmp.Len(tokenReqs, 1))
+
+		assert.Check(t, cmp.Equal(tokenReqs[0].Method, http.MethodGet))
+		assert.Check(t, cmp.DeepEqual(tokenReqs[0].URL.Query(), url.Values{
+			"filter[resource_class]": {"my-org/linux-runner"},
+		}))
+	})
+
+	t.Run("check only the filtered resource class is listed", func(t *testing.T) {
+		var out []map[string]any
+		assert.NilError(t, json.Unmarshal([]byte(result.Stdout), &out))
+
+		ids := make([]string, 0, len(out))
+		for _, tok := range out {
+			id, _ := tok["id"].(string)
+			ids = append(ids, id)
+		}
+		assert.Check(t, cmp.DeepEqual(ids, []string{"tok-id-1", "tok-id-2"}))
+	})
+}
+
+// --resource-class also accepts a resource class's UUID. The tokens endpoint
+// only filters by namespace/name, so the CLI resolves the ID first.
+func TestRunnerTokenList_ByID(t *testing.T) {
+	fake, env := setupRunnerFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"runner", "token", "list", "--resource-class", "11111111-1111-4111-8111-111111111111"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 0))
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+
+	t.Run("check requests", func(t *testing.T) {
+		reqs := fake.AllRequests()
+		assert.Assert(t, cmp.Len(reqs, 2))
+
+		assert.Check(t, cmp.Equal(reqs[0].Method, http.MethodGet))
+		assert.Check(t, cmp.Equal(reqs[0].URL.Path, "/api/v3/runner/resource-classes/11111111-1111-4111-8111-111111111111"))
+
+		assert.Check(t, cmp.Equal(reqs[1].Method, http.MethodGet))
+		assert.Check(t, cmp.Equal(reqs[1].URL.Path, "/api/v3/runner/tokens"))
+		assert.Check(t, cmp.DeepEqual(reqs[1].URL.Query(), url.Values{
+			"filter[resource_class]": {"my-org/linux-runner"},
+		}))
+	})
+}
+
+func TestRunnerTokenList_ByID_JSON(t *testing.T) {
+	_, env := setupRunnerFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"runner", "token", "list", "--resource-class", "11111111-1111-4111-8111-111111111111", "--json"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 0), "stderr: %s", result.Stderr)
+
+	var out []map[string]any
+	assert.NilError(t, json.Unmarshal([]byte(result.Stdout), &out))
+	assert.Check(t, cmp.DeepEqual(out, []map[string]any{
+		{"id": "tok-id-1", "resource_class": "my-org/linux-runner", "nickname": "prod-server-1", "created_at": "2026-01-01T00:00:00Z"},
+		{"id": "tok-id-2", "resource_class": "my-org/linux-runner", "nickname": "prod-server-2", "created_at": "2026-01-01T00:00:00Z"},
+	}))
+}
+
+// With no tokens, the message names the resource class by namespace/name, not by the ID
+// the user passed.
+func TestRunnerTokenList_ByID_Empty(t *testing.T) {
+	_, env := setupRunnerFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"runner", "token", "list", "--resource-class", "22222222-2222-4222-8222-222222222222"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 0))
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+}
+
+func TestRunnerTokenList_ByID_NotFound(t *testing.T) {
+	_, env := setupRunnerFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"runner", "token", "list", "--resource-class", "99999999-9999-4999-8999-999999999999"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, clierrors.ExitNotFound))
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+}
+
+// Without --resource-class the CLI lists tokens once per resource class in the
+// org, and every one of those requests must carry that resource class's namespace/name.
+func TestRunnerTokenList_EnumerationFiltersEachResourceClass(t *testing.T) {
+	fake, env := setupRunnerFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"runner", "token", "list", "--org", testRunnerOrgID, "--json"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 0), "stderr: %s", result.Stderr)
+
+	var filters []string
+	for _, req := range fake.AllRequests() {
+		if req.URL.Path != "/api/v3/runner/tokens" {
+			continue
+		}
+		q := req.URL.Query()
+		assert.Check(t, cmp.Len(q, 1), "unexpected query on tokens request: %s", req.URL.RawQuery)
+		filters = append(filters, q.Get("filter[resource_class]"))
+	}
+	slices.Sort(filters)
+	assert.Check(t, cmp.DeepEqual(filters, []string{"my-org/arm-runner", "my-org/linux-runner"}))
 }
 
 func TestRunnerTokenList_Color(t *testing.T) {
