@@ -13,7 +13,7 @@ Aliases: `circleci runner token ls`
 | `--jq string`             | Process values from the response using jq syntax (see `circleci help formatting`) |
 | `--json`                  | Output as JSON                                                                    |
 | `--org string`            | Organization slug (e.g. gh/myorg) or UUID; defaults to git remote                 |
-| `--resource-class string` | Filter by resource class (namespace/name)                                         |
+| `--resource-class string` | Filter by resource class (namespace/name or ID)                                   |
 
 Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `circleci --help`.
 

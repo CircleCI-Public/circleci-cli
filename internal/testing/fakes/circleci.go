@@ -448,10 +448,11 @@ func NewCircleCI(t *testing.T, tokens ...string) *CircleCI {
 	// filter[org_id]=, filter[resource_class]= or filter[namespace]=.
 	// List/create/delete for resource classes all live on
 	// /runner/resource-classes: GET accepts filter[org_id]= and/or
-	// filter[slug]=, POST creates one, and DELETE /{id} removes one
+	// filter[slug]=, GET /{id} fetches one, POST creates one, and DELETE /{id} removes one
 	// (optionally ?force=true).
 	r.Get("/api/v3/runner/agents", f.handleListRunnerAgents)
 	r.Get("/api/v3/runner/resource-classes", f.handleListResourceClassesV3)
+	r.Get("/api/v3/runner/resource-classes/{id}", f.handleGetResourceClassV3)
 	r.Post("/api/v3/runner/resource-classes/{id}/update", f.handleUpdateResourceClass)
 	r.Post("/api/v3/runner/resource-classes", f.handleCreateResourceClassV3)
 	r.Delete("/api/v3/runner/resource-classes/{id}", f.handleDeleteResourceClassV3)
@@ -1875,6 +1876,33 @@ func (f *CircleCI) handleListResourceClassesV3(w http.ResponseWriter, r *http.Re
 	render.JSON(w, r, map[string]any{"data": items})
 }
 
+// handleGetResourceClassV3 serves GET /api/v3/runner/resource-classes/{id},
+// answering 404 for an unknown or deleted resource class.
+func (f *CircleCI) handleGetResourceClassV3(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+
+	f.mu.RLock()
+	all := f.resourceClasses
+	deleted := f.deletedRCs
+	f.mu.RUnlock()
+
+	for _, rc := range all {
+		if rc.ID != id || deleted[rc.Slug] {
+			continue
+		}
+		render.JSON(w, r, map[string]any{"data": map[string]any{
+			"id": rc.ID,
+			"attributes": map[string]any{
+				"resource_class": rc.Slug,
+				"description":    rc.Description,
+			},
+		}})
+		return
+	}
+	render.Status(r, http.StatusNotFound)
+	render.JSON(w, r, map[string]any{"message": "Not Found"})
+}
+
 // ForbidRunnerOrg makes GET /runner/resource-classes?filter[org_id]=<orgID> answer
 // with a 403, simulating a token that cannot view that organization's runners.
 func (f *CircleCI) ForbidRunnerOrg(orgID string) {
@@ -2169,18 +2197,24 @@ func runnerTokenV3CreateEntity(t RunnerToken) map[string]any {
 	return map[string]any{"id": t.ID, "attributes": attrs}
 }
 
+// handleListRunnerTokensV3 serves GET /api/v3/runner/tokens. As in the real API,
+// filter[resource_class] (namespace/name) is required, and a request without it is a
+// 400 rather than an empty list — so a client that drops or renames the filter
+// fails loudly instead of silently reporting no tokens.
 func (f *CircleCI) handleListRunnerTokensV3(w http.ResponseWriter, r *http.Request) {
-	rcID := r.URL.Query().Get("filter[resource_class_id]")
+	resourceClass := r.URL.Query().Get("filter[resource_class]")
+	if resourceClass == "" {
+		render.Status(r, http.StatusBadRequest)
+		render.JSON(w, r, map[string]any{"error": map[string]any{
+			"type":   "validation_error",
+			"title":  "Missing Required Filter",
+			"detail": "Query parameter 'filter[resource_class]' is required.",
+		}})
+		return
+	}
 
 	f.mu.RLock()
-	var rcSlug string
-	for _, rc := range f.resourceClasses {
-		if rc.ID == rcID {
-			rcSlug = rc.Slug
-			break
-		}
-	}
-	tokens := f.runnerTokens[rcSlug]
+	tokens := f.runnerTokens[resourceClass]
 	deleted := f.deletedTokens
 	f.mu.RUnlock()
 
