@@ -23,6 +23,7 @@
 package run
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/google/uuid"
@@ -221,4 +222,46 @@ func TestWatchStateRunErrors(t *testing.T) {
 		assert.Check(t, is.Equal(runFailureMessage(runID, state), "Run "+runID.String()+" failed."))
 		assert.Check(t, is.Equal(runFailureExitCode(state), clierrors.ExitGeneralError))
 	})
+}
+
+func TestIsHexSHA(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		in   string
+		want bool
+	}{
+		{"full lowercase SHA", "1234567890abcdef1234567890abcdef12345678", true},
+		{"abbreviated SHA", "abc1234", true},
+		{"uppercase hex", "ABC1234", true},
+		{"mixed case hex", "AbC1234", true},
+		{"single character", "a", true},
+		// Rejected so gitremote never sees a revision expression it would
+		// happily resolve to the wrong commit.
+		{"branch name", "main", false},
+		{"HEAD", "HEAD", false},
+		{"HEAD with offset", "HEAD~3", false},
+		{"tag-like name", "v1.2.3", false},
+		{"non-hex letter past f", "abcg123", false},
+		{"leading whitespace", " abc1234", false},
+		{"empty string", "", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Check(t, is.Equal(isHexSHA(tt.in), tt.want), "input: %q", tt.in)
+		})
+	}
+}
+
+// A full SHA must survive validation unchanged in either case, since the
+// scripted path passes whatever git printed.
+func TestIsHexSHA_FullSHACaseInsensitive(t *testing.T) {
+	t.Parallel()
+
+	full := "1234567890abcdef1234567890abcdef12345678"
+	assert.Check(t, isHexSHA(full))
+	assert.Check(t, isHexSHA(strings.ToUpper(full)))
 }

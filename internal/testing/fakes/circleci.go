@@ -1585,6 +1585,7 @@ func (f *CircleCI) handleSearchRunsV3(w http.ResponseWriter, r *http.Request) {
 
 	branch := runBranchFilter(body.Filter)
 	status := runStatusFilterExpr(body.Filter)
+	revision := runRevisionFilter(body.Filter)
 
 	f.mu.RLock()
 	var all []any
@@ -1594,6 +1595,13 @@ func (f *CircleCI) handleSearchRunsV3(w http.ResponseWriter, r *http.Request) {
 				continue
 			}
 			if status != "" && runStatus(run) != status {
+				continue
+			}
+			// Exact equality, matching the real V3 filter: a run is found by its
+			// full 40-character revision, never by an abbreviation. This is what
+			// makes a test of `run watch --sha <short>` meaningful — the CLI has
+			// to have expanded the SHA for the run to come back.
+			if revision != "" && run.Revision != revision {
 				continue
 			}
 			all = append(all, runV3Entity(run))
@@ -1626,7 +1634,19 @@ func (f *CircleCI) handleSearchRunsV3(w http.ResponseWriter, r *http.Request) {
 // like `pipeline.git.branch == "main"`. It returns "" when no branch is pinned,
 // meaning "match every branch".
 func runBranchFilter(filter string) string {
-	const key = `pipeline.git.branch == "`
+	return filterPinnedValue(filter, `pipeline.git.branch == "`)
+}
+
+// runRevisionFilter extracts the commit revision pinned by a V3 search filter
+// expression like `pipeline.git.revision == "abc123..."`. It returns "" when no
+// revision is pinned, meaning "match every revision".
+func runRevisionFilter(filter string) string {
+	return filterPinnedValue(filter, `pipeline.git.revision == "`)
+}
+
+// filterPinnedValue returns the quoted value following key in a V3 filter
+// expression, or "" when key is absent or the value is unterminated.
+func filterPinnedValue(filter, key string) string {
 	i := strings.Index(filter, key)
 	if i < 0 {
 		return ""
@@ -1643,17 +1663,7 @@ func runBranchFilter(filter string) string {
 // expression like `pipeline.status == "failed"`. It returns "" when no status is
 // pinned, meaning "match every status".
 func runStatusFilterExpr(filter string) string {
-	const key = `pipeline.status == "`
-	i := strings.Index(filter, key)
-	if i < 0 {
-		return ""
-	}
-	rest := filter[i+len(key):]
-	j := strings.Index(rest, `"`)
-	if j < 0 {
-		return ""
-	}
-	return rest[:j]
+	return filterPinnedValue(filter, `pipeline.status == "`)
 }
 
 // runStatus derives a stored fake run's pipeline status token (as filtered on by
