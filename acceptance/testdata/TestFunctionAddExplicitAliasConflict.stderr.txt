@@ -1,0 +1,4 @@
+error: Alias "go" already names an orb in this config.
+
+Suggestions:
+  • Choose another alias: circleci function add <name> --as <alias>
