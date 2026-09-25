@@ -31,9 +31,11 @@ Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `ci
 
 ## Details
 
-All jobs rerun from scratch unless --from-failed is given, which reruns
-only the jobs that failed. Either way a new workflow is created, and its
-ID is reported so you can follow the run.
+All jobs rerun from scratch unless --from-failed is given, which reruns only
+the failed jobs. Either way a new workflow is created and its ID reported.
+
+Rerunning only the failed tests is a web UI action with no CLI or public API
+equivalent: https://circleci.com/docs/guides/test/rerun-failed-tests/
 
 JSON fields: workflow_id, rerun_from, from_failed
 
