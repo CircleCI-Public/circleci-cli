@@ -57,7 +57,7 @@ func newConfigCmd() *cobra.Command {
 		Long: heredoc.Doc(`
 			Generate the configuration a self-hosted runner needs to start. --product
 			machine (the default) emits an agent circleci-runner-config.yaml for machine
-			runner 3 (circleci-runner 3.x); container and provisioner emit Helm values.
+			runner 3 (circleci-runner 3.x); container and machineOrchestrator emit Helm values.
 		`),
 		Example: heredoc.Doc(`
 			# Generate machine runner 3 config, using the hostname as the runner name
@@ -133,7 +133,7 @@ func newConfigCmd() *cobra.Command {
 	}
 
 	cmd.Flags().StringVar(&product, "product", "",
-		"Runner product: machine|container|provisioner (default machine, prompts when unset)")
+		"Runner product: machine|container|machineOrchestrator (default machine, prompts when unset)")
 	cmd.Flags().StringVar(&name, "name", "", "Runner name, machine only (default: hostname)")
 	cmd.Flags().StringVar(&workingDirectory, "working-directory", "", "Job working directory, machine only")
 	cmd.Flags().StringVar(&nickname, "nickname", "", "Nickname for the new token")

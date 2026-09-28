@@ -1690,7 +1690,25 @@ func TestRunnerConfig_ProductContainer(t *testing.T) {
 	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 }
 
-func TestRunnerConfig_ProductProvisioner(t *testing.T) {
+func TestRunnerConfig_ProductMachineOrchestrator(t *testing.T) {
+	_, env := setupRunnerFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"runner", "config", "my-org/linux-runner", "--product", "machineOrchestrator"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 0))
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".yaml"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+}
+
+// TestRunnerConfig_ProductProvisionerAlias guards backward compatibility:
+// --product provisioner, the name before the rename to machine runner
+// orchestrator, must keep working and produce identical output.
+func TestRunnerConfig_ProductProvisionerAlias(t *testing.T) {
 	_, env := setupRunnerFake(t)
 
 	result := binary.RunCLI(t, binary.RunOpts{
@@ -1701,8 +1719,8 @@ func TestRunnerConfig_ProductProvisioner(t *testing.T) {
 	})
 
 	assert.Check(t, cmp.Equal(result.ExitCode, 0))
-	assert.Check(t, golden.String(result.Stdout, t.Name()+".yaml"))
-	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+	assert.Check(t, golden.String(result.Stdout, "TestRunnerConfig_ProductMachineOrchestrator.yaml"))
+	assert.Check(t, golden.String(result.Stderr, "TestRunnerConfig_ProductMachineOrchestrator.stderr.txt"))
 }
 
 func TestRunnerConfig_ProductInvalid(t *testing.T) {

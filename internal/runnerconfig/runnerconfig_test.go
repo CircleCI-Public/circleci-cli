@@ -58,13 +58,29 @@ func TestRenderContainer(t *testing.T) {
 	assert.Check(t, golden.String(string(got), t.Name()+".txt"))
 }
 
-func TestRenderProvisioner(t *testing.T) {
-	got, err := Render(Provisioner, Options{
+func TestRenderMachineOrchestrator(t *testing.T) {
+	got, err := Render(MachineOrchestrator, Options{
 		ResourceClass: "my-org/my-runner",
 		Token:         "fake-runner-token-value",
 	})
 	assert.NilError(t, err)
 	assert.Check(t, golden.String(string(got), t.Name()+".txt"))
+}
+
+// TestRenderMachineOrchestratorLegacyAlias guards backward compatibility: scripts
+// written against the old "provisioner" product name, before the rename to
+// machine runner orchestrator, must keep working and produce identical output.
+func TestRenderMachineOrchestratorLegacyAlias(t *testing.T) {
+	product, cliErr := ParseProduct("provisioner")
+	assert.Assert(t, cliErr == nil)
+	assert.Check(t, cmp.Equal(product, MachineOrchestrator))
+
+	got, err := Render(product, Options{
+		ResourceClass: "my-org/my-runner",
+		Token:         "fake-runner-token-value",
+	})
+	assert.NilError(t, err)
+	assert.Check(t, golden.String(string(got), "TestRenderMachineOrchestrator.txt"))
 }
 
 // TestRenderMachineAgentKeys decodes the output using the agent's own yaml tags.
@@ -113,7 +129,7 @@ func TestRenderMachineDefaultsWorkingDirectory(t *testing.T) {
 // key must be the resource class verbatim, including the slash. A mismatch
 // leaves the agent running but never claiming a task.
 func TestRenderHelmProductsKeyByResourceClass(t *testing.T) {
-	for _, product := range []Product{Container, Provisioner} {
+	for _, product := range []Product{Container, MachineOrchestrator} {
 		got, err := Render(product, Options{
 			ResourceClass: "my-org/my-runner",
 			Token:         "fake-runner-token-value",
