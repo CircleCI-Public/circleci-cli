@@ -104,7 +104,7 @@ func TestRunnerResourceClassDelete_MissingArg(t *testing.T) {
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
-	assertMissingArg(t, result, "namespace/name")
+	assertMissingArg(t, result, "resource-class")
 }
 
 // --- runner token ---

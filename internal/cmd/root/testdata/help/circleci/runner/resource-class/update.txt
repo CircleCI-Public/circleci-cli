@@ -2,12 +2,12 @@ Update a runner resource class
 
 ## Usage
 
-`circleci runner resource-class update <namespace>/<name> [flags]`
+`circleci runner resource-class update <resource-class> [flags]`
 
 ## Arguments
 
-The resource class to update, given in the form `namespace/name`,
-where namespace is your organization name (for example, `my-org/my-runner`).
+The resource class to update, as `namespace/name` where namespace is your
+organization name (for example, `my-org/my-runner`), or as its ID.
 
 ## Flags
 
@@ -25,6 +25,8 @@ Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `ci
   `circleci runner resource-class update my-org/my-runner --description "Linux amd64 runner"`
 - Clear the description: 
   `circleci runner resource-class update my-org/my-runner --description ""`
+- Update a resource class by its ID: 
+  `circleci runner resource-class update 01234567-89ab-4cde-8f01-23456789abcd --description "ARM runner"`
 - Update and output the result as JSON: 
   `circleci runner resource-class update my-org/my-runner --description "ARM runner" --json`
 

@@ -7,7 +7,7 @@ Create a token for a resource class
 ## Arguments
 
 `<resource-class>` is the runner resource class to create a token for,
-in the form `namespace/name` (for example, `my-org/my-runner`).
+in the form `namespace/name` (for example, `my-org/my-runner`) or as its ID.
 
 ## Flags
 
@@ -25,6 +25,8 @@ Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `ci
   `circleci runner token create my-org/my-runner`
 - Create a token with a nickname: 
   `circleci runner token create my-org/my-runner --nickname "prod-server-1"`
+- Create a token for a resource class given by its ID: 
+  `circleci runner token create 01234567-89ab-4cde-8f01-23456789abcd`
 - Output as JSON (includes the token value): 
   `circleci runner token create my-org/my-runner --json`
 
@@ -32,9 +34,8 @@ Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `ci
 
 Create a new authentication token for a runner resource class.
 
-The token value is shown only once at creation time. Store it securely —
-it cannot be retrieved afterwards. If lost, delete this token and create
-a new one.
+The token value is shown only once and cannot be retrieved afterwards.
+Store it securely. If lost, delete this token and create a new one.
 
 JSON fields: id, resource_class, nickname, created_at, token
 

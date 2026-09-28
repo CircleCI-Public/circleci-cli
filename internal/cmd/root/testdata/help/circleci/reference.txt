@@ -3758,7 +3758,7 @@ runner 3 (circleci-runner 3.x); container and provisioner emit Helm values.
 **Arguments:**
 
 `<resource-class>` is the runner resource class to generate config for,
-in the form `namespace/name` (for example, `my-org/my-runner`).
+in the form `namespace/name` (for example, `my-org/my-runner`) or as its ID.
 
 **Examples:**
 
@@ -3783,8 +3783,6 @@ Instances are live runner agents currently connected to CircleCI.
 
 List connected runner instances
 
-List CircleCI runner instances currently connected to your organization.
-
 STATUS is derived from last_connected_at (online under 2 minutes, idle
 under 30, offline beyond). BUSY says whether the instance holds a task.
 Hostname, IP and last-used time are not reported by the agents API.
@@ -3797,7 +3795,7 @@ JSON fields: id, resource_class, resource_class_id, name, version, status, is_bu
 | `--json`                  | Output as JSON                                                                    |
 | `--namespace string`      | Filter by namespace (organization)                                                |
 | `--org string`            | Organization slug (e.g. gh/myorg) or UUID; defaults to git remote                 |
-| `--resource-class string` | Filter by resource class (namespace/name)                                         |
+| `--resource-class string` | Filter by resource class (namespace/name or ID)                                   |
 
 
 **Aliases:**
@@ -3813,6 +3811,8 @@ JSON fields: id, resource_class, resource_class_id, name, version, status, is_bu
   `circleci runner instance list --org gh/my-org`
 - List instances for a specific resource class: 
   `circleci runner instance list --resource-class my-org/my-runner`
+- List instances for a resource class given by its ID: 
+  `circleci runner instance list --resource-class 01234567-89ab-4cde-8f01-23456789abcd`
 - Extract just the names: 
   `circleci runner instance list --json --jq '.[].name'`
 
@@ -3883,7 +3883,7 @@ where namespace is your organization name (for example, `my-org/my-runner`).
 - Output as JSON: 
   `circleci runner resource-class create my-org/my-runner --json`
 
-##### `circleci runner resource-class delete <namespace>/<name> [flags]`
+##### `circleci runner resource-class delete <resource-class> [flags]`
 
 Delete a runner resource class
 
@@ -3903,8 +3903,8 @@ JSON fields: id, resource_class
 
 **Arguments:**
 
-The resource class to delete, given in the form `namespace/name`,
-where namespace is your organization name (for example, `my-org/my-runner`).
+The resource class to delete, as `namespace/name` where namespace is your
+organization name (for example, `my-org/my-runner`), or as its ID.
 
 **Aliases:**
 
@@ -3917,8 +3917,8 @@ where namespace is your organization name (for example, `my-org/my-runner`).
   `circleci runner resource-class delete my-org/my-runner`
 - Delete without confirmation: 
   `circleci runner resource-class delete my-org/my-runner --force`
-- Delete in a script, and report what was deleted: 
-  `circleci runner resource-class delete my-org/my-runner --force --json`
+- Delete by ID in a script, and report what was deleted: 
+  `circleci runner resource-class delete 01234567-89ab-4cde-8f01-23456789abcd --force --json`
 
 ##### `circleci runner resource-class list [flags]`
 
@@ -3952,7 +3952,7 @@ JSON fields: id, resource_class, description
 - Output as JSON: 
   `circleci runner resource-class list --org gh/my-org --json`
 
-##### `circleci runner resource-class update <namespace>/<name> [flags]`
+##### `circleci runner resource-class update <resource-class> [flags]`
 
 Update a runner resource class
 
@@ -3972,8 +3972,8 @@ JSON fields: id, resource_class, description
 
 **Arguments:**
 
-The resource class to update, given in the form `namespace/name`,
-where namespace is your organization name (for example, `my-org/my-runner`).
+The resource class to update, as `namespace/name` where namespace is your
+organization name (for example, `my-org/my-runner`), or as its ID.
 
 **Examples:**
 
@@ -3981,6 +3981,8 @@ where namespace is your organization name (for example, `my-org/my-runner`).
   `circleci runner resource-class update my-org/my-runner --description "Linux amd64 runner"`
 - Clear the description: 
   `circleci runner resource-class update my-org/my-runner --description ""`
+- Update a resource class by its ID: 
+  `circleci runner resource-class update 01234567-89ab-4cde-8f01-23456789abcd --description "ARM runner"`
 - Update and output the result as JSON: 
   `circleci runner resource-class update my-org/my-runner --description "ARM runner" --json`
 
@@ -4001,9 +4003,8 @@ Create a token for a resource class
 
 Create a new authentication token for a runner resource class.
 
-The token value is shown only once at creation time. Store it securely —
-it cannot be retrieved afterwards. If lost, delete this token and create
-a new one.
+The token value is shown only once and cannot be retrieved afterwards.
+Store it securely. If lost, delete this token and create a new one.
 
 JSON fields: id, resource_class, nickname, created_at, token
 
@@ -4017,7 +4018,7 @@ JSON fields: id, resource_class, nickname, created_at, token
 **Arguments:**
 
 `<resource-class>` is the runner resource class to create a token for,
-in the form `namespace/name` (for example, `my-org/my-runner`).
+in the form `namespace/name` (for example, `my-org/my-runner`) or as its ID.
 
 **Examples:**
 
@@ -4025,6 +4026,8 @@ in the form `namespace/name` (for example, `my-org/my-runner`).
   `circleci runner token create my-org/my-runner`
 - Create a token with a nickname: 
   `circleci runner token create my-org/my-runner --nickname "prod-server-1"`
+- Create a token for a resource class given by its ID: 
+  `circleci runner token create 01234567-89ab-4cde-8f01-23456789abcd`
 - Output as JSON (includes the token value): 
   `circleci runner token create my-org/my-runner --json`
 

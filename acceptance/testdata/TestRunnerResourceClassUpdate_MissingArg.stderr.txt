@@ -1,1 +1,1 @@
-error: Required argument missing: <namespace/name>
+error: Required argument missing: <resource-class>

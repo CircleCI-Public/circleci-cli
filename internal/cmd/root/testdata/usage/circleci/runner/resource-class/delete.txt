@@ -1,4 +1,4 @@
-Usage:  circleci runner resource-class delete <namespace>/<name> [flags]
+Usage:  circleci runner resource-class delete <resource-class> [flags]
 
 Flags:
   -f, --force       skip confirmation prompt
