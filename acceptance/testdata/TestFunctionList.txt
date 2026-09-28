@@ -1,0 +1,5 @@
+# Published functions
+| Name                                              | Latest         | Description                                                   |
+| ------------------------------------------------- | -------------- | ------------------------------------------------------------- |
+| github.com/circleci-functions/setup-go            | v0.5.1-684fd5b | Install a Go toolchain and link it onto PATH for later steps. |
+| github.com/circleci-functions/setup-browser-tools | v0.1.0-f29f758 | Install browsers and browser-testing tools.                   |
