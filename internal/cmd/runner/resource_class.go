@@ -305,12 +305,12 @@ func newResourceClassUpdateCmd() *cobra.Command {
 	var jsonOut bool
 
 	cmd := &cobra.Command{
-		Use:   "update <namespace>/<name>",
+		Use:   "update <resource-class>",
 		Short: "Update a runner resource class",
 		Annotations: map[string]string{
 			"help:arguments": heredoc.Docf(`
-				The resource class to update, given in the form %[1]snamespace/name%[1]s,
-				where namespace is your organization name (for example, %[1]smy-org/my-runner%[1]s).
+				The resource class to update, as %[1]snamespace/name%[1]s where namespace is your
+				organization name (for example, %[1]smy-org/my-runner%[1]s), or as its ID.
 			`, "`"),
 		},
 		Long: heredoc.Doc(`
@@ -328,12 +328,15 @@ func newResourceClassUpdateCmd() *cobra.Command {
 			# Clear the description
 			$ circleci runner resource-class update my-org/my-runner --description ""
 
+			# Update a resource class by its ID
+			$ circleci runner resource-class update 01234567-89ab-4cde-8f01-23456789abcd --description "ARM runner"
+
 			# Update and output the result as JSON
 			$ circleci runner resource-class update my-org/my-runner --description "ARM runner" --json
 		`),
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if cliErr := cmdutil.RequireArgs(args, "namespace/name"); cliErr != nil {
+			if cliErr := cmdutil.RequireArgs(args, "resource-class"); cliErr != nil {
 				return cliErr
 			}
 			if !cmd.Flags().Changed("description") {
@@ -364,41 +367,22 @@ type resourceClassUpdateOutput struct {
 
 func runResourceClassUpdate(ctx context.Context, client *apiclient.Client,
 	resourceClass, description string, jsonOut bool) error {
-	if namespace, _, ok := strings.Cut(resourceClass, "/"); !ok || namespace == "" {
-		return clierrors.New("runner.malformed_resource_class", "Malformed resource class",
-			fmt.Sprintf("%q is not in namespace/name form.", resourceClass)).
-			WithSuggestions("Give the resource class as <namespace>/<name>, for example my-org/my-runner").
-			WithExitCode(clierrors.ExitBadArguments)
+	rc, err := resolveResourceClass(ctx, client, resourceClass)
+	if err != nil {
+		return err
 	}
 
-	rc, err := client.ResourceClassByName(ctx, resourceClass)
+	id, err := resourceClassUUID(rc)
 	if err != nil {
-		if errors.Is(err, apiclient.ErrResourceClassNotFound) {
-			return clierrors.New("runner.not_found", "Not found",
-				fmt.Sprintf("No runner resource class named %q.", resourceClass)).
-				WithSuggestions("List available resource classes with: circleci runner resource-class list").
-				WithExitCode(clierrors.ExitNotFound)
-		}
-		if httpcl.HasStatusCode(err, http.StatusNotFound) {
-			return runnerNotEnabledErr()
-		}
-		return apiErr(err, resourceClass)
-	}
-
-	id, err := uuid.Parse(rc.ID)
-	if err != nil {
-		return apiErr(err, resourceClass)
+		return err
 	}
 
 	updated, err := client.UpdateResourceClass(ctx, id, description)
 	if err != nil {
 		if httpcl.HasStatusCode(err, http.StatusNotFound) {
-			return clierrors.New("runner.not_found", "Not found",
-				fmt.Sprintf("No runner resource class named %q.", resourceClass)).
-				WithSuggestions("List available resource classes with: circleci runner resource-class list").
-				WithExitCode(clierrors.ExitNotFound)
+			return resourceClassNotFoundErr(rc.ResourceClass, false)
 		}
-		return apiErr(err, resourceClass)
+		return apiErr(err, rc.ResourceClass)
 	}
 
 	out := resourceClassUpdateOutput{
@@ -478,13 +462,13 @@ func newResourceClassDeleteCmd() *cobra.Command {
 	var jsonOut bool
 
 	cmd := &cobra.Command{
-		Use:     "delete <namespace>/<name>",
+		Use:     "delete <resource-class>",
 		Aliases: []string{"rm"},
 		Short:   "Delete a runner resource class",
 		Annotations: map[string]string{
 			"help:arguments": heredoc.Docf(`
-				The resource class to delete, given in the form %[1]snamespace/name%[1]s,
-				where namespace is your organization name (for example, %[1]smy-org/my-runner%[1]s).
+				The resource class to delete, as %[1]snamespace/name%[1]s where namespace is your
+				organization name (for example, %[1]smy-org/my-runner%[1]s), or as its ID.
 			`, "`"),
 			"destructiveHint": "true",
 		},
@@ -503,12 +487,12 @@ func newResourceClassDeleteCmd() *cobra.Command {
 			# Delete without confirmation
 			$ circleci runner resource-class delete my-org/my-runner --force
 
-			# Delete in a script, and report what was deleted
-			$ circleci runner resource-class delete my-org/my-runner --force --json
+			# Delete by ID in a script, and report what was deleted
+			$ circleci runner resource-class delete 01234567-89ab-4cde-8f01-23456789abcd --force --json
 		`),
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if cliErr := cmdutil.RequireArgs(args, "namespace/name"); cliErr != nil {
+			if cliErr := cmdutil.RequireArgs(args, "resource-class"); cliErr != nil {
 				return cliErr
 			}
 			ctx := cmd.Context()
@@ -533,11 +517,18 @@ type resourceClassDeleteOutput struct {
 
 func runResourceClassDelete(ctx context.Context, client *apiclient.Client,
 	resourceClass string, force, jsonOut bool) error {
-	if namespace, _, ok := strings.Cut(resourceClass, "/"); !ok || namespace == "" {
-		return clierrors.New("runner.malformed_resource_class", "Malformed resource class",
-			fmt.Sprintf("%q is not in namespace/name form.", resourceClass)).
-			WithSuggestions("Give the resource class as <namespace>/<name>, for example my-org/my-runner").
-			WithExitCode(clierrors.ExitBadArguments)
+	// Resolve before confirming, so the prompt and every message name the
+	// resource class by namespace/name even when it was given by ID, and an
+	// unknown one fails without asking first.
+	rc, err := resolveResourceClass(ctx, client, resourceClass)
+	if err != nil {
+		return err
+	}
+	resourceClass = rc.ResourceClass
+
+	id, err := resourceClassUUID(rc)
+	if err != nil {
+		return err
 	}
 
 	if err := cmdutil.ConfirmOrForce(ctx, iostream.Get(ctx), force,
@@ -550,25 +541,6 @@ func runResourceClassDelete(ctx context.Context, client *apiclient.Client,
 			WithExitCode(clierrors.ExitCancelled),
 	); err != nil {
 		return err
-	}
-
-	rc, err := client.ResourceClassByName(ctx, resourceClass)
-	if err != nil {
-		if errors.Is(err, apiclient.ErrResourceClassNotFound) {
-			return clierrors.New("runner.not_found", "Not found",
-				fmt.Sprintf("No runner resource class named %q.", resourceClass)).
-				WithSuggestions("List available resource classes with: circleci runner resource-class list").
-				WithExitCode(clierrors.ExitNotFound)
-		}
-		if httpcl.HasStatusCode(err, http.StatusNotFound) {
-			return runnerNotEnabledErr()
-		}
-		return apiErr(err, resourceClass)
-	}
-
-	id, err := uuid.Parse(rc.ID)
-	if err != nil {
-		return apiErr(err, resourceClass)
 	}
 
 	// The user has already confirmed (via --force or the prompt) that tokens
@@ -603,4 +575,72 @@ func runResourceClassDelete(ctx context.Context, client *apiclient.Client,
 
 	iostream.ErrPrintf(ctx, "%s Deleted resource class %s\n", iostream.SymbolOK(ctx), resourceClass)
 	return nil
+}
+
+// --- resolving a resource class ---
+
+// parseResourceClassRef checks, without calling the API, that resourceClass
+// names a resource class either by its UUID or as namespace/name. isID
+// reports which of the two it is.
+func parseResourceClassRef(resourceClass string) (id uuid.UUID, isID bool, err error) {
+	if id, err := uuid.Parse(resourceClass); err == nil {
+		return id, true, nil
+	}
+	if namespace, name, ok := strings.Cut(resourceClass, "/"); ok && namespace != "" && name != "" {
+		return uuid.Nil, false, nil
+	}
+	return uuid.Nil, false, clierrors.New("runner.malformed_resource_class", "Malformed resource class",
+		fmt.Sprintf("%q is neither a namespace/name resource class nor a resource class ID.", resourceClass)).
+		WithSuggestions(
+			"Give the resource class as <namespace>/<name>, for example my-org/my-runner, or as its ID",
+			"List available resource classes with: circleci runner resource-class list",
+		).
+		WithExitCode(clierrors.ExitBadArguments)
+}
+
+// resolveResourceClass looks up a resource class given either its UUID or its
+// namespace/name.
+func resolveResourceClass(ctx context.Context, client *apiclient.Client, resourceClass string) (*apiclient.ResourceClass, error) {
+	id, isID, err := parseResourceClassRef(resourceClass)
+	if err != nil {
+		return nil, err
+	}
+
+	var rc *apiclient.ResourceClass
+	if isID {
+		rc, err = client.GetResourceClassByID(ctx, id)
+	} else {
+		rc, err = client.ResourceClassByName(ctx, resourceClass)
+	}
+	if err == nil {
+		return rc, nil
+	}
+
+	if errors.Is(err, apiclient.ErrResourceClassNotFound) {
+		return nil, resourceClassNotFoundErr(resourceClass, isID)
+	}
+	if httpcl.HasStatusCode(err, http.StatusNotFound) {
+		return nil, runnerNotEnabledErr()
+	}
+	return nil, apiErr(err, resourceClass)
+}
+
+func resourceClassNotFoundErr(resourceClass string, isID bool) *clierrors.CLIError {
+	msg := fmt.Sprintf("No runner resource class named %q.", resourceClass)
+	if isID {
+		msg = fmt.Sprintf("No runner resource class with ID %q.", resourceClass)
+	}
+	return clierrors.New("runner.not_found", "Not found", msg).
+		WithSuggestions("List available resource classes with: circleci runner resource-class list").
+		WithExitCode(clierrors.ExitNotFound)
+}
+
+// resourceClassUUID parses a resolved resource class's ID, which the write
+// endpoints take as a UUID.
+func resourceClassUUID(rc *apiclient.ResourceClass) (uuid.UUID, error) {
+	id, err := uuid.Parse(rc.ID)
+	if err != nil {
+		return uuid.Nil, apiErr(err, rc.ResourceClass)
+	}
+	return id, nil
 }

@@ -14,7 +14,7 @@ Aliases: `circleci runner instance ls`
 | `--json`                  | Output as JSON                                                                    |
 | `--namespace string`      | Filter by namespace (organization)                                                |
 | `--org string`            | Organization slug (e.g. gh/myorg) or UUID; defaults to git remote                 |
-| `--resource-class string` | Filter by resource class (namespace/name)                                         |
+| `--resource-class string` | Filter by resource class (namespace/name or ID)                                   |
 
 Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `circleci --help`.
 
@@ -26,12 +26,12 @@ Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `ci
   `circleci runner instance list --org gh/my-org`
 - List instances for a specific resource class: 
   `circleci runner instance list --resource-class my-org/my-runner`
+- List instances for a resource class given by its ID: 
+  `circleci runner instance list --resource-class 01234567-89ab-4cde-8f01-23456789abcd`
 - Extract just the names: 
   `circleci runner instance list --json --jq '.[].name'`
 
 ## Details
-
-List CircleCI runner instances currently connected to your organization.
 
 STATUS is derived from last_connected_at (online under 2 minutes, idle
 under 30, offline beyond). BUSY says whether the instance holds a task.

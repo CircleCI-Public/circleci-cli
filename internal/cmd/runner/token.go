@@ -24,12 +24,10 @@ package runner
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"net/http"
 
 	"github.com/MakeNowJust/heredoc"
-	"github.com/google/uuid"
 	"github.com/spf13/cobra"
 
 	clierrors "github.com/CircleCI-Public/circleci-cli/clikit/errors"
@@ -171,38 +169,6 @@ func runTokenList(ctx context.Context, client *apiclient.Client, org, resourceCl
 	return printTokenList(ctx, out, resourceClass, jsonOut)
 }
 
-// resolveResourceClass looks up a resource class given either its UUID or its
-// namespace/name.
-func resolveResourceClass(ctx context.Context, client *apiclient.Client, resourceClass string) (*apiclient.ResourceClass, error) {
-	id, parseErr := uuid.Parse(resourceClass)
-	isID := parseErr == nil
-
-	var rc *apiclient.ResourceClass
-	var err error
-	if isID {
-		rc, err = client.GetResourceClassByID(ctx, id)
-	} else {
-		rc, err = client.ResourceClassByName(ctx, resourceClass)
-	}
-	if err == nil {
-		return rc, nil
-	}
-
-	if errors.Is(err, apiclient.ErrResourceClassNotFound) {
-		msg := fmt.Sprintf("No runner resource class named %q.", resourceClass)
-		if isID {
-			msg = fmt.Sprintf("No runner resource class with ID %q.", resourceClass)
-		}
-		return nil, clierrors.New("runner.not_found", "Not found", msg).
-			WithSuggestions("List available resource classes with: circleci runner resource-class list").
-			WithExitCode(clierrors.ExitNotFound)
-	}
-	if httpcl.HasStatusCode(err, http.StatusNotFound) {
-		return nil, runnerNotEnabledErr()
-	}
-	return nil, apiErr(err, resourceClass)
-}
-
 func printTokenList(ctx context.Context, out []tokenOutput, resourceClass string, jsonOut bool) error {
 	if jsonOut {
 		if out == nil {
@@ -239,15 +205,14 @@ func newTokenCreateCmd() *cobra.Command {
 		Annotations: map[string]string{
 			"help:arguments": heredoc.Docf(`
 				%[1]s<resource-class>%[1]s is the runner resource class to create a token for,
-				in the form %[1]snamespace/name%[1]s (for example, %[1]smy-org/my-runner%[1]s).
+				in the form %[1]snamespace/name%[1]s (for example, %[1]smy-org/my-runner%[1]s) or as its ID.
 			`, "`"),
 		},
 		Long: heredoc.Doc(`
 			Create a new authentication token for a runner resource class.
 
-			The token value is shown only once at creation time. Store it securely —
-			it cannot be retrieved afterwards. If lost, delete this token and create
-			a new one.
+			The token value is shown only once and cannot be retrieved afterwards.
+			Store it securely. If lost, delete this token and create a new one.
 
 			JSON fields: id, resource_class, nickname, created_at, token
 		`),
@@ -257,6 +222,9 @@ func newTokenCreateCmd() *cobra.Command {
 
 			# Create a token with a nickname
 			$ circleci runner token create my-org/my-runner --nickname "prod-server-1"
+
+			# Create a token for a resource class given by its ID
+			$ circleci runner token create 01234567-89ab-4cde-8f01-23456789abcd
 
 			# Output as JSON (includes the token value)
 			$ circleci runner token create my-org/my-runner --json
@@ -290,28 +258,19 @@ type tokenCreateOutput struct {
 }
 
 func runTokenCreate(ctx context.Context, client *apiclient.Client, resourceClass, nickname string, jsonOut bool) error {
-	rc, err := client.ResourceClassByName(ctx, resourceClass)
+	rc, err := resolveResourceClass(ctx, client, resourceClass)
 	if err != nil {
-		if errors.Is(err, apiclient.ErrResourceClassNotFound) {
-			return clierrors.New("runner.not_found", "Not found",
-				fmt.Sprintf("No runner resource class named %q.", resourceClass)).
-				WithSuggestions("List available resource classes with: circleci runner resource-class list").
-				WithExitCode(clierrors.ExitNotFound)
-		}
-		if httpcl.HasStatusCode(err, http.StatusNotFound) {
-			return runnerNotEnabledErr()
-		}
-		return apiErr(err, resourceClass)
+		return err
 	}
 
-	rcID, err := uuid.Parse(rc.ID)
+	rcID, err := resourceClassUUID(rc)
 	if err != nil {
-		return apiErr(err, resourceClass)
+		return err
 	}
 
-	tok, err := client.CreateRunnerTokenV3(ctx, rcID, resourceClass, nickname)
+	tok, err := client.CreateRunnerTokenV3(ctx, rcID, rc.ResourceClass, nickname)
 	if err != nil {
-		return apiErr(err, resourceClass)
+		return apiErr(err, rc.ResourceClass)
 	}
 
 	out := tokenCreateOutput{

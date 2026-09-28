@@ -1,0 +1,5 @@
+error: "linux-runner" is neither a namespace/name resource class nor a resource class ID.
+
+Suggestions:
+  • Give the resource class as <namespace>/<name>, for example my-org/my-runner, or as its ID
+  • List available resource classes with: circleci runner resource-class list

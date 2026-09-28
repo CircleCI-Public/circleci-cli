@@ -24,12 +24,10 @@ package runner
 
 import (
 	"context"
-	"errors"
 	"os"
 	"path/filepath"
 
 	"github.com/MakeNowJust/heredoc"
-	"github.com/google/uuid"
 	"github.com/spf13/cobra"
 
 	clierrors "github.com/CircleCI-Public/circleci-cli/clikit/errors"
@@ -53,7 +51,7 @@ func newConfigCmd() *cobra.Command {
 		Annotations: map[string]string{
 			"help:arguments": heredoc.Docf(`
 				%[1]s<resource-class>%[1]s is the runner resource class to generate config for,
-				in the form %[1]snamespace/name%[1]s (for example, %[1]smy-org/my-runner%[1]s).
+				in the form %[1]snamespace/name%[1]s (for example, %[1]smy-org/my-runner%[1]s) or as its ID.
 			`, "`"),
 		},
 		Long: heredoc.Doc(`
@@ -98,18 +96,31 @@ func newConfigCmd() *cobra.Command {
 				return cliErr
 			}
 
-			if tokenValue != "" {
+			// The config names the resource class by namespace/name, so one given
+			// by ID is looked up even when --token means no token is created.
+			_, isID, _ := parseResourceClassRef(opts.ResourceClass)
+			if tokenValue != "" && !isID {
 				opts.Token = tokenValue
 			} else {
 				client, err := cmdutil.LoadClient(ctx)
 				if err != nil {
 					return err
 				}
-				created, err := runConfigCreateToken(ctx, client, opts.ResourceClass, nickname)
+				rc, err := resolveResourceClass(ctx, client, opts.ResourceClass)
 				if err != nil {
 					return err
 				}
-				opts.Token = created
+				opts.ResourceClass = rc.ResourceClass
+
+				if tokenValue != "" {
+					opts.Token = tokenValue
+				} else {
+					created, err := runConfigCreateToken(ctx, client, rc, nickname)
+					if err != nil {
+						return err
+					}
+					opts.Token = created
+				}
 			}
 
 			body, err := runnerconfig.Render(target, opts)
@@ -211,26 +222,15 @@ func configWriteErr(err error) *clierrors.CLIError {
 		WithExitCode(clierrors.ExitGeneralError)
 }
 
-func runConfigCreateToken(ctx context.Context, client *apiclient.Client, resourceClass, nickname string) (string, error) {
-	rc, err := client.ResourceClassByName(ctx, resourceClass)
+func runConfigCreateToken(ctx context.Context, client *apiclient.Client, rc *apiclient.ResourceClass, nickname string) (string, error) {
+	rcID, err := resourceClassUUID(rc)
 	if err != nil {
-		if errors.Is(err, apiclient.ErrResourceClassNotFound) {
-			return "", clierrors.New("runner.not_found", "Not found",
-				"No runner resource class named "+resourceClass+".").
-				WithSuggestions("List available resource classes with: circleci runner resource-class list").
-				WithExitCode(clierrors.ExitNotFound)
-		}
-		return "", apiErr(err, resourceClass)
+		return "", err
 	}
 
-	rcID, err := uuid.Parse(rc.ID)
+	tok, err := client.CreateRunnerTokenV3(ctx, rcID, rc.ResourceClass, nickname)
 	if err != nil {
-		return "", apiErr(err, resourceClass)
-	}
-
-	tok, err := client.CreateRunnerTokenV3(ctx, rcID, resourceClass, nickname)
-	if err != nil {
-		return "", apiErr(err, resourceClass)
+		return "", apiErr(err, rc.ResourceClass)
 	}
 	return tok.Token, nil
 }

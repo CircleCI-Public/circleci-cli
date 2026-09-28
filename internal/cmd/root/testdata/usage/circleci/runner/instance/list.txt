@@ -6,5 +6,5 @@ Flags:
       --json                    Output as JSON
       --namespace string        Filter by namespace (organization)
       --org string              Organization slug (e.g. gh/myorg) or UUID; defaults to git remote
-      --resource-class string   Filter by resource class (namespace/name)
+      --resource-class string   Filter by resource class (namespace/name or ID)
   

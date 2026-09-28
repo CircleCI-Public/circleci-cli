@@ -65,8 +65,6 @@ func newInstanceListCmd() *cobra.Command {
 		Aliases: []string{"ls"},
 		Short:   "List connected runner instances",
 		Long: heredoc.Doc(`
-			List CircleCI runner instances currently connected to your organization.
-
 			STATUS is derived from last_connected_at (online under 2 minutes, idle
 			under 30, offline beyond). BUSY says whether the instance holds a task.
 			Hostname, IP and last-used time are not reported by the agents API.
@@ -83,6 +81,9 @@ func newInstanceListCmd() *cobra.Command {
 			# List instances for a specific resource class
 			$ circleci runner instance list --resource-class my-org/my-runner
 
+			# List instances for a resource class given by its ID
+			$ circleci runner instance list --resource-class 01234567-89ab-4cde-8f01-23456789abcd
+
 			# Extract just the names
 			$ circleci runner instance list --json --jq '.[].name'
 		`),
@@ -97,7 +98,7 @@ func newInstanceListCmd() *cobra.Command {
 	}
 
 	cmdutil.AddOrgFlag(cmd, &org, cmdutil.OrgFlag{DefaultsToGitRemote: true})
-	cmd.Flags().StringVar(&resourceClass, "resource-class", "", "Filter by resource class (namespace/name)")
+	cmd.Flags().StringVar(&resourceClass, "resource-class", "", "Filter by resource class (namespace/name or ID)")
 	cmd.Flags().StringVar(&namespace, "namespace", "", "Filter by namespace (organization)")
 	cmdutil.AddJSONFlag(cmd, &jsonOut)
 	cmdutil.AddJQFlag(cmd)
@@ -158,6 +159,19 @@ func runInstanceList(ctx context.Context, client *apiclient.Client,
 	)
 	switch {
 	case resourceClass != "":
+		// The agents endpoint filters by namespace/name only, so an ID is
+		// resolved first. A name is passed straight through.
+		_, isID, parseErr := parseResourceClassRef(resourceClass)
+		if parseErr != nil {
+			return parseErr
+		}
+		if isID {
+			rc, err := resolveResourceClass(ctx, client, resourceClass)
+			if err != nil {
+				return err
+			}
+			resourceClass = rc.ResourceClass
+		}
 		subject = resourceClass
 		agents, err = client.ListRunnerAgentsByResourceClass(ctx, resourceClass)
 	case namespace != "":

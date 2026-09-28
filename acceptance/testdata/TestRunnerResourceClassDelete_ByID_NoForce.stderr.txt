@@ -1,0 +1,4 @@
+error: Deleting resource class "my-org/linux-runner" is irreversible.
+
+Suggestions:
+  • Pass --force (-f) to skip this prompt in non-interactive mode
