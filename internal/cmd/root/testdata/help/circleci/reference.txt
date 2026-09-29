@@ -3924,16 +3924,17 @@ organization name (for example, `my-org/my-runner`), or as its ID.
 
 List runner resource classes
 
-List CircleCI runner resource classes.
+List CircleCI runner resource classes in an organization, a namespace, or by name.
 
 JSON fields: id, resource_class, description
 
-| Flag                 | Description                                                                       |
-| -------------------- | --------------------------------------------------------------------------------- |
-| `--jq string`        | Process values from the response using jq syntax (see `circleci help formatting`) |
-| `--json`             | Output as JSON                                                                    |
-| `--namespace string` | deprecated: no longer supported, use --org                                        |
-| `--org string`       | Organization slug (e.g. gh/myorg) or UUID; defaults to git remote                 |
+| Flag                      | Description                                                                       |
+| ------------------------- | --------------------------------------------------------------------------------- |
+| `--jq string`             | Process values from the response using jq syntax (see `circleci help formatting`) |
+| `--json`                  | Output as JSON                                                                    |
+| `--namespace string`      | Filter by namespace (organization)                                                |
+| `--org string`            | Organization slug (e.g. gh/myorg) or UUID; defaults to git remote                 |
+| `--resource-class string` | Filter by resource class (namespace/name or ID)                                   |
 
 
 **Aliases:**
@@ -3949,6 +3950,8 @@ JSON fields: id, resource_class, description
   `circleci runner resource-class list --org gh/my-org`
 - List resource classes for a specific organization (UUID): 
   `circleci runner resource-class list --org f22b6566-597d-46d5-ba74-99ef5bb3d85c`
+- List the resource classes in one namespace: 
+  `circleci runner resource-class list --namespace my-org`
 - Output as JSON: 
   `circleci runner resource-class list --org gh/my-org --json`
 

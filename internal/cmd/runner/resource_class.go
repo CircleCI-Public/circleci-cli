@@ -70,6 +70,7 @@ func newResourceClassCmd() *cobra.Command {
 func newResourceClassListCmd() *cobra.Command {
 	var org string
 	var namespace string
+	var resourceClass string
 	var jsonOut bool
 
 	cmd := &cobra.Command{
@@ -77,7 +78,7 @@ func newResourceClassListCmd() *cobra.Command {
 		Aliases: []string{"ls"},
 		Short:   "List runner resource classes",
 		Long: heredoc.Doc(`
-			List CircleCI runner resource classes.
+			List CircleCI runner resource classes in an organization, a namespace, or by name.
 
 			JSON fields: id, resource_class, description
 		`),
@@ -91,29 +92,28 @@ func newResourceClassListCmd() *cobra.Command {
 			# List resource classes for a specific organization (UUID)
 			$ circleci runner resource-class list --org f22b6566-597d-46d5-ba74-99ef5bb3d85c
 
+			# List the resource classes in one namespace
+			$ circleci runner resource-class list --namespace my-org
+
 			# Output as JSON
 			$ circleci runner resource-class list --org gh/my-org --json
 		`),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if namespace != "" {
-				return clierrors.New("runner.namespace_filter_unsupported", "--namespace is no longer supported",
-					"The API this command now uses cannot filter by a bare namespace.").
-					WithSuggestions("Use --org instead: circleci runner resource-class list --org <vcs>/<org>").
-					WithExitCode(clierrors.ExitBadArguments)
-			}
 			ctx := cmd.Context()
 			client, err := cmdutil.LoadClient(ctx)
 			if err != nil {
 				return err
 			}
-			return runResourceClassList(ctx, client, org, jsonOut)
+			return runResourceClassList(ctx, client, org, namespace, resourceClass, jsonOut)
 		},
 	}
 
 	cmdutil.AddOrgFlag(cmd, &org, cmdutil.OrgFlag{DefaultsToGitRemote: true})
-	cmd.Flags().StringVar(&namespace, "namespace", "", "deprecated: no longer supported, use --org")
+	cmd.Flags().StringVar(&namespace, "namespace", "", "Filter by namespace (organization)")
+	cmd.Flags().StringVar(&resourceClass, "resource-class", "", "Filter by resource class (namespace/name or ID)")
 	cmdutil.AddJSONFlag(cmd, &jsonOut)
 	cmdutil.AddJQFlag(cmd)
+	cmd.MarkFlagsMutuallyExclusive("org", "resource-class", "namespace")
 	return cmd
 }
 
@@ -123,18 +123,47 @@ type resourceClassOutput struct {
 	Description   string `json:"description"`
 }
 
-func runResourceClassList(ctx context.Context, client *apiclient.Client, org string, jsonOut bool) error {
-	orgID, err := cmdutil.ResolveOrgSlugOrID(ctx, client, org, "circleci runner resource-class list")
-	if err != nil {
-		return err
-	}
+func runResourceClassList(ctx context.Context, client *apiclient.Client,
+	org, namespace, resourceClass string, jsonOut bool) error {
 
-	classes, err := client.ListResourceClassesByOrg(ctx, orgID)
+	var (
+		classes []apiclient.ResourceClass
+		subject string
+		err     error
+	)
+	switch {
+	case resourceClass != "":
+		// The endpoint filters by namespace/name only, so an ID is resolved first.
+		_, isID, parseErr := parseResourceClassRef(resourceClass)
+		if parseErr != nil {
+			return parseErr
+		}
+		if isID {
+			rc, err := resolveResourceClass(ctx, client, resourceClass)
+			if err != nil {
+				return err
+			}
+			resourceClass = rc.ResourceClass
+		}
+		subject = resourceClass
+		classes, err = client.ListResourceClassesByClass(ctx, resourceClass)
+	case namespace != "":
+		subject = namespace
+		classes, err = client.ListResourceClassesByNamespace(ctx, namespace)
+	default:
+		var orgID uuid.UUID
+		orgID, err = cmdutil.ResolveOrgSlugOrID(ctx, client, org, "circleci runner resource-class list")
+		if err != nil {
+			return err
+		}
+		subject = orgID.String()
+		classes, err = client.ListResourceClassesByOrg(ctx, orgID)
+	}
 	if err != nil {
 		if httpcl.HasStatusCode(err, http.StatusNotFound) || httpcl.HasStatusCode(err, http.StatusForbidden) {
 			return runnerNotEnabledErr()
 		}
-		return apiErr(err, orgID.String())
+		return apiErr(err, subject)
 	}
 
 	out := make([]resourceClassOutput, len(classes))

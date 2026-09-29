@@ -127,11 +127,9 @@ func TestRunnerResourceClassList_Color(t *testing.T) {
 	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 }
 
-// --namespace has no V3 equivalent (the API only supports filter[org_id] and
-// filter[slug], the latter being a full namespace/name) so the flag is now a
-// clear, immediate error pointing at --org, rather than silently guessing.
 func TestRunnerResourceClassList_Namespace(t *testing.T) {
-	_, env := setupRunnerFake(t)
+	fake, env := setupRunnerFake(t)
+	fake.AddResourceClass(fakeRC("44444444-4444-4444-8444-444444444444", "other-org/other-runner", "Another namespace"))
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
@@ -140,9 +138,90 @@ func TestRunnerResourceClassList_Namespace(t *testing.T) {
 		WorkDir: t.TempDir(),
 	})
 
-	assert.Check(t, cmp.Equal(result.ExitCode, clierrors.ExitBadArguments))
+	assert.Check(t, cmp.Equal(result.ExitCode, 0))
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
 	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+}
+
+func TestRunnerResourceClassList_NamespaceJSON(t *testing.T) {
+	fake, env := setupRunnerFake(t)
+	fake.AddResourceClass(fakeRC("44444444-4444-4444-8444-444444444444", "other-org/other-runner", "Another namespace"))
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"runner", "resource-class", "list", "--namespace", "my-org", "--json"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+
+	var out []map[string]any
+	assert.NilError(t, json.Unmarshal([]byte(result.Stdout), &out))
+	slugs := make([]string, 0, len(out))
+	for _, rc := range out {
+		slug, _ := rc["resource_class"].(string)
+		slugs = append(slugs, slug)
+	}
+	assert.Check(t, cmp.DeepEqual(slugs, []string{"my-org/linux-runner", "my-org/arm-runner"}))
+
+	query := fake.LastRequest().URL.Query()
+	assert.Check(t, cmp.Equal(query.Get("filter[namespace]"), "my-org"))
+	assert.Check(t, cmp.Equal(query.Get("filter[org_id]"), ""))
+}
+
+func TestRunnerResourceClassList_NamespaceNoMatch(t *testing.T) {
+	_, env := setupRunnerFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"runner", "resource-class", "list", "--namespace", "empty-org"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 0))
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+}
+
+func TestRunnerResourceClassList_ResourceClass(t *testing.T) {
+	fake, env := setupRunnerFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"runner", "resource-class", "list", "--resource-class", "my-org/arm-runner"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 0))
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, cmp.Equal(fake.LastRequest().URL.Query().Get("filter[resource_class]"), "my-org/arm-runner"))
+}
+
+func TestRunnerResourceClassList_FiltersMutuallyExclusive(t *testing.T) {
+	_, env := setupRunnerFake(t)
+
+	for _, tc := range []struct {
+		name string
+		args []string
+	}{
+		{"NamespaceOrg", []string{"--namespace", "my-org", "--org", "gh/my-org"}},
+		{"NamespaceResourceClass", []string{"--namespace", "my-org", "--resource-class", "my-org/arm-runner"}},
+		{"OrgResourceClass", []string{"--org", "gh/my-org", "--resource-class", "my-org/arm-runner"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			result := binary.RunCLI(t, binary.RunOpts{
+				Binary:  binaryPath,
+				Args:    append([]string{"runner", "resource-class", "list"}, tc.args...),
+				Env:     env.Environ(),
+				WorkDir: t.TempDir(),
+			})
+
+			assert.Check(t, cmp.Equal(result.ExitCode, 1))
+			assert.Check(t, golden.String(result.Stderr, "TestRunnerResourceClassList_FiltersMutuallyExclusive_"+tc.name+".stderr.txt"))
+		})
+	}
 }
 
 func TestRunnerResourceClassList_NamespaceIgnoresAgents(t *testing.T) {
@@ -1386,6 +1465,31 @@ func TestRunnerInstanceList(t *testing.T) {
 	assert.Check(t, cmp.Equal(result.ExitCode, 0))
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
 	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+}
+
+func TestRunnerInstanceList_FiltersMutuallyExclusive(t *testing.T) {
+	_, env := setupRunnerFake(t)
+
+	for _, tc := range []struct {
+		name string
+		args []string
+	}{
+		{"NamespaceOrg", []string{"--namespace", "my-org", "--org", "gh/my-org"}},
+		{"NamespaceResourceClass", []string{"--namespace", "my-org", "--resource-class", "my-org/arm-runner"}},
+		{"OrgResourceClass", []string{"--org", "gh/my-org", "--resource-class", "my-org/arm-runner"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			result := binary.RunCLI(t, binary.RunOpts{
+				Binary:  binaryPath,
+				Args:    append([]string{"runner", "instance", "list"}, tc.args...),
+				Env:     env.Environ(),
+				WorkDir: t.TempDir(),
+			})
+
+			assert.Check(t, cmp.Equal(result.ExitCode, 1))
+			assert.Check(t, golden.String(result.Stderr, "TestRunnerInstanceList_FiltersMutuallyExclusive_"+tc.name+".stderr.txt"))
+		})
+	}
 }
 
 func TestRunnerInstanceList_Color(t *testing.T) {
