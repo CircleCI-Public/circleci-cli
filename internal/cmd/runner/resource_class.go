@@ -158,11 +158,11 @@ func runResourceClassList(ctx context.Context, client *apiclient.Client,
 		}
 		subject = orgID.String()
 		classes, err = client.ListResourceClassesByOrg(ctx, orgID)
-	}
-	if err != nil {
 		if httpcl.HasStatusCode(err, http.StatusNotFound) {
 			return orgNotAccessibleErr(orgID)
 		}
+	}
+	if err != nil {
 		if httpcl.HasStatusCode(err, http.StatusForbidden) {
 			return runnerNotEnabledErr()
 		}
