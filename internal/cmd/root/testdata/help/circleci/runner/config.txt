@@ -11,14 +11,14 @@ in the form `namespace/name` (for example, `my-org/my-runner`) or as its ID.
 
 ## Flags
 
-| Flag                         | Description                                                                           |
-| ---------------------------- | ------------------------------------------------------------------------------------- |
-| `--name string`              | Runner name, machine only (default: hostname)                                         |
-| `--nickname string`          | Nickname for the new token                                                            |
-| `-o, --output string`        | Write config to this file instead of stdout                                           |
-| `--product string`           | Runner product: machine\|container\|provisioner (default machine, prompts when unset) |
-| `--token string`             | Use an existing token value instead of creating a new one                             |
-| `--working-directory string` | Job working directory, machine only                                                   |
+| Flag                         | Description                                                                                   |
+| ---------------------------- | --------------------------------------------------------------------------------------------- |
+| `--name string`              | Runner name, machine only (default: hostname)                                                 |
+| `--nickname string`          | Nickname for the new token                                                                    |
+| `-o, --output string`        | Write config to this file instead of stdout                                                   |
+| `--product string`           | Runner product: machine\|container\|machineOrchestrator (default machine, prompts when unset) |
+| `--token string`             | Use an existing token value instead of creating a new one                                     |
+| `--working-directory string` | Job working directory, machine only                                                           |
 
 Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `circleci --help`.
 
@@ -37,5 +37,5 @@ Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `ci
 
 Generate the configuration a self-hosted runner needs to start. --product
 machine (the default) emits an agent circleci-runner-config.yaml for machine
-runner 3 (circleci-runner 3.x); container and provisioner emit Helm values.
+runner 3 (circleci-runner 3.x); container and machineOrchestrator emit Helm values.
 
