@@ -75,9 +75,28 @@ type RunnerAgent struct {
 // ListResourceClassesByOrg returns the resource classes for an organization,
 // identified by its UUID, via the v3 filter[org_id] endpoint.
 func (c *Client) ListResourceClassesByOrg(ctx context.Context, orgID uuid.UUID) ([]ResourceClass, error) {
+	return c.listResourceClasses(ctx, "org_id", orgID.String())
+}
+
+// ListResourceClassesByNamespace returns every resource class in a namespace via the v3
+// filter[namespace] endpoint.
+func (c *Client) ListResourceClassesByNamespace(ctx context.Context, namespace string) ([]ResourceClass, error) {
+	return c.listResourceClasses(ctx, "namespace", namespace)
+}
+
+// ListResourceClassesByClass returns the single resource class named by its namespace/name via
+// the v3 filter[resource_class] endpoint. The server answers 404 when the class does not exist
+// or the caller cannot view it.
+func (c *Client) ListResourceClassesByClass(ctx context.Context, resourceClass string) ([]ResourceClass, error) {
+	return c.listResourceClasses(ctx, "resource_class", resourceClass)
+}
+
+// listResourceClasses calls GET /api/v3/runner/resource-classes under one filter, which the
+// endpoint requires exactly one of.
+func (c *Client) listResourceClasses(ctx context.Context, filter, value string) ([]ResourceClass, error) {
 	var resp v3List[v3ResourceClassItem]
 	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodGet, "/api/v3/runner/resource-classes",
-		filterParam("org_id", orgID.String()),
+		filterParam(filter, value),
 		httpcl.JSONDecoder(&resp),
 	))
 	if err != nil {
