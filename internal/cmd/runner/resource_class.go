@@ -131,7 +131,10 @@ func runResourceClassList(ctx context.Context, client *apiclient.Client, org str
 
 	classes, err := client.ListResourceClassesByOrg(ctx, orgID)
 	if err != nil {
-		if httpcl.HasStatusCode(err, http.StatusNotFound) || httpcl.HasStatusCode(err, http.StatusForbidden) {
+		if httpcl.HasStatusCode(err, http.StatusNotFound) {
+			return orgNotAccessibleErr(orgID)
+		}
+		if httpcl.HasStatusCode(err, http.StatusForbidden) {
 			return runnerNotEnabledErr()
 		}
 		return apiErr(err, orgID.String())
@@ -251,8 +254,11 @@ func runResourceClassCreate(ctx context.Context, client *apiclient.Client,
 
 	rc, err := client.CreateResourceClass(ctx, orgID, resourceClass, description)
 	if err != nil {
-		if httpcl.HasStatusCode(err, http.StatusForbidden) {
-			return resourceClassOrgMismatchErr(orgID, resourceClass)
+		if httpcl.HasStatusCode(err, http.StatusNotFound) {
+			return orgNotAccessibleErr(orgID)
+		}
+		if isAdminRequired(err) {
+			return resourceClassCreateForbiddenErr(orgID, resourceClass)
 		}
 		return apiErr(err, resourceClass)
 	}
@@ -438,19 +444,17 @@ func tokenValueMissingErr(resourceClass, tokenID string) *clierrors.CLIError {
 		WithExitCode(clierrors.ExitAPIError)
 }
 
-// resourceClassOrgMismatchErr reports a 403 from create. The server's response can't
-// distinguish "not an admin of this org" from "the namespace belongs to a different
-// org" (see requireNamespaceOwnedBy in runner-admin) -- the CLI names both possible
-// causes since it can't tell either.
-func resourceClassOrgMismatchErr(orgID uuid.UUID, resourceClass string) *clierrors.CLIError {
-	namespace, _, _ := strings.Cut(resourceClass, "/")
+// resourceClassCreateForbiddenErr reports the "not permitted" 403 from create. The caller is
+// known to be a member of the org (a non-member gets a 404). The server sends the same 403
+// whether they lack the admin role or the namespace belongs to a different org (see
+// requireNamespaceOwnedBy in runner-admin), but the message names only the admin role so
+// the CLI never confirms that a namespace is in use by another organization.
+func resourceClassCreateForbiddenErr(orgID uuid.UUID, resourceClass string) *clierrors.CLIError {
 	return clierrors.New("runner.create_forbidden", "Not permitted",
-		fmt.Sprintf("Organization %s is not permitted to create %q. Either your token lacks admin "+
-			"access to this organization, or the namespace %q belongs to a different organization.",
-			orgID, resourceClass, namespace)).
+		fmt.Sprintf("Not permitted to create %q in organization %s. You do not have the admin "+
+			"role in this organization.", resourceClass, orgID)).
 		WithSuggestions(
-			"Confirm your token has admin access to the target organization",
-			"Confirm the namespace belongs to the organization given by --org",
+			"Ask an organization admin to create it, or to grant you the admin role",
 		).
 		WithExitCode(clierrors.ExitAPIError)
 }
@@ -626,9 +630,13 @@ func resolveResourceClass(ctx context.Context, client *apiclient.Client, resourc
 }
 
 func resourceClassNotFoundErr(resourceClass string, isID bool) *clierrors.CLIError {
-	msg := fmt.Sprintf("No runner resource class named %q.", resourceClass)
+	// The API answers 404 both for a resource class that does not exist and for
+	// one in an organization the caller is not a member of, so name both.
+	msg := fmt.Sprintf("No runner resource class named %q, or it belongs to an organization "+
+		"your token cannot access.", resourceClass)
 	if isID {
-		msg = fmt.Sprintf("No runner resource class with ID %q.", resourceClass)
+		msg = fmt.Sprintf("No runner resource class with ID %q, or it belongs to an organization "+
+			"your token cannot access.", resourceClass)
 	}
 	return clierrors.New("runner.not_found", "Not found", msg).
 		WithSuggestions("List available resource classes with: circleci runner resource-class list").

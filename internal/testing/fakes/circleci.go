@@ -110,7 +110,8 @@ type CircleCI struct {
 	runnerTokenCreateBody     any
 	deletedTokens             map[string]bool // token id → deleted
 	deletedRCs                map[string]bool // resource class → deleted
-	forbiddenRunnerOrgs       map[string]bool // org id → answer 403 on runner resource-class list
+	hiddenRunnerOrgs          map[string]bool // org id → caller is not a member: org-scoped runner calls 404
+	runnerViewOnly            bool            // caller can view runners but is not an admin: writes 403
 	resourceClassDeleteStatus int             // 0 = default found/tokens-exist logic
 	resourceClassDeleteBody   any
 
@@ -299,7 +300,7 @@ func NewCircleCI(t *testing.T, tokens ...string) *CircleCI {
 		runnerAgents:                      []RunnerAgent{},
 		deletedTokens:                     map[string]bool{},
 		deletedRCs:                        map[string]bool{},
-		forbiddenRunnerOrgs:               map[string]bool{},
+		hiddenRunnerOrgs:                  map[string]bool{},
 		followedProjects:                  []FollowedProject{},
 		followedSlugs:                     map[string]bool{},
 		envVars:                           map[string][]EnvVar{},
@@ -1843,32 +1844,67 @@ func runnerAgentEntity(a RunnerAgent, rcID string) map[string]any {
 
 // --- Runner handlers ---
 
-// resourceClassForbiddenBody is the error body returned for both the
-// org-scoped list 403 and the namespace/org mismatch 403 on create.
+// resourceClassForbiddenBody is the error body runner-admin returns both for an
+// org member without the admin role and for the namespace/org mismatch on create.
 func resourceClassForbiddenBody() map[string]any {
-	return map[string]any{
-		"error": map[string]any{"title": "Not permitted to perform this action for this organization."},
+	return runnerErrorBody("Not permitted to perform this action for this organization.")
+}
+
+// runnerErrorBody renders a runner-admin v3 error envelope with the given title.
+func runnerErrorBody(title string) map[string]any {
+	return map[string]any{"error": map[string]any{"title": title}}
+}
+
+// runnerNotFound writes runner-admin's 404 with the given title.
+func runnerNotFound(w http.ResponseWriter, r *http.Request, title string) {
+	render.Status(r, http.StatusNotFound)
+	render.JSON(w, r, runnerErrorBody(title))
+}
+
+// rejectRunnerWrite answers a write with runner-admin's 403 when SetRunnerViewOnly
+// is in effect, reporting whether it did. Handlers call it only once the target is
+// known to exist, since runner-admin answers 404 for a missing one first.
+func (f *CircleCI) rejectRunnerWrite(w http.ResponseWriter, r *http.Request) bool {
+	f.mu.RLock()
+	viewOnly := f.runnerViewOnly
+	f.mu.RUnlock()
+	if !viewOnly {
+		return false
 	}
+	render.Status(r, http.StatusForbidden)
+	render.JSON(w, r, resourceClassForbiddenBody())
+	return true
+}
+
+// runnerResourceClassExists reports whether a live (not deleted) resource class
+// has the given ID.
+func (f *CircleCI) runnerResourceClassExists(id string) bool {
+	f.mu.RLock()
+	defer f.mu.RUnlock()
+	for _, rc := range f.resourceClasses {
+		if rc.ID == id && !f.deletedRCs[rc.Slug] {
+			return true
+		}
+	}
+	return false
 }
 
 // handleListResourceClassesV3 serves GET /api/v3/runner/resource-classes, which
-// accepts filter[slug]=namespace/name and/or filter[org_id]=, and returns a v3
-// collection envelope. A filter[org_id] naming an org registered via
-// ForbidRunnerOrg answers 403, simulating a token that cannot view that
-// organization's runners.
+// accepts filter[slug]=namespace/name or filter[org_id]=, and returns a v3
+// collection envelope. As in runner-admin, a filter[slug] matching nothing is a
+// 404, and a filter[org_id] naming an org registered via HideRunnerOrg is a 404.
 func (f *CircleCI) handleListResourceClassesV3(w http.ResponseWriter, r *http.Request) {
 	slug := r.URL.Query().Get("filter[slug]")
 	orgID := r.URL.Query().Get("filter[org_id]")
 
 	f.mu.RLock()
-	forbidden := orgID != "" && f.forbiddenRunnerOrgs[orgID]
+	hidden := orgID != "" && f.hiddenRunnerOrgs[orgID]
 	all := f.resourceClasses
 	deleted := f.deletedRCs
 	f.mu.RUnlock()
 
-	if forbidden {
-		render.Status(r, http.StatusForbidden)
-		render.JSON(w, r, resourceClassForbiddenBody())
+	if hidden {
+		runnerNotFound(w, r, "Organization not found.")
 		return
 	}
 
@@ -1890,6 +1926,10 @@ func (f *CircleCI) handleListResourceClassesV3(w http.ResponseWriter, r *http.Re
 				"description":    rc.Description,
 			},
 		})
+	}
+	if slug != "" && len(items) == 0 {
+		runnerNotFound(w, r, "Resource class not found.")
+		return
 	}
 	render.JSON(w, r, map[string]any{"data": items})
 }
@@ -1921,12 +1961,22 @@ func (f *CircleCI) handleGetResourceClassV3(w http.ResponseWriter, r *http.Reque
 	render.JSON(w, r, map[string]any{"message": "Not Found"})
 }
 
-// ForbidRunnerOrg makes GET /runner/resource-classes?filter[org_id]=<orgID> answer
-// with a 403, simulating a token that cannot view that organization's runners.
-func (f *CircleCI) ForbidRunnerOrg(orgID string) {
+// HideRunnerOrg simulates a caller who is not a member of orgID: listing its
+// resource classes and creating one in it both answer 404, as runner-admin does
+// so that non-members cannot tell whether the org exists.
+func (f *CircleCI) HideRunnerOrg(orgID string) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	f.forbiddenRunnerOrgs[orgID] = true
+	f.hiddenRunnerOrgs[orgID] = true
+}
+
+// SetRunnerViewOnly simulates a caller who can view the org's runners but does
+// not hold its admin role: every runner write to an existing target answers
+// runner-admin's 403.
+func (f *CircleCI) SetRunnerViewOnly() {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.runnerViewOnly = true
 }
 
 // handleCreateResourceClassV3 serves POST /api/v3/runner/resource-classes. It
@@ -1957,6 +2007,18 @@ func (f *CircleCI) handleCreateResourceClassV3(w http.ResponseWriter, r *http.Re
 	desc := body.Data.Attributes.Description
 	orgID := body.Data.References.Org.ID
 	namespace, _, _ := strings.Cut(slug, "/")
+
+	// runner-admin authorizes the org before it checks namespace ownership.
+	f.mu.RLock()
+	hidden := f.hiddenRunnerOrgs[orgID]
+	f.mu.RUnlock()
+	if hidden {
+		runnerNotFound(w, r, "Organization not found.")
+		return
+	}
+	if f.rejectRunnerWrite(w, r) {
+		return
+	}
 
 	f.mu.Lock()
 	mismatch := false
@@ -2005,6 +2067,9 @@ func (f *CircleCI) handleUpdateResourceClass(w http.ResponseWriter, r *http.Requ
 	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
 		render.Status(r, http.StatusBadRequest)
 		render.JSON(w, r, map[string]any{"message": "invalid body"})
+		return
+	}
+	if f.runnerResourceClassExists(id) && f.rejectRunnerWrite(w, r) {
 		return
 	}
 	f.mu.Lock()
@@ -2070,6 +2135,9 @@ func (f *CircleCI) handleDeleteResourceClassV3(w http.ResponseWriter, r *http.Re
 // forced), and success logic shared by handleDeleteResourceClassV3.
 func (f *CircleCI) deleteResourceClass(w http.ResponseWriter, r *http.Request, force bool) {
 	id := chi.URLParam(r, "id")
+	if f.runnerResourceClassExists(id) && f.rejectRunnerWrite(w, r) {
+		return
+	}
 	f.mu.Lock()
 	found, hasTokens := false, false
 	for _, rc := range f.resourceClasses {
@@ -2247,16 +2315,24 @@ func (f *CircleCI) handleListRunnerTokensV3(w http.ResponseWriter, r *http.Reque
 
 func (f *CircleCI) handleCreateRunnerTokenV3(w http.ResponseWriter, r *http.Request) {
 	var body struct {
-		References struct {
-			ResourceClass struct {
-				ID string `json:"id"`
-			} `json:"resource_class"`
-		} `json:"references"`
-		Nickname string `json:"nickname"`
+		Data struct {
+			Attributes struct {
+				Nickname string `json:"nickname"`
+			} `json:"attributes"`
+			References struct {
+				ResourceClass struct {
+					ID string `json:"id"`
+				} `json:"resource_class"`
+			} `json:"references"`
+		} `json:"data"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+	// runner-admin rejects unknown members, so a body outside the data envelope
+	// is a 400 rather than a token with an empty nickname.
+	dec := json.NewDecoder(r.Body)
+	dec.DisallowUnknownFields()
+	if err := dec.Decode(&body); err != nil {
 		render.Status(r, http.StatusBadRequest)
-		render.JSON(w, r, map[string]any{"message": "invalid body"})
+		render.JSON(w, r, runnerErrorBody("Unknown Field: "+err.Error()))
 		return
 	}
 
@@ -2272,7 +2348,7 @@ func (f *CircleCI) handleCreateRunnerTokenV3(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	rcID := body.References.ResourceClass.ID
+	rcID := body.Data.References.ResourceClass.ID
 	f.mu.RLock()
 	var rcSlug string
 	for _, rc := range f.resourceClasses {
@@ -2283,10 +2359,14 @@ func (f *CircleCI) handleCreateRunnerTokenV3(w http.ResponseWriter, r *http.Requ
 	}
 	f.mu.RUnlock()
 
+	if rcSlug != "" && f.rejectRunnerWrite(w, r) {
+		return
+	}
+
 	tok := RunnerToken{
 		ID:            fmt.Sprintf("tok-%s", rcSlug),
 		ResourceClass: rcSlug,
-		Nickname:      body.Nickname,
+		Nickname:      body.Data.Attributes.Nickname,
 		CreatedAt:     "2026-01-01T00:00:00Z",
 		Token:         "fake-runner-token-value",
 	}
@@ -2312,14 +2392,17 @@ func (f *CircleCI) handleDeleteRunnerTokenV3(w http.ResponseWriter, r *http.Requ
 			break
 		}
 	}
-	if found {
+	viewOnly := f.runnerViewOnly
+	if found && !viewOnly {
 		f.deletedTokens[id] = true
 	}
 	f.mu.Unlock()
 
 	if !found {
-		render.Status(r, http.StatusNotFound)
-		render.JSON(w, r, map[string]any{"message": "not found"})
+		runnerNotFound(w, r, "Token not found.")
+		return
+	}
+	if f.rejectRunnerWrite(w, r) {
 		return
 	}
 	render.JSON(w, r, map[string]any{"message": "Deleted."})

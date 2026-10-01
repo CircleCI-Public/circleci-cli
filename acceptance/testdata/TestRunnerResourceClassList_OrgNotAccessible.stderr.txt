@@ -1,0 +1,5 @@
+error: Organization f22b6566-597d-46d5-ba74-99ef5bb3d85c was not found, or your token is not a member of it.
+
+Suggestions:
+  • Check the organization given by --org
+  • Confirm which account the CLI is using with: circleci auth me

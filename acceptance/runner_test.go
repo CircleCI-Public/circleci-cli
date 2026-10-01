@@ -214,11 +214,11 @@ func TestRunnerResourceClassList_JSON_Color(t *testing.T) {
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".json"))
 }
 
-// A filter[org_id] naming an org the token cannot view answers 403, which maps
-// to the same runnerNotEnabledErr as a 404 would.
-func TestRunnerResourceClassList_OrgForbidden(t *testing.T) {
+// A filter[org_id] naming an org the caller is not a member of answers 404, and
+// the CLI cannot tell that apart from an org that does not exist, this is intentional.
+func TestRunnerResourceClassList_OrgNotAccessible(t *testing.T) {
 	fake, env := setupRunnerFake(t)
-	fake.ForbidRunnerOrg(testRunnerOrgID)
+	fake.HideRunnerOrg(testRunnerOrgID)
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
@@ -227,7 +227,7 @@ func TestRunnerResourceClassList_OrgForbidden(t *testing.T) {
 		WorkDir: t.TempDir(),
 	})
 
-	assert.Check(t, cmp.Equal(result.ExitCode, clierrors.ExitAPIError))
+	assert.Check(t, cmp.Equal(result.ExitCode, clierrors.ExitNotFound))
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
 	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 }
@@ -1205,7 +1205,7 @@ func TestRunnerTokenCreate(t *testing.T) {
 				"Authorization": {"Bearer test-token"},
 				"User-Agent":    {httpcl.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
 			},
-			Body: new(`{"nickname":"my-server","references":{"resource_class":{"id":"11111111-1111-4111-8111-111111111111"}}}`),
+			Body: new(`{"data":{"attributes":{"nickname":"my-server"},"references":{"resource_class":{"id":"11111111-1111-4111-8111-111111111111"}}}}`),
 		}, ignoreCommonHeaders))
 	})
 }
@@ -2169,7 +2169,7 @@ func TestRunnerTokenCreate_ByID(t *testing.T) {
 		assert.Check(t, cmp.Equal(reqs[1].Method, http.MethodPost))
 		assert.Check(t, cmp.Equal(reqs[1].URL.Path, "/api/v3/runner/tokens"))
 		assert.Check(t, cmp.DeepEqual(reqs[1].Body,
-			new(`{"nickname":"my-server","references":{"resource_class":{"id":"`+testLinuxRCID+`"}}}`)))
+			new(`{"data":{"attributes":{"nickname":"my-server"},"references":{"resource_class":{"id":"`+testLinuxRCID+`"}}}}`)))
 	})
 
 	t.Run("check output names the resource class", func(t *testing.T) {
@@ -2383,4 +2383,117 @@ func TestRunnerResourceClassDelete_MalformedResourceClass(t *testing.T) {
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
 	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 	assert.Check(t, cmp.Len(fake.AllRequests(), 0))
+}
+
+// --- permissions ---
+
+// An org member who can view runners but lacks the admin role gets runner-admin's
+// 403 on every write, which must read as "admin required", not "not found".
+func TestRunner_NotAdmin(t *testing.T) {
+	tests := []struct {
+		name string
+		args []string
+	}{
+		{name: "resource-class update", args: []string{"runner", "resource-class", "update", "my-org/linux-runner", "--description", "New desc"}},
+		{name: "resource-class delete", args: []string{"runner", "resource-class", "delete", "my-org/linux-runner", "--force"}},
+		{name: "token create", args: []string{"runner", "token", "create", "my-org/linux-runner"}},
+		{name: "token delete", args: []string{"runner", "token", "delete", "tok-id-1", "--force"}},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			fake, env := setupRunnerFake(t)
+			fake.SetRunnerViewOnly()
+
+			result := binary.RunCLI(t, binary.RunOpts{
+				Binary:  binaryPath,
+				Args:    tc.args,
+				Env:     env.Environ(),
+				WorkDir: t.TempDir(),
+			})
+
+			assert.Check(t, cmp.Equal(result.ExitCode, clierrors.ExitAPIError))
+			assert.Check(t, cmp.Contains(result.Stderr, "requires the admin role"))
+			assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+			assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+		})
+	}
+}
+
+// Creating in an org as a member without the admin role names both causes the
+// server's 403
+func TestRunnerResourceClassCreate_NotAdmin(t *testing.T) {
+	fake, env := setupRunnerFake(t)
+	fake.SetRunnerViewOnly()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"runner", "resource-class", "create", "my-org/new-runner", "--org", testRunnerOrgID},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, clierrors.ExitAPIError))
+	assert.Check(t, cmp.Contains(result.Stderr, "You do not have the admin role"))
+	// Naming the namespace as a possible cause would confirm it is in use by another org.
+	mentionsNamespace := strings.Contains(result.Stderr, "namespace")
+	assert.Check(t, !mentionsNamespace, "error discloses namespace ownership: %s", result.Stderr)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+}
+
+// A caller outside the org gets a 404 on create, since runner-admin will not
+// reveal whether the org exists.
+func TestRunnerResourceClassCreate_OrgNotAccessible(t *testing.T) {
+	fake, env := setupRunnerFake(t)
+	fake.HideRunnerOrg(testRunnerOrgID)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"runner", "resource-class", "create", "my-org/new-runner", "--org", testRunnerOrgID},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, clierrors.ExitNotFound))
+	assert.Check(t, cmp.Contains(result.Stderr, "your token is not a member of it"))
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+}
+
+func TestRunnerTokenList_OrgNotAccessible(t *testing.T) {
+	fake, env := setupRunnerFake(t)
+	fake.HideRunnerOrg(testRunnerOrgID)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"runner", "token", "list", "--org", testRunnerOrgID},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, clierrors.ExitNotFound))
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+}
+
+// A 403 that is not the admin-role denial, such as the token limit, keeps the
+// server's own explanation rather than being reported as a missing role.
+func TestRunnerTokenCreate_LimitReached(t *testing.T) {
+	fake, env := setupRunnerFake(t)
+	fake.SetRunnerTokenCreateResponse(http.StatusForbidden, map[string]any{
+		"error": map[string]any{"title": "Resource class token limit reached."},
+	})
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"runner", "token", "create", "my-org/linux-runner"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, clierrors.ExitAPIError))
+	assert.Check(t, cmp.Contains(result.Stderr, "Resource class token limit reached."))
+	assert.Check(t, !strings.Contains(result.Stderr, "admin role"), "a limit 403 must not be reported as a missing role")
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 }
