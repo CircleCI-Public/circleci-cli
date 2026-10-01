@@ -1,4 +1,4 @@
-error: No runner resource class with ID "99999999-9999-4999-8999-999999999999".
+error: No runner resource class with ID "99999999-9999-4999-8999-999999999999", or it belongs to an organization your token cannot access.
 
 Suggestions:
   • List available resource classes with: circleci runner resource-class list

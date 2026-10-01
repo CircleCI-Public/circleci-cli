@@ -1,0 +1,7 @@
+error: You can view "my-org/linux-runner", but changing it requires the admin role in the organization that owns it. Creating, updating and deleting runner resource classes and tokens is limited to organization admins.
+
+Suggestions:
+  • Ask an organization admin to make the change, or to grant you the admin role
+  • Confirm which account the CLI is using with: circleci auth me
+
+Reference: https://circleci.com/docs/guides/execution-runner/runner-overview/

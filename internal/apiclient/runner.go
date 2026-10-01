@@ -138,7 +138,7 @@ func (c *Client) CreateResourceClass(ctx context.Context, orgID uuid.UUID, resou
 
 // GetResourceClassBySlug looks up a single resource class by its namespace/name slug via the
 // v3 filter[slug] endpoint. Returns ErrResourceClassNotFound when the class does not exist or
-// the caller is not authorized.
+// belongs to an organization the caller cannot view.
 func (c *Client) GetResourceClassBySlug(ctx context.Context, slug string) (*ResourceClass, error) {
 	var resp struct {
 		Data []v3ResourceClassItem `json:"data"`
@@ -148,6 +148,9 @@ func (c *Client) GetResourceClassBySlug(ctx context.Context, slug string) (*Reso
 		httpcl.JSONDecoder(&resp),
 	))
 	if err != nil {
+		if httpcl.HasStatusCode(err, http.StatusNotFound) {
+			return nil, fmt.Errorf("%w: %q", ErrResourceClassNotFound, slug)
+		}
 		return nil, err
 	}
 	if len(resp.Data) == 0 {
@@ -304,10 +307,14 @@ func (c *Client) ListRunnerTokensV3(ctx context.Context, resourceClass string) (
 // the V3 /runner/tokens endpoint. The ResourceClass field is filled from rcSlug.
 func (c *Client) CreateRunnerTokenV3(ctx context.Context, rcID uuid.UUID, rcSlug, nickname string) (*RunnerToken, error) {
 	body := map[string]any{
-		"references": map[string]any{
-			"resource_class": map[string]any{"id": rcID.String()},
+		"data": map[string]any{
+			"attributes": map[string]any{
+				"nickname": nickname,
+			},
+			"references": map[string]any{
+				"resource_class": map[string]any{"id": rcID.String()},
+			},
 		},
-		"nickname": nickname,
 	}
 	var resp struct {
 		Data v3RunnerTokenItem `json:"data"`

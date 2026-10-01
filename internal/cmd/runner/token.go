@@ -143,7 +143,7 @@ func runTokenList(ctx context.Context, client *apiclient.Client, org, resourceCl
 		classes, err := client.ListResourceClassesByOrg(ctx, orgID)
 		if err != nil {
 			if httpcl.HasStatusCode(err, http.StatusNotFound) {
-				return runnerNotEnabledErr()
+				return orgNotAccessibleErr(orgID)
 			}
 			return apiErr(err, orgID.String())
 		}
@@ -369,6 +369,9 @@ func runTokenDelete(ctx context.Context, client *apiclient.Client,
 	}
 
 	if err := client.DeleteRunnerTokenV3(ctx, tokenID); err != nil {
+		if httpcl.HasStatusCode(err, http.StatusNotFound) {
+			return tokenNotFoundErr(tokenID)
+		}
 		return apiErr(err, tokenID)
 	}
 
@@ -378,4 +381,14 @@ func runTokenDelete(ctx context.Context, client *apiclient.Client,
 
 	iostream.Printf(ctx, "Deleted token: %s\n", tokenID)
 	return nil
+}
+
+// tokenNotFoundErr reports a 404 for a token ID. The API answers 404 both for a
+// token that does not exist and for one in an organization the caller is not a
+// member of, so name both.
+func tokenNotFoundErr(tokenID string) *clierrors.CLIError {
+	return clierrors.New("runner.token_not_found", "Token not found",
+		fmt.Sprintf("No runner token with ID %q, or it belongs to an organization your token cannot access.", tokenID)).
+		WithSuggestions("List tokens with: circleci runner token list --resource-class <namespace/name>").
+		WithExitCode(clierrors.ExitNotFound)
 }

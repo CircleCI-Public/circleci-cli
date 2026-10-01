@@ -1,9 +1,9 @@
 {
   "error": true,
-  "code": "runner.not_found",
-  "message": "No runner resource found for \"tok-id-nope\".\nAPI: {\"message\":\"not found\"}\n",
+  "code": "runner.token_not_found",
+  "message": "No runner token with ID \"tok-id-nope\", or it belongs to an organization your token cannot access.",
   "suggestions": [
-    "List available resource classes with: circleci runner resource-class list"
+    "List tokens with: circleci runner token list --resource-class \u003cnamespace/name\u003e"
   ],
   "exit_code": 5
 }
