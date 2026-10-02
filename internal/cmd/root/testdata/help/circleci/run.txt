@@ -15,6 +15,7 @@ Trigger, watch and cancel pipeline runs
 | Command   | Description                                         |
 | --------- | --------------------------------------------------- |
 | `cancel`  | Cancel a run                                        |
+| `compare` | Compare two runs' running time and credits          |
 | `get`     | Get a run's status                                  |
 | `open`    | Open the current project's runs page in the browser |
 | `trigger` | Trigger a new run                                   |

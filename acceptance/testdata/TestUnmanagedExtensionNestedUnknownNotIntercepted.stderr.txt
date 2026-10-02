@@ -4,6 +4,7 @@ Usage:  circleci run <command> [flags]
 
 Available commands:
   cancel
+  compare
   get
   list
   open
