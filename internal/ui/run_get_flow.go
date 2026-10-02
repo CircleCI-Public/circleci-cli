@@ -245,7 +245,8 @@ type RunGetItem struct {
 	// run is selected they are shown beneath the workflow picker's title so a run
 	// that produced no workflows (e.g. a config that failed to compile) explains
 	// itself rather than presenting an empty list.
-	Errors []RunGetError
+	Errors   []RunGetError
+	Warnings []RunGetWarning
 	// Pending, set only for job rows, names the status of a job that has not started
 	// yet — "queued", "created" — and is empty once the job is running or finished.
 	// Those states are the ones the glyph column conveys least well: they sit a
@@ -262,6 +263,13 @@ type RunGetItem struct {
 type RunGetError struct {
 	Type    string
 	Message string
+}
+
+type RunGetWarning struct {
+	Type        string
+	Message     string
+	Description string
+	URL         string
 }
 
 // RunGetStepItem is one selectable job step. Steps have no UUID; they are
@@ -729,7 +737,8 @@ type RunGetFlowModel struct {
 
 	// runErrors are the selected run's config/setup errors, captured when the run
 	// is picked and rendered under the workflow picker's title.
-	runErrors []RunGetError
+	runErrors   []RunGetError
+	runWarnings []RunGetWarning
 
 	runID      uuid.UUID
 	workflowID uuid.UUID
@@ -1089,6 +1098,7 @@ func (m RunGetFlowModel) updateRunSelect(msg tea.Msg) (tea.Model, tea.Cmd) {
 	m.runCursor = m.runSelect.Selected()
 	m.runID = m.runs[m.runCursor].ID
 	m.runErrors = m.runs[m.runCursor].Errors
+	m.runWarnings = m.runs[m.runCursor].Warnings
 	m.stage = runGetStageLoadingWorkflows
 	m.loadingLabel = "Fetching workflows"
 	return m, m.loadingCmd(m.cmdFetchWorkflows())
@@ -2322,7 +2332,7 @@ func (m RunGetFlowModel) newWorkflowSelect() components.SelectModel {
 	icons := append([]string{m.metaIcon()}, m.itemIcons(m.workflows)...)
 	return components.NewSelectModel("Select a workflow", labels).
 		WithIcons(icons).
-		WithNote(m.runErrorNote()).
+		WithNote(m.runNotes()).
 		WithCursor(m.workflowCursor).
 		WithKeys(m.backKeys()...).
 		WithHeight(m.height)
@@ -2332,29 +2342,64 @@ func (m RunGetFlowModel) newWorkflowSelect() components.SelectModel {
 // picker title: one "<type>: <message>" line per error, wrapped to the terminal
 // width and tinted with the warning color when color is enabled. It is empty
 // when the run had no errors, so the picker renders as before.
-func (m RunGetFlowModel) runErrorNote() string {
-	if len(m.runErrors) == 0 {
+func (m RunGetFlowModel) runNotes() string {
+	parts := []string{}
+	if note := m.runErrorNote(); note != "" {
+		parts = append(parts, note)
+	}
+	if note := m.runWarningNote(); note != "" {
+		parts = append(parts, note)
+	}
+	return strings.Join(parts, "\n")
+}
+
+func (m RunGetFlowModel) runWarningNote() string {
+	if len(m.runWarnings) == 0 {
 		return ""
 	}
-	lines := make([]string, len(m.runErrors))
-	for i, e := range m.runErrors {
-		line := e.Message
-		if e.Type != "" {
-			line = e.Type + ": " + e.Message
-		}
-		lines[i] = line
-	}
-	note := strings.Join(lines, "\n")
-	style := theme.WarningStyle
+	warnStyle := theme.WarningStyle
+	urlStyle := theme.HelperStyle
 	if !m.opts.Color {
-		style = lipgloss.NewStyle()
+		warnStyle = lipgloss.NewStyle()
+		urlStyle = lipgloss.NewStyle()
 	}
 	// Wrap to the terminal width (leaving a small margin) so a long config error
 	// spans multiple lines the picker can account for, rather than overflowing.
 	if m.width > 4 {
-		style = style.Width(m.width - 2)
+		warnStyle = warnStyle.Width(m.width - 2)
+		urlStyle = urlStyle.Width(m.width - 2)
 	}
-	return style.Render(note)
+	var parts []string
+	for _, w := range m.runWarnings {
+		parts = append(parts, warnStyle.Render(theme.IconWarn+" "+w.Message))
+		if w.Description != "" {
+			parts = append(parts, urlStyle.Render("  "+w.Description))
+		}
+		if w.URL != "" {
+			parts = append(parts, urlStyle.Render("  \u2192 "+w.URL))
+		}
+	}
+	return strings.Join(parts, "\n")
+}
+
+func (m RunGetFlowModel) runErrorNote() string {
+	if len(m.runErrors) == 0 {
+		return ""
+	}
+	errStyle := theme.ErrorStyle
+	if !m.opts.Color {
+		errStyle = lipgloss.NewStyle()
+	}
+	// Wrap to the terminal width (leaving a small margin) so a long config error
+	// spans multiple lines the picker can account for, rather than overflowing.
+	if m.width > 4 {
+		errStyle = errStyle.Width(m.width - 2)
+	}
+	var parts []string
+	for _, e := range m.runErrors {
+		parts = append(parts, errStyle.Render(theme.IconFail+" "+e.Message))
+	}
+	return strings.Join(parts, "\n")
 }
 
 func (m RunGetFlowModel) newJobSelect() components.SelectModel {

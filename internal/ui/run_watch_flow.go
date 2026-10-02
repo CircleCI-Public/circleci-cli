@@ -107,6 +107,13 @@ type RunWatchError struct {
 	Message string
 }
 
+type RunWatchWarning struct {
+	Type        string
+	Message     string
+	Description string
+	URL         string
+}
+
 // RunWatchState is one poll's worth of run state: the rows to draw, the run's
 // own errors, whether the run has finished, and its derived display status once
 // it has. Like the run-get item types this mirrors what the API client returns
@@ -118,6 +125,7 @@ type RunWatchError struct {
 type RunWatchState struct {
 	Workflows []RunWatchWorkflow
 	Errors    []RunWatchError
+	Warnings  []RunWatchWarning
 	Done      bool
 
 	// AllWorkflowsEnded reports that every workflow the run has produced so far

@@ -203,6 +203,43 @@ func TestRunWatch_Failed_SuggestsJobLogs(t *testing.T) {
 
 // --- cancelled run → exit 6 ---
 
+func TestRunWatch_WithWarnings(t *testing.T) {
+	runID := "f0000000-0000-4000-8000-00000000aaaa"
+	wfID := "b0000000-0000-4000-8000-0000000fa0aa"
+
+	v3Run := fakeRunV3(runID, watchProjectID, "ended", "succeeded", "main", "abc1234def5678abcdef")
+	v3Run.Warnings = []fakes.RunWarning{
+		{Type: "config_deprecated_syntax", Message: "Pipeline uses deprecated syntax", Description: "Update your config to avoid upcoming failures", URL: "https://circleci.com/docs/deprecations"},
+	}
+
+	fake := fakes.NewCircleCI(t)
+	addProjectBySlug(fake, watchSlug, watchProjectID)
+	fake.AddRunV3(runID, watchProjectID, v3Run)
+	fake.AddRun(runID, fakeRun(runID, 75, "created", watchSlug, "main"))
+	fake.AddProjectRuns(watchSlug, fakeRun(runID, 75, "created", watchSlug, "main"))
+	fake.AddRunWorkflowsV3(runID, fakeWorkflowV3(wfID, "build", runID, watchProjectID, "ended", "succeeded"))
+	fake.AddWorkflowJobsV3(wfID,
+		fakeJobV3("d0000000-0000-4000-8000-00000000f001", "lint", wfID, watchProjectID),
+	)
+
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"run", "watch", "75", "--project", watchSlug},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0)
+	assert.Check(t, cmp.Contains(result.Stderr, "\u26a0"), "stderr should contain warning symbol: %s", result.Stderr)
+	assert.Check(t, cmp.Contains(result.Stderr, "Pipeline uses deprecated syntax"), "stderr: %s", result.Stderr)
+	assert.Check(t, cmp.Contains(result.Stderr, "Update your config to avoid upcoming failures"), "stderr: %s", result.Stderr)
+	assert.Check(t, cmp.Contains(result.Stderr, "\u2192 https://circleci.com/docs/deprecations"), "stderr: %s", result.Stderr)
+}
+
 func TestRunWatch_Cancelled(t *testing.T) {
 	_, env := setupWatchFake(t, "f0000000-0000-4000-8000-000000000004", "b0000000-0000-4000-8000-0000000f0004", "canceled")
 
