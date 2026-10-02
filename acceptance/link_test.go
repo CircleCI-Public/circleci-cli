@@ -38,12 +38,12 @@ import (
 func TestProjectLink_WithFlag(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
 	fake.AddProjectInfo("gh/myorg/alpha", fakes.ProjectInfo{
-		ID:               "proj-uuid-1234",
+		ID:               "3b524838-a95e-44eb-bc56-deb0af23ef19",
 		Slug:             "gh/myorg/alpha",
 		Name:             "alpha",
 		OrganizationName: "myorg",
 		OrganizationSlug: "gh/myorg",
-		OrganizationID:   "org-uuid-5678",
+		OrganizationID:   "c1e89d5c-d2e5-4db2-b2d7-a35cf73160ad",
 	})
 
 	env := testenv.New(t)
@@ -67,10 +67,10 @@ func TestProjectLink_WithFlag(t *testing.T) {
 
 	// New schema: organization + project as top-level keys with nested fields.
 	assert.Check(t, strings.Contains(body, "organization:\n"), "got: %s", body)
-	assert.Check(t, strings.Contains(body, "    id: org-uuid-5678"), "got: %s", body)
+	assert.Check(t, strings.Contains(body, "    id: c1e89d5c-d2e5-4db2-b2d7-a35cf73160ad"), "got: %s", body)
 	assert.Check(t, strings.Contains(body, "    name: myorg"), "got: %s", body)
 	assert.Check(t, strings.Contains(body, "project:\n"), "got: %s", body)
-	assert.Check(t, strings.Contains(body, "    id: proj-uuid-1234"), "got: %s", body)
+	assert.Check(t, strings.Contains(body, "    id: 3b524838-a95e-44eb-bc56-deb0af23ef19"), "got: %s", body)
 	assert.Check(t, strings.Contains(body, "    slug: gh/myorg/alpha"), "got: %s", body)
 	assert.Check(t, strings.Contains(body, "    name: alpha"), "got: %s", body)
 }
@@ -80,10 +80,10 @@ func TestProjectLink_WithFlag(t *testing.T) {
 func TestProjectLink_StandaloneSlug(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
 	fake.AddProjectInfo("circleci/E6i3yYZeWZhcf8UNqcKfjN/13c8F7nusayivoSxC6GMsw", fakes.ProjectInfo{
-		ID:             "13c8F7nusayivoSxC6GMsw",
+		ID:             "3b524838-a95e-44eb-bc56-deb0af23ef19",
 		Slug:           "circleci/E6i3yYZeWZhcf8UNqcKfjN/13c8F7nusayivoSxC6GMsw",
 		Name:           "standalone",
-		OrganizationID: "E6i3yYZeWZhcf8UNqcKfjN",
+		OrganizationID: "c1e89d5c-d2e5-4db2-b2d7-a35cf73160ad",
 	})
 
 	env := testenv.New(t)
@@ -150,24 +150,24 @@ func TestProjectLink_NoToken(t *testing.T) {
 // "circleci/<orgID>/<projectID>" slug built from the recorded IDs, so resolution
 // survives a slug change on the CircleCI side.
 func TestProjectGet_UsesLinkedUUIDs(t *testing.T) {
-	const canonicalSlug = "circleci/E6i3yYZeWZhcf8UNqcKfjN/13c8F7nusayivoSxC6GMsw"
-	const linkedSlug = "circleci/OldOrgShortId/OldProjShortId"
+	const canonicalSlug = "circleci/c1e89d5c-d2e5-4db2-b2d7-a35cf73160ad/3b524838-a95e-44eb-bc56-deb0af23ef19"
+	const linkedSlug = "circleci/E6i3yYZeWZhcf8UNqcKfjN/13c8F7nusayivoSxC6GMsw"
 
 	fake := fakes.NewCircleCI(t)
 	// Only register the ID-form slug for the lookup under test. If `project get`
 	// used the stored slug instead, the fake would 404.
 	fake.AddProjectInfo(canonicalSlug, fakes.ProjectInfo{
-		ID:             "13c8F7nusayivoSxC6GMsw",
+		ID:             "3b524838-a95e-44eb-bc56-deb0af23ef19",
 		Slug:           canonicalSlug,
 		Name:           "linked",
-		OrganizationID: "E6i3yYZeWZhcf8UNqcKfjN",
+		OrganizationID: "c1e89d5c-d2e5-4db2-b2d7-a35cf73160ad",
 	})
 	// Register the slug passed to link, so the initial link call succeeds.
 	fake.AddProjectInfo(linkedSlug, fakes.ProjectInfo{
-		ID:             "13c8F7nusayivoSxC6GMsw",
+		ID:             "3b524838-a95e-44eb-bc56-deb0af23ef19",
 		Slug:           linkedSlug,
 		Name:           "linked",
-		OrganizationID: "E6i3yYZeWZhcf8UNqcKfjN",
+		OrganizationID: "c1e89d5c-d2e5-4db2-b2d7-a35cf73160ad",
 	})
 
 	env := testenv.New(t)
@@ -245,9 +245,9 @@ func TestProjectGet_ClassicLinkUsesOwnSlug(t *testing.T) {
 func TestProjectLink_PreservesExisting(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
 	fake.AddProjectInfo("gh/myorg/alpha", fakes.ProjectInfo{
-		ID:             "proj-uuid-1234",
+		ID:             "3b524838-a95e-44eb-bc56-deb0af23ef19",
 		Slug:           "gh/myorg/alpha",
-		OrganizationID: "org-uuid-5678",
+		OrganizationID: "c1e89d5c-d2e5-4db2-b2d7-a35cf73160ad",
 	})
 
 	env := testenv.New(t)
