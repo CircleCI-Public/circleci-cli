@@ -1,0 +1,4 @@
+# Runner Resource Classes
+| Resource Class      | Description        |
+| ------------------- | ------------------ |
+| my-org/linux-runner | Linux amd64 runner |

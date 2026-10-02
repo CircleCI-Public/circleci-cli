@@ -2434,6 +2434,72 @@ func TestRunnerConfig_ByID_NotFound(t *testing.T) {
 	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 }
 
+func TestRunnerResourceClassList_ByID(t *testing.T) {
+	fake, env := setupRunnerFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"runner", "resource-class", "list", "--resource-class", testLinuxRCID},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 0))
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+
+	t.Run("check requests", func(t *testing.T) {
+		reqs := fake.AllRequests()
+		assert.Assert(t, cmp.Len(reqs, 2))
+
+		assert.Check(t, cmp.Equal(reqs[0].Method, http.MethodGet))
+		assert.Check(t, cmp.Equal(reqs[0].URL.Path, "/api/v3/runner/resource-classes/"+testLinuxRCID))
+
+		assert.Check(t, cmp.Equal(reqs[1].Method, http.MethodGet))
+		assert.Check(t, cmp.Equal(reqs[1].URL.Path, "/api/v3/runner/resource-classes"))
+		assert.Check(t, cmp.Equal(reqs[1].URL.Query().Get("filter[resource_class]"), "my-org/linux-runner"))
+	})
+}
+
+func TestRunnerResourceClassList_ByID_NotFound(t *testing.T) {
+	_, env := setupRunnerFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"runner", "resource-class", "list", "--resource-class", testUnknownRCID},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, clierrors.ExitNotFound))
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+}
+
+func TestRunnerResourceClassUpdate_ByID_JSON(t *testing.T) {
+	_, env := setupRunnerFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"runner", "resource-class", "update", testLinuxRCID, "--description", "New desc", "--json"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+
+	var out map[string]any
+	assert.NilError(t, json.Unmarshal([]byte(result.Stdout), &out))
+	assert.Check(t, cmp.DeepEqual(out, map[string]any{
+		"id":             testLinuxRCID,
+		"resource_class": "my-org/linux-runner",
+		"description":    "New desc",
+	}))
+
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".json"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+}
+
 func TestRunnerResourceClassUpdate_ByID(t *testing.T) {
 	fake, env := setupRunnerFake(t)
 
@@ -2537,6 +2603,56 @@ func TestRunnerResourceClassDelete_ByID_NotFound(t *testing.T) {
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
 		Args:    []string{"runner", "resource-class", "delete", testUnknownRCID, "--force"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, clierrors.ExitNotFound))
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+}
+
+func TestRunnerResourceClassDelete_ByID_Force(t *testing.T) {
+	fake, env := setupRunnerFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"runner", "resource-class", "delete", testLinuxRCID, "--force"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 0))
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+
+	t.Run("check requests", func(t *testing.T) {
+		reqs := fake.AllRequests()
+		assert.Assert(t, cmp.Len(reqs, 2))
+		assert.Check(t, cmp.Equal(reqs[0].Method, http.MethodGet))
+		assert.Check(t, cmp.Equal(reqs[0].URL.Path, "/api/v3/runner/resource-classes/"+testLinuxRCID))
+
+		assert.Check(t, cmp.DeepEqual(reqs[1], httprecorder.Request{
+			Method: http.MethodDelete,
+			URL: url.URL{
+				Path:     "/api/v3/runner/resource-classes/" + testLinuxRCID,
+				RawQuery: "force=true",
+			},
+			Header: http.Header{
+				"Authorization": {"Bearer test-token"},
+				"User-Agent":    {httpcl.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
+			},
+			Body: new(""),
+		}, ignoreCommonHeaders))
+	})
+}
+
+func TestRunnerResourceClassDelete_ByID_NotFound_JSON(t *testing.T) {
+	_, env := setupRunnerFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"runner", "resource-class", "delete", testUnknownRCID, "--force", "--json"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
