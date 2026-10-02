@@ -299,9 +299,14 @@ func runResourceClassCreate(ctx context.Context, client *apiclient.Client,
 	}
 
 	if generateToken {
-		// Use the slug the API echoed back rather than the argument, so a server-side
-		// normalisation of the name cannot send the token request somewhere else.
-		tok, err := client.CreateRunnerToken(ctx, out.ResourceClass, defaultTokenNickname)
+		// Reference the class by the ID the API returned, and label the token with the
+		// slug it echoed back, so a server-side normalisation of the name cannot
+		// attach the token to the wrong class.
+		rcID, err := uuid.Parse(rc.ID)
+		if err != nil {
+			return tokenGenerationErr(err, out.ResourceClass)
+		}
+		tok, err := client.CreateRunnerTokenV3(ctx, rcID, out.ResourceClass, defaultTokenNickname)
 		if err != nil {
 			return tokenGenerationErr(err, out.ResourceClass)
 		}
@@ -581,11 +586,11 @@ func runResourceClassDelete(ctx context.Context, client *apiclient.Client,
 	// that regardless of which path was taken.
 	if err := client.DeleteResourceClass(ctx, id, true); err != nil {
 		if httpcl.HasStatusCode(err, http.StatusConflict) {
+			// runner-admin's 409 title restates this sentence, so it is not appended;
+			// only the error id is worth carrying, to quote in a support request.
 			detail := fmt.Sprintf("Resource class %q still has tokens in use.", resourceClass)
-			if he, ok := errors.AsType[*httpcl.HTTPError](err); ok {
-				if msg := apiclient.ParseServerMessage(he.Body); msg != "" {
-					detail += " " + msg
-				}
+			if apiErr, ok := apiclient.ParseError(err); ok && apiErr.ID != "" {
+				detail += "\nerror id: " + apiErr.ID
 			}
 			cliErr := clierrors.New("runner.delete_has_tokens", "Cannot delete resource class", detail).
 				WithExitCode(clierrors.ExitAPIError)

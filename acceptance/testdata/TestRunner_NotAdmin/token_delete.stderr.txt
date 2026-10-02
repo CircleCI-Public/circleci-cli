@@ -1,4 +1,4 @@
-error: You can view "tok-id-1", but changing it requires the admin role in the organization that owns it. Creating, updating and deleting runner resource classes and tokens is limited to organization admins.
+error: You can view "10000000-0000-4000-8000-000000000001", but changing it requires the admin role in the organization that owns it. Creating, updating and deleting runner resource classes and tokens is limited to organization admins.
 
 Suggestions:
   • Ask an organization admin to make the change, or to grant you the admin role

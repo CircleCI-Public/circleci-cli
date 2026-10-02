@@ -28,6 +28,7 @@ import (
 	"net/http"
 
 	"github.com/MakeNowJust/heredoc"
+	"github.com/google/uuid"
 	"github.com/spf13/cobra"
 
 	clierrors "github.com/CircleCI-Public/circleci-cli/clikit/errors"
@@ -356,6 +357,13 @@ type tokenDeleteOutput struct {
 
 func runTokenDelete(ctx context.Context, client *apiclient.Client,
 	tokenID string, force, jsonOut bool) error {
+	// Checked before the prompt: runner-admin rejects a non-UUID id with a 400, which
+	// would otherwise surface as a generic API error after the user confirmed.
+	id, err := uuid.Parse(tokenID)
+	if err != nil {
+		return invalidTokenIDErr(tokenID)
+	}
+
 	if err := cmdutil.ConfirmOrForce(ctx, iostream.Get(ctx), force,
 		fmt.Sprintf("Delete token %q? Agents using this token will lose the ability to claim new jobs.", tokenID),
 		clierrors.New("runner.delete_aborted", "Deletion aborted",
@@ -368,7 +376,7 @@ func runTokenDelete(ctx context.Context, client *apiclient.Client,
 		return err
 	}
 
-	if err := client.DeleteRunnerTokenV3(ctx, tokenID); err != nil {
+	if err := client.DeleteRunnerTokenV3(ctx, id); err != nil {
 		if httpcl.HasStatusCode(err, http.StatusNotFound) {
 			return tokenNotFoundErr(tokenID)
 		}
@@ -381,6 +389,14 @@ func runTokenDelete(ctx context.Context, client *apiclient.Client,
 
 	iostream.Printf(ctx, "Deleted token: %s\n", tokenID)
 	return nil
+}
+
+// invalidTokenIDErr reports a token ID argument that is not a UUID.
+func invalidTokenIDErr(tokenID string) *clierrors.CLIError {
+	return clierrors.New("runner.invalid_token_id", "Invalid token ID",
+		fmt.Sprintf("%q is not a valid token ID. Token IDs are UUIDs.", tokenID)).
+		WithSuggestions("List tokens with: circleci runner token list --resource-class <namespace/name>").
+		WithExitCode(clierrors.ExitBadArguments)
 }
 
 // tokenNotFoundErr reports a 404 for a token ID. The API answers 404 both for a

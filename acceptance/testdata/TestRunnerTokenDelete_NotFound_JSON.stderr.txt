@@ -1,7 +1,7 @@
 {
   "error": true,
   "code": "runner.token_not_found",
-  "message": "No runner token with ID \"tok-id-nope\", or it belongs to an organization your token cannot access.",
+  "message": "No runner token with ID \"10000000-0000-4000-8000-0000000000ff\", or it belongs to an organization your token cannot access.",
   "suggestions": [
     "List tokens with: circleci runner token list --resource-class \u003cnamespace/name\u003e"
   ],
