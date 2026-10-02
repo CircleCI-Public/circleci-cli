@@ -34,6 +34,7 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/clikit/mdtable"
 	"github.com/CircleCI-Public/circleci-cli/internal/apiclient"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmdutil"
+	"github.com/CircleCI-Public/circleci-cli/internal/function"
 )
 
 // descriptionMax caps the Description column; mdtable sizes a column to its
@@ -49,7 +50,10 @@ type listEntry struct {
 }
 
 func newListCmd() *cobra.Command {
-	var jsonOut bool
+	var (
+		pinned  bool
+		jsonOut bool
+	)
 
 	cmd := &cobra.Command{
 		Use:     "list",
@@ -59,13 +63,14 @@ func newListCmd() *cobra.Command {
 			List every published CircleCI function and its versions.
 
 			JSON fields: id, name, description, latest_version, versions.
+			With --pinned: alias, function, version.
 		`),
 		Example: heredoc.Doc(`
 			# List published functions
 			$ circleci function list
 
-			# Output as JSON
-			$ circleci function list --json
+			# List what this repository declares
+			$ circleci function list --pinned
 
 			# Get just the names
 			$ circleci function list --json --jq '.[].name'
@@ -73,6 +78,9 @@ func newListCmd() *cobra.Command {
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			ctx := cmd.Context()
+			if pinned {
+				return runListPinned(ctx, configPath(cmd), jsonOut)
+			}
 			client, err := cmdutil.LoadClient(ctx)
 			if err != nil {
 				return err
@@ -81,6 +89,8 @@ func newListCmd() *cobra.Command {
 		},
 	}
 
+	cmd.Flags().BoolVar(&pinned, "pinned", false, "list the functions declared in the local config")
+	addConfigFlag(cmd)
 	cmdutil.AddJSONFlag(cmd, &jsonOut)
 	cmdutil.AddJQFlag(cmd)
 
@@ -141,4 +151,30 @@ func summarize(description string) string {
 	}
 	// Escape after truncating, so a cut can never split the escape sequence.
 	return tableCell(first)
+}
+
+func runListPinned(ctx context.Context, path string, jsonOut bool) error {
+	pins, err := function.ListPins(path)
+	if err != nil {
+		return err
+	}
+
+	if jsonOut {
+		if pins == nil {
+			pins = []function.Pin{}
+		}
+		return iostream.PrintJSON(ctx, pins)
+	}
+
+	if len(pins) == 0 {
+		iostream.ErrPrintf(ctx, "No functions declared in %s.\n", path)
+		return nil
+	}
+
+	table := mdtable.New("Alias", "Function", "Version")
+	for _, p := range pins {
+		table.Row(p.Alias, p.Function, p.Version)
+	}
+	iostream.PrintMarkdown(ctx, "# Pinned functions\n"+table.Render())
+	return nil
 }

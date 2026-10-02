@@ -25,6 +25,8 @@ package acceptance_test
 import (
 	"encoding/json"
 	"net/http"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"gotest.tools/v3/assert"
@@ -77,12 +79,26 @@ func setupFunctionFake(t *testing.T) *testenv.TestEnv {
 
 func runFunction(t *testing.T, env *testenv.TestEnv, args ...string) binary.CLIResult {
 	t.Helper()
+	return runFunctionIn(t, env, t.TempDir(), args...)
+}
+
+func runFunctionIn(t *testing.T, env *testenv.TestEnv, dir string, args ...string) binary.CLIResult {
+	t.Helper()
 	return binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
 		Args:    append([]string{"function"}, args...),
 		Env:     env.Environ(),
-		WorkDir: t.TempDir(),
+		WorkDir: dir,
 	})
+}
+
+// writeFnConfig puts body at .circleci/config.yml under a fresh work dir.
+func writeFnConfig(t *testing.T, body string) string {
+	t.Helper()
+	dir := t.TempDir()
+	assert.NilError(t, os.MkdirAll(filepath.Join(dir, ".circleci"), 0o755))
+	assert.NilError(t, os.WriteFile(filepath.Join(dir, ".circleci", "config.yml"), []byte(body), 0o644))
+	return dir
 }
 
 func TestFunctionList(t *testing.T) {
@@ -231,5 +247,31 @@ func TestFunctionGetNotFound(t *testing.T) {
 		result := runFunction(t, env, "get", "setup-go")
 		assert.Check(t, cmp.Equal(result.ExitCode, 5))
 		assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+	})
+}
+
+func TestFunctionListPinned(t *testing.T) {
+	env := setupFunctionFake(t)
+
+	t.Run("The local config is read instead of the API", func(t *testing.T) {
+		dir := writeFnConfig(t, "version: 2.1\n\nfunctions:\n  go: "+setupGoName+"@"+setupGoLatest+"\n")
+
+		result := runFunctionIn(t, env, dir, "list", "--pinned", "--json")
+		assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+
+		var out []map[string]any
+		assert.NilError(t, json.Unmarshal([]byte(result.Stdout), &out))
+		assert.Check(t, cmp.DeepEqual(out, []map[string]any{{
+			"alias":    "go",
+			"function": setupGoName,
+			"version":  setupGoLatest,
+		}}))
+	})
+
+	t.Run("A config with no declarations says so", func(t *testing.T) {
+		dir := writeFnConfig(t, "version: 2.1\n")
+		result := runFunctionIn(t, env, dir, "list", "--pinned")
+		assert.Check(t, cmp.Equal(result.ExitCode, 0))
+		assert.Check(t, cmp.Contains(result.Stderr, "No functions declared"))
 	})
 }
