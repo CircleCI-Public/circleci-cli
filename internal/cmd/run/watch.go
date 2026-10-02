@@ -27,6 +27,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -137,12 +138,16 @@ func runWatch(ctx context.Context, client *apiclient.Client, args []string, proj
 	if needsGit {
 		info, err := gitremote.Detect()
 		if err != nil {
-			return cmdutil.GitDetectErr(err, "Or specify --project and --branch explicitly")
+			suggestion := "Or specify --project and --branch explicitly"
+			if sha != "" {
+				suggestion = "Or specify --project explicitly"
+			}
+			return cmdutil.GitDetectErr(err, suggestion)
 		}
 		if projectSlug == "" {
 			projectSlug = info.Slug
 		}
-		if branch == "" {
+		if branch == "" && sha == "" {
 			branch = info.Branch
 		}
 	}
@@ -213,9 +218,68 @@ func runWatch(ctx context.Context, client *apiclient.Client, args []string, proj
 	return watchUntilDone(ctx, client, r.ID, timeout, failFast)
 }
 
+// isHexSHA reports whether s has the form every git object ID takes: a non-empty
+// run of hex characters. This lives here rather than in gitremote because a
+// non-hex --sha is a bad-argument error, not a git failure: a branch name or
+// revision expression is a mistake worth naming, and saying so costs no git
+// work. Length is gitremote's business — see gitremote.MinSHAPrefixLen.
+var validHexSHA = regexp.MustCompile(`^[0-9a-fA-F]+$`)
+
+func isHexSHA(s string) bool { return validHexSHA.MatchString(s) }
+
 // waitForRunBySHA searches for a run matching the given commit SHA via V3 search,
 // polling every 5 seconds for up to shaWaitDuration() if not immediately found.
 func waitForRunBySHA(ctx context.Context, client *apiclient.Client, projectSlug, branch, sha string) (*apiclient.RunV3, error) {
+	// The SHA is resolved before the project lookup so a --sha that cannot work
+	// costs no API call.
+	if !isHexSHA(sha) {
+		return nil, clierrors.New("run.invalid_sha_format", "Invalid SHA format",
+			fmt.Sprintf("%q does not look like a commit SHA; expected hex characters only.", sha)).
+			WithSuggestions("Pass a hex commit SHA, e.g. from 'git log --oneline'").
+			WithExitCode(clierrors.ExitBadArguments)
+	}
+
+	expanded, expandErr := gitremote.ExpandSHA(sha)
+	switch {
+	case expandErr == nil:
+		sha = expanded
+	case errors.Is(expandErr, gitremote.ErrSHARepoInaccessible):
+		return nil, clierrors.New("run.sha_unresolvable", "Could not resolve short SHA",
+			fmt.Sprintf("Cannot expand %q: local git repository is not accessible.", sha)).
+			WithSuggestions("Pass the full 40-character SHA to skip local resolution").
+			WithExitCode(clierrors.ExitBadArguments)
+	case errors.Is(expandErr, gitremote.ErrSHANotFound):
+		return nil, clierrors.New("run.invalid_sha", "Commit not found",
+			fmt.Sprintf("Commit %q does not exist in the local repository.", sha)).
+			WithSuggestions(
+				"Check the SHA is correct: git log --oneline",
+				"If using a shallow clone, pass the full 40-character SHA obtained from the remote",
+			).
+			WithExitCode(clierrors.ExitNotFound)
+	case errors.Is(expandErr, gitremote.ErrSHAAmbiguous):
+		return nil, clierrors.New("run.ambiguous_sha", "Ambiguous SHA",
+			fmt.Sprintf("%q matches more than one commit in the local repository.", sha)).
+			WithSuggestions(
+				"Pass more characters of the SHA: git rev-parse --short=12 <ref>",
+				"Or pass the full 40-character SHA",
+			).
+			WithExitCode(clierrors.ExitBadArguments)
+	case errors.Is(expandErr, gitremote.ErrSHATooShort):
+		return nil, clierrors.New("run.sha_too_short", "SHA too short",
+			fmt.Sprintf("%q is too short to identify a commit; pass at least %d characters.",
+				sha, gitremote.MinSHAPrefixLen)).
+			WithSuggestions("Pass a longer SHA: git rev-parse --short HEAD").
+			WithExitCode(clierrors.ExitBadArguments)
+	default:
+		// Unreachable while ExpandSHA returns only the sentinels above. Without
+		// this arm a new one would fall through with the SHA unexpanded, and the
+		// search would silently poll for a revision that cannot match.
+		return nil, clierrors.New("run.sha_unresolvable", "Could not resolve SHA",
+			fmt.Sprintf("Cannot expand %q: %v.", sha, expandErr)).
+			WithSuggestions("Pass the full 40-character SHA to skip local resolution").
+			WithExitCode(clierrors.ExitBadArguments)
+	}
+
 	proj, err := client.GetProjectBySlug(ctx, projectSlug)
 	if err != nil {
 		return nil, apiErr(err, projectSlug)

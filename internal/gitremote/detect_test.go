@@ -23,9 +23,13 @@
 package gitremote
 
 import (
+	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/go-git/go-git/v6"
 	"github.com/go-git/go-git/v6/config"
@@ -269,6 +273,244 @@ func TestDetectRepoName_FallsBackToLinkedName(t *testing.T) {
 	assert.NilError(t, chdirErr)
 
 	assert.Check(t, cmp.Equal(DetectRepoName(), "api"))
+}
+
+func TestExpandSHAIn(t *testing.T) {
+	t.Parallel()
+
+	t.Run("already 40 hex chars returns input unchanged", func(t *testing.T) {
+		t.Parallel()
+		// Passed a directory that is not a repository to pin down that a full SHA
+		// never touches local git state — the property the scripted
+		// ($CIRCLE_SHA1) path relies on.
+		full := "1234567890abcdef1234567890abcdef12345678"
+		got, err := ExpandSHAIn(t.TempDir(), full)
+		assert.NilError(t, err)
+		assert.Check(t, cmp.Equal(got, full))
+	})
+
+	t.Run("repo inaccessible returns ErrSHARepoInaccessible", func(t *testing.T) {
+		t.Parallel()
+		_, err := ExpandSHAIn(t.TempDir(), "abc1234")
+		assert.Check(t, errors.Is(err, ErrSHARepoInaccessible), "got: %v", err)
+	})
+
+	t.Run("full SHA is lowercased so the two paths agree", func(t *testing.T) {
+		t.Parallel()
+		// git accepts an uppercase object ID, and the platform stores revisions
+		// lowercased. Expanding a short SHA yields lowercase via Hash.String, so
+		// the passthrough has to normalise too or the same commit reaches the
+		// search filter in two different spellings.
+		full := "1234567890ABCDEF1234567890ABCDEF12345678"
+		got, err := ExpandSHAIn(t.TempDir(), full)
+		assert.NilError(t, err)
+		assert.Check(t, cmp.Equal(got, strings.ToLower(full)))
+	})
+
+	t.Run("SHA not found in repo returns ErrSHANotFound", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		repo, err := git.PlainInit(dir, false)
+		assert.NilError(t, err)
+		t.Cleanup(func() { _ = repo.Close() })
+
+		_, err = ExpandSHAIn(dir, "deadbeef")
+		assert.Check(t, errors.Is(err, ErrSHANotFound), "got: %v", err)
+	})
+
+	t.Run("prefix below the minimum returns ErrSHATooShort without opening a repo", func(t *testing.T) {
+		t.Parallel()
+		_, err := ExpandSHAIn(t.TempDir(), "abc")
+		assert.Check(t, errors.Is(err, ErrSHATooShort), "got: %v", err)
+	})
+
+	t.Run("uppercase short SHA expands", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		fullHash := initRepoWithCommit(t, dir)
+
+		// Odd length on purpose: go-git's own prefix matching compares the
+		// dangling nybble against a lowercase hash, so an uppercase 7-character
+		// prefix used to be reported as a commit that does not exist.
+		got, err := ExpandSHAIn(dir, strings.ToUpper(fullHash[:7]))
+		assert.NilError(t, err)
+		assert.Check(t, cmp.Equal(got, fullHash))
+	})
+
+	t.Run("prefix matching two commits returns ErrSHAAmbiguous", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		first, second := initRepoWithCollidingCommits(t, dir)
+		assert.Assert(t, first != second)
+
+		prefix := first[:4]
+		assert.Assert(t, cmp.Equal(prefix, second[:4]))
+
+		_, err := ExpandSHAIn(dir, prefix)
+		assert.Check(t, errors.Is(err, ErrSHAAmbiguous), "got: %v", err)
+
+		// The full SHAs stay unambiguous, so the user's escape hatch works.
+		got, err := ExpandSHAIn(dir, first)
+		assert.NilError(t, err)
+		assert.Check(t, cmp.Equal(got, first))
+	})
+
+	t.Run("a blob prefix is not a commit and reports ErrSHANotFound", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		initRepoWithCommit(t, dir)
+		blob := blobHashIn(t, dir)
+
+		_, err := ExpandSHAIn(dir, blob[:7])
+		assert.Check(t, errors.Is(err, ErrSHANotFound), "got: %v", err)
+	})
+
+	t.Run("short SHA expands to full 40-char hash", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		fullHash := initRepoWithCommit(t, dir)
+
+		got, err := ExpandSHAIn(dir, fullHash[:7])
+		assert.NilError(t, err)
+		assert.Check(t, cmp.Equal(got, fullHash))
+	})
+
+	t.Run("resolves a subdirectory to its containing repo", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		fullHash := initRepoWithCommit(t, dir)
+		sub := filepath.Join(dir, "nested", "deeper")
+		assert.NilError(t, os.MkdirAll(sub, 0o755))
+
+		got, err := ExpandSHAIn(sub, fullHash[:7])
+		assert.NilError(t, err)
+		assert.Check(t, cmp.Equal(got, fullHash))
+	})
+
+	// Expansion matches object IDs, never refs. A hex-looking branch or tag name
+	// is the case that matters: it passes the caller's hex check, so if
+	// expansion resolved refs it would watch that ref's tip instead of the
+	// commit the user named.
+	t.Run("does not resolve refs", func(t *testing.T) {
+		t.Parallel()
+		dir := t.TempDir()
+		fullHash := initRepoWithCommit(t, dir)
+		tagHexName(t, dir, "deadbeef", fullHash)
+
+		for _, ref := range []string{"HEAD", "deadbeef"} {
+			_, err := ExpandSHAIn(dir, ref)
+			assert.Check(t, err != nil, "%q should not resolve, got hash for it", ref)
+		}
+	})
+}
+
+// initRepoWithCommit initialises a new git repository in dir, adds one commit,
+// and returns the full 40-character SHA of that commit.
+func initRepoWithCommit(t *testing.T, dir string) string {
+	t.Helper()
+	repo, err := git.PlainInit(dir, false)
+	assert.NilError(t, err)
+	t.Cleanup(func() { _ = repo.Close() })
+
+	err = os.WriteFile(filepath.Join(dir, "README"), []byte("test"), 0o644)
+	assert.NilError(t, err)
+
+	wt, err := repo.Worktree()
+	assert.NilError(t, err)
+
+	_, err = wt.Add("README")
+	assert.NilError(t, err)
+
+	hash, err := wt.Commit("initial commit", &git.CommitOptions{
+		Author: &object.Signature{
+			Name:  "Test",
+			Email: "test@example.com",
+			When:  time.Now(),
+		},
+	})
+	assert.NilError(t, err)
+	return hash.String()
+}
+
+// initRepoWithCollidingCommits initialises a repository and mints commit objects
+// until two of them share a 4-character hash prefix, returning that pair. Real
+// repositories hit this constantly — circleci-cli itself has over a hundred
+// ambiguous 4-character prefixes — but a fixture cannot hard-code hashes, so the
+// collision is searched for. Only the commit message varies, and roughly 300
+// commits are needed on average for a 16-bit birthday collision.
+func initRepoWithCollidingCommits(t *testing.T, dir string) (string, string) {
+	t.Helper()
+	initRepoWithCommit(t, dir)
+
+	repo, err := git.PlainOpen(dir)
+	assert.NilError(t, err)
+	t.Cleanup(func() { _ = repo.Close() })
+
+	head, err := repo.Head()
+	assert.NilError(t, err)
+	tip, err := repo.CommitObject(head.Hash())
+	assert.NilError(t, err)
+
+	when := time.Unix(1700000000, 0).UTC()
+	sig := object.Signature{Name: "Test", Email: "test@example.com", When: when}
+
+	byPrefix := map[string]string{}
+	for i := range 20000 {
+		commit := &object.Commit{
+			Author:    sig,
+			Committer: sig,
+			Message:   fmt.Sprintf("collision candidate %d", i),
+			TreeHash:  tip.TreeHash,
+		}
+		obj := repo.Storer.NewEncodedObject()
+		assert.NilError(t, commit.Encode(obj))
+		hash, setErr := repo.Storer.SetEncodedObject(obj)
+		assert.NilError(t, setErr)
+
+		full := hash.String()
+		if prior, ok := byPrefix[full[:4]]; ok && prior != full {
+			return prior, full
+		}
+		byPrefix[full[:4]] = full
+	}
+	t.Fatal("no 4-character hash collision found")
+	return "", ""
+}
+
+// blobHashIn returns the hash of some blob in the repository at dir. Used to
+// check that a prefix naming a non-commit object is rejected rather than
+// expanded into a revision no pipeline can ever carry.
+func blobHashIn(t *testing.T, dir string) string {
+	t.Helper()
+	repo, err := git.PlainOpen(dir)
+	assert.NilError(t, err)
+	t.Cleanup(func() { _ = repo.Close() })
+
+	iter, err := repo.Storer.IterEncodedObjects(plumbing.BlobObject)
+	assert.NilError(t, err)
+
+	var hash string
+	assert.NilError(t, iter.ForEach(func(obj plumbing.EncodedObject) error {
+		if hash == "" {
+			hash = obj.Hash().String()
+		}
+		return nil
+	}))
+	assert.Assert(t, hash != "", "repository has no blobs")
+	return hash
+}
+
+// tagHexName points a lightweight tag with a hex-only name at hash — the shape
+// of a date tag like 20260101, which passes a caller's hex check and would be
+// resolved as a ref by anything using ResolveRevision.
+func tagHexName(t *testing.T, dir, name, hash string) {
+	t.Helper()
+	repo, err := git.PlainOpen(dir)
+	assert.NilError(t, err)
+	t.Cleanup(func() { _ = repo.Close() })
+
+	ref := plumbing.NewHashReference(plumbing.NewTagReferenceName(name), plumbing.NewHash(hash))
+	assert.NilError(t, repo.Storer.SetReference(ref))
 }
 
 // Sanity check that DetectFromRemote does not consult info.yml — used by
