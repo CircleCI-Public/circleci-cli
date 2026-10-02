@@ -87,9 +87,13 @@ func newRunnerFake(t *testing.T, items map[string]apiclient.ResourceClass) *apic
 		rc.Description = body.Description
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(map[string]any{
-			"id":             rc.ID,
-			"resource_class": rc.ResourceClass,
-			"description":    rc.Description,
+			"data": map[string]any{
+				"id": rc.ID,
+				"attributes": map[string]any{
+					"resource_class": rc.ResourceClass,
+					"description":    rc.Description,
+				},
+			},
 		})
 	})
 

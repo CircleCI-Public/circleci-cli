@@ -188,19 +188,21 @@ func (c *Client) ResourceClassByName(ctx context.Context, resourceClass string) 
 }
 
 // UpdateResourceClass updates the description of a runner resource class.
-// The body is flat ({description: ...}), not the data envelope other v3 writes use.
+// The request body is flat ({description: ...}), not the data envelope other v3
+// writes use, but the response is the usual v3 data entity.
 func (c *Client) UpdateResourceClass(ctx context.Context, id uuid.UUID, description string) (*ResourceClass, error) {
 	body := map[string]any{"description": description}
-	var rc ResourceClass
+	var resp v3Entity[v3ResourceClassItem]
 	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodPost,
 		"/api/v3/runner/resource-classes/%s/update",
 		httpcl.RouteParams(id.String()),
 		httpcl.Body(body),
-		httpcl.JSONDecoder(&rc),
+		httpcl.JSONDecoder(&resp),
 	))
 	if err != nil {
 		return nil, err
 	}
+	rc := resp.Data.toResourceClass()
 	return &rc, nil
 }
 
@@ -222,47 +224,6 @@ func forceParam(force bool) string {
 		return ""
 	}
 	return "true"
-}
-
-// ListRunnerTokens returns tokens for the given resource class.
-func (c *Client) ListRunnerTokens(ctx context.Context, resourceClass string) ([]RunnerToken, error) {
-	var resp struct {
-		Items []RunnerToken `json:"items"`
-	}
-	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodGet, "/api/v3/runner/token",
-		httpcl.QueryParam("resource-class", resourceClass),
-		httpcl.JSONDecoder(&resp),
-	))
-	if err != nil {
-		return nil, err
-	}
-	return resp.Items, nil
-}
-
-// CreateRunnerToken creates a new token for the given resource class.
-// The token value is only returned once and is not retrievable afterwards.
-func (c *Client) CreateRunnerToken(ctx context.Context, resourceClass, nickname string) (*RunnerToken, error) {
-	body := map[string]any{
-		"resource_class": resourceClass,
-		"nickname":       nickname,
-	}
-	var tok RunnerToken
-	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodPost, "/api/v3/runner/token",
-		httpcl.Body(body),
-		httpcl.JSONDecoder(&tok),
-	))
-	if err != nil {
-		return nil, err
-	}
-	return &tok, nil
-}
-
-// DeleteRunnerToken deletes a runner token by its ID.
-func (c *Client) DeleteRunnerToken(ctx context.Context, tokenID string) error {
-	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodDelete, "/api/v3/runner/token/%s",
-		httpcl.RouteParams(tokenID),
-	))
-	return err
 }
 
 // v3RunnerTokenItem is a token item from the V3 /runner/tokens endpoint.
@@ -337,9 +298,9 @@ func (c *Client) CreateRunnerTokenV3(ctx context.Context, rcID uuid.UUID, rcSlug
 }
 
 // DeleteRunnerTokenV3 deletes a runner token by its ID using the V3 /runner/tokens endpoint.
-func (c *Client) DeleteRunnerTokenV3(ctx context.Context, tokenID string) error {
+func (c *Client) DeleteRunnerTokenV3(ctx context.Context, tokenID uuid.UUID) error {
 	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodDelete, "/api/v3/runner/tokens/%s",
-		httpcl.RouteParams(tokenID),
+		httpcl.RouteParams(tokenID.String()),
 	))
 	return err
 }

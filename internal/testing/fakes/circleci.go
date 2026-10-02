@@ -474,9 +474,6 @@ func NewCircleCI(t *testing.T, tokens ...string) *CircleCI {
 	r.Post("/api/v3/runner/resource-classes/{id}/update", f.handleUpdateResourceClass)
 	r.Post("/api/v3/runner/resource-classes", f.handleCreateResourceClassV3)
 	r.Delete("/api/v3/runner/resource-classes/{id}", f.handleDeleteResourceClassV3)
-	r.Get("/api/v3/runner/token", f.handleListRunnerTokens)
-	r.Post("/api/v3/runner/token", f.handleCreateRunnerToken)
-	r.Delete("/api/v3/runner/token/{id}", f.handleDeleteRunnerToken)
 	r.Get("/api/v3/runner/tokens", f.handleListRunnerTokensV3)
 	r.Post("/api/v3/runner/tokens", f.handleCreateRunnerTokenV3)
 	r.Delete("/api/v3/runner/tokens/{id}", f.handleDeleteRunnerTokenV3)
@@ -1806,21 +1803,6 @@ func (f *CircleCI) AddRunnerAgent(agent RunnerAgent) {
 	f.runnerAgents = append(f.runnerAgents, agent)
 }
 
-// runnerTokenEntity renders a stored RunnerToken, including the secret value
-// only when set (create responses carry it; the list does not).
-func runnerTokenEntity(t RunnerToken) map[string]any {
-	m := map[string]any{
-		"id":             t.ID,
-		"resource_class": t.ResourceClass,
-		"nickname":       t.Nickname,
-		"created_at":     t.CreatedAt,
-	}
-	if t.Token != "" {
-		m["token"] = t.Token
-	}
-	return m
-}
-
 // runnerAgentEntity renders a stored RunnerAgent as its V3 entity, referencing rcID as its
 // resource class.
 func runnerAgentEntity(a RunnerAgent, rcID string) map[string]any {
@@ -2034,7 +2016,10 @@ func (f *CircleCI) handleCreateResourceClassV3(w http.ResponseWriter, r *http.Re
 	}
 	var rc ResourceClass
 	if !mismatch {
-		rc = ResourceClass{ID: fmt.Sprintf("rc-%s", slug), Slug: slug, Description: desc, OrgID: orgID}
+		// runner-admin issues UUID ids, which callers pass back as V3 references. Derive one
+		// from the slug so it is a real UUID but stays stable across runs for golden files.
+		id := uuid.NewSHA1(uuid.NameSpaceURL, []byte("resource-class:"+slug)).String()
+		rc = ResourceClass{ID: id, Slug: slug, Description: desc, OrgID: orgID}
 		f.resourceClasses = append(f.resourceClasses, rc)
 	}
 	f.mu.Unlock()
@@ -2057,8 +2042,20 @@ func (f *CircleCI) handleCreateResourceClassV3(w http.ResponseWriter, r *http.Re
 	})
 }
 
+// resourceClassV3Entity renders a stored ResourceClass as its V3 data entity.
+func resourceClassV3Entity(rc ResourceClass) map[string]any {
+	return map[string]any{
+		"id": rc.ID,
+		"attributes": map[string]any{
+			"resource_class": rc.Slug,
+			"description":    rc.Description,
+		},
+	}
+}
+
 // handleUpdateResourceClass serves POST /api/v3/runner/resource-classes/{id}/update.
-// It updates the description of the resource class and returns the updated object.
+// As in runner-admin, the request body is flat but the response is the updated
+// resource class wrapped in the V3 data envelope.
 func (f *CircleCI) handleUpdateResourceClass(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	var body struct {
@@ -2094,11 +2091,7 @@ func (f *CircleCI) handleUpdateResourceClass(w http.ResponseWriter, r *http.Requ
 		render.JSON(w, r, map[string]any{"message": "not found"})
 		return
 	}
-	render.JSON(w, r, map[string]any{
-		"id":             updated.ID,
-		"resource_class": updated.Slug,
-		"description":    updated.Description,
-	})
+	render.JSON(w, r, map[string]any{"data": resourceClassV3Entity(updated)})
 }
 
 // SetResourceClassDeleteResponse overrides the response to DELETE
@@ -2165,23 +2158,7 @@ func (f *CircleCI) deleteResourceClass(w http.ResponseWriter, r *http.Request, f
 	}
 }
 
-func (f *CircleCI) handleListRunnerTokens(w http.ResponseWriter, r *http.Request) {
-	rc := r.URL.Query().Get("resource-class")
-	f.mu.RLock()
-	tokens := f.runnerTokens[rc]
-	deleted := f.deletedTokens
-	f.mu.RUnlock()
-
-	items := []any{}
-	for _, tok := range tokens {
-		if !deleted[tok.ID] {
-			items = append(items, runnerTokenEntity(tok))
-		}
-	}
-	render.JSON(w, r, map[string]any{"items": items})
-}
-
-// SetRunnerTokenCreateResponse overrides the response to POST /runner/token, which
+// SetRunnerTokenCreateResponse overrides the response to POST /runner/tokens, which
 // otherwise answers 201 with a token whose value is "fake-runner-token-value". Use
 // it to force a failure, or a 201 whose payload omits or lengthens the token value.
 // A nil body sends a generic error message.
@@ -2190,70 +2167,6 @@ func (f *CircleCI) SetRunnerTokenCreateResponse(status int, body any) {
 	defer f.mu.Unlock()
 	f.runnerTokenCreateStatus = status
 	f.runnerTokenCreateBody = body
-}
-
-func (f *CircleCI) handleCreateRunnerToken(w http.ResponseWriter, r *http.Request) {
-	var body map[string]any
-	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
-		render.Status(r, http.StatusBadRequest)
-		render.JSON(w, r, map[string]any{"message": "invalid body"})
-		return
-	}
-
-	f.mu.RLock()
-	status, override := f.runnerTokenCreateStatus, f.runnerTokenCreateBody
-	f.mu.RUnlock()
-	if status != 0 {
-		render.Status(r, status)
-		if override == nil {
-			override = map[string]any{"message": "runner token creation failed"}
-		}
-		render.JSON(w, r, override)
-		return
-	}
-
-	rc, _ := body["resource_class"].(string)
-	nickname, _ := body["nickname"].(string)
-	tok := RunnerToken{
-		ID:            fmt.Sprintf("tok-%s", rc),
-		ResourceClass: rc,
-		Nickname:      nickname,
-		CreatedAt:     "2026-01-01T00:00:00Z",
-		Token:         "fake-runner-token-value",
-	}
-	f.mu.Lock()
-	f.runnerTokens[rc] = append(f.runnerTokens[rc], tok)
-	f.mu.Unlock()
-	render.Status(r, http.StatusCreated)
-	render.JSON(w, r, runnerTokenEntity(tok))
-}
-
-func (f *CircleCI) handleDeleteRunnerToken(w http.ResponseWriter, r *http.Request) {
-	id := chi.URLParam(r, "id")
-	f.mu.Lock()
-	found := false
-	for _, tokens := range f.runnerTokens {
-		for _, tok := range tokens {
-			if tok.ID == id {
-				found = true
-				break
-			}
-		}
-		if found {
-			break
-		}
-	}
-	if found {
-		f.deletedTokens[id] = true
-	}
-	f.mu.Unlock()
-
-	if !found {
-		render.Status(r, http.StatusNotFound)
-		render.JSON(w, r, map[string]any{"message": "not found"})
-		return
-	}
-	render.JSON(w, r, map[string]any{"message": "Deleted."})
 }
 
 // --- V3 runner token handlers (/api/v3/runner/tokens) ---
@@ -2363,22 +2276,37 @@ func (f *CircleCI) handleCreateRunnerTokenV3(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
+	f.mu.Lock()
+	// runner-admin issues UUID ids, and DELETE /runner/tokens/{id} rejects anything
+	// else. Derive one from the class and its token count so it is unique within a
+	// test but stable across runs for golden files.
+	seed := fmt.Sprintf("runner-token:%s:%d", rcSlug, len(f.runnerTokens[rcSlug]))
 	tok := RunnerToken{
-		ID:            fmt.Sprintf("tok-%s", rcSlug),
+		ID:            uuid.NewSHA1(uuid.NameSpaceURL, []byte(seed)).String(),
 		ResourceClass: rcSlug,
 		Nickname:      body.Data.Attributes.Nickname,
 		CreatedAt:     "2026-01-01T00:00:00Z",
 		Token:         "fake-runner-token-value",
 	}
-	f.mu.Lock()
 	f.runnerTokens[rcSlug] = append(f.runnerTokens[rcSlug], tok)
 	f.mu.Unlock()
 	render.Status(r, http.StatusCreated)
 	render.JSON(w, r, map[string]any{"data": runnerTokenV3CreateEntity(tok)})
 }
 
+// handleDeleteRunnerTokenV3 serves DELETE /api/v3/runner/tokens/{id}. As in
+// runner-admin, an id that is not a UUID is a 400 rather than a 404.
 func (f *CircleCI) handleDeleteRunnerTokenV3(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
+	if _, err := uuid.Parse(id); err != nil {
+		render.Status(r, http.StatusBadRequest)
+		render.JSON(w, r, map[string]any{"error": map[string]any{
+			"type":   "invalid_path_param",
+			"title":  "Invalid token ID",
+			"detail": "The value provided is not a valid UUID.",
+		}})
+		return
+	}
 	f.mu.Lock()
 	found := false
 	for _, tokens := range f.runnerTokens {

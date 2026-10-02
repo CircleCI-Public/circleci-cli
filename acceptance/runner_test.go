@@ -83,8 +83,8 @@ func setupRunnerFake(t *testing.T) (*fakes.CircleCI, *testenv.TestEnv) {
 	fake.AddResourceClass(fakeRC("11111111-1111-4111-8111-111111111111", "my-org/linux-runner", "Linux amd64 runner"))
 	fake.AddResourceClass(fakeRC("22222222-2222-4222-8222-222222222222", "my-org/arm-runner", "ARM runner"))
 
-	fake.AddRunnerToken("my-org/linux-runner", fakeToken("tok-id-1", "my-org/linux-runner", "prod-server-1"))
-	fake.AddRunnerToken("my-org/linux-runner", fakeToken("tok-id-2", "my-org/linux-runner", "prod-server-2"))
+	fake.AddRunnerToken("my-org/linux-runner", fakeToken("10000000-0000-4000-8000-000000000001", "my-org/linux-runner", "prod-server-1"))
+	fake.AddRunnerToken("my-org/linux-runner", fakeToken("10000000-0000-4000-8000-000000000002", "my-org/linux-runner", "prod-server-2"))
 
 	fake.AddRunnerAgent(fakeAgent("aaaaaaaa-1111-4111-8111-aaaaaaaaaaaa", "my-org/linux-runner", "runner-1", "1.0.0", false))
 	fake.AddRunnerAgent(fakeAgent("bbbbbbbb-2222-4222-8222-bbbbbbbbbbbb", "my-org/arm-runner", "runner-2", "1.0.0", false))
@@ -404,12 +404,12 @@ func TestRunnerResourceClassCreate_GenerateToken(t *testing.T) {
 
 		assert.Check(t, cmp.DeepEqual(reqs[2], httprecorder.Request{
 			Method: http.MethodPost,
-			URL:    url.URL{Path: "/api/v3/runner/token"},
+			URL:    url.URL{Path: "/api/v3/runner/tokens"},
 			Header: http.Header{
 				"Authorization": {"Bearer test-token"},
 				"User-Agent":    {httpcl.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
 			},
-			Body: new(`{"nickname":"default","resource_class":"my-org/new-runner"}`),
+			Body: new(`{"data":{"attributes":{"nickname":"default"},"references":{"resource_class":{"id":"f212fd52-c7f7-57dc-b25e-5f29aada41f1"}}}}`),
 		}, ignoreCommonHeaders))
 	})
 }
@@ -437,11 +437,14 @@ func TestRunnerResourceClassCreate_GenerateToken_LongTokenNotWrapped(t *testing.
 
 	fake, env := setupRunnerFake(t)
 	fake.SetRunnerTokenCreateResponse(http.StatusCreated, map[string]any{
-		"id":             "tok-id-9",
-		"resource_class": "my-org/new-runner",
-		"nickname":       "default",
-		"created_at":     "2026-01-01T00:00:00Z",
-		"token":          longToken,
+		"data": map[string]any{
+			"id": "10000000-0000-4000-8000-000000000009",
+			"attributes": map[string]any{
+				"nickname":   "default",
+				"created_at": "2026-01-01T00:00:00Z",
+				"token":      longToken,
+			},
+		},
 	})
 
 	result := binary.RunCLI(t, binary.RunOpts{
@@ -474,10 +477,10 @@ func TestRunnerResourceClassCreate_GenerateToken_JSON(t *testing.T) {
 	err := json.Unmarshal([]byte(result.Stdout), &out)
 	assert.NilError(t, err)
 	assert.Check(t, cmp.DeepEqual(out, map[string]any{
-		"id":             "rc-my-org/new-runner",
+		"id":             "f212fd52-c7f7-57dc-b25e-5f29aada41f1",
 		"resource_class": "my-org/new-runner",
 		"description":    "",
-		"token_id":       "tok-my-org/new-runner",
+		"token_id":       "3c49fcdb-6513-5438-8b97-d69d46e0d0d2",
 		"token":          "fake-runner-token-value",
 	}))
 
@@ -547,10 +550,13 @@ func TestRunnerResourceClassCreate_GenerateToken_TokenUnauthorized(t *testing.T)
 func TestRunnerResourceClassCreate_GenerateToken_TokenValueMissing(t *testing.T) {
 	fake, env := setupRunnerFake(t)
 	fake.SetRunnerTokenCreateResponse(http.StatusCreated, map[string]any{
-		"id":             "tok-id-9",
-		"resource_class": "my-org/new-runner",
-		"nickname":       "default",
-		"created_at":     "2026-01-01T00:00:00Z",
+		"data": map[string]any{
+			"id": "10000000-0000-4000-8000-000000000009",
+			"attributes": map[string]any{
+				"nickname":   "default",
+				"created_at": "2026-01-01T00:00:00Z",
+			},
+		},
 	})
 
 	result := binary.RunCLI(t, binary.RunOpts{
@@ -601,6 +607,31 @@ func TestRunnerResourceClassDelete_NoForce(t *testing.T) {
 	assert.Check(t, cmp.Equal(result.ExitCode, 6))
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
 	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+}
+
+// A token created between the lookup and the forced delete makes runner-admin answer
+// 409. Its V3 error body must not leak into the message as raw JSON.
+func TestRunnerResourceClassDelete_TokensInUse(t *testing.T) {
+	fake, env := setupRunnerFake(t)
+	fake.SetResourceClassDeleteResponse(http.StatusConflict, map[string]any{
+		"error": map[string]any{
+			"id":    "trace-409",
+			"title": "Resource class my-org/linux-runner still has tokens in use.",
+		},
+	})
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"runner", "resource-class", "delete", "my-org/linux-runner", "--force"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, clierrors.ExitAPIError))
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+	assert.Check(t, cmp.Contains(result.Stderr, "error id: trace-409"))
+	assert.Check(t, !strings.Contains(result.Stderr, `{"error"`), "raw error body leaked: %s", result.Stderr)
 }
 
 func TestRunnerResourceClassDelete_Force(t *testing.T) {
@@ -858,7 +889,7 @@ func TestRunnerResourceClassDelete_HasTokens(t *testing.T) {
 func TestRunnerTokenList_EnumeratesEveryResourceClass(t *testing.T) {
 	fake, env := setupRunnerFake(t)
 	fake.AddResourceClass(fakeRC("33333333-3333-4333-8333-333333333333", "my-org/idle-runner", "No runners attached"))
-	fake.AddRunnerToken("my-org/idle-runner", fakeToken("tok-id-9", "my-org/idle-runner", "idle-token"))
+	fake.AddRunnerToken("my-org/idle-runner", fakeToken("10000000-0000-4000-8000-000000000009", "my-org/idle-runner", "idle-token"))
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
@@ -878,7 +909,7 @@ func TestRunnerTokenList_EnumeratesEveryResourceClass(t *testing.T) {
 		id, _ := tok["id"].(string)
 		ids = append(ids, id)
 	}
-	assert.Check(t, cmp.Contains(ids, "tok-id-9"))
+	assert.Check(t, cmp.Contains(ids, "10000000-0000-4000-8000-000000000009"))
 	assert.Check(t, cmp.Len(ids, 3))
 }
 
@@ -937,7 +968,7 @@ func TestRunnerTokenList(t *testing.T) {
 // of the namespace/name fails here rather than in production.
 func TestRunnerTokenList_FiltersByResourceClass(t *testing.T) {
 	fake, env := setupRunnerFake(t)
-	fake.AddRunnerToken("my-org/arm-runner", fakeToken("tok-id-arm", "my-org/arm-runner", "arm-server"))
+	fake.AddRunnerToken("my-org/arm-runner", fakeToken("10000000-0000-4000-8000-00000000000a", "my-org/arm-runner", "arm-server"))
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
@@ -972,7 +1003,7 @@ func TestRunnerTokenList_FiltersByResourceClass(t *testing.T) {
 			id, _ := tok["id"].(string)
 			ids = append(ids, id)
 		}
-		assert.Check(t, cmp.DeepEqual(ids, []string{"tok-id-1", "tok-id-2"}))
+		assert.Check(t, cmp.DeepEqual(ids, []string{"10000000-0000-4000-8000-000000000001", "10000000-0000-4000-8000-000000000002"}))
 	})
 }
 
@@ -1022,8 +1053,8 @@ func TestRunnerTokenList_ByID_JSON(t *testing.T) {
 	var out []map[string]any
 	assert.NilError(t, json.Unmarshal([]byte(result.Stdout), &out))
 	assert.Check(t, cmp.DeepEqual(out, []map[string]any{
-		{"id": "tok-id-1", "resource_class": "my-org/linux-runner", "nickname": "prod-server-1", "created_at": "2026-01-01T00:00:00Z"},
-		{"id": "tok-id-2", "resource_class": "my-org/linux-runner", "nickname": "prod-server-2", "created_at": "2026-01-01T00:00:00Z"},
+		{"id": "10000000-0000-4000-8000-000000000001", "resource_class": "my-org/linux-runner", "nickname": "prod-server-1", "created_at": "2026-01-01T00:00:00Z"},
+		{"id": "10000000-0000-4000-8000-000000000002", "resource_class": "my-org/linux-runner", "nickname": "prod-server-2", "created_at": "2026-01-01T00:00:00Z"},
 	}))
 }
 
@@ -1118,7 +1149,7 @@ func TestRunnerTokenList_JSON(t *testing.T) {
 	err := json.Unmarshal([]byte(result.Stdout), &out)
 	assert.NilError(t, err)
 	assert.Check(t, cmp.Len(out, 2))
-	assert.Check(t, cmp.Equal(out[0]["id"], "tok-id-1"))
+	assert.Check(t, cmp.Equal(out[0]["id"], "10000000-0000-4000-8000-000000000001"))
 	assert.Check(t, cmp.Equal(out[0]["nickname"], "prod-server-1"))
 
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".json"))
@@ -1269,7 +1300,7 @@ func TestRunnerTokenDelete(t *testing.T) {
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"runner", "token", "delete", "--force", "tok-id-1"},
+		Args:    []string{"runner", "token", "delete", "--force", "10000000-0000-4000-8000-000000000001"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
@@ -1281,7 +1312,7 @@ func TestRunnerTokenDelete(t *testing.T) {
 	t.Run("check request", func(t *testing.T) {
 		assert.Check(t, cmp.DeepEqual(fake.LastRequest(), &httprecorder.Request{
 			Method: http.MethodDelete,
-			URL:    url.URL{Path: "/api/v3/runner/tokens/tok-id-1"},
+			URL:    url.URL{Path: "/api/v3/runner/tokens/10000000-0000-4000-8000-000000000001"},
 			Header: http.Header{
 				"Authorization": {"Bearer test-token"},
 				"User-Agent":    {httpcl.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
@@ -1296,7 +1327,7 @@ func TestRunnerTokenDelete_JSON(t *testing.T) {
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"runner", "token", "delete", "--force", "--json", "tok-id-1"},
+		Args:    []string{"runner", "token", "delete", "--force", "--json", "10000000-0000-4000-8000-000000000001"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
@@ -1311,7 +1342,7 @@ func TestRunnerTokenDelete_NotFound_JSON(t *testing.T) {
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"runner", "token", "delete", "--force", "--json", "tok-id-nope"},
+		Args:    []string{"runner", "token", "delete", "--force", "--json", "10000000-0000-4000-8000-0000000000ff"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
@@ -1326,7 +1357,7 @@ func TestRunnerTokenDelete_Color(t *testing.T) {
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"runner", "token", "delete", "--force", "tok-id-1"},
+		Args:    []string{"runner", "token", "delete", "--force", "10000000-0000-4000-8000-000000000001"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 		TTY:     true,
@@ -1343,7 +1374,7 @@ func TestRunnerTokenDelete_RequiresForce(t *testing.T) {
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"runner", "token", "delete", "tok-id-1"},
+		Args:    []string{"runner", "token", "delete", "10000000-0000-4000-8000-000000000001"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
@@ -1361,7 +1392,7 @@ func TestRunnerTokenDelete_NotFound(t *testing.T) {
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"runner", "token", "delete", "--force", "nonexistent-token-id"},
+		Args:    []string{"runner", "token", "delete", "--force", "10000000-0000-4000-8000-0000000000ff"},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
@@ -1369,6 +1400,30 @@ func TestRunnerTokenDelete_NotFound(t *testing.T) {
 	assert.Check(t, cmp.Equal(result.ExitCode, 5))
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
 	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+}
+
+// runner-admin answers a non-UUID token id with a 400, so the CLI rejects it as a bad
+// argument before prompting or calling the API.
+func TestRunnerTokenDelete_InvalidID(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"runner", "token", "delete", "--force", "not-a-token-id"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, clierrors.ExitBadArguments))
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+
+	t.Run("check requests", func(t *testing.T) {
+		assert.Check(t, cmp.Len(fake.AllRequests(), 0))
+	})
 }
 
 // --- instance list ---
@@ -2397,7 +2452,7 @@ func TestRunner_NotAdmin(t *testing.T) {
 		{name: "resource-class update", args: []string{"runner", "resource-class", "update", "my-org/linux-runner", "--description", "New desc"}},
 		{name: "resource-class delete", args: []string{"runner", "resource-class", "delete", "my-org/linux-runner", "--force"}},
 		{name: "token create", args: []string{"runner", "token", "create", "my-org/linux-runner"}},
-		{name: "token delete", args: []string{"runner", "token", "delete", "tok-id-1", "--force"}},
+		{name: "token delete", args: []string{"runner", "token", "delete", "10000000-0000-4000-8000-000000000001", "--force"}},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {

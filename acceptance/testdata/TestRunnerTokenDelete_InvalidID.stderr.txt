@@ -1,0 +1,4 @@
+error: "not-a-token-id" is not a valid token ID. Token IDs are UUIDs.
+
+Suggestions:
+  • List tokens with: circleci runner token list --resource-class <namespace/name>

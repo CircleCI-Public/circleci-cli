@@ -1,4 +1,4 @@
 # Created Resource Class
 - Resource Class: my-org/new-runner
 - Description: New runner
-- ID: `rc-my-org/new-runner`
+- ID: `f212fd52-c7f7-57dc-b25e-5f29aada41f1`
