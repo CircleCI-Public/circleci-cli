@@ -465,8 +465,8 @@ func NewCircleCI(t *testing.T, tokens ...string) *CircleCI {
 	// Runner (v3) routes. GET /runner/agents lists agents under exactly one of
 	// filter[org_id]=, filter[resource_class]= or filter[namespace]=.
 	// List/create/delete for resource classes all live on
-	// /runner/resource-classes: GET accepts filter[org_id]= and/or
-	// filter[slug]=, GET /{id} fetches one, POST creates one, and DELETE /{id} removes one
+	// /runner/resource-classes: GET accepts filter[org_id]=, filter[namespace]=,
+	// filter[resource_class]= and filter[slug]=, GET /{id} fetches one, POST creates one, and DELETE /{id} removes one
 	// (optionally ?force=true).
 	r.Get("/api/v3/runner/agents", f.handleListRunnerAgents)
 	r.Get("/api/v3/runner/resource-classes", f.handleListResourceClassesV3)
@@ -1877,6 +1877,10 @@ func (f *CircleCI) runnerResourceClassExists(id string) bool {
 // 404, and a filter[org_id] naming an org registered via HideRunnerOrg is a 404.
 func (f *CircleCI) handleListResourceClassesV3(w http.ResponseWriter, r *http.Request) {
 	slug := r.URL.Query().Get("filter[slug]")
+	if rc := r.URL.Query().Get("filter[resource_class]"); rc != "" {
+		slug = rc
+	}
+	namespace := r.URL.Query().Get("filter[namespace]")
 	orgID := r.URL.Query().Get("filter[org_id]")
 
 	f.mu.RLock()
@@ -1896,6 +1900,9 @@ func (f *CircleCI) handleListResourceClassesV3(w http.ResponseWriter, r *http.Re
 			continue
 		}
 		if slug != "" && rc.Slug != slug {
+			continue
+		}
+		if namespace != "" && !strings.HasPrefix(rc.Slug, namespace+"/") {
 			continue
 		}
 		if orgID != "" && rc.OrgID != orgID {

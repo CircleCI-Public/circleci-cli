@@ -31,8 +31,9 @@
 //   - Container runner has no agent config file at all. Its agent is configured
 //     by flags and environment variables supplied by the container-agent Helm
 //     chart, so the file a user authors is a Helm values.yaml.
-//   - Runner provisioner is likewise Helm-configured, under a different
-//     top-level key, and renders its own ConfigMap and Secret from those values.
+//   - Machine runner orchestrator is likewise Helm-configured, under a
+//     different top-level key, and renders its own ConfigMap and Secret from
+//     those values.
 //
 // Output is deterministic: struct field order controls layout and yaml.v3 sorts
 // map keys alphabetically.
@@ -56,13 +57,23 @@ const (
 	Machine Product = "machine"
 	// Container is container runner: container-agent Helm values.
 	Container Product = "container"
-	// Provisioner is runner provisioner: runner-provisioner Helm values.
-	Provisioner Product = "provisioner"
+	// MachineOrchestrator is machine runner orchestrator: machine-runner-orchestrator
+	// Helm values.
+	MachineOrchestrator Product = "machineOrchestrator"
 )
 
 // Products are the accepted --product values. Machine is first so it is both
 // the flag default and the preselected entry in the interactive prompt.
-var Products = []string{string(Machine), string(Container), string(Provisioner)}
+var Products = []string{string(Machine), string(Container), string(MachineOrchestrator)}
+
+// legacyProductAliases maps a --product value from before the runner
+// provisioner was renamed to machine runner orchestrator to its current
+// Product, so scripts and pipelines written against the old name keep
+// working. Deliberately left out of Products and error suggestions so
+// nothing new is written against the old name.
+var legacyProductAliases = map[string]Product{
+	"provisioner": MachineOrchestrator,
+}
 
 // Options is the input to Render. Name and WorkingDirectory apply to Machine
 // only; the Helm products take nothing but the resource class and its token.
@@ -86,6 +97,9 @@ func ParseProduct(v string) (Product, *clierrors.CLIError) {
 			return Product(v), nil
 		}
 	}
+	if p, ok := legacyProductAliases[v]; ok {
+		return p, nil
+	}
 	return "", clierrors.New("runner.invalid_product", "Invalid --product value",
 		fmt.Sprintf("%q is not a runner product.", v)).
 		WithSuggestions("Use one of: " + strings.Join(Products, ", ")).
@@ -106,8 +120,8 @@ func Render(p Product, opts Options) ([]byte, error) {
 		return renderMachine(opts)
 	case Container:
 		return renderContainer(opts)
-	case Provisioner:
-		return renderProvisioner(opts)
+	case MachineOrchestrator:
+		return renderMachineOrchestrator(opts)
 	default:
 		_, err := ParseProduct(string(p))
 		return nil, err

@@ -1,0 +1,4 @@
+# Runner Resource Classes
+| Resource Class    | Description |
+| ----------------- | ----------- |
+| my-org/arm-runner | ARM runner  |

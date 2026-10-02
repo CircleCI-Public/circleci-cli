@@ -3743,16 +3743,16 @@ Generate configuration for a self-hosted runner
 
 Generate the configuration a self-hosted runner needs to start. --product
 machine (the default) emits an agent circleci-runner-config.yaml for machine
-runner 3 (circleci-runner 3.x); container and provisioner emit Helm values.
+runner 3 (circleci-runner 3.x); container and machineOrchestrator emit Helm values.
 
-| Flag                         | Description                                                                           |
-| ---------------------------- | ------------------------------------------------------------------------------------- |
-| `--name string`              | Runner name, machine only (default: hostname)                                         |
-| `--nickname string`          | Nickname for the new token                                                            |
-| `-o, --output string`        | Write config to this file instead of stdout                                           |
-| `--product string`           | Runner product: machine\|container\|provisioner (default machine, prompts when unset) |
-| `--token string`             | Use an existing token value instead of creating a new one                             |
-| `--working-directory string` | Job working directory, machine only                                                   |
+| Flag                         | Description                                                                                   |
+| ---------------------------- | --------------------------------------------------------------------------------------------- |
+| `--name string`              | Runner name, machine only (default: hostname)                                                 |
+| `--nickname string`          | Nickname for the new token                                                                    |
+| `-o, --output string`        | Write config to this file instead of stdout                                                   |
+| `--product string`           | Runner product: machine\|container\|machineOrchestrator (default machine, prompts when unset) |
+| `--token string`             | Use an existing token value instead of creating a new one                                     |
+| `--working-directory string` | Job working directory, machine only                                                           |
 
 
 **Arguments:**
@@ -3924,16 +3924,17 @@ organization name (for example, `my-org/my-runner`), or as its ID.
 
 List runner resource classes
 
-List CircleCI runner resource classes.
+List CircleCI runner resource classes in an organization, a namespace, or by name.
 
 JSON fields: id, resource_class, description
 
-| Flag                 | Description                                                                       |
-| -------------------- | --------------------------------------------------------------------------------- |
-| `--jq string`        | Process values from the response using jq syntax (see `circleci help formatting`) |
-| `--json`             | Output as JSON                                                                    |
-| `--namespace string` | deprecated: no longer supported, use --org                                        |
-| `--org string`       | Organization slug (e.g. gh/myorg) or UUID; defaults to git remote                 |
+| Flag                      | Description                                                                       |
+| ------------------------- | --------------------------------------------------------------------------------- |
+| `--jq string`             | Process values from the response using jq syntax (see `circleci help formatting`) |
+| `--json`                  | Output as JSON                                                                    |
+| `--namespace string`      | Filter by namespace (organization)                                                |
+| `--org string`            | Organization slug (e.g. gh/myorg) or UUID; defaults to git remote                 |
+| `--resource-class string` | Filter by resource class (namespace/name or ID)                                   |
 
 
 **Aliases:**
@@ -3949,6 +3950,8 @@ JSON fields: id, resource_class, description
   `circleci runner resource-class list --org gh/my-org`
 - List resource classes for a specific organization (UUID): 
   `circleci runner resource-class list --org f22b6566-597d-46d5-ba74-99ef5bb3d85c`
+- List the resource classes in one namespace: 
+  `circleci runner resource-class list --namespace my-org`
 - Output as JSON: 
   `circleci runner resource-class list --org gh/my-org --json`
 
