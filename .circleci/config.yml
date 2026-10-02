@@ -1,9 +1,7 @@
 version: 2.1
 
-parameters:
-  setup_go:
-    type: string
-    default: github.com/circleci-functions/setup-go@v0.5.1-684fd5b
+functions:
+  setup-go: github.com/circleci-functions/setup-go@v0.5.3-4edeb2a
 
 commands:
   setup:
@@ -15,10 +13,11 @@ commands:
   # Installs the toolchain and restores the module, build and lint caches, saved at job end.
   install-go:
     steps:
-      - run: circleci run << pipeline.parameters.setup_go >> --
-          --version-file go.mod
-          --golangci-lint-cache
-          --checksum '{{ checksum "go.sum" }}_{{ checksum "clikit/go.sum" }}_{{ checksum "tools/go.sum" }}'
+      - setup-go:
+          with:
+            version-file: go.mod
+            golangci-lint-cache: true
+            checksum: '{{ checksum "go.sum" }}_{{ checksum "clikit/go.sum" }}_{{ checksum "tools/go.sum" }}'
       - run: go version
 
   install-task:
