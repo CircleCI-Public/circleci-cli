@@ -1,0 +1,1 @@
+✓ Updated setup-go from v0.9.0-aaa1111 to v0.5.1-684fd5b in .circleci/config.yml

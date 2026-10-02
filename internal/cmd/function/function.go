@@ -56,6 +56,6 @@ func NewFunctionCmd() *cobra.Command {
 		FParseErrWhitelist: cobra.FParseErrWhitelist{UnknownFlags: true},
 	}
 
-	cmdutil.AddGroup(cmd, "Commands", newListCmd(), newGetCmd(), newAddCmd())
+	cmdutil.AddGroup(cmd, "Commands", newListCmd(), newGetCmd(), newAddCmd(), newUpdateCmd())
 	return cmd
 }
