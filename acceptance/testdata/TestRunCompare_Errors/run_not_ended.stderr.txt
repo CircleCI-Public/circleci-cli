@@ -1,0 +1,5 @@
+Fetching running time and credits for both runs...
+error: Run 33333333-0000-4000-8000-000000000003 is started; its running time and credits are not final yet.
+
+Suggestions:
+  • Wait for it to finish: circleci run watch 33333333-0000-4000-8000-000000000003
