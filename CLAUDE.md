@@ -59,6 +59,16 @@ followed the others.
 
 ---
 
+## Domain terminology
+
+**Runner resource classes are never "slugs".** A runner resource class such as
+`my-namespace/my-resource-class` is a compound key (namespace + name), not a slug. In runner
+commands, call it the **resource class** or the **fully qualified resource class** everywhere:
+help text, flag descriptions, error messages, JSON field docs, code comments, identifiers and
+tests. Org and project slugs (`gh/myorg`, `gh/myorg/myrepo`) are unaffected and stay "slug".
+
+---
+
 ## Design guidelines
 
 The normative design guidelines live in [`agents/`](agents/README.md). **Read the linked file

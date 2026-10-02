@@ -103,7 +103,7 @@ type CircleCI struct {
 
 	// Runner (v3) state.
 	resourceClasses []ResourceClass          // all resource classes
-	runnerTokens    map[string][]RunnerToken // resource class slug → tokens
+	runnerTokens    map[string][]RunnerToken // fully qualified resource class → tokens
 	runnerAgents    []RunnerAgent            // all agents
 
 	runnerTokenCreateStatus   int // 0 = default success response
@@ -466,8 +466,8 @@ func NewCircleCI(t *testing.T, tokens ...string) *CircleCI {
 	// filter[org_id]=, filter[resource_class]= or filter[namespace]=.
 	// List/create/delete for resource classes all live on
 	// /runner/resource-classes: GET accepts filter[org_id]=, filter[namespace]=,
-	// filter[resource_class]= and filter[slug]=, GET /{id} fetches one, POST creates one, and DELETE /{id} removes one
-	// (optionally ?force=true).
+	// filter[resource_class]= (or its filter[slug]= alias), GET /{id} fetches one, POST creates one, and
+	// DELETE /{id} removes one (optionally ?force=true).
 	r.Get("/api/v3/runner/agents", f.handleListRunnerAgents)
 	r.Get("/api/v3/runner/resource-classes", f.handleListResourceClassesV3)
 	r.Get("/api/v3/runner/resource-classes/{id}", f.handleGetResourceClassV3)
@@ -1747,16 +1747,16 @@ func (f *CircleCI) handleCancelWorkflow(w http.ResponseWriter, r *http.Request) 
 // --- Runner helpers ---
 
 // ResourceClass is a stored runner resource class served by the runner
-// resource-class list and create endpoints. Slug is the "resource_class" wire
+// resource-class list and create endpoints. ResourceClass is the "resource_class" wire
 // field (e.g. "my-org/linux-runner"); the list filters on its namespace prefix.
 // OrgID records the owning organization, modeling namespace ownership: create
 // requests are 403'd when they target a namespace already claimed by a
 // different org, and filter[org_id] on the list only returns matching classes.
 type ResourceClass struct {
-	ID          string
-	Slug        string
-	Description string
-	OrgID       string
+	ID            string
+	ResourceClass string
+	Description   string
+	OrgID         string
 }
 
 // RunnerToken is a stored runner token served by the runner token list and
@@ -1864,7 +1864,7 @@ func (f *CircleCI) runnerResourceClassExists(id string) bool {
 	f.mu.RLock()
 	defer f.mu.RUnlock()
 	for _, rc := range f.resourceClasses {
-		if rc.ID == id && !f.deletedRCs[rc.Slug] {
+		if rc.ID == id && !f.deletedRCs[rc.ResourceClass] {
 			return true
 		}
 	}
@@ -1872,13 +1872,15 @@ func (f *CircleCI) runnerResourceClassExists(id string) bool {
 }
 
 // handleListResourceClassesV3 serves GET /api/v3/runner/resource-classes, which
-// accepts filter[slug]=namespace/name or filter[org_id]=, and returns a v3
-// collection envelope. As in runner-admin, a filter[slug] matching nothing is a
-// 404, and a filter[org_id] naming an org registered via HideRunnerOrg is a 404.
+// accepts filter[resource_class]=namespace/name (a fully qualified resource
+// class), filter[namespace]= or filter[org_id]=, and returns a v3 collection
+// envelope. As in runner-admin, filter[slug] is accepted as an alias for
+// filter[resource_class], a resource class matching nothing is a 404, and a
+// filter[org_id] naming an org registered via HideRunnerOrg is a 404.
 func (f *CircleCI) handleListResourceClassesV3(w http.ResponseWriter, r *http.Request) {
-	slug := r.URL.Query().Get("filter[slug]")
-	if rc := r.URL.Query().Get("filter[resource_class]"); rc != "" {
-		slug = rc
+	resourceClass := r.URL.Query().Get("filter[resource_class]")
+	if resourceClass == "" {
+		resourceClass = r.URL.Query().Get("filter[slug]")
 	}
 	namespace := r.URL.Query().Get("filter[namespace]")
 	orgID := r.URL.Query().Get("filter[org_id]")
@@ -1896,13 +1898,13 @@ func (f *CircleCI) handleListResourceClassesV3(w http.ResponseWriter, r *http.Re
 
 	items := []any{}
 	for _, rc := range all {
-		if deleted[rc.Slug] {
+		if deleted[rc.ResourceClass] {
 			continue
 		}
-		if slug != "" && rc.Slug != slug {
+		if resourceClass != "" && rc.ResourceClass != resourceClass {
 			continue
 		}
-		if namespace != "" && !strings.HasPrefix(rc.Slug, namespace+"/") {
+		if namespace != "" && !strings.HasPrefix(rc.ResourceClass, namespace+"/") {
 			continue
 		}
 		if orgID != "" && rc.OrgID != orgID {
@@ -1911,12 +1913,12 @@ func (f *CircleCI) handleListResourceClassesV3(w http.ResponseWriter, r *http.Re
 		items = append(items, map[string]any{
 			"id": rc.ID,
 			"attributes": map[string]any{
-				"resource_class": rc.Slug,
+				"resource_class": rc.ResourceClass,
 				"description":    rc.Description,
 			},
 		})
 	}
-	if slug != "" && len(items) == 0 {
+	if resourceClass != "" && len(items) == 0 {
 		runnerNotFound(w, r, "Resource class not found.")
 		return
 	}
@@ -1934,13 +1936,13 @@ func (f *CircleCI) handleGetResourceClassV3(w http.ResponseWriter, r *http.Reque
 	f.mu.RUnlock()
 
 	for _, rc := range all {
-		if rc.ID != id || deleted[rc.Slug] {
+		if rc.ID != id || deleted[rc.ResourceClass] {
 			continue
 		}
 		render.JSON(w, r, map[string]any{"data": map[string]any{
 			"id": rc.ID,
 			"attributes": map[string]any{
-				"resource_class": rc.Slug,
+				"resource_class": rc.ResourceClass,
 				"description":    rc.Description,
 			},
 		}})
@@ -1992,10 +1994,10 @@ func (f *CircleCI) handleCreateResourceClassV3(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	slug := body.Data.Attributes.ResourceClass
+	resourceClass := body.Data.Attributes.ResourceClass
 	desc := body.Data.Attributes.Description
 	orgID := body.Data.References.Org.ID
-	namespace, _, _ := strings.Cut(slug, "/")
+	namespace, _, _ := strings.Cut(resourceClass, "/")
 
 	// runner-admin authorizes the org before it checks namespace ownership.
 	f.mu.RLock()
@@ -2012,10 +2014,10 @@ func (f *CircleCI) handleCreateResourceClassV3(w http.ResponseWriter, r *http.Re
 	f.mu.Lock()
 	mismatch := false
 	for _, existing := range f.resourceClasses {
-		if f.deletedRCs[existing.Slug] {
+		if f.deletedRCs[existing.ResourceClass] {
 			continue
 		}
-		existingNamespace, _, _ := strings.Cut(existing.Slug, "/")
+		existingNamespace, _, _ := strings.Cut(existing.ResourceClass, "/")
 		if existingNamespace == namespace && existing.OrgID != orgID {
 			mismatch = true
 			break
@@ -2024,9 +2026,9 @@ func (f *CircleCI) handleCreateResourceClassV3(w http.ResponseWriter, r *http.Re
 	var rc ResourceClass
 	if !mismatch {
 		// runner-admin issues UUID ids, which callers pass back as V3 references. Derive one
-		// from the slug so it is a real UUID but stays stable across runs for golden files.
-		id := uuid.NewSHA1(uuid.NameSpaceURL, []byte("resource-class:"+slug)).String()
-		rc = ResourceClass{ID: id, Slug: slug, Description: desc, OrgID: orgID}
+		// from the resource class so it is a real UUID but stays stable across runs for golden files.
+		id := uuid.NewSHA1(uuid.NameSpaceURL, []byte("resource-class:"+resourceClass)).String()
+		rc = ResourceClass{ID: id, ResourceClass: resourceClass, Description: desc, OrgID: orgID}
 		f.resourceClasses = append(f.resourceClasses, rc)
 	}
 	f.mu.Unlock()
@@ -2042,7 +2044,7 @@ func (f *CircleCI) handleCreateResourceClassV3(w http.ResponseWriter, r *http.Re
 		"data": map[string]any{
 			"id": rc.ID,
 			"attributes": map[string]any{
-				"resource_class": rc.Slug,
+				"resource_class": rc.ResourceClass,
 				"description":    rc.Description,
 			},
 		},
@@ -2054,7 +2056,7 @@ func resourceClassV3Entity(rc ResourceClass) map[string]any {
 	return map[string]any{
 		"id": rc.ID,
 		"attributes": map[string]any{
-			"resource_class": rc.Slug,
+			"resource_class": rc.ResourceClass,
 			"description":    rc.Description,
 		},
 	}
@@ -2143,10 +2145,10 @@ func (f *CircleCI) deleteResourceClass(w http.ResponseWriter, r *http.Request, f
 	for _, rc := range f.resourceClasses {
 		if rc.ID == id {
 			found = true
-			hasTokens = len(f.runnerTokens[rc.Slug]) > 0
+			hasTokens = len(f.runnerTokens[rc.ResourceClass]) > 0
 			if force || !hasTokens {
-				f.deletedRCs[rc.Slug] = true
-				delete(f.runnerTokens, rc.Slug)
+				f.deletedRCs[rc.ResourceClass] = true
+				delete(f.runnerTokens, rc.ResourceClass)
 			}
 			break
 		}
@@ -2270,16 +2272,16 @@ func (f *CircleCI) handleCreateRunnerTokenV3(w http.ResponseWriter, r *http.Requ
 
 	rcID := body.Data.References.ResourceClass.ID
 	f.mu.RLock()
-	var rcSlug string
+	var resourceClass string
 	for _, rc := range f.resourceClasses {
 		if rc.ID == rcID {
-			rcSlug = rc.Slug
+			resourceClass = rc.ResourceClass
 			break
 		}
 	}
 	f.mu.RUnlock()
 
-	if rcSlug != "" && f.rejectRunnerWrite(w, r) {
+	if resourceClass != "" && f.rejectRunnerWrite(w, r) {
 		return
 	}
 
@@ -2287,15 +2289,15 @@ func (f *CircleCI) handleCreateRunnerTokenV3(w http.ResponseWriter, r *http.Requ
 	// runner-admin issues UUID ids, and DELETE /runner/tokens/{id} rejects anything
 	// else. Derive one from the class and its token count so it is unique within a
 	// test but stable across runs for golden files.
-	seed := fmt.Sprintf("runner-token:%s:%d", rcSlug, len(f.runnerTokens[rcSlug]))
+	seed := fmt.Sprintf("runner-token:%s:%d", resourceClass, len(f.runnerTokens[resourceClass]))
 	tok := RunnerToken{
 		ID:            uuid.NewSHA1(uuid.NameSpaceURL, []byte(seed)).String(),
-		ResourceClass: rcSlug,
+		ResourceClass: resourceClass,
 		Nickname:      body.Data.Attributes.Nickname,
 		CreatedAt:     "2026-01-01T00:00:00Z",
 		Token:         "fake-runner-token-value",
 	}
-	f.runnerTokens[rcSlug] = append(f.runnerTokens[rcSlug], tok)
+	f.runnerTokens[resourceClass] = append(f.runnerTokens[resourceClass], tok)
 	f.mu.Unlock()
 	render.Status(r, http.StatusCreated)
 	render.JSON(w, r, map[string]any{"data": runnerTokenV3CreateEntity(tok)})
@@ -2366,7 +2368,7 @@ func (f *CircleCI) handleListRunnerAgents(w http.ResponseWriter, r *http.Request
 
 	rcIDs := make(map[string]string, len(classes))
 	for _, c := range classes {
-		rcIDs[c.Slug] = c.ID
+		rcIDs[c.ResourceClass] = c.ID
 	}
 
 	// The fake keeps one org, so an org filter matches every stored agent.

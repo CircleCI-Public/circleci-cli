@@ -300,7 +300,7 @@ func runResourceClassCreate(ctx context.Context, client *apiclient.Client,
 
 	if generateToken {
 		// Reference the class by the ID the API returned, and label the token with the
-		// slug it echoed back, so a server-side normalisation of the name cannot
+		// resource class it echoed back, so a server-side normalisation of the name cannot
 		// attach the token to the wrong class.
 		rcID, err := uuid.Parse(rc.ID)
 		if err != nil {

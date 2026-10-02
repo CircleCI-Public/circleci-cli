@@ -40,8 +40,8 @@ import (
 )
 
 // newRunnerFake builds a minimal fake that responds to the v3 resource-classes endpoints.
-// The handler maps filter[slug] values to pre-registered items; unknown slugs return an
-// empty collection. The update endpoint stores changes in-memory.
+// The handler maps filter[resource_class] values to pre-registered items; unknown resource
+// classes return an empty collection. The update endpoint stores changes in-memory.
 func newRunnerFake(t *testing.T, items map[string]apiclient.ResourceClass) *apiclient.Client {
 	t.Helper()
 
@@ -53,8 +53,8 @@ func newRunnerFake(t *testing.T, items map[string]apiclient.ResourceClass) *apic
 
 	r := chi.NewMux()
 	r.Get("/api/v3/runner/resource-classes", func(w http.ResponseWriter, r *http.Request) {
-		slug := r.URL.Query().Get("filter[slug]")
-		rc, ok := items[slug]
+		resourceClass := r.URL.Query().Get("filter[resource_class]")
+		rc, ok := items[resourceClass]
 
 		var data []any
 		if ok {
@@ -106,7 +106,7 @@ func newRunnerFake(t *testing.T, items map[string]apiclient.ResourceClass) *apic
 	})
 }
 
-func TestGetResourceClassBySlug(t *testing.T) {
+func TestGetResourceClass(t *testing.T) {
 	ctx := iostream.Testing(context.Background())
 
 	seeded := apiclient.ResourceClass{
@@ -118,14 +118,14 @@ func TestGetResourceClassBySlug(t *testing.T) {
 		"my-ns/my-runner": seeded,
 	})
 
-	t.Run("known slug returns the resource class", func(t *testing.T) {
-		rc, err := client.GetResourceClassBySlug(ctx, "my-ns/my-runner")
+	t.Run("known resource class is returned", func(t *testing.T) {
+		rc, err := client.GetResourceClass(ctx, "my-ns/my-runner")
 		assert.NilError(t, err)
 		assert.Check(t, cmp.DeepEqual(*rc, seeded))
 	})
 
-	t.Run("unknown slug returns ErrResourceClassNotFound", func(t *testing.T) {
-		_, err := client.GetResourceClassBySlug(ctx, "my-ns/does-not-exist")
+	t.Run("unknown resource class returns ErrResourceClassNotFound", func(t *testing.T) {
+		_, err := client.GetResourceClass(ctx, "my-ns/does-not-exist")
 		assert.Check(t, errors.Is(err, apiclient.ErrResourceClassNotFound))
 	})
 }
@@ -142,7 +142,7 @@ func TestResourceClassByName(t *testing.T) {
 		"acme/fast": seeded,
 	})
 
-	t.Run("resolves via GetResourceClassBySlug", func(t *testing.T) {
+	t.Run("resolves via GetResourceClass", func(t *testing.T) {
 		rc, err := client.ResourceClassByName(ctx, "acme/fast")
 		assert.NilError(t, err)
 		assert.Check(t, cmp.DeepEqual(*rc, seeded))

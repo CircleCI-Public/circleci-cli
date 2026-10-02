@@ -44,10 +44,10 @@ func TestDeprecationWarning_SunsetInOutput(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
 	fake.AddOrg(orgID, "gh/myns", "My NS", "github")
 	fake.AddResourceClass(fakes.ResourceClass{
-		ID:          "rc-1",
-		Slug:        "myns/myclass",
-		Description: "test class",
-		OrgID:       orgID,
+		ID:            "rc-1",
+		ResourceClass: "myns/myclass",
+		Description:   "test class",
+		OrgID:         orgID,
 	})
 	fake.ExtraHeaders = http.Header{
 		"Deprecation": []string{"true"},
