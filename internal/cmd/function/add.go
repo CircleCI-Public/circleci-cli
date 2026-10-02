@@ -29,11 +29,16 @@ import (
 	"github.com/MakeNowJust/heredoc"
 	"github.com/spf13/cobra"
 
+	clierrors "github.com/CircleCI-Public/circleci-cli/clikit/errors"
 	"github.com/CircleCI-Public/circleci-cli/clikit/iostream"
 	"github.com/CircleCI-Public/circleci-cli/internal/apiclient"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmdutil"
 	"github.com/CircleCI-Public/circleci-cli/internal/function"
 )
+
+// fnSuffix is appended to a default alias something else in the config already
+// claims.
+const fnSuffix = "-fn"
 
 type addResult struct {
 	Alias    string `json:"alias"`
@@ -56,6 +61,8 @@ func newAddCmd() *cobra.Command {
 		Long: heredoc.Docf(`
 			Resolve a function's latest version and declare it in the
 			%[1]sfunctions%[1]s block of the pipeline config.
+
+			A default alias that clashes with an orb or command gets %[1]s-fn%[1]s appended.
 
 			JSON fields: alias, function, version, config.
 		`, "`"),
@@ -102,10 +109,17 @@ func runAdd(ctx context.Context, client *apiclient.Client, arg, alias, version, 
 			return err
 		}
 	}
-	if alias == "" {
+	explicit := alias != ""
+	if !explicit {
 		alias = function.AliasFor(name)
 	}
 	if err := function.ValidateAlias(alias); err != nil {
+		return err
+	}
+
+	requested := alias
+	alias, conflict, err := resolveAlias(path, alias, explicit)
+	if err != nil {
 		return err
 	}
 	if err := function.CheckAdd(path, alias); err != nil {
@@ -115,6 +129,11 @@ func runAdd(ctx context.Context, client *apiclient.Client, arg, alias, version, 
 	ref, err := resolveReference(ctx, client, name, version, !dryRun && !jsonOut)
 	if err != nil {
 		return err
+	}
+
+	if conflict != "" {
+		iostream.ErrPrintf(ctx, "%s Aliased as %q: %q already names %s %s in this config\n",
+			iostream.SymbolWarn(ctx), alias, requested, article(conflict), conflict)
 	}
 
 	if !dryRun {
@@ -134,6 +153,39 @@ func runAdd(ctx context.Context, client *apiclient.Client, arg, alias, version, 
 	iostream.Printf(ctx, "%s Declared %s as %s in %s\n", iostream.SymbolOK(ctx), alias, ref, path)
 	iostream.Printf(ctx, "  Invoke it as a step named %q.\n", alias)
 	return nil
+}
+
+// resolveAlias returns the alias to write and what, if anything, forced it to
+// change. An alias already declared is left alone: that is a re-pin, which
+// AddPin reports, not a name collision. An explicit alias is never renamed —
+// the user chose it, and their steps invoke it by that name.
+func resolveAlias(path, alias string, explicit bool) (string, string, error) {
+	conflict, err := function.Conflicts(path, alias)
+	if err != nil {
+		return "", "", err
+	}
+	if conflict == "" {
+		return alias, "", nil
+	}
+	if explicit {
+		return "", "", clierrors.New("function.alias_taken", "Function alias unavailable",
+			fmt.Sprintf("Alias %q already names %s %s in this config.", alias, article(conflict), conflict)).
+			WithSuggestions("Choose another alias: circleci function add <name> --as <alias>").
+			WithExitCode(clierrors.ExitBadArguments)
+	}
+
+	suffixed := alias + fnSuffix
+	also, err := function.Conflicts(path, suffixed)
+	if err != nil {
+		return "", "", err
+	}
+	if also != "" {
+		return "", "", clierrors.New("function.alias_taken", "Function alias unavailable",
+			fmt.Sprintf("Both %q and %q already name something else in this config.", alias, suffixed)).
+			WithSuggestions("Choose an alias: circleci function add <name> --as <alias>").
+			WithExitCode(clierrors.ExitBadArguments)
+	}
+	return suffixed, conflict, nil
 }
 
 // resolveReference turns a name and an optional version into a pinnable
@@ -161,4 +213,11 @@ func resolveReference(ctx context.Context, client *apiclient.Client, name, versi
 		return function.Reference{}, versionNotPublishedErr(name, version, versions)
 	}
 	return function.Reference{Path: fn.Name, Version: version}, nil
+}
+
+func article(kind string) string {
+	if kind == "orb" {
+		return "an"
+	}
+	return "a"
 }
