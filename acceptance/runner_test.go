@@ -50,8 +50,8 @@ import (
 const testRunnerOrgID = "f22b6566-597d-46d5-ba74-99ef5bb3d85c"
 const testOtherRunnerOrgID = "a1a1a1a1-1111-4111-8111-a1a1a1a1a1a1"
 
-func fakeRC(id, slug, desc string) fakes.ResourceClass {
-	return fakes.ResourceClass{ID: id, Slug: slug, Description: desc, OrgID: testRunnerOrgID}
+func fakeRC(id, resourceClass, desc string) fakes.ResourceClass {
+	return fakes.ResourceClass{ID: id, ResourceClass: resourceClass, Description: desc, OrgID: testRunnerOrgID}
 }
 
 func fakeToken(id, rc, nickname string) fakes.RunnerToken {
@@ -158,12 +158,12 @@ func TestRunnerResourceClassList_NamespaceJSON(t *testing.T) {
 
 	var out []map[string]any
 	assert.NilError(t, json.Unmarshal([]byte(result.Stdout), &out))
-	slugs := make([]string, 0, len(out))
+	resourceClasses := make([]string, 0, len(out))
 	for _, rc := range out {
-		slug, _ := rc["resource_class"].(string)
-		slugs = append(slugs, slug)
+		resourceClass, _ := rc["resource_class"].(string)
+		resourceClasses = append(resourceClasses, resourceClass)
 	}
-	assert.Check(t, cmp.DeepEqual(slugs, []string{"my-org/linux-runner", "my-org/arm-runner"}))
+	assert.Check(t, cmp.DeepEqual(resourceClasses, []string{"my-org/linux-runner", "my-org/arm-runner"}))
 
 	query := fake.LastRequest().URL.Query()
 	assert.Check(t, cmp.Equal(query.Get("filter[namespace]"), "my-org"))
@@ -243,13 +243,13 @@ func TestRunnerResourceClassList_NamespaceIgnoresAgents(t *testing.T) {
 	err := json.Unmarshal([]byte(result.Stdout), &out)
 	assert.NilError(t, err)
 
-	slugs := make([]string, 0, len(out))
+	resourceClasses := make([]string, 0, len(out))
 	for _, rc := range out {
-		slug, _ := rc["resource_class"].(string)
-		slugs = append(slugs, slug)
-		assert.Check(t, rc["id"] != "", "resource class %q came back without an id", slug)
+		resourceClass, _ := rc["resource_class"].(string)
+		resourceClasses = append(resourceClasses, resourceClass)
+		assert.Check(t, rc["id"] != "", "resource class %q came back without an id", resourceClass)
 	}
-	assert.Check(t, cmp.DeepEqual(slugs, []string{
+	assert.Check(t, cmp.DeepEqual(resourceClasses, []string{
 		"my-org/linux-runner", "my-org/arm-runner", "my-org/idle-runner",
 	}))
 
@@ -732,7 +732,7 @@ func TestRunnerResourceClassDelete_Force(t *testing.T) {
 		assert.Assert(t, cmp.Len(reqs, 2))
 		assert.Check(t, cmp.Equal(reqs[0].Method, http.MethodGet))
 		assert.Check(t, cmp.Equal(reqs[0].URL.Path, "/api/v3/runner/resource-classes"))
-		assert.Check(t, cmp.Equal(reqs[0].URL.Query().Get("filter[slug]"), "my-org/linux-runner"))
+		assert.Check(t, cmp.Equal(reqs[0].URL.Query().Get("filter[resource_class]"), "my-org/linux-runner"))
 
 		assert.Check(t, cmp.DeepEqual(reqs[1], httprecorder.Request{
 			Method: http.MethodDelete,
@@ -841,11 +841,11 @@ func TestRunnerResourceClassUpdate(t *testing.T) {
 
 	t.Run("check request", func(t *testing.T) {
 		reqs := fake.AllRequests()
-		// First: resolve resource class by slug to get UUID.
+		// First: resolve the resource class to its UUID.
 		assert.Assert(t, cmp.Len(reqs, 2))
 		assert.Check(t, cmp.Equal(reqs[0].Method, http.MethodGet))
 		assert.Check(t, cmp.Equal(reqs[0].URL.Path, "/api/v3/runner/resource-classes"))
-		assert.Check(t, cmp.Equal(reqs[0].URL.Query().Get("filter[slug]"), "my-org/linux-runner"))
+		assert.Check(t, cmp.Equal(reqs[0].URL.Query().Get("filter[resource_class]"), "my-org/linux-runner"))
 
 		// Second: update via POST /resource-classes/{id}/update.
 		assert.Check(t, cmp.DeepEqual(reqs[1], httprecorder.Request{
@@ -1302,10 +1302,10 @@ func TestRunnerTokenCreate(t *testing.T) {
 		reqs := fake.AllRequests()
 		assert.Assert(t, cmp.Len(reqs, 2))
 
-		// First: resolve resource class by slug to get UUID.
+		// First: resolve the resource class to its UUID.
 		assert.Check(t, cmp.Equal(reqs[0].Method, http.MethodGet))
 		assert.Check(t, cmp.Equal(reqs[0].URL.Path, "/api/v3/runner/resource-classes"))
-		assert.Check(t, cmp.Equal(reqs[0].URL.Query().Get("filter[slug]"), "my-org/linux-runner"))
+		assert.Check(t, cmp.Equal(reqs[0].URL.Query().Get("filter[resource_class]"), "my-org/linux-runner"))
 
 		// Second: create token via V3 using the resource class UUID.
 		assert.Check(t, cmp.DeepEqual(reqs[1], httprecorder.Request{

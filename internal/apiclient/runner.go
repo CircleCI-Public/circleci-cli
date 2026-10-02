@@ -110,7 +110,7 @@ func (c *Client) listResourceClasses(ctx context.Context, filter, value string) 
 }
 
 // ErrResourceClassNotFound is returned by ResourceClassByName when no resource
-// class matches the slug.
+// class matches the fully qualified resource class.
 var ErrResourceClassNotFound = errors.New("resource class not found")
 
 // v3ResourceClassItem is the per-item shape returned by the v3 resource-classes endpoints.
@@ -155,25 +155,25 @@ func (c *Client) CreateResourceClass(ctx context.Context, orgID uuid.UUID, resou
 	return &rc, nil
 }
 
-// GetResourceClassBySlug looks up a single resource class by its namespace/name slug via the
-// v3 filter[slug] endpoint. Returns ErrResourceClassNotFound when the class does not exist or
-// belongs to an organization the caller cannot view.
-func (c *Client) GetResourceClassBySlug(ctx context.Context, slug string) (*ResourceClass, error) {
+// GetResourceClass looks up a single resource class by its fully qualified namespace/name form
+// via the v3 filter[resource_class] parameter. Returns ErrResourceClassNotFound when the class
+// does not exist or belongs to an organization the caller cannot view.
+func (c *Client) GetResourceClass(ctx context.Context, resourceClass string) (*ResourceClass, error) {
 	var resp struct {
 		Data []v3ResourceClassItem `json:"data"`
 	}
 	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodGet, "/api/v3/runner/resource-classes",
-		httpcl.QueryParam("filter[slug]", slug),
+		httpcl.QueryParam("filter[resource_class]", resourceClass),
 		httpcl.JSONDecoder(&resp),
 	))
 	if err != nil {
 		if httpcl.HasStatusCode(err, http.StatusNotFound) {
-			return nil, fmt.Errorf("%w: %q", ErrResourceClassNotFound, slug)
+			return nil, fmt.Errorf("%w: %q", ErrResourceClassNotFound, resourceClass)
 		}
 		return nil, err
 	}
 	if len(resp.Data) == 0 {
-		return nil, fmt.Errorf("%w: %q", ErrResourceClassNotFound, slug)
+		return nil, fmt.Errorf("%w: %q", ErrResourceClassNotFound, resourceClass)
 	}
 	rc := resp.Data[0].toResourceClass()
 	return &rc, nil
@@ -198,12 +198,13 @@ func (c *Client) GetResourceClassByID(ctx context.Context, id uuid.UUID) (*Resou
 	return &rc, nil
 }
 
-// ResourceClassByName returns the resource class with the given namespace/name slug.
+// ResourceClassByName returns the resource class with the given fully qualified
+// namespace/name resource class.
 func (c *Client) ResourceClassByName(ctx context.Context, resourceClass string) (*ResourceClass, error) {
 	if !strings.Contains(resourceClass, "/") {
 		return nil, fmt.Errorf("%w: %q is not in namespace/name form", ErrResourceClassNotFound, resourceClass)
 	}
-	return c.GetResourceClassBySlug(ctx, resourceClass)
+	return c.GetResourceClass(ctx, resourceClass)
 }
 
 // UpdateResourceClass updates the description of a runner resource class.
@@ -284,8 +285,8 @@ func (c *Client) ListRunnerTokensV3(ctx context.Context, resourceClass string) (
 }
 
 // CreateRunnerTokenV3 creates a new token for the given resource class UUID using
-// the V3 /runner/tokens endpoint. The ResourceClass field is filled from rcSlug.
-func (c *Client) CreateRunnerTokenV3(ctx context.Context, rcID uuid.UUID, rcSlug, nickname string) (*RunnerToken, error) {
+// the V3 /runner/tokens endpoint. The ResourceClass field is filled from resourceClass.
+func (c *Client) CreateRunnerTokenV3(ctx context.Context, rcID uuid.UUID, resourceClass, nickname string) (*RunnerToken, error) {
 	body := map[string]any{
 		"data": map[string]any{
 			"attributes": map[string]any{
@@ -309,7 +310,7 @@ func (c *Client) CreateRunnerTokenV3(ctx context.Context, rcID uuid.UUID, rcSlug
 	t := resp.Data
 	return &RunnerToken{
 		ID:            t.ID,
-		ResourceClass: rcSlug,
+		ResourceClass: resourceClass,
 		Nickname:      t.Attributes.Nickname,
 		CreatedAt:     t.Attributes.CreatedAt,
 		Token:         t.Attributes.Token,
@@ -334,7 +335,7 @@ func (c *Client) ListRunnerAgentsByOrg(ctx context.Context, orgID uuid.UUID) ([]
 }
 
 // ListRunnerAgentsByResourceClass returns every connected agent of one resource class, named by
-// its namespace/name slug.
+// its fully qualified namespace/name resource class.
 func (c *Client) ListRunnerAgentsByResourceClass(ctx context.Context, resourceClass string) ([]RunnerAgent, error) {
 	return c.listRunnerAgents(ctx, "resource_class", resourceClass)
 }
