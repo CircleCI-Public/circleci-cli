@@ -1,0 +1,21 @@
+# A setup (dynamic) config: the real config is generated at runtime, so its
+# keys are uninspectable (D17 point 5).
+version: 2.1
+setup: true
+
+jobs:
+  setup:
+    docker:
+      - image: cimg/base:current
+    steps:
+      - restore_cache:
+          keys: ["setup-{{ .BuildNum }}"]
+  install:
+    docker:
+      - image: cimg/node:18.20
+    steps:
+      - run: npm ci
+
+workflows:
+  setup:
+    jobs: [setup, install]

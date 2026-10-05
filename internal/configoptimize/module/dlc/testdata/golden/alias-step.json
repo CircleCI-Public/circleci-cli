@@ -1,0 +1,70 @@
+{
+  "schema_version": 1,
+  "command": "report",
+  "input": {
+    "path": "alias-step.yml",
+    "sha256": "ec03e5405040eaab7ec6d1f20966febdb86a2c3b6b1d0f7a4c952bef151c4e43"
+  },
+  "expansion": {
+    "id": "29cea90d6aca",
+    "pipeline_parameters": {},
+    "branch": "from the git checkout of the working directory"
+  },
+  "compiler": "circleci (fixture)",
+  "modules": [
+    "dlc"
+  ],
+  "summary": {
+    "actionable": 0,
+    "report_only": 1,
+    "suppressed": 0,
+    "result": "no_candidate"
+  },
+  "findings": [
+    {
+      "id": "dlc:c92ad43e938f",
+      "module": "dlc",
+      "verdict": "DLC_UNUSED",
+      "disposition": "report_only",
+      "reason": "input-dependent: job target reads pipeline values (\u003c\u003c pipeline.* \u003e\u003e), directly or through a command or executor",
+      "mutability": "writable",
+      "expansion": "29cea90d6aca",
+      "target": {
+        "job": "target",
+        "path": "jobs.target"
+      },
+      "locations": [
+        "jobs.target.machine.docker_layer_caching"
+      ],
+      "impact": {
+        "time": "neutral",
+        "cost": "better",
+        "referent": "proposed_change",
+        "unit_credits": 200,
+        "unit": "job run",
+        "basis": "DLC is a flat 200 credits per job run (charged once per job run); no run count is available"
+      },
+      "confidence": {
+        "level": "high"
+      },
+      "evidence": [
+        {
+          "kind": "config_fact",
+          "claim": "DLC is enabled on the machine executor",
+          "value": "docker_layer_caching: true",
+          "source": "config:jobs.target.machine.docker_layer_caching"
+        },
+        {
+          "kind": "config_fact",
+          "claim": "every step was inspected and none builds an image",
+          "value": "1 steps inspected",
+          "source": "config:jobs.target.steps"
+        }
+      ],
+      "suggestion": {
+        "op": "remove",
+        "note": "No step in this job invokes a docker image build. DLC is charged per job run regardless."
+      }
+    }
+  ]
+}

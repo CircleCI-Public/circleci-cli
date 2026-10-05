@@ -1,0 +1,7 @@
+jobs:
+  build:
+    docker:
+      - image: cimg/base:current
+    steps:
+      - setup_remote_docker
+      - run: echo hi

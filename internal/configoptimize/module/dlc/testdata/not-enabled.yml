@@ -1,0 +1,12 @@
+version: 2.1
+jobs:
+  test:
+    docker:
+      - image: cimg/base:current
+    steps:
+      - checkout
+      - setup_remote_docker
+      - run: docker build .
+workflows:
+  ci:
+    jobs: [test]

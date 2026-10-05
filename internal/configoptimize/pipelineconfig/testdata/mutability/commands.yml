@@ -1,0 +1,33 @@
+version: 2.1
+commands:
+  greet:
+    steps:
+      - run: echo one
+      - run: echo two
+  remote-docker:
+    steps:
+      - setup_remote_docker:
+          docker_layer_caching: true
+jobs:
+  after-command:
+    docker:
+      - image: cimg/base:current
+    steps:
+      - greet
+      - setup_remote_docker:
+          docker_layer_caching: true
+  via-command-a:
+    docker:
+      - image: cimg/base:current
+    steps:
+      - checkout
+      - remote-docker
+      - greet
+  via-command-b:
+    docker:
+      - image: cimg/base:current
+    steps:
+      - remote-docker
+workflows:
+  ci:
+    jobs: [after-command, via-command-a, via-command-b]

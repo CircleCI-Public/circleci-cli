@@ -1,0 +1,75 @@
+version: 2
+jobs:
+  enum-alternatives:
+    docker:
+    - image: cimg/node:18.20
+    steps:
+    - restore_cache:
+        keys:
+        - alt-{{ .BuildNum }}
+    - save_cache:
+        key: alt-{{ .BuildNum }}
+        paths:
+        - /tmp/deps
+  env-split-semicolon:
+    docker:
+    - image: cimg/node:18.20
+    steps:
+    - run:
+        command: env -S 'npm ci; --version'
+  env-split-assignment:
+    docker:
+    - image: cimg/node:18.20
+    steps:
+    - run:
+        command: env -S 'NODE_ENV=test npm ci'
+  mvn-itr:
+    docker:
+    - image: cimg/node:18.20
+    steps:
+    - run:
+        command: mvn -itr verify
+  function-redefined:
+    docker:
+    - image: cimg/node:18.20
+    steps:
+    - run:
+        command: |
+          install_deps() { true; }
+          install_deps
+          install_deps() { npm ci; }
+  function-before-definition:
+    docker:
+    - image: cimg/node:18.20
+    steps:
+    - run:
+        command: |
+          install_deps
+          install_deps() { npm ci; }
+  cross-restore:
+    docker:
+    - image: cimg/node:18.20
+    steps:
+    - restore_cache:
+        keys:
+        - cj-{{ .BuildNum }}
+  cross-save:
+    docker:
+    - image: cimg/node:18.20
+    steps:
+    - save_cache:
+        key: cj-{{ .BuildNum }}
+        paths:
+        - /tmp/deps
+workflows:
+  review9:
+    jobs:
+    - enum-alternatives
+    - env-split-semicolon
+    - env-split-assignment
+    - mvn-itr
+    - function-redefined
+    - function-before-definition
+    - cross-restore
+    - cross-save
+  version: 2

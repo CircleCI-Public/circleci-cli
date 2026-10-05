@@ -1,0 +1,12 @@
+document 0
+  map 2:1 @22 ""
+    scalar 2:1 @22 "version"
+    scalar 2:10 @31 "2.1"
+    scalar 3:1 @35 "jobs"
+    map 4:3 @43 ""
+      scalar 4:3 @43 "build"
+      map 5:5 @54 ""
+        scalar 5:5 @54 "machine"
+        map 6:7 @69 ""
+          scalar 6:7 @69 "docker_layer_caching"
+          scalar 6:29 @91 "true"

@@ -1,0 +1,46 @@
+version: 2
+jobs:
+  env-split-quoted:
+    docker:
+    - image: cimg/node:18.20
+    steps:
+    - run:
+        command: env -S '"npm" "ci"'
+  env-argv0:
+    docker:
+    - image: cimg/node:18.20
+    steps:
+    - run:
+        command: env --argv0 custom-name npm ci
+  sudo-chroot:
+    docker:
+    - image: cimg/node:18.20
+    steps:
+    - run:
+        command: sudo --chroot /tmp npm ci
+  mvn-color:
+    docker:
+    - image: cimg/node:18.20
+    steps:
+    - run:
+        command: mvn --color never
+  epoch-and-buildnum:
+    docker:
+    - image: cimg/node:18.20
+    steps:
+    - restore_cache:
+        keys:
+        - eb-{{ .BuildNum }}-{{ epoch }}
+    - save_cache:
+        key: eb-{{ .BuildNum }}-{{ epoch }}
+        paths:
+        - /tmp/deps
+workflows:
+  review8:
+    jobs:
+    - env-split-quoted
+    - env-argv0
+    - sudo-chroot
+    - mvn-color
+    - epoch-and-buildnum
+  version: 2

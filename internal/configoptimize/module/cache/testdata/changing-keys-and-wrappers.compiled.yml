@@ -1,0 +1,131 @@
+version: 2
+jobs:
+  function-body:
+    docker:
+    - image: cimg/node:18.20
+    steps:
+    - run:
+        command: |
+          install_deps() {
+            npm ci
+          }
+          echo "never called"
+  enum-mixed:
+    docker:
+    - image: cimg/node:18.20
+    steps:
+    - restore_cache:
+        keys:
+        - en-stable
+  on-fail-only:
+    docker:
+    - image: cimg/node:18.20
+    steps:
+    - run:
+        command: npm ci
+        when: on_fail
+  broad-exact-restore:
+    docker:
+    - image: cimg/node:18.20
+    steps:
+    - restore_cache:
+        keys:
+        - b1-
+  seed-restore:
+    docker:
+    - image: cimg/node:18.20
+    steps:
+    - restore_cache:
+        keys:
+        - seed-{{ .BuildNum }}
+  build-macos:
+    docker:
+    - image: cimg/node:18.20
+    steps:
+    - restore_cache:
+        keys:
+        - a-macos-{{ .BuildNum }}
+  adjacent-unknown:
+    docker:
+    - image: cimg/node:18.20
+    steps:
+    - restore_cache:
+        keys:
+        - pad-{{ .BuildNum }}{{ .Environment.PAD }}
+  broad-exact-save:
+    docker:
+    - image: cimg/node:18.20
+    steps:
+    - save_cache:
+        key: b1-
+        paths:
+        - /tmp/a
+  mvn-version:
+    docker:
+    - image: cimg/node:18.20
+    steps:
+    - run:
+        command: mvn --version
+  no-save:
+    docker:
+    - image: cimg/node:18.20
+    steps:
+    - restore_cache:
+        keys:
+        - ns-{{ .BuildNum }}
+  build-linux-amd64:
+    docker:
+    - image: cimg/node:18.20
+    steps:
+    - restore_cache:
+        keys:
+        - b-amd64-{{ .BuildNum }}
+  env-unset:
+    docker:
+    - image: cimg/node:18.20
+    steps:
+    - run:
+        command: env -u GOPROXY go mod download
+  seed-save:
+    docker:
+    - image: cimg/node:18.20
+    steps:
+    - save_cache:
+        key: seed-42-seeded
+        paths:
+        - /tmp/data
+  wrapped-function:
+    docker:
+    - image: cimg/node:18.20
+    steps:
+    - run:
+        command: env circleci run setup-go
+    - run:
+        command: go mod download
+  broad-longer-save:
+    docker:
+    - image: cimg/node:18.20
+    steps:
+    - save_cache:
+        key: b1-a
+        paths:
+        - /tmp/b
+workflows:
+  review6:
+    jobs:
+    - seed-save
+    - seed-restore
+    - adjacent-unknown
+    - function-body
+    - on-fail-only
+    - wrapped-function
+    - env-unset
+    - mvn-version
+    - build-macos
+    - build-linux-amd64
+    - enum-mixed
+    - broad-exact-save
+    - broad-longer-save
+    - broad-exact-restore
+    - no-save
+  version: 2

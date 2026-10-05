@@ -1,0 +1,5 @@
+error: the input config does not compile:
+  unknown orb 'myorg/unknown@1.0.0'
+
+Suggestions:
+  • Run `circleci config validate` to see the errors, fix them, then run again

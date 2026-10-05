@@ -1,0 +1,8 @@
+empty:
+tilde: ~
+null_word: null
+empty_string: ""
+empty_map: {}
+empty_list: []
+nested:
+  key:

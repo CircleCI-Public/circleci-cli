@@ -1,0 +1,46 @@
+# Copyright (c) 2026 Circle Internet Services, Inc.
+#
+# Permission is hereby granted, free of charge, to any person obtaining a copy
+# of this software and associated documentation files (the "Software"), to deal
+# in the Software without restriction, including without limitation the rights
+# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+# copies of the Software, and to permit persons to whom the Software is
+# furnished to do so, subject to the following conditions:
+#
+# The above copyright notice and this permission notice shall be included in
+# all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+# SOFTWARE.
+#
+# SPDX-License-Identifier: MIT
+
+# Built-in credit rates for config optimize: Docker gen1 classes, from CircleCI's
+# public list as of 2026-08-31. Credits per minute and sizes are the same for
+# every customer (a contract changes the price of a credit, not the rate).
+# Override with --credit-rates FILE in the same format.
+flat_charges:
+  dlc: 200
+credits_per_minute:
+  - {platform: docker, class: small, generation: gen1, credits: 5}
+  - {platform: docker, class: medium, generation: gen1, credits: 10}
+  - {platform: docker, class: medium+, generation: gen1, credits: 15}
+  - {platform: docker, class: large, generation: gen1, credits: 20}
+  - {platform: docker, class: xlarge, generation: gen1, credits: 40}
+  - {platform: docker, class: 2xlarge, generation: gen1, credits: 80}
+  - {platform: docker, class: 2xlarge+, generation: gen1, credits: 100}
+ladders:
+  - {platform: docker, generation: gen1, classes: [small, medium, medium+, large, xlarge, 2xlarge, 2xlarge+]}
+sizes:
+  - {platform: docker, class: small, generation: gen1, vcpus: 1, ram_gb: 2}
+  - {platform: docker, class: medium, generation: gen1, vcpus: 2, ram_gb: 4}
+  - {platform: docker, class: medium+, generation: gen1, vcpus: 3, ram_gb: 6}
+  - {platform: docker, class: large, generation: gen1, vcpus: 4, ram_gb: 8}
+  - {platform: docker, class: xlarge, generation: gen1, vcpus: 8, ram_gb: 16}
+  - {platform: docker, class: 2xlarge, generation: gen1, vcpus: 16, ram_gb: 32}
+  - {platform: docker, class: 2xlarge+, generation: gen1, vcpus: 20, ram_gb: 40}

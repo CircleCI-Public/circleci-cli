@@ -1,0 +1,22 @@
+version: 2.1
+executors:
+  shared:
+    machine:
+      image: ubuntu-2204:current
+      docker_layer_caching: true
+jobs:
+  safe:
+    executor: shared
+    steps:
+      - run: echo safe
+  building:
+    parameters:
+      ex:
+        type: executor
+        default: shared
+    executor: << parameters.ex >>
+    steps:
+      - run: docker build -t example .
+workflows:
+  main:
+    jobs: [safe, building]

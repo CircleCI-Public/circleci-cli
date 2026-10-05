@@ -1,0 +1,111 @@
+{
+  "schema_version": 1,
+  "command": "report",
+  "input": {
+    "path": "parameterized-executor.yml",
+    "sha256": "e2761c83ec5c1e1e0d3a0b0a35909b8f7b243245c541bf638a9ebbebd4c472e8"
+  },
+  "expansion": {
+    "id": "29cea90d6aca",
+    "pipeline_parameters": {},
+    "branch": "from the git checkout of the working directory"
+  },
+  "compiler": "circleci (fixture)",
+  "modules": [
+    "dlc"
+  ],
+  "summary": {
+    "actionable": 0,
+    "report_only": 2,
+    "suppressed": 0,
+    "result": "no_candidate"
+  },
+  "findings": [
+    {
+      "id": "dlc:eeb12b52f36c",
+      "module": "dlc",
+      "verdict": "DLC_BUILD_DETECTED",
+      "disposition": "report_only",
+      "reason": "no change proposed",
+      "expansion": "29cea90d6aca",
+      "target": {
+        "job": "building",
+        "path": "jobs.building"
+      },
+      "impact": {
+        "time": "neutral",
+        "cost": "neutral",
+        "referent": "proposed_change",
+        "unit_credits": 200,
+        "unit": "job run",
+        "basis": "DLC is a flat 200 credits per job run (charged once per job run); no run count is available"
+      },
+      "confidence": {
+        "level": "high"
+      },
+      "evidence": [
+        {
+          "kind": "config_fact",
+          "claim": "DLC is enabled on the machine executor",
+          "value": "docker_layer_caching: true",
+          "source": "config:jobs.building.machine.docker_layer_caching"
+        },
+        {
+          "kind": "config_fact",
+          "claim": "the job builds an image",
+          "value": "step 0: docker build",
+          "source": "config:jobs.building.steps"
+        }
+      ],
+      "suggestion": {
+        "op": "none",
+        "note": "The job builds images, so DLC may pay for itself. A build does not prove it helps: a remote builder or --no-cache makes DLC useless."
+      }
+    },
+    {
+      "id": "dlc:acb9ce5a8a61",
+      "module": "dlc",
+      "verdict": "DLC_UNUSED",
+      "disposition": "report_only",
+      "reason": "shared-executor: executor shared is used by 2 jobs",
+      "mutability": "shared-executor",
+      "expansion": "29cea90d6aca",
+      "target": {
+        "job": "safe",
+        "path": "jobs.safe"
+      },
+      "locations": [
+        "jobs.safe.machine.docker_layer_caching"
+      ],
+      "impact": {
+        "time": "neutral",
+        "cost": "better",
+        "referent": "proposed_change",
+        "unit_credits": 200,
+        "unit": "job run",
+        "basis": "DLC is a flat 200 credits per job run (charged once per job run); no run count is available"
+      },
+      "confidence": {
+        "level": "high"
+      },
+      "evidence": [
+        {
+          "kind": "config_fact",
+          "claim": "DLC is enabled on the machine executor",
+          "value": "docker_layer_caching: true",
+          "source": "config:jobs.safe.machine.docker_layer_caching"
+        },
+        {
+          "kind": "config_fact",
+          "claim": "every step was inspected and none builds an image",
+          "value": "1 steps inspected",
+          "source": "config:jobs.safe.steps"
+        }
+      ],
+      "suggestion": {
+        "op": "remove",
+        "note": "No step in this job invokes a docker image build. DLC is charged per job run regardless."
+      }
+    }
+  ]
+}

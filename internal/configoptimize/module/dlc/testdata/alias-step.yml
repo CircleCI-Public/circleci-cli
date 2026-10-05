@@ -1,0 +1,23 @@
+version: 2.1
+# A pipeline parameter, not a git value: the fixture must compile the same on any checkout.
+parameters:
+  label: {type: string, default: ci}
+commands:
+  tagged:
+    steps:
+      - run: echo << pipeline.parameters.label >>
+jobs:
+  holder:
+    docker: [{image: cimg/base:current}]
+    steps:
+      - checkout
+      - &tagged tagged
+  target:
+    machine:
+      image: ubuntu-2204:current
+      docker_layer_caching: true
+    steps:
+      - *tagged
+workflows:
+  main:
+    jobs: [holder, target]

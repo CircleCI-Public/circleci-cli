@@ -1,0 +1,12 @@
+version: 2.1
+jobs:
+  test:
+    machine:
+      image: ubuntu-2204:current
+      docker_layer_caching: true
+    steps:
+      - checkout
+      - run: go test ./...
+workflows:
+  ci:
+    jobs: [test]

@@ -1,0 +1,9 @@
+single: 'it''s quoted'
+double: "tab\tand \"escape\" and é"
+looks_like_number: "1.10"
+looks_like_bool: 'true'
+unquoted_bool: yes
+octal_looking: 0755
+version_string: "2.1"
+colon_value: "a: b"
+non_ascii: café é ü 中文

@@ -1,0 +1,290 @@
+# Orb 'circleci/docker@2.8.2' resolved to 'circleci/docker@2.8.2'
+version: 2
+jobs:
+  docker/publish:
+    machine:
+      docker_layer_caching: false
+      image: ubuntu-2204:current
+    resource_class: medium
+    steps:
+    - checkout
+    - setup_remote_docker:
+        docker_layer_caching: true
+        version: default
+    - run:
+        command: |
+          #!/usr/bin/env bash
+
+          # Import "utils.sh".
+          eval "$SCRIPT_UTILS"
+          expand_env_vars_with_prefix "PARAM_"
+
+          echo "${!PARAM_DOCKER_PASSWORD}" | docker login -u "${!PARAM_DOCKER_USERNAME}" --password-stdin "$PARAM_REGISTRY"
+        environment:
+          PARAM_DOCKER_PASSWORD: DOCKER_PASSWORD
+          PARAM_DOCKER_USERNAME: DOCKER_LOGIN
+          PARAM_REGISTRY: docker.io
+          SCRIPT_UTILS: |
+            #!/usr/bin/env bash
+
+            # Public: Expand the value from environment variables with given prefix.
+            #
+            # Takes a prefix as an argument and expands the value of the environment variables
+            # starting with the prefix. The expansion is done by using the eval command.
+            #
+            # $1 - Prefix used to filter the envinronment variables.
+            #
+            # Examples
+            #
+            #   expand_env_vars_with_prefix "ORB_PARAM_"
+            #   expand_env_vars_with_prefix "PARAM_"
+            #
+            # Returns 1 if no argument is provided or no environment variables were found with prefix.
+            # Returns 0 if the expansion was successful.
+            expand_env_vars_with_prefix() {
+              if [ "$#" -eq 0 ]; then
+                >&2 printf '%s\n' "Please provide a prefix to filter the envinronment variables."
+                return 1
+              fi
+
+              # Fetch parameters from the environment variables.
+              local prefix="$1"
+              local env_vars
+              env_vars="$(printenv | grep "^$prefix")"
+
+              if [ -z "$env_vars" ]; then
+                >&2 printf '%s\n' "No environment variables found with the prefix: \"$prefix\"."
+                return 1
+              fi
+
+              while IFS= read -ra line; do
+                # Split the line into key and value.
+                local var_value="${line#*=}"
+                local var_name="${line%="$var_value"}"
+
+                # Expand the value.
+                local expanded_value
+                expanded_value="$(eval echo "$var_value")"
+
+                # The -v option assignes the output to a variable rather than printing it.
+                printf -v "$var_name" "%s" "$expanded_value"
+              done <<< "$env_vars"
+              return 0
+            }
+        name: Docker login
+    - run:
+        command: |
+          #!/usr/bin/env bash
+
+          # Import "utils.sh".
+          eval "$SCRIPT_UTILS"
+          expand_env_vars_with_prefix "PARAM_"
+          DOCKER_TAGS_ARG=""
+
+          parse_tags_to_docker_arg() {
+            # Set comma as the new delimiter for the scope of this function.
+            local IFS=","
+
+            # Split tags into an array based on IFS delimiter.
+            read -ra tags <<< "$PARAM_TAG"
+
+            local docker_arg
+
+            for tag in "${tags[@]}"; do
+              if [ -z "$docker_arg" ]; then
+                docker_arg="--tag=\"$PARAM_REGISTRY/$PARAM_IMAGE:$tag\""
+              else
+                docker_arg="$docker_arg --tag=\"$PARAM_REGISTRY/$PARAM_IMAGE:$tag\""
+              fi
+            done
+
+            # Set IFS to null to stop "," from breaking bash substitution
+            local IFS=
+            DOCKER_TAGS_ARG="$(eval echo $docker_arg)"
+          }
+
+          if ! parse_tags_to_docker_arg; then
+            echo "Unable to parse provided tags."
+            echo "Check your \"tag\" parameter or refer to the docs and try again: https://circleci.com/developer/orbs/orb/circleci/docker."
+            exit 1
+          fi
+
+          build_args=(
+            "--file=$PARAM_DOCKERFILE_PATH/$PARAM_DOCKERFILE_NAME"
+          )
+
+          eval 'for t in '$DOCKER_TAGS_ARG'; do build_args+=("$t"); done'
+
+          if [ -n "$EXTRA_BUILD_ARGS" ]; then
+            eval 'for p in '$EXTRA_BUILD_ARGS'; do build_args+=("$p"); done'
+          fi
+
+          if [ -n "$PARAM_CACHE_FROM" ]; then
+            cache_from=$(eval echo $PARAM_CACHE_FROM)
+
+            build_args+=("--cache-from=$cache_from")
+          fi
+
+          if [ -n "$PARAM_CACHE_TO" ]; then
+            cache_to="$(eval echo $PARAM_CACHE_TO)"
+
+            docker buildx create --name cache --use
+            docker buildx use cache
+            build_args+=("--cache-to=$cache_to" --load)
+          fi
+
+          # The context must be the last argument.
+          build_args+=("$PARAM_DOCKER_CONTEXT")
+
+          old_ifs="$IFS"
+          IFS=' '
+
+          set -x
+          docker buildx build "${build_args[@]}"
+          set +x
+
+          IFS="$old_ifs"
+        environment:
+          EXTRA_BUILD_ARGS: ''
+          PARAM_CACHE_FROM: ''
+          PARAM_CACHE_TO: ''
+          PARAM_DOCKER_CONTEXT: .
+          PARAM_DOCKERFILE_NAME: Dockerfile
+          PARAM_DOCKERFILE_PATH: .
+          PARAM_IMAGE: org/app
+          PARAM_REGISTRY: docker.io
+          PARAM_TAG: $CIRCLE_SHA1
+          PARAM_USE_BUILDKIT: false
+          SCRIPT_UTILS: |
+            #!/usr/bin/env bash
+
+            # Public: Expand the value from environment variables with given prefix.
+            #
+            # Takes a prefix as an argument and expands the value of the environment variables
+            # starting with the prefix. The expansion is done by using the eval command.
+            #
+            # $1 - Prefix used to filter the envinronment variables.
+            #
+            # Examples
+            #
+            #   expand_env_vars_with_prefix "ORB_PARAM_"
+            #   expand_env_vars_with_prefix "PARAM_"
+            #
+            # Returns 1 if no argument is provided or no environment variables were found with prefix.
+            # Returns 0 if the expansion was successful.
+            expand_env_vars_with_prefix() {
+              if [ "$#" -eq 0 ]; then
+                >&2 printf '%s\n' "Please provide a prefix to filter the envinronment variables."
+                return 1
+              fi
+
+              # Fetch parameters from the environment variables.
+              local prefix="$1"
+              local env_vars
+              env_vars="$(printenv | grep "^$prefix")"
+
+              if [ -z "$env_vars" ]; then
+                >&2 printf '%s\n' "No environment variables found with the prefix: \"$prefix\"."
+                return 1
+              fi
+
+              while IFS= read -ra line; do
+                # Split the line into key and value.
+                local var_value="${line#*=}"
+                local var_name="${line%="$var_value"}"
+
+                # Expand the value.
+                local expanded_value
+                expanded_value="$(eval echo "$var_value")"
+
+                # The -v option assignes the output to a variable rather than printing it.
+                printf -v "$var_name" "%s" "$expanded_value"
+              done <<< "$env_vars"
+              return 0
+            }
+        name: Docker build
+        no_output_timeout: 10m
+    - run:
+        command: |
+          #!/usr/bin/env bash
+
+          # Import "utils.sh".
+          eval "$SCRIPT_UTILS"
+          expand_env_vars_with_prefix "PARAM_"
+
+          IFS="," read -ra DOCKER_TAGS <<< "$PARAM_TAG"
+
+          image="$(eval echo "$PARAM_IMAGE")"
+
+          for docker_tag in "${DOCKER_TAGS[@]}"; do
+            tag=$(eval echo "$docker_tag")
+
+            set -x
+            docker push "$PARAM_REGISTRY"/"$image":"$tag"
+            set +x
+          done
+
+          if [ -n "$PARAM_DIGEST_PATH" ]; then
+            mkdir -p "$(dirname "$PARAM_DIGEST_PATH")"
+            IFS="," read -ra DOCKER_TAGS <<< "$PARAM_TAG"
+            tag=$(eval echo "${DOCKER_TAGS[0]}")
+            docker image inspect --format="{{index .RepoDigests 0}}" "$PARAM_REGISTRY"/"$image":"$tag" > "$PARAM_DIGEST_PATH"
+          fi
+        environment:
+          PARAM_DIGEST_PATH: ''
+          PARAM_IMAGE: org/app
+          PARAM_REGISTRY: docker.io
+          PARAM_TAG: $CIRCLE_SHA1
+          SCRIPT_UTILS: |
+            #!/usr/bin/env bash
+
+            # Public: Expand the value from environment variables with given prefix.
+            #
+            # Takes a prefix as an argument and expands the value of the environment variables
+            # starting with the prefix. The expansion is done by using the eval command.
+            #
+            # $1 - Prefix used to filter the envinronment variables.
+            #
+            # Examples
+            #
+            #   expand_env_vars_with_prefix "ORB_PARAM_"
+            #   expand_env_vars_with_prefix "PARAM_"
+            #
+            # Returns 1 if no argument is provided or no environment variables were found with prefix.
+            # Returns 0 if the expansion was successful.
+            expand_env_vars_with_prefix() {
+              if [ "$#" -eq 0 ]; then
+                >&2 printf '%s\n' "Please provide a prefix to filter the envinronment variables."
+                return 1
+              fi
+
+              # Fetch parameters from the environment variables.
+              local prefix="$1"
+              local env_vars
+              env_vars="$(printenv | grep "^$prefix")"
+
+              if [ -z "$env_vars" ]; then
+                >&2 printf '%s\n' "No environment variables found with the prefix: \"$prefix\"."
+                return 1
+              fi
+
+              while IFS= read -ra line; do
+                # Split the line into key and value.
+                local var_value="${line#*=}"
+                local var_name="${line%="$var_value"}"
+
+                # Expand the value.
+                local expanded_value
+                expanded_value="$(eval echo "$var_value")"
+
+                # The -v option assignes the output to a variable rather than printing it.
+                printf -v "$var_name" "%s" "$expanded_value"
+              done <<< "$env_vars"
+              return 0
+            }
+        name: Docker push
+workflows:
+  ci:
+    jobs:
+    - docker/publish
+  version: 2

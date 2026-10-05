@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "command": "report",
+  "input": {
+    "path": "justified-compose.yml",
+    "sha256": "d5c348b9a7cd44c22ed933b89b769f4f674fc95cc47791eb09993a34a313bde9"
+  },
+  "expansion": {
+    "id": "29cea90d6aca",
+    "pipeline_parameters": {},
+    "branch": "from the git checkout of the working directory"
+  },
+  "compiler": "circleci (fixture)",
+  "modules": [
+    "dlc"
+  ],
+  "summary": {
+    "actionable": 0,
+    "report_only": 1,
+    "suppressed": 0,
+    "result": "no_candidate"
+  },
+  "findings": [
+    {
+      "id": "dlc:96abd399bb7e",
+      "module": "dlc",
+      "verdict": "DLC_BUILD_DETECTED",
+      "disposition": "report_only",
+      "reason": "no change proposed",
+      "expansion": "29cea90d6aca",
+      "target": {
+        "job": "image",
+        "path": "jobs.image"
+      },
+      "impact": {
+        "time": "neutral",
+        "cost": "neutral",
+        "referent": "proposed_change",
+        "unit_credits": 200,
+        "unit": "job run",
+        "basis": "DLC is a flat 200 credits per job run (charged once per job run); no run count is available"
+      },
+      "confidence": {
+        "level": "high"
+      },
+      "evidence": [
+        {
+          "kind": "config_fact",
+          "claim": "DLC is enabled on the machine executor",
+          "value": "docker_layer_caching: true",
+          "source": "config:jobs.image.machine.docker_layer_caching"
+        },
+        {
+          "kind": "config_fact",
+          "claim": "the job builds an image",
+          "value": "step 1: docker compose build",
+          "source": "config:jobs.image.steps"
+        }
+      ],
+      "suggestion": {
+        "op": "none",
+        "note": "The job builds images, so DLC may pay for itself. A build does not prove it helps: a remote builder or --no-cache makes DLC useless."
+      }
+    }
+  ]
+}

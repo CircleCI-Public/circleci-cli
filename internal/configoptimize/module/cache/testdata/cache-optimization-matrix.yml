@@ -1,0 +1,185 @@
+# Pinned acceptance input (D17): cache-optimization-matrix .circleci/config.yml
+# at revision 1b22c21, compiled by circleci 1.0.49536 (a4bcc413d3e1) with no
+# pipeline parameters. Update all three together.
+version: 2.1
+
+# Each ecosystem gets one parameterized job. `cache_key` is a full CircleCI
+# cache-key template string (e.g. '{{ checksum "path" }}' or '{{ epoch }}'),
+# passed in verbatim by the workflow. CircleCI fills in the template at
+# cache time.
+
+executors:
+  python:
+    docker:
+      - image: cimg/python:3.11
+  rust:
+    docker:
+      - image: cimg/rust:1.75
+  java:
+    docker:
+      - image: cimg/openjdk:17.0
+  node:
+    docker:
+      - image: cimg/node:18.20
+  go:
+    docker:
+      - image: cimg/go:1.21
+
+jobs:
+  python-install:
+    parameters:
+      project:
+        type: string
+      cache_key:
+        type: string
+    executor: python
+    steps:
+      - checkout
+      - restore_cache:
+          keys:
+            - pip-<< parameters.project >>-<< parameters.cache_key >>
+      - run:
+          name: Install dependencies (pip)
+          command: cd projects/<< parameters.project >> && pip install --user -r requirements.txt
+      - save_cache:
+          key: pip-<< parameters.project >>-<< parameters.cache_key >>
+          paths:
+            - ~/.cache/pip
+
+  rust-install:
+    parameters:
+      project:
+        type: string
+      cache_key:
+        type: string
+    executor: rust
+    steps:
+      - checkout
+      - restore_cache:
+          keys:
+            - cargo-<< parameters.project >>-<< parameters.cache_key >>
+      - run:
+          name: Fetch dependencies (cargo)
+          command: cd projects/<< parameters.project >> && cargo fetch
+      - save_cache:
+          key: cargo-<< parameters.project >>-<< parameters.cache_key >>
+          paths:
+            - ~/.cargo/registry
+
+  java-install:
+    parameters:
+      project:
+        type: string
+      cache_key:
+        type: string
+    executor: java
+    steps:
+      - checkout
+      - restore_cache:
+          keys:
+            - maven-<< parameters.project >>-<< parameters.cache_key >>
+      - run:
+          name: Resolve dependencies (maven)
+          command: cd projects/<< parameters.project >> && mvn -q -B dependency:resolve
+      - save_cache:
+          key: maven-<< parameters.project >>-<< parameters.cache_key >>
+          paths:
+            - ~/.m2/repository
+
+  node-install:
+    parameters:
+      project:
+        type: string
+      cache_key:
+        type: string
+      package_manager:
+        type: enum
+        enum: ["npm", "yarn"]
+        default: "npm"
+    executor: node
+    steps:
+      - checkout
+      - restore_cache:
+          keys:
+            - << parameters.package_manager >>-<< parameters.project >>-<< parameters.cache_key >>
+      - when:
+          condition:
+            equal: ["yarn", << parameters.package_manager >>]
+          steps:
+            - run:
+                name: Install dependencies (yarn)
+                command: cd projects/<< parameters.project >> && yarn install --ignore-scripts
+      - when:
+          condition:
+            equal: ["npm", << parameters.package_manager >>]
+          steps:
+            - run:
+                name: Install dependencies (npm)
+                command: cd projects/<< parameters.project >> && npm ci --ignore-scripts
+      - save_cache:
+          key: << parameters.package_manager >>-<< parameters.project >>-<< parameters.cache_key >>
+          paths:
+            - ~/.cache/yarn
+            - ~/.npm
+
+  go-install:
+    parameters:
+      project:
+        type: string
+      cache_key:
+        type: string
+    executor: go
+    steps:
+      - checkout
+      # v2-: save_cache skips a key that already exists, so the old archive
+      # (full ~/go/pkg/mod) kept being restored after the path change. The
+      # new prefix forces a fresh save. The old object stays in storage
+      # until the org's retention period ends.
+      - restore_cache:
+          keys:
+            - v2-gomod-<< parameters.project >>-<< parameters.cache_key >>
+      - run:
+          name: Download modules (go mod download)
+          command: cd projects/<< parameters.project >> && go mod download
+      - save_cache:
+          key: v2-gomod-<< parameters.project >>-<< parameters.cache_key >>
+          paths:
+            # Only the compressed download cache, not the extracted module
+            # tree. For hugo this cut the stored cache from 423 MiB to
+            # 232 MiB. Not yet measured: the time later steps spend
+            # extracting modules again.
+            - ~/go/pkg/mod/cache/download
+
+workflows:
+  # Cache key ends in '{{ epoch }}' and there is no fallback prefix key, so
+  # restore_cache never hits. This is a key that changes every run.
+  baseline:
+    jobs:
+      - python-install: {name: flask-baseline,    project: flask,    cache_key: "{{ epoch }}"}
+      - python-install: {name: pydantic-baseline, project: pydantic, cache_key: "{{ epoch }}"}
+      - python-install: {name: black-baseline,    project: black,    cache_key: "{{ epoch }}"}
+      - rust-install:   {name: serde-baseline,    project: serde,    cache_key: "{{ epoch }}"}
+      - rust-install:   {name: rayon-baseline,    project: rayon,    cache_key: "{{ epoch }}"}
+      - java-install:   {name: gson-baseline,     project: gson,     cache_key: "{{ epoch }}"}
+      - java-install:   {name: guava-baseline,    project: guava,    cache_key: "{{ epoch }}"}
+      - node-install:   {name: zod-baseline,      project: zod,      cache_key: "{{ epoch }}", package_manager: "yarn"}
+      - node-install:   {name: rxjs-baseline,     project: rxjs,     cache_key: "{{ epoch }}", package_manager: "npm"}
+      - go-install:     {name: lo-baseline,       project: lo,       cache_key: "{{ epoch }}"}
+      - go-install:     {name: hugo-baseline,     project: hugo,     cache_key: "{{ epoch }}"}
+
+  # Cache key is a checksum of the project's own manifest or lockfile. It
+  # stays the same while dependencies don't change, so every run after the
+  # first one hits.
+  optimized:
+    jobs:
+      - python-install: {name: flask-optimized,    project: flask,    cache_key: '{{ checksum "projects/flask/requirements.txt" }}'}
+      - python-install: {name: pydantic-optimized, project: pydantic, cache_key: '{{ checksum "projects/pydantic/requirements.txt" }}'}
+      - python-install: {name: black-optimized,    project: black,    cache_key: '{{ checksum "projects/black/requirements.txt" }}'}
+      - rust-install:   {name: serde-optimized,    project: serde,    cache_key: '{{ checksum "projects/serde/Cargo.toml" }}'}
+      - rust-install:   {name: rayon-optimized,    project: rayon,    cache_key: '{{ checksum "projects/rayon/Cargo.toml" }}'}
+      - java-install:   {name: gson-optimized,     project: gson,     cache_key: '{{ checksum "projects/gson/pom.xml" }}'}
+      - java-install:   {name: guava-optimized,    project: guava,    cache_key: '{{ checksum "projects/guava/pom.xml" }}'}
+      - node-install:   {name: zod-optimized,      project: zod,      cache_key: '{{ checksum "projects/zod/yarn.lock" }}', package_manager: "yarn"}
+      - node-install:   {name: rxjs-optimized,     project: rxjs,     cache_key: '{{ checksum "projects/rxjs/package-lock.json" }}', package_manager: "npm"}
+      - go-install:     {name: lo-optimized,       project: lo,       cache_key: '{{ checksum "projects/lo/go.sum" }}'}
+      - go-install:     {name: hugo-optimized,     project: hugo,     cache_key: '{{ checksum "projects/hugo/go.sum" }}'}

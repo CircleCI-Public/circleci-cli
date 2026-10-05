@@ -1,0 +1,156 @@
+version: 2
+jobs:
+  epoch-then-revision:
+    docker:
+    - image: cimg/node:18.20
+    steps:
+    - restore_cache:
+        keys:
+        - er-{{ epoch }}
+        - er-{{ .Revision }}
+    - save_cache:
+        key: er-{{ .Revision }}
+        paths:
+        - ~/.npm
+  revision-no-save:
+    docker:
+    - image: cimg/node:18.20
+    steps:
+    - restore_cache:
+        keys:
+        - ns-{{ .Revision }}
+  revision-mixed-paths:
+    docker:
+    - image: cimg/node:18.20
+    steps:
+    - restore_cache:
+        keys:
+        - mp-{{ .Revision }}
+    - save_cache:
+        key: mp-{{ .Revision }}
+        paths:
+        - ~/.npm
+        - dist
+  workflow-id:
+    docker:
+    - image: cimg/node:18.20
+    steps:
+    - restore_cache:
+        keys:
+        - wf-{{ .Environment.CIRCLE_WORKFLOW_ID }}
+    - run:
+        command: npm ci
+    - save_cache:
+        key: wf-{{ .Environment.CIRCLE_WORKFLOW_ID }}
+        paths:
+        - ~/.npm
+  bare-env-var:
+    docker:
+    - image: cimg/node:18.20
+    steps:
+    - restore_cache:
+        keys:
+        - bv-$CIRCLE_SHA1
+  revision-then-epoch:
+    docker:
+    - image: cimg/node:18.20
+    steps:
+    - restore_cache:
+        keys:
+        - re-{{ .Revision }}
+        - re-{{ epoch }}
+    - save_cache:
+        key: re-{{ .Revision }}
+        paths:
+        - ~/.npm
+  pipeline-param-string:
+    docker:
+    - image: cimg/node:18.20
+    steps:
+    - restore_cache:
+        keys:
+        - pp-main
+  buildnum-branch-adjacent:
+    docker:
+    - image: cimg/node:18.20
+    steps:
+    - restore_cache:
+        keys:
+        - ba-{{ .BuildNum }}{{ .Branch }}
+  epoch-branch-adjacent:
+    docker:
+    - image: cimg/node:18.20
+    steps:
+    - restore_cache:
+        keys:
+        - ea-{{ epoch }}{{ .Branch }}
+  epoch-stable-fallback:
+    docker:
+    - image: cimg/node:18.20
+    steps:
+    - restore_cache:
+        keys:
+        - es-{{ epoch }}
+        - es-
+  pipeline-param-enum:
+    docker:
+    - image: cimg/node:18.20
+    steps:
+    - restore_cache:
+        keys:
+        - pe-v1
+  revision-param-path:
+    docker:
+    - image: cimg/node:18.20
+    steps:
+    - restore_cache:
+        keys:
+        - pa-{{ .Revision }}
+    - save_cache:
+        key: pa-{{ .Revision }}
+        paths:
+        - ~/.npm
+  buildnum-param-adjacent:
+    docker:
+    - image: cimg/node:18.20
+    steps:
+    - restore_cache:
+        keys:
+        - bp-{{ .BuildNum }}{{ .Branch }}
+  revision-build-output:
+    docker:
+    - image: cimg/node:18.20
+    steps:
+    - restore_cache:
+        keys:
+        - bo-{{ .Revision }}
+    - save_cache:
+        key: bo-{{ .Revision }}
+        paths:
+        - dist
+  epoch-and-revision-one-key:
+    docker:
+    - image: cimg/node:18.20
+    steps:
+    - restore_cache:
+        keys:
+        - ek-{{ epoch }}-{{ .Revision }}
+workflows:
+  scopes:
+    jobs:
+    - buildnum-branch-adjacent
+    - buildnum-param-adjacent
+    - epoch-branch-adjacent
+    - epoch-then-revision
+    - revision-then-epoch
+    - epoch-stable-fallback
+    - epoch-and-revision-one-key
+    - pipeline-param-string
+    - pipeline-param-enum
+    - workflow-id
+    - revision-build-output
+    - revision-mixed-paths
+    - revision-param-path
+    - revision-no-save
+    - bare-env-var
+  version: 2

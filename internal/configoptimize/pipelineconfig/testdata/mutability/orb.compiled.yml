@@ -1,0 +1,20 @@
+version: 2
+jobs:
+  builder/test:
+    machine:
+      image: ubuntu-2204:current
+      docker_layer_caching: true
+    steps:
+    - checkout
+  uses-orb-executor:
+    machine:
+      image: ubuntu-2204:current
+      docker_layer_caching: true
+    steps:
+    - checkout
+workflows:
+  ci:
+    jobs:
+    - builder/test
+    - uses-orb-executor
+  version: 2

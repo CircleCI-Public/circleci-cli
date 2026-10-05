@@ -1,0 +1,18 @@
+version: 2.1
+x-defaults: &defaults
+  machine:
+    image: ubuntu-2204:current
+    docker_layer_caching: true
+jobs:
+  merged:
+    <<: *defaults
+    steps: [checkout]
+  overridden:
+    <<: *defaults
+    machine:
+      image: ubuntu-2204:current
+      docker_layer_caching: true
+    steps: [checkout]
+workflows:
+  ci:
+    jobs: [merged, overridden]

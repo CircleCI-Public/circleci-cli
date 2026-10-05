@@ -1,0 +1,12 @@
+version: 2.1
+jobs:
+  image:
+    machine:
+      image: ubuntu-2204:current
+      docker_layer_caching: true
+    steps:
+      - checkout
+      - run: docker buildx build --platform linux/amd64,linux/arm64 -t x .
+workflows:
+  ci:
+    jobs: [image]

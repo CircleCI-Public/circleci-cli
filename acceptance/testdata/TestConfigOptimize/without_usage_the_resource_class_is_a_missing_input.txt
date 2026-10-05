@@ -1,0 +1,11 @@
+config optimize: .circleci/config.yml
+compiler: CircleCI compile API
+expansion 29cea90d6aca: pipeline parameters none; pipeline values from the git checkout of the working directory
+modules: resourceclass
+
+Changes that can be made (0)
+  none
+
+Summary: 0 actionable, 0 report-only, 0 suppressed
+
+Result: no candidate: missing resourceclass: per-job usage (--usage).

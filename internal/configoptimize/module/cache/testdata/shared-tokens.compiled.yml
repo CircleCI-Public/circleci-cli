@@ -1,0 +1,92 @@
+version: 2
+jobs:
+  correlated-prefix:
+    docker:
+    - image: cimg/node:18.20
+    steps:
+    - restore_cache:
+        keys:
+        - cp-{{ .BuildNum }}
+    - save_cache:
+        key: cp-{{ .BuildNum }}-seeded
+        paths:
+        - /tmp/deps
+  sudo-long:
+    docker:
+    - image: cimg/node:18.20
+    steps:
+    - run:
+        command: sudo --user circleci npm ci
+  mvnw-path:
+    docker:
+    - image: cimg/node:18.20
+    steps:
+    - run:
+        command: /workspace/mvnw package
+  env-split:
+    docker:
+    - image: cimg/node:18.20
+    steps:
+    - run:
+        command: env -S 'npm ci'
+  mvn-file-version:
+    docker:
+    - image: cimg/node:18.20
+    steps:
+    - run:
+        command: mvn -f pom.xml --version
+  excluded-amd64-macos:
+    docker:
+    - image: cimg/node:18.20
+    steps:
+    - run:
+        command: echo excluded
+  called-function:
+    docker:
+    - image: cimg/node:18.20
+    steps:
+    - run:
+        command: |
+          install_deps() {
+            npm ci
+          }
+          install_deps
+  aliased-linux:
+    docker:
+    - image: cimg/node:18.20
+    steps:
+    - restore_cache:
+        keys:
+        - al-linux-{{ .BuildNum }}
+  epoch-no-spaces:
+    docker:
+    - image: cimg/node:18.20
+    steps:
+    - restore_cache:
+        keys:
+        - sp-{{epoch}}
+    - save_cache:
+        key: sp-{{epoch}}
+        paths:
+        - /tmp/deps
+  excluded-amd64-linux:
+    docker:
+    - image: cimg/node:18.20
+    steps:
+    - restore_cache:
+        keys:
+        - ac-{{ .BuildNum }}
+workflows:
+  review7:
+    jobs:
+    - correlated-prefix
+    - epoch-no-spaces
+    - called-function
+    - sudo-long
+    - env-split
+    - mvnw-path
+    - mvn-file-version
+    - aliased-linux
+    - excluded-amd64-macos
+    - excluded-amd64-linux
+  version: 2

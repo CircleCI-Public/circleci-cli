@@ -1,0 +1,16 @@
+document 0
+  map 2:1 @4 ""
+    scalar 2:1 @4 "version"
+    scalar 2:10 @13 "2.1"
+    scalar 3:1 @17 "jobs"
+    map 3:7 @23 ""
+document 1
+  map 5:1 @30 ""
+    scalar 5:1 @30 "second"
+    scalar 5:9 @38 "document"
+document 2
+  map 8:1 @55 ""
+    scalar 8:1 @55 "third"
+    seq 8:8 @62 ""
+      scalar 8:9 @63 "a"
+      scalar 8:12 @66 "b"

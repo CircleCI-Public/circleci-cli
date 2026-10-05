@@ -1,0 +1,19 @@
+version: 2
+jobs:
+  build:
+    docker:
+    - image: cimg/base:current
+      environment:
+        LD_PRELOAD: /tmp/x.so
+    steps:
+    - setup_remote_docker:
+        docker_layer_caching: true
+    - run:
+        command: echo harmless
+        environment:
+          GOFLAGS: -toolexec=./ci/wrap
+workflows:
+  main:
+    jobs:
+    - build
+  version: 2

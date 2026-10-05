@@ -1,0 +1,364 @@
+version: 2
+jobs:
+  serde-optimized:
+    docker:
+    - image: cimg/rust:1.75
+    steps:
+    - checkout
+    - restore_cache:
+        keys:
+        - cargo-serde-{{ checksum "projects/serde/Cargo.toml" }}
+    - run:
+        name: Fetch dependencies (cargo)
+        command: cd projects/serde && cargo fetch
+    - save_cache:
+        key: cargo-serde-{{ checksum "projects/serde/Cargo.toml" }}
+        paths:
+        - ~/.cargo/registry
+  hugo-optimized:
+    docker:
+    - image: cimg/go:1.21
+    steps:
+    - checkout
+    - restore_cache:
+        keys:
+        - v2-gomod-hugo-{{ checksum "projects/hugo/go.sum" }}
+    - run:
+        name: Download modules (go mod download)
+        command: cd projects/hugo && go mod download
+    - save_cache:
+        key: v2-gomod-hugo-{{ checksum "projects/hugo/go.sum" }}
+        paths:
+        - ~/go/pkg/mod/cache/download
+  hugo-baseline:
+    docker:
+    - image: cimg/go:1.21
+    steps:
+    - checkout
+    - restore_cache:
+        keys:
+        - v2-gomod-hugo-{{ epoch }}
+    - run:
+        name: Download modules (go mod download)
+        command: cd projects/hugo && go mod download
+    - save_cache:
+        key: v2-gomod-hugo-{{ epoch }}
+        paths:
+        - ~/go/pkg/mod/cache/download
+  rxjs-baseline:
+    docker:
+    - image: cimg/node:18.20
+    steps:
+    - checkout
+    - restore_cache:
+        keys:
+        - npm-rxjs-{{ epoch }}
+    - run:
+        name: Install dependencies (npm)
+        command: cd projects/rxjs && npm ci --ignore-scripts
+    - save_cache:
+        key: npm-rxjs-{{ epoch }}
+        paths:
+        - ~/.cache/yarn
+        - ~/.npm
+  black-baseline:
+    docker:
+    - image: cimg/python:3.11
+    steps:
+    - checkout
+    - restore_cache:
+        keys:
+        - pip-black-{{ epoch }}
+    - run:
+        name: Install dependencies (pip)
+        command: cd projects/black && pip install --user -r requirements.txt
+    - save_cache:
+        key: pip-black-{{ epoch }}
+        paths:
+        - ~/.cache/pip
+  gson-optimized:
+    docker:
+    - image: cimg/openjdk:17.0
+    steps:
+    - checkout
+    - restore_cache:
+        keys:
+        - maven-gson-{{ checksum "projects/gson/pom.xml" }}
+    - run:
+        name: Resolve dependencies (maven)
+        command: cd projects/gson && mvn -q -B dependency:resolve
+    - save_cache:
+        key: maven-gson-{{ checksum "projects/gson/pom.xml" }}
+        paths:
+        - ~/.m2/repository
+  zod-baseline:
+    docker:
+    - image: cimg/node:18.20
+    steps:
+    - checkout
+    - restore_cache:
+        keys:
+        - yarn-zod-{{ epoch }}
+    - run:
+        name: Install dependencies (yarn)
+        command: cd projects/zod && yarn install --ignore-scripts
+    - save_cache:
+        key: yarn-zod-{{ epoch }}
+        paths:
+        - ~/.cache/yarn
+        - ~/.npm
+  flask-optimized:
+    docker:
+    - image: cimg/python:3.11
+    steps:
+    - checkout
+    - restore_cache:
+        keys:
+        - pip-flask-{{ checksum "projects/flask/requirements.txt" }}
+    - run:
+        name: Install dependencies (pip)
+        command: cd projects/flask && pip install --user -r requirements.txt
+    - save_cache:
+        key: pip-flask-{{ checksum "projects/flask/requirements.txt" }}
+        paths:
+        - ~/.cache/pip
+  rayon-optimized:
+    docker:
+    - image: cimg/rust:1.75
+    steps:
+    - checkout
+    - restore_cache:
+        keys:
+        - cargo-rayon-{{ checksum "projects/rayon/Cargo.toml" }}
+    - run:
+        name: Fetch dependencies (cargo)
+        command: cd projects/rayon && cargo fetch
+    - save_cache:
+        key: cargo-rayon-{{ checksum "projects/rayon/Cargo.toml" }}
+        paths:
+        - ~/.cargo/registry
+  rayon-baseline:
+    docker:
+    - image: cimg/rust:1.75
+    steps:
+    - checkout
+    - restore_cache:
+        keys:
+        - cargo-rayon-{{ epoch }}
+    - run:
+        name: Fetch dependencies (cargo)
+        command: cd projects/rayon && cargo fetch
+    - save_cache:
+        key: cargo-rayon-{{ epoch }}
+        paths:
+        - ~/.cargo/registry
+  pydantic-baseline:
+    docker:
+    - image: cimg/python:3.11
+    steps:
+    - checkout
+    - restore_cache:
+        keys:
+        - pip-pydantic-{{ epoch }}
+    - run:
+        name: Install dependencies (pip)
+        command: cd projects/pydantic && pip install --user -r requirements.txt
+    - save_cache:
+        key: pip-pydantic-{{ epoch }}
+        paths:
+        - ~/.cache/pip
+  zod-optimized:
+    docker:
+    - image: cimg/node:18.20
+    steps:
+    - checkout
+    - restore_cache:
+        keys:
+        - yarn-zod-{{ checksum "projects/zod/yarn.lock" }}
+    - run:
+        name: Install dependencies (yarn)
+        command: cd projects/zod && yarn install --ignore-scripts
+    - save_cache:
+        key: yarn-zod-{{ checksum "projects/zod/yarn.lock" }}
+        paths:
+        - ~/.cache/yarn
+        - ~/.npm
+  gson-baseline:
+    docker:
+    - image: cimg/openjdk:17.0
+    steps:
+    - checkout
+    - restore_cache:
+        keys:
+        - maven-gson-{{ epoch }}
+    - run:
+        name: Resolve dependencies (maven)
+        command: cd projects/gson && mvn -q -B dependency:resolve
+    - save_cache:
+        key: maven-gson-{{ epoch }}
+        paths:
+        - ~/.m2/repository
+  lo-optimized:
+    docker:
+    - image: cimg/go:1.21
+    steps:
+    - checkout
+    - restore_cache:
+        keys:
+        - v2-gomod-lo-{{ checksum "projects/lo/go.sum" }}
+    - run:
+        name: Download modules (go mod download)
+        command: cd projects/lo && go mod download
+    - save_cache:
+        key: v2-gomod-lo-{{ checksum "projects/lo/go.sum" }}
+        paths:
+        - ~/go/pkg/mod/cache/download
+  guava-optimized:
+    docker:
+    - image: cimg/openjdk:17.0
+    steps:
+    - checkout
+    - restore_cache:
+        keys:
+        - maven-guava-{{ checksum "projects/guava/pom.xml" }}
+    - run:
+        name: Resolve dependencies (maven)
+        command: cd projects/guava && mvn -q -B dependency:resolve
+    - save_cache:
+        key: maven-guava-{{ checksum "projects/guava/pom.xml" }}
+        paths:
+        - ~/.m2/repository
+  guava-baseline:
+    docker:
+    - image: cimg/openjdk:17.0
+    steps:
+    - checkout
+    - restore_cache:
+        keys:
+        - maven-guava-{{ epoch }}
+    - run:
+        name: Resolve dependencies (maven)
+        command: cd projects/guava && mvn -q -B dependency:resolve
+    - save_cache:
+        key: maven-guava-{{ epoch }}
+        paths:
+        - ~/.m2/repository
+  rxjs-optimized:
+    docker:
+    - image: cimg/node:18.20
+    steps:
+    - checkout
+    - restore_cache:
+        keys:
+        - npm-rxjs-{{ checksum "projects/rxjs/package-lock.json" }}
+    - run:
+        name: Install dependencies (npm)
+        command: cd projects/rxjs && npm ci --ignore-scripts
+    - save_cache:
+        key: npm-rxjs-{{ checksum "projects/rxjs/package-lock.json" }}
+        paths:
+        - ~/.cache/yarn
+        - ~/.npm
+  pydantic-optimized:
+    docker:
+    - image: cimg/python:3.11
+    steps:
+    - checkout
+    - restore_cache:
+        keys:
+        - pip-pydantic-{{ checksum "projects/pydantic/requirements.txt" }}
+    - run:
+        name: Install dependencies (pip)
+        command: cd projects/pydantic && pip install --user -r requirements.txt
+    - save_cache:
+        key: pip-pydantic-{{ checksum "projects/pydantic/requirements.txt" }}
+        paths:
+        - ~/.cache/pip
+  flask-baseline:
+    docker:
+    - image: cimg/python:3.11
+    steps:
+    - checkout
+    - restore_cache:
+        keys:
+        - pip-flask-{{ epoch }}
+    - run:
+        name: Install dependencies (pip)
+        command: cd projects/flask && pip install --user -r requirements.txt
+    - save_cache:
+        key: pip-flask-{{ epoch }}
+        paths:
+        - ~/.cache/pip
+  serde-baseline:
+    docker:
+    - image: cimg/rust:1.75
+    steps:
+    - checkout
+    - restore_cache:
+        keys:
+        - cargo-serde-{{ epoch }}
+    - run:
+        name: Fetch dependencies (cargo)
+        command: cd projects/serde && cargo fetch
+    - save_cache:
+        key: cargo-serde-{{ epoch }}
+        paths:
+        - ~/.cargo/registry
+  black-optimized:
+    docker:
+    - image: cimg/python:3.11
+    steps:
+    - checkout
+    - restore_cache:
+        keys:
+        - pip-black-{{ checksum "projects/black/requirements.txt" }}
+    - run:
+        name: Install dependencies (pip)
+        command: cd projects/black && pip install --user -r requirements.txt
+    - save_cache:
+        key: pip-black-{{ checksum "projects/black/requirements.txt" }}
+        paths:
+        - ~/.cache/pip
+  lo-baseline:
+    docker:
+    - image: cimg/go:1.21
+    steps:
+    - checkout
+    - restore_cache:
+        keys:
+        - v2-gomod-lo-{{ epoch }}
+    - run:
+        name: Download modules (go mod download)
+        command: cd projects/lo && go mod download
+    - save_cache:
+        key: v2-gomod-lo-{{ epoch }}
+        paths:
+        - ~/go/pkg/mod/cache/download
+workflows:
+  baseline:
+    jobs:
+    - flask-baseline
+    - pydantic-baseline
+    - black-baseline
+    - serde-baseline
+    - rayon-baseline
+    - gson-baseline
+    - guava-baseline
+    - zod-baseline
+    - rxjs-baseline
+    - lo-baseline
+    - hugo-baseline
+  optimized:
+    jobs:
+    - flask-optimized
+    - pydantic-optimized
+    - black-optimized
+    - serde-optimized
+    - rayon-optimized
+    - gson-optimized
+    - guava-optimized
+    - zod-optimized
+    - rxjs-optimized
+    - lo-optimized
+    - hugo-optimized
+  version: 2

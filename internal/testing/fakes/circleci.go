@@ -214,6 +214,7 @@ type CircleCI struct {
 	compileValid       bool
 	compileOutputYAML  string
 	compileErrors      []string
+	compileEcho        bool
 	lastCompileOwnerID string
 
 	// Org state.
@@ -5605,6 +5606,19 @@ func (f *CircleCI) SetCompileResponse(valid bool, outputYAML string, errors ...s
 	f.compileValid = valid
 	f.compileOutputYAML = outputYAML
 	f.compileErrors = errors
+	f.compileEcho = false
+}
+
+// SetCompileEcho makes every compile succeed and return the config it was
+// sent. For a config with no orbs or parameters that is what the real compile
+// would return, so a command that edits a config and compiles each edit, such
+// as config optimize, can be tested end to end.
+func (f *CircleCI) SetCompileEcho() {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.compileValid = true
+	f.compileErrors = nil
+	f.compileEcho = true
 }
 
 // LastCompileOwnerID returns the owning org UUID sent on the most recent compile
@@ -5650,6 +5664,9 @@ func (f *CircleCI) handleCompileConfig(w http.ResponseWriter, r *http.Request) {
 	// resolved to the expected organization UUID before the compile call.
 	var body struct {
 		Data struct {
+			Attributes struct {
+				Config string `json:"config"`
+			} `json:"attributes"`
 			References struct {
 				Org struct {
 					ID string `json:"id"`
@@ -5664,6 +5681,9 @@ func (f *CircleCI) handleCompileConfig(w http.ResponseWriter, r *http.Request) {
 	valid := f.compileValid
 	outputYAML := f.compileOutputYAML
 	errs := f.compileErrors
+	if f.compileEcho {
+		outputYAML = body.Data.Attributes.Config
+	}
 	f.mu.Unlock()
 
 	attrs := map[string]any{"phase": "ended", "outcome": "succeeded"}

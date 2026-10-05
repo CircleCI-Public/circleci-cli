@@ -1,0 +1,8 @@
+jobs:
+  build:
+    steps:
+    - checkout
+    - run:
+        command: make test
+    - store_test_results:
+        path: results

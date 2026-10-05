@@ -1,0 +1,70 @@
+{
+  "schema_version": 1,
+  "command": "report",
+  "input": {
+    "path": "test-runner.yml",
+    "sha256": "6f8539b1ebc67832899275781fac37167297024a37a50760a48bae41827460b5"
+  },
+  "expansion": {
+    "id": "29cea90d6aca",
+    "pipeline_parameters": {},
+    "branch": "from the git checkout of the working directory"
+  },
+  "compiler": "circleci (fixture)",
+  "modules": [
+    "dlc"
+  ],
+  "summary": {
+    "actionable": 0,
+    "report_only": 1,
+    "suppressed": 0,
+    "result": "no_candidate"
+  },
+  "findings": [
+    {
+      "id": "dlc:e7fa180e3dc7",
+      "module": "dlc",
+      "verdict": "DLC_UNVERIFIABLE",
+      "disposition": "report_only",
+      "reason": "no change proposed",
+      "expansion": "29cea90d6aca",
+      "target": {
+        "job": "test",
+        "path": "jobs.test"
+      },
+      "reason_codes": [
+        "TEST_RUNNER"
+      ],
+      "impact": {
+        "time": "unknown",
+        "cost": "unknown",
+        "referent": "proposed_change",
+        "unit_credits": 200,
+        "unit": "job run",
+        "basis": "DLC is a flat 200 credits per job run (charged once per job run); no run count is available"
+      },
+      "confidence": {
+        "level": "low",
+        "reason": "some steps cannot be inspected, so a build may be hidden"
+      },
+      "evidence": [
+        {
+          "kind": "config_fact",
+          "claim": "DLC is enabled on the machine executor",
+          "value": "docker_layer_caching: true",
+          "source": "config:jobs.test.machine.docker_layer_caching"
+        },
+        {
+          "kind": "config_fact",
+          "claim": "a step cannot be inspected (TEST_RUNNER)",
+          "value": "step 1: go test runs tests, which can build images",
+          "source": "config:jobs.test.steps"
+        }
+      ],
+      "suggestion": {
+        "op": "none",
+        "note": "No visible step builds an image, but some steps cannot be inspected. Check them before removing DLC: removing it from a job that builds images makes every run slower."
+      }
+    }
+  ]
+}

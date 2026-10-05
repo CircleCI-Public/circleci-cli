@@ -1,0 +1,19 @@
+version: 2.1
+parameters:
+  build_image:
+    type: boolean
+    default: false
+jobs:
+  build:
+    docker:
+      - image: cimg/base:stable
+    steps:
+      - setup_remote_docker:
+          docker_layer_caching: true
+      - when:
+          condition: << pipeline.parameters.build_image >>
+          steps:
+            - run: docker build .
+workflows:
+  main:
+    jobs: [build]

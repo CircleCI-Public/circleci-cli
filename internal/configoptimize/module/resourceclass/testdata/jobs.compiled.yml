@@ -1,0 +1,127 @@
+version: 2
+jobs:
+  shared-b:
+    docker:
+    - image: cimg/base:current
+    resource_class: xlarge
+    steps:
+    - checkout
+    - run:
+        command: make test
+  oversized:
+    docker:
+    - image: cimg/base:current
+    resource_class: xlarge
+    steps:
+    - checkout
+    - run:
+        command: make test
+  class-mismatch:
+    docker:
+    - image: cimg/base:current
+    resource_class: xlarge
+    steps:
+    - checkout
+    - run:
+        command: make test
+  short:
+    docker:
+    - image: cimg/base:current
+    resource_class: xlarge
+    steps:
+    - checkout
+    - run:
+        command: make test
+  saturated:
+    docker:
+    - image: cimg/base:current
+    resource_class: xlarge
+    steps:
+    - checkout
+    - run:
+        command: make test
+  few-runs:
+    docker:
+    - image: cimg/base:current
+    resource_class: xlarge
+    steps:
+    - checkout
+    - run:
+        command: make test
+  machine:
+    machine:
+      image: ubuntu-2204:current
+    resource_class: large
+    steps:
+    - checkout
+    - run:
+        command: make test
+  shared-a:
+    docker:
+    - image: cimg/base:current
+    resource_class: xlarge
+    steps:
+    - checkout
+    - run:
+        command: make test
+  merged-own:
+    docker:
+    - image: cimg/base:current
+    resource_class: xlarge
+    environment:
+    - GOMAXPROCS: 8
+    steps:
+    - checkout
+    - run:
+        command: make test
+  small-class:
+    docker:
+    - image: cimg/base:current
+    resource_class: medium
+    steps:
+    - checkout
+    - run:
+        command: make test
+  memory-bound:
+    docker:
+    - image: cimg/base:current
+    resource_class: large
+    steps:
+    - checkout
+    - run:
+        command: make test
+  merged:
+    docker:
+    - image: cimg/base:current
+    resource_class: xlarge
+    environment:
+    - GOMAXPROCS: 8
+    steps:
+    - checkout
+    - run:
+        command: make test
+  no-data:
+    docker:
+    - image: cimg/base:current
+    resource_class: xlarge
+    steps:
+    - checkout
+    - run:
+        command: make test
+workflows:
+  w:
+    jobs:
+    - oversized
+    - few-runs
+    - short
+    - saturated
+    - memory-bound
+    - small-class
+    - class-mismatch
+    - machine
+    - shared-a
+    - shared-b
+    - merged
+    - merged-own
+    - no-data
+  version: 2

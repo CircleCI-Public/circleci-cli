@@ -7,3 +7,7 @@
 **/testdata/**/*.jsonl text eol=lf
 **/testdata/**/*.yml text eol=lf
 **/testdata/**/*.yaml text eol=lf
+
+# config optimize's CRLF fixtures test line-ending handling byte for byte, so
+# git must never normalize them.
+internal/configoptimize/**/testdata/**/*crlf* -text

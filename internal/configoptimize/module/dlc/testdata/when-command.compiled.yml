@@ -1,0 +1,13 @@
+version: 2
+jobs:
+  build:
+    docker:
+    - image: cimg/base:stable
+    steps:
+    - setup_remote_docker:
+        docker_layer_caching: true
+workflows:
+  main:
+    jobs:
+    - build
+  version: 2

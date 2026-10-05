@@ -1,0 +1,70 @@
+{
+  "schema_version": 1,
+  "command": "report",
+  "input": {
+    "path": "orb-sourced.yml",
+    "sha256": "ae26028ed215672e8ef2533485d6bd2a1fa89ceadb6f3f5f0a6979fe9394952f"
+  },
+  "expansion": {
+    "id": "29cea90d6aca",
+    "pipeline_parameters": {},
+    "branch": "from the git checkout of the working directory"
+  },
+  "compiler": "circleci (fixture)",
+  "modules": [
+    "dlc"
+  ],
+  "summary": {
+    "actionable": 0,
+    "report_only": 1,
+    "suppressed": 0,
+    "result": "no_candidate"
+  },
+  "findings": [
+    {
+      "id": "dlc:99882615ea61",
+      "module": "dlc",
+      "verdict": "DLC_UNUSED",
+      "disposition": "report_only",
+      "reason": "orb-sourced: job tools/test comes from an orb",
+      "mutability": "orb-sourced",
+      "expansion": "29cea90d6aca",
+      "target": {
+        "job": "tools/test",
+        "path": "jobs.tools/test"
+      },
+      "locations": [
+        "jobs.tools/test.machine.docker_layer_caching"
+      ],
+      "impact": {
+        "time": "neutral",
+        "cost": "better",
+        "referent": "proposed_change",
+        "unit_credits": 200,
+        "unit": "job run",
+        "basis": "DLC is a flat 200 credits per job run (charged once per job run); no run count is available"
+      },
+      "confidence": {
+        "level": "high"
+      },
+      "evidence": [
+        {
+          "kind": "config_fact",
+          "claim": "DLC is enabled on the machine executor",
+          "value": "docker_layer_caching: true",
+          "source": "config:jobs.tools/test.machine.docker_layer_caching"
+        },
+        {
+          "kind": "config_fact",
+          "claim": "every step was inspected and none builds an image",
+          "value": "2 steps inspected",
+          "source": "config:jobs.tools/test.steps"
+        }
+      ],
+      "suggestion": {
+        "op": "remove",
+        "note": "No step in this job invokes a docker image build. DLC is charged per job run regardless."
+      }
+    }
+  ]
+}

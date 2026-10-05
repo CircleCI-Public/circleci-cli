@@ -1,0 +1,4 @@
+error: .circleci is not in a git worktree, so the change could not be undone with git
+
+Suggestions:
+  • Pass --force to write anyway

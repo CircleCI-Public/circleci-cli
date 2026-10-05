@@ -1,0 +1,22 @@
+version: 2
+jobs:
+  holder:
+    docker:
+    - image: cimg/base:current
+    steps:
+    - checkout
+    - run:
+        command: echo ci
+  target:
+    machine:
+      image: ubuntu-2204:current
+      docker_layer_caching: true
+    steps:
+    - run:
+        command: echo ci
+workflows:
+  main:
+    jobs:
+    - holder
+    - target
+  version: 2

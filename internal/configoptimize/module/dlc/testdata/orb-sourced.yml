@@ -1,0 +1,14 @@
+version: 2.1
+orbs:
+  tools:
+    jobs:
+      test:
+        machine:
+          image: ubuntu-2204:current
+          docker_layer_caching: true
+        steps:
+          - checkout
+          - run: echo "no image here"
+workflows:
+  ci:
+    jobs: [tools/test]

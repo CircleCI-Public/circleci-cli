@@ -1,0 +1,6 @@
+# ünïcödé comment
+labels: {café: "ü", naïve: 中文, b: [é, "x"]}
+job: &a
+  name: é   # ü
+  next: ok
+other: *a

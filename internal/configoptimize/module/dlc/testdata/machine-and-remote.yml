@@ -1,0 +1,13 @@
+version: 2.1
+jobs:
+  build:
+    machine:
+      image: ubuntu-2204:current
+      docker_layer_caching: true
+    steps:
+      - setup_remote_docker:
+          docker_layer_caching: true
+      - run: echo "no image here"
+workflows:
+  main:
+    jobs: [build]

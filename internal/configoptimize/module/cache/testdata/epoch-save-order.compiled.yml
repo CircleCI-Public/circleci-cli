@@ -1,0 +1,45 @@
+version: 2
+jobs:
+  parallel-epoch:
+    docker:
+    - image: cimg/node:18.20
+    parallelism: 2
+    steps:
+    - restore_cache:
+        keys:
+        - pe-{{ epoch }}
+    - save_cache:
+        key: pe-{{ epoch }}
+        paths:
+        - /tmp/deps
+  save-first:
+    docker:
+    - image: cimg/node:18.20
+    steps:
+    - save_cache:
+        key: sf-{{ .BuildNum }}
+        paths:
+        - /tmp/deps
+    - restore_cache:
+        keys:
+        - sf-{{ .BuildNum }}
+  save-first-epoch:
+    docker:
+    - image: cimg/node:18.20
+    steps:
+    - save_cache:
+        key: se-{{ epoch }}
+        paths:
+        - /tmp/deps
+    - run:
+        command: sleep 2
+    - restore_cache:
+        keys:
+        - se-{{ epoch }}
+workflows:
+  review12:
+    jobs:
+    - parallel-epoch
+    - save-first
+    - save-first-epoch
+  version: 2

@@ -1,0 +1,23 @@
+version: 2.1
+# The build sits in a reusable command, gated on a pipeline parameter. A
+# fixture must not read ambient values (pipeline.git.*): see §10 M4.
+parameters:
+  release: {type: boolean, default: false}
+commands:
+  maybe-build:
+    steps:
+      - when:
+          condition: << pipeline.parameters.release >>
+          steps:
+            - run: docker build .
+jobs:
+  build:
+    docker:
+      - image: cimg/base:stable
+    steps:
+      - setup_remote_docker:
+          docker_layer_caching: true
+      - maybe-build
+workflows:
+  main:
+    jobs: [build]

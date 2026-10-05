@@ -1,0 +1,108 @@
+# Regression cases from the review of review-7 (D17). One job per case.
+version: 2.1
+
+executors:
+  node:
+    docker:
+      - image: cimg/node:18.20
+
+jobs:
+  # The save shares the changing token, so a restore still cannot match
+  # across commits: a finding.
+  correlated-prefix:
+    executor: node
+    steps:
+      - restore_cache:
+          keys: ["cp-{{ .BuildNum }}"]
+      - save_cache:
+          key: "cp-{{ .BuildNum }}-seeded"
+          paths: [/tmp/deps]
+
+  # An epoch key written without spaces: medium confidence, with the
+  # same-second caveat.
+  epoch-no-spaces:
+    executor: node
+    steps:
+      - restore_cache:
+          keys: ["sp-{{epoch}}"]
+      - save_cache:
+          key: "sp-{{epoch}}"
+          paths: [/tmp/deps]
+
+  # A called function's install runs.
+  called-function:
+    executor: node
+    steps:
+      - run: |
+          install_deps() {
+            npm ci
+          }
+          install_deps
+
+  # Wrappers with long options and split strings.
+  sudo-long:
+    executor: node
+    steps:
+      - run: sudo --user circleci npm ci
+  env-split:
+    executor: node
+    steps:
+      - run: env -S 'npm ci'
+
+  # A path-qualified Maven wrapper with a goal is an install; a version
+  # query with a file option is not.
+  mvnw-path:
+    executor: node
+    steps:
+      - run: /workspace/mvnw package
+  mvn-file-version:
+    executor: node
+    steps:
+      - run: mvn -f pom.xml --version
+
+  # A matrix with an alias: jobs are still named after the job.
+  aliased:
+    executor: node
+    parameters: {os: {type: string}}
+    steps:
+      - restore_cache:
+          keys: ["al-<< parameters.os >>-{{ .BuildNum }}"]
+
+  # An excluded matrix tuple does not produce the job that another
+  # invocation names.
+  excluded:
+    executor: node
+    parameters:
+      os: {type: string}
+      arch: {type: string}
+    steps:
+      - run: echo excluded
+  actual:
+    executor: node
+    steps:
+      - restore_cache:
+          keys: ["ac-{{ .BuildNum }}"]
+
+workflows:
+  review7:
+    jobs:
+      - correlated-prefix
+      - epoch-no-spaces
+      - called-function
+      - sudo-long
+      - env-split
+      - mvnw-path
+      - mvn-file-version
+      - aliased:
+          matrix:
+            alias: all-aliased
+            parameters: {os: [linux]}
+      - excluded:
+          matrix:
+            parameters:
+              os: [linux, macos]
+              arch: [amd64]
+            exclude:
+              - {os: linux, arch: amd64}
+      - actual:
+          name: excluded-amd64-linux

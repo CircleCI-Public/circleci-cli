@@ -1,0 +1,141 @@
+# X1-static-v2 scope cases (D17 point 17). One job per case.
+version: 2.1
+
+parameters:
+  # A pipeline parameter named like a built-in value is not one.
+  git_revision:
+    type: string
+    default: "main"
+  stable_choice:
+    type: enum
+    enum: ["v1", "v2"]
+    default: "v1"
+
+executors:
+  node:
+    docker:
+      - image: cimg/node:18.20
+
+jobs:
+  # Across the restore list the broadest scope wins.
+  epoch-then-revision:
+    executor: node
+    steps:
+      - restore_cache:
+          keys: ["er-{{ epoch }}", "er-{{ .Revision }}"]
+      - save_cache: {key: "er-{{ .Revision }}", paths: [~/.npm]}
+  revision-then-epoch:
+    executor: node
+    steps:
+      - restore_cache:
+          keys: ["re-{{ .Revision }}", "re-{{ epoch }}"]
+      - save_cache: {key: "re-{{ .Revision }}", paths: [~/.npm]}
+  # A stable fallback: no finding.
+  epoch-stable-fallback:
+    executor: node
+    steps:
+      - restore_cache:
+          keys: ["es-{{ epoch }}", "es-"]
+  # Within one key the narrowest token wins.
+  epoch-and-revision-one-key:
+    executor: node
+    steps:
+      - restore_cache:
+          keys: ["ek-{{ epoch }}-{{ .Revision }}"]
+
+  # pipeline.parameters are resolved, never mistaken for built-ins.
+  pipeline-param-string:
+    executor: node
+    steps:
+      - restore_cache:
+          keys: ["pp-<< pipeline.parameters.git_revision >>"]
+  pipeline-param-enum:
+    executor: node
+    steps:
+      - restore_cache:
+          keys: ["pe-<< pipeline.parameters.stable_choice >>"]
+
+  # Workflow-scoped, with a dependency path.
+  workflow-id:
+    executor: node
+    steps:
+      - restore_cache:
+          keys: ["wf-{{ .Environment.CIRCLE_WORKFLOW_ID }}"]
+      - run: npm ci
+      - save_cache: {key: "wf-{{ .Environment.CIRCLE_WORKFLOW_ID }}", paths: [~/.npm]}
+
+  # Revision-scoped build output: a workspace-like use, not reported.
+  revision-build-output:
+    executor: node
+    steps:
+      - restore_cache:
+          keys: ["bo-{{ .Revision }}"]
+      - save_cache: {key: "bo-{{ .Revision }}", paths: [dist]}
+  # Revision-scoped with mixed and with parameterized paths: silent.
+  revision-mixed-paths:
+    executor: node
+    steps:
+      - restore_cache:
+          keys: ["mp-{{ .Revision }}"]
+      - save_cache: {key: "mp-{{ .Revision }}", paths: [~/.npm, dist]}
+  revision-param-path:
+    executor: node
+    parameters:
+      dir: {type: string, default: "~/.npm"}
+    steps:
+      - restore_cache:
+          keys: ["pa-{{ .Revision }}"]
+      - save_cache: {key: "pa-{{ .Revision }}", paths: ["<< parameters.dir >>"]}
+  # Revision-scoped with no visible save: silent.
+  revision-no-save:
+    executor: node
+    steps:
+      - restore_cache:
+          keys: ["ns-{{ .Revision }}"]
+  # A bare $VAR in a key is literal text: unscoped, no finding.
+  bare-env-var:
+    executor: node
+    steps:
+      - restore_cache:
+          keys: ["bv-$CIRCLE_SHA1"]
+
+  # A variable-length number next to the branch with no delimiter: build
+  # 1 on "2fix" and build 12 on "fix" give the same key. Uninspectable.
+  buildnum-branch-adjacent:
+    executor: node
+    steps:
+      - restore_cache:
+          keys: ["ba-{{ .BuildNum }}{{ .Branch }}"]
+  # The same through a parameter whose value is the build number.
+  buildnum-param-adjacent:
+    executor: node
+    parameters:
+      k: {type: string, default: "{{ .BuildNum }}"}
+    steps:
+      - restore_cache:
+          keys: ["bp-<< parameters.k >>{{ .Branch }}"]
+  # {{ epoch }} has a fixed width, so the branch next to it cannot cancel it.
+  epoch-branch-adjacent:
+    executor: node
+    steps:
+      - restore_cache:
+          keys: ["ea-{{ epoch }}{{ .Branch }}"]
+
+workflows:
+  scopes:
+    jobs:
+      - buildnum-branch-adjacent
+      - buildnum-param-adjacent
+      - epoch-branch-adjacent
+      - epoch-then-revision
+      - revision-then-epoch
+      - epoch-stable-fallback
+      - epoch-and-revision-one-key
+      - pipeline-param-string
+      - pipeline-param-enum
+      - workflow-id
+      - revision-build-output
+      - revision-mixed-paths
+      - revision-param-path
+      - revision-no-save
+      - bare-env-var

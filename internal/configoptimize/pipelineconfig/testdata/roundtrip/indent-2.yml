@@ -1,0 +1,7 @@
+jobs:
+  build:
+    steps:
+      - checkout
+      - run:
+          name: test
+          command: make test

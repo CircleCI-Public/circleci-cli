@@ -1,0 +1,11 @@
+# Sample pricing table. FIXTURE DATA, NOT TRUTH: real rates depend on plan and
+# contract. Values follow the public price list as of 2026-08-31 and are used
+# only so tests and examples have a table to load.
+flat_charges:
+  dlc: 200
+credits_per_minute:
+  - {platform: docker, class: small, generation: gen1, credits: 5}
+  - {platform: docker, class: medium, generation: gen1, credits: 10}
+  - {platform: docker, class: large, generation: gen1, credits: 20}
+ladders:
+  - {platform: docker, generation: gen1, classes: [small, medium, large]}

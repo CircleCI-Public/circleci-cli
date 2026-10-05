@@ -1,0 +1,18 @@
+version: 2.1
+jobs:
+  test:
+    parameters:
+      node:
+        type: string
+    machine:
+      image: ubuntu-2204:current
+      docker_layer_caching: true
+    steps:
+      - run: echo << parameters.node >>
+workflows:
+  ci:
+    jobs:
+      - test:
+          matrix:
+            parameters:
+              node: ["18", "20"]

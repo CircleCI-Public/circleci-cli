@@ -1,0 +1,11 @@
+version: 2.1
+lists:
+  images: &docker_list
+    - image: cimg/node:22.11
+defaults: &defaults
+  docker: *docker_list
+  working_directory: ~/app
+jobs:
+  build: *defaults
+  test:
+    docker: *docker_list

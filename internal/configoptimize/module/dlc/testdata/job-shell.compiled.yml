@@ -1,0 +1,15 @@
+version: 2
+jobs:
+  build:
+    machine:
+      image: ubuntu-2204:current
+      docker_layer_caching: true
+    shell: pwsh
+    steps:
+    - run:
+        command: .\build.ps1
+workflows:
+  main:
+    jobs:
+    - build
+  version: 2

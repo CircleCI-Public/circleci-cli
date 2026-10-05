@@ -1,0 +1,13 @@
+config optimize: .circleci/config.yml
+compiler: CircleCI compile API
+expansion 29cea90d6aca: pipeline parameters none; pipeline values from the git checkout of the working directory
+modules: dlc, cache, resourceclass
+
+Changes that can be made (1)
+  RC_DOWNSIZE  jobs.test.resource_class  [resourceclass:cba215155109]
+    change: set jobs.test.resource_class
+    Step down one class: 2xlarge → xlarge. It is predicted 1.00× slower there, saving about 50% of its credits and 35.0% of the pipeline's after the model margin. Confirm with paired runs before keeping it.
+
+Summary: 1 actionable, 0 report-only, 0 suppressed
+
+Result: a candidate can be produced (1 change); -o FILE writes it.

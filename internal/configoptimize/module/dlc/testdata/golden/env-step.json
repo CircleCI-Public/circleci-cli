@@ -1,0 +1,76 @@
+{
+  "schema_version": 1,
+  "command": "report",
+  "input": {
+    "path": "env-step.yml",
+    "sha256": "855640289c8c3829f1f536d856af8711f480e1dfab5b1f8886218ad0f8c7398b"
+  },
+  "expansion": {
+    "id": "29cea90d6aca",
+    "pipeline_parameters": {},
+    "branch": "from the git checkout of the working directory"
+  },
+  "compiler": "circleci (fixture)",
+  "modules": [
+    "dlc"
+  ],
+  "summary": {
+    "actionable": 0,
+    "report_only": 1,
+    "suppressed": 0,
+    "result": "no_candidate"
+  },
+  "findings": [
+    {
+      "id": "dlc:d6f46f3811c9",
+      "module": "dlc",
+      "verdict": "DLC_UNVERIFIABLE",
+      "disposition": "report_only",
+      "reason": "no change proposed",
+      "expansion": "29cea90d6aca",
+      "target": {
+        "job": "build",
+        "path": "jobs.build"
+      },
+      "reason_codes": [
+        "SHELL_STATE"
+      ],
+      "impact": {
+        "time": "unknown",
+        "cost": "unknown",
+        "referent": "proposed_change",
+        "unit_credits": 200,
+        "unit": "job run",
+        "basis": "DLC is a flat 200 credits per job run (charged once per job run); no run count is available"
+      },
+      "confidence": {
+        "level": "low",
+        "reason": "some steps cannot be inspected, so a build may be hidden"
+      },
+      "evidence": [
+        {
+          "kind": "config_fact",
+          "claim": "DLC is enabled on setup_remote_docker (step 0)",
+          "value": "docker_layer_caching: true",
+          "source": "config:jobs.build.steps.0.setup_remote_docker.docker_layer_caching"
+        },
+        {
+          "kind": "config_fact",
+          "claim": "a step cannot be inspected (SHELL_STATE)",
+          "value": "job: environment sets LD_PRELOAD, which can change what the steps run",
+          "source": "config:jobs.build.steps"
+        },
+        {
+          "kind": "config_fact",
+          "claim": "a step cannot be inspected (SHELL_STATE)",
+          "value": "step 1: environment sets GOFLAGS, which can change what the steps run",
+          "source": "config:jobs.build.steps"
+        }
+      ],
+      "suggestion": {
+        "op": "none",
+        "note": "No visible step builds an image, but some steps cannot be inspected. Check them before removing DLC: removing it from a job that builds images makes every run slower."
+      }
+    }
+  ]
+}

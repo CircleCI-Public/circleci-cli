@@ -1,0 +1,5 @@
+jobs:
+  build:
+    steps:
+      - setup_remote_docker
+      - run: echo hi

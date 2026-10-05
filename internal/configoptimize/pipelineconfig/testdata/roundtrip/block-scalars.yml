@@ -1,0 +1,18 @@
+jobs:
+  build:
+    steps:
+      - run: |
+          echo literal
+            indented more
+          echo done
+      - run: >
+          folded
+          text
+      - run: |-
+          strip final newline
+      - run: >-
+          folded
+          and stripped
+      - run: |+
+          keep trailing newlines
+

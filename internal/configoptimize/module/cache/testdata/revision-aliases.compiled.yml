@@ -1,0 +1,41 @@
+version: 2
+jobs:
+  sha-seed:
+    docker:
+    - image: cimg/node:18.20
+    steps:
+    - save_cache:
+        key: sha-{{ .Environment.CIRCLE_SHA1 }}
+        paths:
+        - /tmp/deps
+  sha-consume:
+    docker:
+    - image: cimg/node:18.20
+    steps:
+    - restore_cache:
+        keys:
+        - sha-{{ .Revision }}
+  parallel:
+    docker:
+    - image: cimg/node:18.20
+    parallelism: 2
+    steps:
+    - restore_cache:
+        keys:
+        - par-{{ .BuildNum }}
+    - save_cache:
+        key: par-{{ .BuildNum }}
+        paths:
+        - /tmp/deps
+workflows:
+  review11:
+    jobs:
+    - sha-seed
+    - sha-consume:
+        requires:
+        - sha-seed
+        upstream:
+          sha-seed:
+          - success
+    - parallel
+  version: 2

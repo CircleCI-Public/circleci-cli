@@ -1,0 +1,23 @@
+version: 2.1
+orbs:
+  builder:
+    executors:
+      vm:
+        machine:
+          image: ubuntu-2204:current
+          docker_layer_caching: true
+    jobs:
+      test:
+        machine:
+          image: ubuntu-2204:current
+          docker_layer_caching: true
+        steps: [checkout]
+jobs:
+  uses-orb-executor:
+    executor: builder/vm
+    steps: [checkout]
+workflows:
+  ci:
+    jobs:
+      - builder/test
+      - uses-orb-executor

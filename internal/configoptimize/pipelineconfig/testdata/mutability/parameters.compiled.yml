@@ -1,0 +1,36 @@
+version: 2
+jobs:
+  param:
+    machine:
+      image: ubuntu-2204:current
+      docker_layer_caching: true
+    steps:
+    - checkout
+  twice-a:
+    machine:
+      image: ubuntu-2204:current
+      docker_layer_caching: true
+    steps:
+    - checkout
+  twice-b:
+    machine:
+      image: ubuntu-2204:current
+      docker_layer_caching: true
+    steps:
+    - checkout
+  wrapped:
+    docker:
+    - image: cimg/base:current
+    steps:
+    - run:
+        command: echo before
+    - setup_remote_docker:
+        docker_layer_caching: true
+workflows:
+  ci:
+    jobs:
+    - param
+    - twice-a
+    - twice-b
+    - wrapped
+  version: 2

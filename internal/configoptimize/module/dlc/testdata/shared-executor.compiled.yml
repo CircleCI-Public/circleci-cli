@@ -1,0 +1,33 @@
+version: 2
+jobs:
+  lint:
+    machine:
+      image: ubuntu-2204:current
+      docker_layer_caching: true
+    steps:
+    - checkout
+    - run:
+        command: echo lint
+  test:
+    machine:
+      image: ubuntu-2204:current
+      docker_layer_caching: true
+    steps:
+    - checkout
+    - run:
+        command: echo test
+  docs:
+    machine:
+      image: ubuntu-2204:current
+      docker_layer_caching: true
+    steps:
+    - checkout
+    - run:
+        command: echo docs
+workflows:
+  ci:
+    jobs:
+    - lint
+    - test
+    - docs
+  version: 2

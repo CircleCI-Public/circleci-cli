@@ -1,0 +1,184 @@
+# Focused cases for the D17 cache rules. One job per case; the job name
+# says what it tests.
+version: 2.1
+
+parameters:
+  free_key:
+    type: string
+    default: "v1"
+
+executors:
+  node:
+    docker:
+      - image: cimg/node:18.20
+
+jobs:
+  # A volatile key with a stable fallback: no finding.
+  stable-fallback:
+    executor: node
+    steps:
+      - restore_cache:
+          keys:
+            - npm-{{ .Revision }}
+            - npm-
+      - run: npm ci
+      - save_cache:
+          key: npm-{{ .Revision }}
+          paths: [~/.npm]
+
+  # The default is stable; one call site overrides it with a volatile value.
+  keyed:
+    executor: node
+    parameters:
+      cache_key:
+        type: string
+        default: '{{ checksum "package-lock.json" }}'
+    steps:
+      - restore_cache:
+          keys:
+            - keyed-<< parameters.cache_key >>
+      - run: npm ci
+      - save_cache:
+          key: keyed-<< parameters.cache_key >>
+          paths: [~/.npm]
+
+  # The default is volatile; one call site overrides it with a stable value.
+  volatile-default:
+    executor: node
+    parameters:
+      cache_key:
+        type: string
+        default: "{{ epoch }}"
+    steps:
+      - restore_cache:
+          keys:
+            - vd-<< parameters.cache_key >>
+      - run: npm ci
+      - save_cache:
+          key: vd-<< parameters.cache_key >>
+          paths: [~/.npm]
+
+  # A matrix job: every variant's key is volatile.
+  matrixed:
+    executor: node
+    parameters:
+      cache_key:
+        type: string
+    steps:
+      - restore_cache:
+          keys:
+            - mx-<< parameters.cache_key >>
+      - run: npm ci
+      - save_cache:
+          key: mx-<< parameters.cache_key >>
+          paths: [~/.npm]
+
+  # A matrix whose values disagree: one variant's key is volatile and the
+  # other's stable, so the model reports "depends on the scenario".
+  mixed-matrix:
+    executor: node
+    parameters:
+      cache_key:
+        type: string
+    steps:
+      - restore_cache:
+          keys:
+            - mm-<< parameters.cache_key >>
+      - run: npm ci
+      - save_cache:
+          key: mm-<< parameters.cache_key >>
+          paths: [~/.npm]
+
+  # Saves a cache that another job restores.
+  cross-save:
+    executor: node
+    steps:
+      - run: npm ci
+      - save_cache:
+          key: shared-{{ checksum "package-lock.json" }}
+          paths: [~/.npm]
+  cross-restore:
+    executor: node
+    steps:
+      - restore_cache:
+          keys:
+            - shared-{{ checksum "package-lock.json" }}
+      - run: npm test
+
+  # A key built from a pipeline parameter a trigger can override:
+  # uninspectable, no finding.
+  untraceable:
+    executor: node
+    steps:
+      - restore_cache:
+          keys:
+            - ut-<< pipeline.parameters.free_key >>-{{ epoch }}
+      - run: npm ci
+      - save_cache:
+          key: ut-<< pipeline.parameters.free_key >>-{{ epoch }}
+          paths: [~/.npm]
+
+  # A real candidate: an install and no cache.
+  candidate:
+    executor: node
+    steps:
+      - checkout
+      - run: npm ci
+      - run: npm test
+
+  # A CircleCI function the registry has not reviewed: no candidate.
+  function-run:
+    executor: node
+    steps:
+      - run: circleci run setup-go
+      - run: go mod download
+
+  # Two saves with different templates and a prefix fallback that could
+  # read either: the fallback edge is flagged broad, and there is no finding.
+  broad-a:
+    executor: node
+    steps:
+      - run: npm ci
+      - save_cache:
+          key: v1-a-{{ checksum "a.lock" }}
+          paths: [~/.npm]
+  broad-b:
+    executor: node
+    steps:
+      - run: npm ci
+      - save_cache:
+          key: v1-b-{{ checksum "b.lock" }}
+          paths: [~/.npm]
+  broad-restore:
+    executor: node
+    steps:
+      - restore_cache:
+          keys:
+            - v1-{{ epoch }}
+            - v1-
+      - run: npm test
+
+workflows:
+  focused:
+    jobs:
+      - stable-fallback
+      - keyed: {name: keyed-default}
+      - keyed: {name: keyed-volatile, cache_key: "{{ epoch }}"}
+      - volatile-default: {name: volatile-default-kept}
+      - volatile-default: {name: volatile-default-overridden, cache_key: '{{ checksum "package-lock.json" }}'}
+      - matrixed:
+          matrix:
+            parameters:
+              cache_key: ["{{ epoch }}", "{{ .BuildNum }}"]
+      - mixed-matrix:
+          matrix:
+            parameters:
+              cache_key: ["{{ epoch }}", '{{ checksum "package-lock.json" }}']
+      - cross-save
+      - cross-restore
+      - untraceable
+      - candidate
+      - function-run
+      - broad-a
+      - broad-b
+      - broad-restore

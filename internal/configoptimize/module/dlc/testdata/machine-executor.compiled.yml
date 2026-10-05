@@ -1,0 +1,16 @@
+version: 2
+jobs:
+  test:
+    machine:
+      image: ubuntu-2204:current
+      docker_layer_caching: true
+    resource_class: large
+    steps:
+    - checkout
+    - run:
+        command: make_is_not_called=1
+workflows:
+  ci:
+    jobs:
+    - test
+  version: 2

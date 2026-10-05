@@ -1,0 +1,70 @@
+{
+  "schema_version": 1,
+  "command": "report",
+  "input": {
+    "path": "unverifiable-script.yml",
+    "sha256": "17478d69d4ea2a5b160dea9e29d6007592614ad391a30ef1935fafeaf2923f71"
+  },
+  "expansion": {
+    "id": "29cea90d6aca",
+    "pipeline_parameters": {},
+    "branch": "from the git checkout of the working directory"
+  },
+  "compiler": "circleci (fixture)",
+  "modules": [
+    "dlc"
+  ],
+  "summary": {
+    "actionable": 0,
+    "report_only": 1,
+    "suppressed": 0,
+    "result": "no_candidate"
+  },
+  "findings": [
+    {
+      "id": "dlc:d6f46f3811c9",
+      "module": "dlc",
+      "verdict": "DLC_UNVERIFIABLE",
+      "disposition": "report_only",
+      "reason": "no change proposed",
+      "expansion": "29cea90d6aca",
+      "target": {
+        "job": "build",
+        "path": "jobs.build"
+      },
+      "reason_codes": [
+        "EXTERNAL_SCRIPT"
+      ],
+      "impact": {
+        "time": "unknown",
+        "cost": "unknown",
+        "referent": "proposed_change",
+        "unit_credits": 200,
+        "unit": "job run",
+        "basis": "DLC is a flat 200 credits per job run (charged once per job run); no run count is available"
+      },
+      "confidence": {
+        "level": "low",
+        "reason": "some steps cannot be inspected, so a build may be hidden"
+      },
+      "evidence": [
+        {
+          "kind": "config_fact",
+          "claim": "DLC is enabled on the machine executor",
+          "value": "docker_layer_caching: true",
+          "source": "config:jobs.build.machine.docker_layer_caching"
+        },
+        {
+          "kind": "config_fact",
+          "claim": "a step cannot be inspected (EXTERNAL_SCRIPT)",
+          "value": "step 1: runs the script ./scripts/ci.sh",
+          "source": "config:jobs.build.steps"
+        }
+      ],
+      "suggestion": {
+        "op": "none",
+        "note": "No visible step builds an image, but some steps cannot be inspected. Check them before removing DLC: removing it from a job that builds images makes every run slower."
+      }
+    }
+  ]
+}

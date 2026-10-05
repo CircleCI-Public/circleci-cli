@@ -1,0 +1,72 @@
+{
+  "schema_version": 1,
+  "command": "report",
+  "input": {
+    "path": "setup-remote-docker.yml",
+    "sha256": "88ee06ae83834a6575fc998cd4a484906017695227e7f9106f91589f7a71188c"
+  },
+  "expansion": {
+    "id": "29cea90d6aca",
+    "pipeline_parameters": {},
+    "branch": "from the git checkout of the working directory"
+  },
+  "compiler": "circleci (fixture)",
+  "modules": [
+    "dlc"
+  ],
+  "summary": {
+    "actionable": 1,
+    "report_only": 0,
+    "suppressed": 0,
+    "result": "candidate_produced"
+  },
+  "findings": [
+    {
+      "id": "dlc:e7fa180e3dc7",
+      "module": "dlc",
+      "verdict": "DLC_UNUSED",
+      "disposition": "actionable",
+      "mutability": "writable",
+      "expansion": "29cea90d6aca",
+      "target": {
+        "job": "test",
+        "path": "jobs.test"
+      },
+      "locations": [
+        "jobs.test.steps.1.setup_remote_docker.docker_layer_caching"
+      ],
+      "authored_paths": [
+        "jobs.test.steps.1.setup_remote_docker.docker_layer_caching"
+      ],
+      "impact": {
+        "time": "neutral",
+        "cost": "better",
+        "referent": "proposed_change",
+        "unit_credits": 200,
+        "unit": "job run",
+        "basis": "DLC is a flat 200 credits per job run (charged once per job run); no run count is available"
+      },
+      "confidence": {
+        "level": "high"
+      },
+      "evidence": [
+        {
+          "kind": "config_fact",
+          "claim": "DLC is enabled on setup_remote_docker (step 1)",
+          "value": "docker_layer_caching: true",
+          "source": "config:jobs.test.steps.1.setup_remote_docker.docker_layer_caching"
+        },
+        {
+          "kind": "config_fact",
+          "claim": "every step was inspected and none builds an image",
+          "value": "3 steps inspected",
+          "source": "config:jobs.test.steps"
+        }
+      ],
+      "suggestion": {
+        "op": "remove",
+        "note": "No step in this job invokes a docker image build. DLC is charged per job run regardless."
+      }
+    }
+  ]
+}

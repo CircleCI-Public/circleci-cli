@@ -1,0 +1,4 @@
+workflows:
+  ci:
+    jobs: [lint, {test: {requires: [lint]}}, "deploy"]
+matrix: {parameters: {node: ["18", "20"], os: [linux]}}

@@ -1,0 +1,19 @@
+version: 2
+jobs:
+  image:
+    machine:
+      image: ubuntu-2204:current
+      docker_layer_caching: true
+    steps:
+    - checkout
+    - run:
+        name: Build
+        command: |
+          echo "starting"
+          export TAG=${CIRCLE_SHA1}
+          docker build -t app:$TAG .
+workflows:
+  ci:
+    jobs:
+    - image
+  version: 2

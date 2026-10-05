@@ -1,0 +1,19 @@
+version: 2.1
+executors:
+  vm:
+    machine:
+      image: ubuntu-2204:current
+      docker_layer_caching: true
+jobs:
+  lint:
+    executor: vm
+    steps: [checkout, {run: echo lint}]
+  test:
+    executor: vm
+    steps: [checkout, {run: echo test}]
+  docs:
+    executor: vm
+    steps: [checkout, {run: echo docs}]
+workflows:
+  ci:
+    jobs: [lint, test, docs]

@@ -1,0 +1,13 @@
+version: 2.1
+jobs:
+  test:
+    docker:
+      - image: cimg/base:current
+    resource_class: xlarge
+    steps:
+      - checkout
+      - run: make test
+workflows:
+  main:
+    jobs:
+      - test

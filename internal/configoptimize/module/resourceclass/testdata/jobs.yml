@@ -1,0 +1,71 @@
+# Resource-class cases (D21). One job per case; testdata/usage.json holds
+# SYNTHETIC usage for engineering tests only, never for a demo (D18).
+version: 2.1
+
+x-big: &big
+  resource_class: xlarge
+  environment:
+    GOMAXPROCS: 8
+
+executors:
+  shared-big:
+    docker:
+      - image: cimg/base:current
+    resource_class: xlarge
+
+jobs:
+  oversized:
+    docker: [{image: cimg/base:current}]
+    resource_class: xlarge
+    steps: [checkout, {run: make test}]
+  few-runs:
+    docker: [{image: cimg/base:current}]
+    resource_class: xlarge
+    steps: [checkout, {run: make test}]
+  short:
+    docker: [{image: cimg/base:current}]
+    resource_class: xlarge
+    steps: [checkout, {run: make test}]
+  saturated:
+    docker: [{image: cimg/base:current}]
+    resource_class: xlarge
+    steps: [checkout, {run: make test}]
+  memory-bound:
+    docker: [{image: cimg/base:current}]
+    resource_class: large
+    steps: [checkout, {run: make test}]
+  small-class:
+    docker: [{image: cimg/base:current}]
+    resource_class: medium
+    steps: [checkout, {run: make test}]
+  class-mismatch:
+    docker: [{image: cimg/base:current}]
+    resource_class: xlarge
+    steps: [checkout, {run: make test}]
+  machine:
+    machine: {image: ubuntu-2204:current}
+    resource_class: large
+    steps: [checkout, {run: make test}]
+  shared-a:
+    executor: shared-big
+    steps: [checkout, {run: make test}]
+  shared-b:
+    executor: shared-big
+    steps: [checkout, {run: make test}]
+  merged:
+    docker: [{image: cimg/base:current}]
+    <<: *big
+    steps: [checkout, {run: make test}]
+  merged-own:
+    docker: [{image: cimg/base:current}]
+    <<: *big
+    resource_class: xlarge
+    steps: [checkout, {run: make test}]
+  no-data:
+    docker: [{image: cimg/base:current}]
+    resource_class: xlarge
+    steps: [checkout, {run: make test}]
+
+workflows:
+  w:
+    jobs: [oversized, few-runs, short, saturated, memory-bound, small-class, class-mismatch, machine, shared-a, shared-b, merged, merged-own, no-data]

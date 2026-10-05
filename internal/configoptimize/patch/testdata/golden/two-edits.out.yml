@@ -1,0 +1,8 @@
+jobs:
+  build:
+    machine:
+      image: ubuntu-2204:current
+    steps:
+      - setup_remote_docker:
+          version: default
+      - run: echo hi

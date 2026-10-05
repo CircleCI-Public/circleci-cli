@@ -89,12 +89,9 @@ func newProcessCmd() *cobra.Command {
 				return err
 			}
 
-			params, err := parsePipelineParams(pipelineParams)
+			params, err := pipelineParamsFlag(pipelineParams)
 			if err != nil {
-				return clierrors.New("config.invalid_params", "Invalid pipeline parameters",
-					fmt.Sprintf("Could not parse pipeline parameters: %s", err)).
-					WithSuggestions("Pass parameters as a YAML map: --pipeline-parameters 'key: value'").
-					WithExitCode(clierrors.ExitBadArguments)
+				return err
 			}
 
 			orgID, err := optionalAuthOrgID(ctx, client, org, "circleci config process",
@@ -139,8 +136,16 @@ func newProcessCmd() *cobra.Command {
 	return cmd
 }
 
-// parsePipelineParams parses pipeline parameters from either a YAML/JSON string
-// or a file path. File is tried first; if not found, the value is parsed as inline YAML.
-func parsePipelineParams(input string) (map[string]any, error) {
-	return configcmd.ParsePipelineParams(input)
+// pipelineParamsFlag parses --pipeline-parameters, from either a YAML/JSON
+// string or a file path. File is tried first; if not found, the value is
+// parsed as inline YAML.
+func pipelineParamsFlag(input string) (map[string]any, error) {
+	params, err := configcmd.ParsePipelineParams(input)
+	if err != nil {
+		return nil, clierrors.New("config.invalid_params", "Invalid pipeline parameters",
+			fmt.Sprintf("Could not parse pipeline parameters: %s", err)).
+			WithSuggestions("Pass parameters as a YAML map: --pipeline-parameters 'key: value'").
+			WithExitCode(clierrors.ExitBadArguments)
+	}
+	return params, nil
 }

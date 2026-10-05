@@ -1,0 +1,80 @@
+# Regression cases from the review of review-9 (D17). One job per case.
+version: 2.1
+
+parameters:
+  alt-key:
+    type: enum
+    enum: ["{{ .BuildNum }}", "1{{ .BuildNum }}"]
+    default: "{{ .BuildNum }}"
+
+executors:
+  node:
+    docker:
+      - image: cimg/node:18.20
+
+jobs:
+  # Different changing alternatives can give the same key in different runs.
+  enum-alternatives:
+    executor: node
+    steps:
+      - restore_cache:
+          keys: ["alt-<< pipeline.parameters.alt-key >>"]
+      - save_cache:
+          key: "alt-<< pipeline.parameters.alt-key >>"
+          paths: [/tmp/deps]
+
+  # env -S splits like env, not like a shell; then env reads the words.
+  env-split-semicolon:
+    executor: node
+    steps:
+      - run: env -S 'npm ci; --version'
+  env-split-assignment:
+    executor: node
+    steps:
+      - run: env -S 'NODE_ENV=test npm ci'
+
+  # -itr is a flag; verify is the goal.
+  mvn-itr:
+    executor: node
+    steps:
+      - run: mvn -itr verify
+
+  # Function calls resolve to the definition in force at the call.
+  function-redefined:
+    executor: node
+    steps:
+      - run: |
+          install_deps() { true; }
+          install_deps
+          install_deps() { npm ci; }
+  function-before-definition:
+    executor: node
+    steps:
+      - run: |
+          install_deps
+          install_deps() { npm ci; }
+
+  # A restore whose save is made by another job.
+  cross-restore:
+    executor: node
+    steps:
+      - restore_cache:
+          keys: ["cj-{{ .BuildNum }}"]
+  cross-save:
+    executor: node
+    steps:
+      - save_cache:
+          key: "cj-{{ .BuildNum }}"
+          paths: [/tmp/deps]
+
+workflows:
+  review9:
+    jobs:
+      - enum-alternatives
+      - env-split-semicolon
+      - env-split-assignment
+      - mvn-itr
+      - function-redefined
+      - function-before-definition
+      - cross-restore
+      - cross-save

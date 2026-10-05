@@ -1,0 +1,8 @@
+jobs:
+  build:
+    docker:
+      - image: cimg/base:current
+    steps:
+      - setup_remote_docker:
+          docker_layer_caching: true
+      - run: echo hi

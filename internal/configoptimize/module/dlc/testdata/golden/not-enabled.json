@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "command": "report",
+  "input": {
+    "path": "not-enabled.yml",
+    "sha256": "5dfb1f5edabea49b002439b0f3987c599a4ea01557fbd3cbfe87c96c8b9c3c1e"
+  },
+  "expansion": {
+    "id": "29cea90d6aca",
+    "pipeline_parameters": {},
+    "branch": "from the git checkout of the working directory"
+  },
+  "compiler": "circleci (fixture)",
+  "modules": [
+    "dlc"
+  ],
+  "summary": {
+    "actionable": 0,
+    "report_only": 0,
+    "suppressed": 0,
+    "result": "no_candidate"
+  },
+  "findings": []
+}

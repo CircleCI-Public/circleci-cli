@@ -1,0 +1,137 @@
+# Regression cases from the review of review-6 (D17). One job per case.
+version: 2.1
+
+parameters:
+  ck:
+    type: enum
+    enum: ["{{ epoch }}", "stable"]
+    default: "stable"
+
+executors:
+  node:
+    docker:
+      - image: cimg/node:18.20
+
+jobs:
+  # A changing key that may prefix-match a save of another shape: no finding.
+  seed-save:
+    executor: node
+    steps:
+      - save_cache:
+          key: seed-42-seeded
+          paths: [/tmp/data]
+  seed-restore:
+    executor: node
+    steps:
+      - restore_cache:
+          keys: ["seed-{{ .BuildNum }}"]
+
+  # An unknown value next to a changing one can cancel the change.
+  adjacent-unknown:
+    executor: node
+    steps:
+      - restore_cache:
+          keys: ["pad-{{ .BuildNum }}{{ .Environment.PAD }}"]
+
+  # Installs that do not run: in a function never called, or only on failure.
+  function-body:
+    executor: node
+    steps:
+      - run: |
+          install_deps() {
+            npm ci
+          }
+          echo "never called"
+  on-fail-only:
+    executor: node
+    steps:
+      - run:
+          command: npm ci
+          when: on_fail
+
+  # A wrapped CircleCI function still blocks the candidate.
+  wrapped-function:
+    executor: node
+    steps:
+      - run: env circleci run setup-go
+      - run: go mod download
+
+  # A wrapper option with a value does not hide the install.
+  env-unset:
+    executor: node
+    steps:
+      - run: env -u GOPROXY go mod download
+
+  # `mvn --version` resolves no dependencies.
+  mvn-version:
+    executor: node
+    steps:
+      - run: mvn --version
+
+  # Matrix jobs whose names share a prefix.
+  build:
+    executor: node
+    parameters: {os: {type: string}}
+    steps:
+      - restore_cache:
+          keys: ["a-<< parameters.os >>-{{ .BuildNum }}"]
+  build-linux:
+    executor: node
+    parameters: {arch: {type: string}}
+    steps:
+      - restore_cache:
+          keys: ["b-<< parameters.arch >>-{{ .BuildNum }}"]
+
+  # An enum pipeline parameter whose values disagree: depends on the
+  # scenario (the trigger picks the value).
+  enum-mixed:
+    executor: node
+    steps:
+      - restore_cache:
+          keys: ["en-<< pipeline.parameters.ck >>"]
+
+  # A prefix fallback that matches an exact save and a longer one is broad.
+  broad-exact-save:
+    executor: node
+    steps:
+      - save_cache: {key: "b1-", paths: [/tmp/a]}
+  broad-longer-save:
+    executor: node
+    steps:
+      - save_cache: {key: "b1-a", paths: [/tmp/b]}
+  broad-exact-restore:
+    executor: node
+    steps:
+      - restore_cache:
+          keys: ["b1-"]
+
+  # A volatile restore with no save in the config: the note claims no
+  # stored cache.
+  no-save:
+    executor: node
+    steps:
+      - restore_cache:
+          keys: ["ns-{{ .BuildNum }}"]
+
+workflows:
+  review6:
+    jobs:
+      - seed-save
+      - seed-restore
+      - adjacent-unknown
+      - function-body
+      - on-fail-only
+      - wrapped-function
+      - env-unset
+      - mvn-version
+      - build:
+          matrix:
+            parameters: {os: [macos]}
+      - build-linux:
+          matrix:
+            parameters: {arch: [amd64]}
+      - enum-mixed
+      - broad-exact-save
+      - broad-longer-save
+      - broad-exact-restore
+      - no-save

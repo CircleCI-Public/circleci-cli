@@ -1,0 +1,10 @@
+version: 2.1
+orbs:
+  docker: circleci/docker@2.8.2
+workflows:
+  ci:
+    jobs:
+      - docker/publish:
+          image: org/app
+          use-remote-docker: true
+          remote-docker-dlc: true

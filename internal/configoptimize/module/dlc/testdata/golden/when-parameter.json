@@ -1,0 +1,70 @@
+{
+  "schema_version": 1,
+  "command": "report",
+  "input": {
+    "path": "when-parameter.yml",
+    "sha256": "182a68d188f787e2384b6b45d70f7a704603b00fd8f5177b8a7c629a1ec269c4"
+  },
+  "expansion": {
+    "id": "29cea90d6aca",
+    "pipeline_parameters": {},
+    "branch": "from the git checkout of the working directory"
+  },
+  "compiler": "circleci (fixture)",
+  "modules": [
+    "dlc"
+  ],
+  "summary": {
+    "actionable": 0,
+    "report_only": 1,
+    "suppressed": 0,
+    "result": "no_candidate"
+  },
+  "findings": [
+    {
+      "id": "dlc:d6f46f3811c9",
+      "module": "dlc",
+      "verdict": "DLC_UNUSED",
+      "disposition": "report_only",
+      "reason": "input-dependent: job build reads pipeline values (\u003c\u003c pipeline.* \u003e\u003e), directly or through a command or executor",
+      "mutability": "writable",
+      "expansion": "29cea90d6aca",
+      "target": {
+        "job": "build",
+        "path": "jobs.build"
+      },
+      "locations": [
+        "jobs.build.steps.0.setup_remote_docker.docker_layer_caching"
+      ],
+      "impact": {
+        "time": "neutral",
+        "cost": "better",
+        "referent": "proposed_change",
+        "unit_credits": 200,
+        "unit": "job run",
+        "basis": "DLC is a flat 200 credits per job run (charged once per job run); no run count is available"
+      },
+      "confidence": {
+        "level": "high"
+      },
+      "evidence": [
+        {
+          "kind": "config_fact",
+          "claim": "DLC is enabled on setup_remote_docker (step 0)",
+          "value": "docker_layer_caching: true",
+          "source": "config:jobs.build.steps.0.setup_remote_docker.docker_layer_caching"
+        },
+        {
+          "kind": "config_fact",
+          "claim": "every step was inspected and none builds an image",
+          "value": "1 steps inspected",
+          "source": "config:jobs.build.steps"
+        }
+      ],
+      "suggestion": {
+        "op": "remove",
+        "note": "No step in this job invokes a docker image build. DLC is charged per job run regardless."
+      }
+    }
+  ]
+}

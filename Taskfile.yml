@@ -153,6 +153,7 @@ tasks:
           -ignore "test-reports/**" \
           -ignore "**/*.html" \
           -ignore "acceptance/testdata/**" \
+          -ignore "internal/configoptimize/**/testdata/**" \
           -ignore "bin/**" \
           -ignore "dist/**" \
           -ignore "docs/website/content/**" \
