@@ -25,8 +25,8 @@ Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `ci
   `circleci runner token list --org gh/my-org`
 - List tokens for a specific resource class: 
   `circleci runner token list --resource-class my-org/my-runner`
-- Output as JSON: 
-  `circleci runner token list --json`
+- List tokens for a resource class given by its ID: 
+  `circleci runner token list --resource-class 01234567-89ab-4cde-8f01-23456789abcd`
 - Extract IDs with --jq: 
   `circleci runner token list --resource-class my-org/my-runner --json --jq '.[].id'`
 
@@ -37,5 +37,5 @@ List authentication tokens for runner resource classes.
 Without --resource-class, lists tokens for all resource classes
 in the organization (--org or inferred from the git remote).
 
-JSON fields: id, resource_class, nickname, created_at
+JSON fields: id, resource_class, resource_class_id, nickname, created_at
 

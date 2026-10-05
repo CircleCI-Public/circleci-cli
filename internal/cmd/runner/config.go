@@ -228,7 +228,7 @@ func runConfigCreateToken(ctx context.Context, client *apiclient.Client, rc *api
 		return "", err
 	}
 
-	tok, err := client.CreateRunnerTokenV3(ctx, rcID, rc.ResourceClass, nickname)
+	tok, err := client.CreateRunnerTokenV3(ctx, rcID, nickname)
 	if err != nil {
 		return "", apiErr(err, rc.ResourceClass)
 	}

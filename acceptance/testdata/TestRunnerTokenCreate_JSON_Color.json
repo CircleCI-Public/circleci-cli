@@ -1,6 +1,7 @@
 [1;37m{[m
   [1;34m"id"[m[1;37m:[m [32m"b344b1b8-3b0f-547e-aa7b-998acf933f14"[m[1;37m,[m
   [1;34m"resource_class"[m[1;37m:[m [32m"my-org/linux-runner"[m[1;37m,[m
+  [1;34m"resource_class_id"[m[1;37m:[m [32m"11111111-1111-4111-8111-111111111111"[m[1;37m,[m
   [1;34m"nickname"[m[1;37m:[m [32m""[m[1;37m,[m
   [1;34m"created_at"[m[1;37m:[m [32m"2026-01-01T00:00:00Z"[m[1;37m,[m
   [1;34m"token"[m[1;37m:[m [32m"fake-runner-token-value"[m

@@ -44,10 +44,11 @@ type ResourceClass struct {
 
 // RunnerToken is an authentication token for a resource class.
 type RunnerToken struct {
-	ID            string `json:"id"`
-	ResourceClass string `json:"resource_class"`
-	Nickname      string `json:"nickname"`
-	CreatedAt     string `json:"created_at"`
+	ID              string `json:"id"`
+	ResourceClass   string `json:"resource_class"`
+	ResourceClassID string `json:"resource_class_id"`
+	Nickname        string `json:"nickname"`
+	CreatedAt       string `json:"created_at"`
 	// Token is only populated on creation.
 	Token string `json:"token,omitempty"`
 }
@@ -247,7 +248,7 @@ func forceParam(force bool) string {
 }
 
 // v3RunnerTokenItem is a token item from the V3 /runner/tokens endpoint.
-// List items carry only attributes; the resource class is not included.
+// References name the resource class the token belongs to.
 type v3RunnerTokenItem struct {
 	ID         string `json:"id"`
 	Attributes struct {
@@ -255,18 +256,36 @@ type v3RunnerTokenItem struct {
 		CreatedAt string `json:"created_at"`
 		Token     string `json:"token,omitempty"`
 	} `json:"attributes"`
+	References struct {
+		ResourceClass struct {
+			ID         string `json:"id"`
+			Attributes struct {
+				ResourceClass string `json:"resource_class"`
+			} `json:"attributes"`
+		} `json:"resource_class"`
+	} `json:"references"`
 }
 
-// ListRunnerTokensV3 returns tokens for the given namespace/name resource class,
-// using the V3 /runner/tokens endpoint, which filters by resource class only,
-// not by ID. The ResourceClass field in returned tokens is filled from
-// resourceClass since the V3 list response does not carry one.
-func (c *Client) ListRunnerTokensV3(ctx context.Context, resourceClass string) ([]RunnerToken, error) {
+// ListRunnerTokensByResourceClass returns tokens for the resource class named by
+// its fully qualified namespace/name.
+func (c *Client) ListRunnerTokensByResourceClass(ctx context.Context, resourceClass string) ([]RunnerToken, error) {
+	return c.listRunnerTokens(ctx, "resource_class", resourceClass)
+}
+
+// ListRunnerTokensByResourceClassID returns tokens for the resource class with the given UUID.
+func (c *Client) ListRunnerTokensByResourceClassID(ctx context.Context, rcID uuid.UUID) ([]RunnerToken, error) {
+	return c.listRunnerTokens(ctx, "resource_class_id", rcID.String())
+}
+
+// listRunnerTokens lists GET /api/v3/runner/tokens under one filter; the endpoint takes
+// exactly one of the two. The ResourceClass and ResourceClassID fields in returned
+// tokens are the ones the response references.
+func (c *Client) listRunnerTokens(ctx context.Context, filter, value string) ([]RunnerToken, error) {
 	var resp struct {
 		Data []v3RunnerTokenItem `json:"data"`
 	}
 	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodGet, "/api/v3/runner/tokens",
-		httpcl.QueryParam("filter[resource_class]", resourceClass),
+		httpcl.QueryParam("filter["+filter+"]", value),
 		httpcl.JSONDecoder(&resp),
 	))
 	if err != nil {
@@ -275,18 +294,20 @@ func (c *Client) ListRunnerTokensV3(ctx context.Context, resourceClass string) (
 	tokens := make([]RunnerToken, len(resp.Data))
 	for i, t := range resp.Data {
 		tokens[i] = RunnerToken{
-			ID:            t.ID,
-			ResourceClass: resourceClass,
-			Nickname:      t.Attributes.Nickname,
-			CreatedAt:     t.Attributes.CreatedAt,
+			ID:              t.ID,
+			ResourceClass:   t.References.ResourceClass.Attributes.ResourceClass,
+			ResourceClassID: t.References.ResourceClass.ID,
+			Nickname:        t.Attributes.Nickname,
+			CreatedAt:       t.Attributes.CreatedAt,
 		}
 	}
 	return tokens, nil
 }
 
 // CreateRunnerTokenV3 creates a new token for the given resource class UUID using
-// the V3 /runner/tokens endpoint. The ResourceClass field is filled from resourceClass.
-func (c *Client) CreateRunnerTokenV3(ctx context.Context, rcID uuid.UUID, resourceClass, nickname string) (*RunnerToken, error) {
+// the V3 /runner/tokens endpoint. The ResourceClass field is the namespace/name
+// the response references.
+func (c *Client) CreateRunnerTokenV3(ctx context.Context, rcID uuid.UUID, nickname string) (*RunnerToken, error) {
 	body := map[string]any{
 		"data": map[string]any{
 			"attributes": map[string]any{
@@ -309,11 +330,12 @@ func (c *Client) CreateRunnerTokenV3(ctx context.Context, rcID uuid.UUID, resour
 	}
 	t := resp.Data
 	return &RunnerToken{
-		ID:            t.ID,
-		ResourceClass: resourceClass,
-		Nickname:      t.Attributes.Nickname,
-		CreatedAt:     t.Attributes.CreatedAt,
-		Token:         t.Attributes.Token,
+		ID:              t.ID,
+		ResourceClass:   t.References.ResourceClass.Attributes.ResourceClass,
+		ResourceClassID: t.References.ResourceClass.ID,
+		Nickname:        t.Attributes.Nickname,
+		CreatedAt:       t.Attributes.CreatedAt,
+		Token:           t.Attributes.Token,
 	}, nil
 }
 

@@ -37,5 +37,5 @@ Create a new authentication token for a runner resource class.
 The token value is shown only once and cannot be retrieved afterwards.
 Store it securely. If lost, delete this token and create a new one.
 
-JSON fields: id, resource_class, nickname, created_at, token
+JSON fields: id, resource_class, resource_class_id, nickname, created_at, token
 
