@@ -25,6 +25,7 @@ package root
 import (
 	"os"
 	"strings"
+	"time"
 
 	"charm.land/glamour/v2"
 	"github.com/njayp/ophis"
@@ -34,6 +35,7 @@ import (
 	clierrors "github.com/CircleCI-Public/circleci-cli/clikit/errors"
 	"github.com/CircleCI-Public/circleci-cli/clikit/iostream"
 	"github.com/CircleCI-Public/circleci-cli/internal/agent"
+	"github.com/CircleCI-Public/circleci-cli/internal/buildinfo"
 	cmdapi "github.com/CircleCI-Public/circleci-cli/internal/cmd/api"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmd/artifacts"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmd/certificate"
@@ -70,6 +72,7 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/internal/cmd/workflow"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmdutil"
 	"github.com/CircleCI-Public/circleci-cli/internal/config"
+	"github.com/CircleCI-Public/circleci-cli/internal/installmethod"
 	"github.com/CircleCI-Public/circleci-cli/internal/iostreamcobra"
 	"github.com/CircleCI-Public/circleci-cli/internal/telemetry"
 	"github.com/CircleCI-Public/circleci-cli/internal/update"
@@ -151,6 +154,20 @@ func NewRootCmd(version string) *cobra.Command {
 
 		executable := executablePath("circleci")
 
+		traits := map[string]any{
+			"agent":          agentName,
+			"install_method": installmethod.Detect(),
+			"is_self_hosted": cfg.EffectiveHost() != "https://circleci.com",
+			"is_tty":         iostream.IsTerminal(ctx),
+		}
+		// A dev build's age says nothing about how far behind a release a user
+		// is, so only released builds report one.
+		if version != "" && version != "dev" {
+			if days, ok := buildinfo.AgeDays(time.Now()); ok {
+				traits["build_age_days"] = days
+			}
+		}
+
 		tc, err := telemetry.NewSender(ctx, telemetry.Config{
 			Log:      cfg.IsTelemetry(),
 			Send:     cfg.IsTelemetry(),
@@ -162,11 +179,7 @@ func NewRootCmd(version string) *cobra.Command {
 				InstanceID: cfg.DeviceID(),
 				UserID:     cfg.UserID(),
 				HostInfo:   hostInfo,
-				Extra: map[string]any{
-					"agent":          agentName,
-					"is_self_hosted": cfg.EffectiveHost() != "https://circleci.com",
-					"is_tty":         iostream.IsTerminal(ctx),
-				},
+				Extra:      traits,
 			},
 		})
 		if err != nil {
