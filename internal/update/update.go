@@ -78,6 +78,12 @@ const (
 	// "latest" (still a correct nag, just an out-of-date target) while a shorter
 	// one would probe more often than a new release can appear.
 	CacheWindow = 24 * time.Hour
+
+	// latestTimeout bounds the fetch Latest makes when the cache is stale. Latest
+	// runs in the foreground, so offline or behind a firewall it must give up fast
+	// rather than hold the command; the background notifier has no such limit
+	// because Finish cancels it instead.
+	latestTimeout = 3 * time.Second
 )
 
 // ReleaseInfo is the newest stable release the source reported.
@@ -143,6 +149,43 @@ func ShouldCheck(ctx context.Context, cfg *config.Config, version string) bool {
 // rather than surfacing, because an update check is the last thing that should
 // ever print an error.
 func Check(ctx context.Context, src Source, statePath, currentVersion string) (*ReleaseInfo, error) {
+	release, ok := latestRelease(ctx, src, statePath)
+	if !ok {
+		return nil, nil
+	}
+
+	result := evaluate(release, currentVersion)
+	iostream.DebugContext(ctx, "update check evaluated",
+		"latest", release.Version,
+		"current", currentVersion,
+		"published_at", release.PublishedAt,
+		"newer", IsNewer(release.Version, currentVersion),
+		"within_delay", !release.PublishedAt.IsZero() && time.Since(release.PublishedAt) < notifyDelay,
+		"notify", result != nil,
+	)
+	return result, nil
+}
+
+// Latest returns the newest stable release, or nil when none is known. It shares
+// Check's cache, so it reaches the network at most once per CacheWindow, but it
+// applies no notify delay: it answers "what is the newest release", not "is it
+// time to tell the user". The fetch is bounded by latestTimeout so a caller that
+// waits on it, unlike the background notifier, stays fast offline.
+func Latest(ctx context.Context, src Source, statePath string) *ReleaseInfo {
+	ctx, cancel := context.WithTimeout(ctx, latestTimeout)
+	defer cancel()
+
+	release, ok := latestRelease(ctx, src, statePath)
+	if !ok {
+		return nil
+	}
+	return &release
+}
+
+// latestRelease returns the newest release known, refreshing the cached copy from
+// src when it is older than CacheWindow. ok is false when there is nothing to
+// report. Failures are debug-logged and never returned.
+func latestRelease(ctx context.Context, src Source, statePath string) (ReleaseInfo, bool) {
 	// Locking, directory creation and (de)serialisation all live in config's
 	// LoadState / SaveState now. A contended lock or unreadable state surfaces as
 	// an error there; here it is best-effort — an update check is the last thing
@@ -152,7 +195,7 @@ func Check(ctx context.Context, src Source, statePath, currentVersion string) (*
 	st, err := config.LoadState(ctx, statePath)
 	if err != nil {
 		iostream.DebugContext(ctx, "update check: could not load state", "err", err)
-		return nil, nil
+		return ReleaseInfo{}, false
 	}
 
 	stored := st.LatestRelease()
@@ -165,7 +208,7 @@ func Check(ctx context.Context, src Source, statePath, currentVersion string) (*
 			// Transient/unexpected failure: don't write state, so the cache
 			// window isn't burned and the next invocation retries.
 			iostream.DebugContext(ctx, "update check: fetch failed", "err", ferr)
-			return nil, nil
+			return ReleaseInfo{}, false
 		}
 
 		werr := config.SaveState(ctx, statePath, func(s *config.State) error {
@@ -181,26 +224,17 @@ func Check(ctx context.Context, src Source, statePath, currentVersion string) (*
 		})
 		if werr != nil {
 			iostream.DebugContext(ctx, "update check: could not write state", "err", werr)
-			return nil, nil
+			return ReleaseInfo{}, false
 		}
 		if info == nil {
 			// Recognised-but-unactionable (e.g. 400/401/403): state is written so
 			// we back off for CacheWindow, but there is nothing to show.
-			return nil, nil
+			return ReleaseInfo{}, false
 		}
 		release = *info
 	}
 
-	result := evaluate(release, currentVersion)
-	iostream.DebugContext(ctx, "update check evaluated",
-		"latest", release.Version,
-		"current", currentVersion,
-		"published_at", release.PublishedAt,
-		"newer", IsNewer(release.Version, currentVersion),
-		"within_delay", !release.PublishedAt.IsZero() && time.Since(release.PublishedAt) < notifyDelay,
-		"notify", result != nil,
-	)
-	return result, nil
+	return release, release.Version != ""
 }
 
 // evaluate decides whether release is worth a notice given the current version.

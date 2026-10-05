@@ -239,3 +239,72 @@ func TestCheck_ConcurrentCallsKeepStateParseable(t *testing.T) {
 	got := loadState(t, path)
 	assert.Check(t, cmp.Equal(got.LatestRelease().Version, "1.3.0"))
 }
+
+// deadlineSource reports whether the context it was called with had a deadline.
+type deadlineSource struct {
+	hadDeadline bool
+}
+
+func (s *deadlineSource) Latest(ctx context.Context) (*ReleaseInfo, error) {
+	_, s.hadDeadline = ctx.Deadline()
+	return &ReleaseInfo{Version: "1.3.0", PublishedAt: time.Now().Add(-48 * time.Hour)}, nil
+}
+
+func TestLatest(t *testing.T) {
+	t.Run("fresh cache answers without a fetch", func(t *testing.T) {
+		path := statePath(t)
+		seedState(t, path, time.Now().Add(-time.Hour),
+			config.Release{Version: "1.3.0", PublishedAt: time.Now().Add(-48 * time.Hour)})
+		src := &fakeSource{}
+
+		rel := Latest(testCtx(), src, path)
+		assert.Assert(t, rel != nil)
+		assert.Check(t, cmp.Equal(rel.Version, "1.3.0"))
+		assert.Check(t, cmp.Equal(src.calls, 0))
+	})
+
+	t.Run("stale cache fetches and saves", func(t *testing.T) {
+		path := statePath(t)
+		seedState(t, path, time.Now().Add(-100*time.Hour), config.Release{Version: "1.2.0"})
+		src := &fakeSource{info: &ReleaseInfo{Version: "1.3.0", PublishedAt: time.Now().Add(-48 * time.Hour)}}
+
+		rel := Latest(testCtx(), src, path)
+		assert.Assert(t, rel != nil)
+		assert.Check(t, cmp.Equal(rel.Version, "1.3.0"))
+		assert.Check(t, cmp.Equal(src.calls, 1))
+		assert.Check(t, cmp.Equal(loadState(t, path).LatestRelease().Version, "1.3.0"))
+	})
+
+	t.Run("a release inside the notify delay is still reported", func(t *testing.T) {
+		path := statePath(t)
+		seedState(t, path, time.Now().Add(-time.Hour),
+			config.Release{Version: "1.3.0", PublishedAt: time.Now().Add(-time.Hour)})
+
+		rel := Latest(testCtx(), &fakeSource{}, path)
+		assert.Assert(t, rel != nil, "Latest must not apply the notice's publish delay")
+		assert.Check(t, cmp.Equal(rel.Version, "1.3.0"))
+	})
+
+	t.Run("failed fetch reports nothing", func(t *testing.T) {
+		path := statePath(t)
+		src := &fakeSource{err: errors.New("boom")}
+
+		assert.Check(t, cmp.Nil(Latest(testCtx(), src, path)))
+		assert.Check(t, cmp.Equal(src.calls, 1))
+	})
+
+	t.Run("server with nothing to report", func(t *testing.T) {
+		path := statePath(t)
+		src := &fakeSource{} // e.g. a 400 or 403 the source gives up on quietly
+
+		assert.Check(t, cmp.Nil(Latest(testCtx(), src, path)))
+		assert.Check(t, cmp.Equal(src.calls, 1))
+	})
+
+	t.Run("the fetch is bounded by a deadline", func(t *testing.T) {
+		src := &deadlineSource{}
+
+		Latest(testCtx(), src, statePath(t))
+		assert.Check(t, src.hadDeadline, "Latest runs in the foreground, so its fetch must time out")
+	})
+}

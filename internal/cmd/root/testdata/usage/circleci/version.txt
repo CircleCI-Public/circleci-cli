@@ -2,5 +2,5 @@ Usage:  circleci version [flags]
 
 Flags:
   -h, --help   help for version
-      --json   output as JSON (fields: version, commit, modified)
+      --json   output as JSON (fields: version, commit, modified, latest, outdated)
   
