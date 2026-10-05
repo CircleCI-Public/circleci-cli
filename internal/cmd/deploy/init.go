@@ -33,6 +33,7 @@ import (
 
 	clierrors "github.com/CircleCI-Public/circleci-cli/clikit/errors"
 	"github.com/CircleCI-Public/circleci-cli/clikit/iostream"
+	"github.com/CircleCI-Public/circleci-cli/internal/cmdutil"
 	"github.com/CircleCI-Public/circleci-cli/internal/deployinit"
 	"github.com/CircleCI-Public/circleci-cli/internal/gitremote"
 )
@@ -79,7 +80,7 @@ func newInitCmd() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVar(&configPath, "pipeline-config", ".circleci/config.yml", "Path to CircleCI pipeline config file")
+	cmd.Flags().StringVar(&configPath, "pipeline-config", cmdutil.DefaultPipelineConfigPath, "Path to CircleCI pipeline config file")
 	cmd.Flags().StringVar(&component, "component", "", "Service/component name (skips prompt)")
 	cmd.Flags().StringVar(&defEnv, "environment", "", "Default environment for jobs whose target can't be inferred (skips prompt)")
 

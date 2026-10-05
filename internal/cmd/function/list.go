@@ -51,8 +51,9 @@ type listEntry struct {
 
 func newListCmd() *cobra.Command {
 	var (
-		pinned  bool
-		jsonOut bool
+		pinned     bool
+		jsonOut    bool
+		configFile string
 	)
 
 	cmd := &cobra.Command{
@@ -79,7 +80,7 @@ func newListCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			ctx := cmd.Context()
 			if pinned {
-				return runListPinned(ctx, configPath(cmd), jsonOut)
+				return runListPinned(ctx, configFile, jsonOut)
 			}
 			client, err := cmdutil.LoadClient(ctx)
 			if err != nil {
@@ -90,7 +91,7 @@ func newListCmd() *cobra.Command {
 	}
 
 	cmd.Flags().BoolVar(&pinned, "pinned", false, "list the functions declared in the local config")
-	addConfigFlag(cmd)
+	cmdutil.AddPipelineConfigFlag(cmd, &configFile)
 	cmdutil.AddJSONFlag(cmd, &jsonOut)
 	cmdutil.AddJQFlag(cmd)
 

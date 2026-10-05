@@ -143,7 +143,7 @@ func newValidateCmd() *cobra.Command {
 		},
 	}
 
-	cmd.Flags().StringVarP(&configPath, "config", "c", ".circleci/config.yml", "Path to config file (use \"-\" for stdin)")
+	cmd.Flags().StringVarP(&configPath, "config", "c", cmdutil.DefaultPipelineConfigPath, "Path to config file (use \"-\" for stdin)")
 	cmdutil.AddOrgFlag(cmd, &org, cmdutil.OrgFlag{Purpose: "for private orb resolution", DefaultsToGitRemote: true})
 	cmd.Flags().BoolVarP(&previewNext, "next", "n", false, "Enable config next which previews upcoming potentially breaking config changes")
 	cmdutil.AddJSONFlag(cmd, &jsonOut)
