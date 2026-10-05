@@ -1,0 +1,2 @@
+✓ Declared setup-go as github.com/circleci-functions/setup-go@v0.5.1-684fd5b in .circleci/config.yml
+  Invoke it as a step named "setup-go".
