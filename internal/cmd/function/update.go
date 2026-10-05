@@ -44,9 +44,10 @@ type updateResult struct {
 
 func newUpdateCmd() *cobra.Command {
 	var (
-		version string
-		dryRun  bool
-		jsonOut bool
+		version    string
+		dryRun     bool
+		jsonOut    bool
+		configFile string
 	)
 
 	cmd := &cobra.Command{
@@ -77,13 +78,13 @@ func newUpdateCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return runUpdate(ctx, client, args[0], version, configPath(cmd), dryRun, jsonOut)
+			return runUpdate(ctx, client, args[0], version, configFile, dryRun, jsonOut)
 		},
 	}
 
 	cmd.Flags().StringVar(&version, "version", "", "version to pin (default: the latest release)")
 	cmd.Flags().BoolVarP(&dryRun, "dry-run", "n", false, "show the change without writing it")
-	addConfigFlag(cmd)
+	cmdutil.AddPipelineConfigFlag(cmd, &configFile)
 	cmdutil.AddJSONFlag(cmd, &jsonOut)
 	cmdutil.AddJQFlag(cmd)
 

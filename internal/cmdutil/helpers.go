@@ -92,6 +92,15 @@ func AddOutputFlag(cmd *cobra.Command, out *string, what string) {
 	cmd.Flags().StringVarP(out, "output", "o", "", "Write "+what+" to this file instead of stdout")
 }
 
+// DefaultPipelineConfigPath is where a pipeline config lives by default.
+const DefaultPipelineConfigPath = ".circleci/config.yml"
+
+// AddPipelineConfigFlag registers --config/-c on cmd and binds it to path. It
+// shadows the root --config, which names the CLI's own settings file.
+func AddPipelineConfigFlag(cmd *cobra.Command, path *string) {
+	cmd.Flags().StringVarP(path, "config", "c", DefaultPipelineConfigPath, "Path to the pipeline config file")
+}
+
 // OpenOutput resolves the destination for a command supporting --output. When
 // path is empty it returns def (the command's normal stdout) with a no-op
 // closer; otherwise it creates the file (along with any missing parent

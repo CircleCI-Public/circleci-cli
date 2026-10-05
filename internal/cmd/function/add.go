@@ -49,10 +49,11 @@ type addResult struct {
 
 func newAddCmd() *cobra.Command {
 	var (
-		alias   string
-		version string
-		dryRun  bool
-		jsonOut bool
+		alias      string
+		version    string
+		dryRun     bool
+		jsonOut    bool
+		configFile string
 	)
 
 	cmd := &cobra.Command{
@@ -83,14 +84,14 @@ func newAddCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return runAdd(ctx, client, args[0], alias, version, configPath(cmd), dryRun, jsonOut)
+			return runAdd(ctx, client, args[0], alias, version, configFile, dryRun, jsonOut)
 		},
 	}
 
 	cmd.Flags().StringVar(&alias, "as", "", "alias a step invokes it by (default: the function's name)")
 	cmd.Flags().StringVar(&version, "version", "", "version to pin (default: the latest release)")
 	cmd.Flags().BoolVarP(&dryRun, "dry-run", "n", false, "show the change without writing it")
-	addConfigFlag(cmd)
+	cmdutil.AddPipelineConfigFlag(cmd, &configFile)
 	cmdutil.AddJSONFlag(cmd, &jsonOut)
 	cmdutil.AddJQFlag(cmd)
 
