@@ -1,7 +1,7 @@
 config optimize: .circleci/config.yml
 compiler: CircleCI compile API
 expansion 29cea90d6aca: pipeline parameters none; pipeline values from the git checkout of the working directory
-modules: cache, resourceclass
+modules: dlc, cache, resourceclass
 
 Changes that can be made (1)
   RC_DOWNSIZE  jobs.test.resource_class  [resourceclass:cba215155109]

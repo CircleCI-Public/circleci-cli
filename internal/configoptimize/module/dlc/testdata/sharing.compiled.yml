@@ -1,0 +1,45 @@
+version: 2
+jobs:
+  safe:
+    machine:
+      image: ubuntu-2204:current
+      docker_layer_caching: true
+    steps:
+    - run:
+        command: echo safe
+  building:
+    machine:
+      image: ubuntu-2204:current
+      docker_layer_caching: true
+    steps:
+    - run:
+        command: docker build -t example .
+  holder:
+    docker:
+    - image: cimg/base:current
+    steps:
+    - checkout
+    - run:
+        command: echo ci
+  target:
+    machine:
+      image: ubuntu-2204:current
+      docker_layer_caching: true
+    steps:
+    - run:
+        command: echo ci
+  gated:
+    docker:
+    - image: cimg/base:stable
+    steps:
+    - setup_remote_docker:
+        docker_layer_caching: true
+workflows:
+  main:
+    jobs:
+    - safe
+    - building
+    - holder
+    - target
+    - gated
+  version: 2

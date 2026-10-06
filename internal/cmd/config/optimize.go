@@ -65,7 +65,7 @@ func newOptimizeCmd() *cobra.Command {
 			`, "`"),
 		},
 		Long: heredoc.Doc(`
-			Find cheaper resource classes and cache keys. JSON fields: schema_version, command, summary.result, findings[].id
+			Find cheaper resource classes, cache keys and DLC. JSON fields: schema_version, command, summary.result, findings[].id
 		`),
 		Example: heredoc.Doc(`
 			# Report what could change
@@ -92,7 +92,7 @@ func newOptimizeCmd() *cobra.Command {
 	f.BoolVarP(&o.force, "force", "f", false, "overwrite the -o file, or skip the clean-worktree check")
 	f.StringVar(&o.usage, "usage", "", "per-job CPU and memory usage (JSON file), for resource classes")
 	f.StringVar(&o.rates, "credit-rates", "", "credits per minute per class (YAML file; default built-in gen1)")
-	f.StringSliceVar(&o.only, "only", nil, "checks to run: resource-class, cache (default all)")
+	f.StringSliceVar(&o.only, "only", nil, "checks to run: resource-class, cache, dlc (default all)")
 	f.StringVar(&o.params, "pipeline-parameters", "", "pipeline parameters as a YAML map or path to a YAML file")
 	f.BoolVarP(&o.verbose, "verbose", "v", false, "also list report-only findings, with evidence")
 	cmdutil.AddJSONFlag(cmd, &o.jsonOut)

@@ -1,0 +1,55 @@
+version: 2.1
+# Jobs whose DLC setting or steps come from somewhere other than the job.
+# Pipeline parameters, not git values: the fixture must compile the same on
+# any checkout.
+parameters:
+  label: {type: string, default: ci}
+  build_image: {type: boolean, default: false}
+executors:
+  shared:
+    machine:
+      image: ubuntu-2204:current
+      docker_layer_caching: true
+commands:
+  tagged:
+    steps:
+      - run: echo << pipeline.parameters.label >>
+jobs:
+  # Any job whose executor is a parameter may run on shared.
+  safe:
+    executor: shared
+    steps:
+      - run: echo safe
+  building:
+    parameters:
+      ex:
+        type: executor
+        default: shared
+    executor: << parameters.ex >>
+    steps:
+      - run: docker build -t example .
+  holder:
+    docker: [{image: cimg/base:current}]
+    steps:
+      - checkout
+      - &tagged tagged
+  target:
+    machine:
+      image: ubuntu-2204:current
+      docker_layer_caching: true
+    steps:
+      - *tagged
+  # The compiled config drops the gated build.
+  gated:
+    docker:
+      - image: cimg/base:stable
+    steps:
+      - setup_remote_docker:
+          docker_layer_caching: true
+      - when:
+          condition: << pipeline.parameters.build_image >>
+          steps:
+            - run: docker build .
+workflows:
+  main:
+    jobs: [safe, building, holder, target, gated]

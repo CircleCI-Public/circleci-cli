@@ -32,6 +32,7 @@ import (
 
 	"github.com/CircleCI-Public/circleci-cli/internal/configoptimize/module"
 	"github.com/CircleCI-Public/circleci-cli/internal/configoptimize/module/cache"
+	"github.com/CircleCI-Public/circleci-cli/internal/configoptimize/module/dlc"
 	"github.com/CircleCI-Public/circleci-cli/internal/configoptimize/module/resourceclass"
 	"github.com/CircleCI-Public/circleci-cli/internal/configoptimize/pricing"
 	"github.com/CircleCI-Public/circleci-cli/internal/configoptimize/reconcile"
@@ -53,6 +54,7 @@ type Deps struct {
 // order findings are reported in.
 func Catalog(deps Deps) []module.Analyzer {
 	return []module.Analyzer{
+		dlc.New(deps.Pricing),
 		cache.NewWithRepo(deps.Repo),
 		resourceclass.New(deps.Pricing, deps.Usage),
 	}
@@ -61,7 +63,9 @@ func Catalog(deps Deps) []module.Analyzer {
 // Policy returns module policy for reconcile's feasibility stage. It is data
 // kept beside the catalog so every caller applies the same policy.
 func Policy() reconcile.Policy {
-	return reconcile.Policy{}
+	return reconcile.Policy{ReportOnly: map[string]string{
+		dlc.Name: "dlc is report-only for now",
+	}}
 }
 
 // Select filters catalog down to names, module names from ParseChecks,
@@ -80,7 +84,7 @@ func Select(catalog []module.Analyzer, names []string) []module.Analyzer {
 }
 
 // checks maps the names config optimize's --only takes to module names.
-var checks = map[string]string{"resource-class": resourceclass.Name, "cache": cache.Name}
+var checks = map[string]string{"resource-class": resourceclass.Name, "cache": cache.Name, "dlc": dlc.Name}
 
 // CheckNames are the names --only takes, sorted.
 func CheckNames() []string {

@@ -1,4 +1,4 @@
-error: --only "nope" is not a check; the checks are cache, resource-class
+error: --only "nope" is not a check; the checks are cache, dlc, resource-class
 
 Suggestions:
-  • Pass one or more of: cache, resource-class
+  • Pass one or more of: cache, dlc, resource-class
