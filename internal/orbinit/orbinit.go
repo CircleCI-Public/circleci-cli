@@ -34,6 +34,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -327,7 +328,7 @@ func InitRepo(orbPath, remoteURL, branch string) (*git.Repository, *git.Worktree
 	if _, err := w.Add("."); err != nil {
 		return nil, nil, err
 	}
-	if err := commitInitial(w); err != nil {
+	if err := commitInitial(repo, w, orbPath); err != nil {
 		return nil, nil, err
 	}
 	return repo, w, nil
@@ -345,22 +346,76 @@ func openOrInitRepo(orbPath string) (*git.Repository, error) {
 	return git.PlainInit(orbPath, false)
 }
 
-// commitInitial creates the initial commit. It first lets go-git read the
-// author from the local/global git config; if no identity is configured it
-// falls back to a generic CircleCI identity so init still succeeds.
-func commitInitial(w *git.Worktree) error {
-	msg := "feat: Initial commit."
-	if _, err := w.Commit(msg, &git.CommitOptions{}); err != nil {
-		_, ferr := w.Commit(msg, &git.CommitOptions{
-			Author: &object.Signature{
-				Name:  "CircleCI",
-				Email: "community-partner@circleci.com",
-				When:  time.Now(),
-			},
-		})
+// ErrSigningNeedsGit is returned when the author's git config asks for signed
+// commits but there is no git binary on PATH to do the signing.
+var ErrSigningNeedsGit = errors.New("commit.gpgSign is enabled but git was not found on PATH")
+
+// initialCommitMessage is the message of the commit InitRepo creates.
+const initialCommitMessage = "feat: Initial commit."
+
+// fallbackAuthor is the identity used for the initial commit when the author
+// has none configured, so init still succeeds.
+var fallbackAuthor = object.Signature{Name: "CircleCI", Email: "community-partner@circleci.com"}
+
+// commitInitial creates the initial commit. When the author's git config asks
+// for signed commits it hands the commit to the git binary, which signs it
+// exactly as it would any other commit of theirs (gpg, ssh, x509, agents);
+// go-git refuses to commit at all when commit.gpgSign is set and it has no
+// signer of its own. Otherwise it commits with go-git. Either way, an author
+// with no identity configured gets a generic CircleCI identity.
+func commitInitial(repo *git.Repository, w *git.Worktree, orbPath string) error {
+	cfg, err := repo.ConfigScoped(config.SystemScope)
+	if err != nil {
+		return fmt.Errorf("reading git config: %w", err)
+	}
+	if cfg.Commit.GpgSign.IsTrue() {
+		return commitSigned(cfg, orbPath)
+	}
+
+	if _, err := w.Commit(initialCommitMessage, &git.CommitOptions{}); err != nil {
+		author := fallbackAuthor
+		author.When = time.Now()
+		_, ferr := w.Commit(initialCommitMessage, &git.CommitOptions{Author: &author})
 		return ferr
 	}
 	return nil
+}
+
+// commitSigned commits the already-staged index in orbPath with the git binary,
+// leaving signing to git.
+func commitSigned(cfg *config.Config, orbPath string) error {
+	if _, err := exec.LookPath("git"); err != nil {
+		return fmt.Errorf("signing initial commit: %w", ErrSigningNeedsGit)
+	}
+
+	cmd := exec.Command("git", "commit", "--quiet", "--message", initialCommitMessage)
+	cmd.Dir = orbPath
+	cmd.Env = os.Environ()
+	if !hasIdentity(cfg) {
+		cmd.Env = append(cmd.Env,
+			"GIT_AUTHOR_NAME="+fallbackAuthor.Name, "GIT_AUTHOR_EMAIL="+fallbackAuthor.Email,
+			"GIT_COMMITTER_NAME="+fallbackAuthor.Name, "GIT_COMMITTER_EMAIL="+fallbackAuthor.Email,
+		)
+	}
+	if out, err := cmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("signing initial commit: %w: %s", err, strings.TrimSpace(string(out)))
+	}
+	return nil
+}
+
+// hasIdentity reports whether cfg names both an author and a committer, the
+// way git resolves them: author.* and committer.* override user.*.
+func hasIdentity(cfg *config.Config) bool {
+	pick := func(specific, general string) string {
+		if specific != "" {
+			return specific
+		}
+		return general
+	}
+	return pick(cfg.Author.Name, cfg.User.Name) != "" &&
+		pick(cfg.Author.Email, cfg.User.Email) != "" &&
+		pick(cfg.Committer.Name, cfg.User.Name) != "" &&
+		pick(cfg.Committer.Email, cfg.User.Email) != ""
 }
 
 // CheckoutAlpha creates and switches to the "alpha" branch.

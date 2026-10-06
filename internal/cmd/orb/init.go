@@ -425,6 +425,15 @@ func applyOrbInitGit(ctx context.Context, client *apiclient.Client, path string,
 
 	iostream.Printf(ctx, "Setting up your orb...\n")
 	_, w, err := orbinit.InitRepo(path, remote, d.branch)
+	if errors.Is(err, orbinit.ErrSigningNeedsGit) {
+		return clierrors.New("orb.init_signing_needs_git", "Could not sign the initial commit",
+			"Your git config enables commit.gpgSign, and signing the initial commit needs the git binary, which is not on PATH.").
+			WithSuggestions(
+				"Install git and run the command again",
+				"Or turn off commit signing: git config --global commit.gpgsign false",
+			).
+			WithExitCode(clierrors.ExitGeneralError)
+	}
 	if err != nil {
 		return clierrors.New("orb.init_git_failed", "Could not initialize git repository",
 			err.Error()).
