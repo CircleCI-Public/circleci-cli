@@ -11,9 +11,9 @@
    command.
 4. **Provide shell completion** for bash, zsh and fish.
 5. **Update notices never block, never touch stdout, and go quiet when they can't
-   help** — no TTY on either stream, CI, agents/MCP, no token, dev builds, or
-   opted out. They run in the background during `PersistentPreRunE` and are drained
-   in `PersistentPostRunE`, which only runs on success, so a notice never lands on
+   help** — no TTY on either stream, CI, agents/MCP, dev builds, or opted out.
+   They run in the background during `PersistentPreRunE` and are drained in
+   `PersistentPostRunE`, which only runs on success, so a notice never lands on
    top of an error. Implementation in `internal/update`.
 6. **Stay channel-agnostic in user-facing upgrade text.** This CLI ships through
    seven channels, so link the release page rather than naming one package
@@ -223,8 +223,8 @@ The implementation lives in `internal/update` (business logic) and is wired in
   ever be nagged — and matches the observed ~1-6h bot-moderated propagation of
   homebrew-core and winget-pkgs.
 - **Off when it can't help.** Disabled for `version == "dev"`, in CI, for agents
-  and MCP, when no token is configured (the endpoint needs auth), and via
-  `CIRCLE_NO_UPDATE_CHECK` or `circleci setting set update-check off`.
+  and MCP, and via `CIRCLE_NO_UPDATE_CHECK` or `circleci setting set update-check
+  off`. No token is needed: the endpoint serves anonymous requests.
 
 ---
 

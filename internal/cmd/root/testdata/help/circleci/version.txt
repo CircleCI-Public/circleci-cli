@@ -6,9 +6,9 @@ Print version information
 
 ## Flags
 
-| Flag     | Description                                        |
-| -------- | -------------------------------------------------- |
-| `--json` | output as JSON (fields: version, commit, modified) |
+| Flag     | Description                                                          |
+| -------- | -------------------------------------------------------------------- |
+| `--json` | output as JSON (fields: version, commit, modified, latest, outdated) |
 
 Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `circleci --help`.
 
@@ -20,11 +20,17 @@ Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `ci
   `circleci version --json`
 - Extract just the commit hash: 
   `circleci version --json | jq -r .commit`
+- Check whether a newer release is available: 
+  `circleci version --json | jq .outdated`
 
 ## Details
 
-Print the version and commit hash this binary was built from.
+Print the version and commit hash this binary was built from. With `--json` it
+also reports the newest release, asking CircleCI at most once a day. Turn that off
+with `circleci setting set update-check off`.
 
-JSON fields: version (release tag, or "dev" for unreleased builds), commit
-(full git hash), modified (true when built from a dirty working tree)
+JSON fields: version (release tag, or "dev" for unreleased builds), commit (full git
+hash), modified (true when built from a dirty working tree), latest (newest release),
+outdated (true when latest is newer). latest and outdated are null when unknown: a dev
+build, update checks off, or offline.
 
