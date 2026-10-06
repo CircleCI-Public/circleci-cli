@@ -1,4 +1,4 @@
-Generate, validate, process and pack config YAML
+Generate, validate, process, pack and optimize config YAML
 
 ## Usage
 
@@ -9,6 +9,7 @@ Generate, validate, process and pack config YAML
 | Command    | Description                                           |
 | ---------- | ----------------------------------------------------- |
 | `generate` | Generate .circleci/config.yml from a repository scan  |
+| `optimize` | Report changes that lower a config's credit spend     |
 | `pack`     | Bundle split config files into a single YAML document |
 | `process`  | Compile and expand a pipeline config file             |
 | `validate` | Validate a pipeline config file                       |

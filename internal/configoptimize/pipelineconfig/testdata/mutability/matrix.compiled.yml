@@ -1,0 +1,22 @@
+version: 2
+jobs:
+  test-18:
+    machine:
+      image: ubuntu-2204:current
+      docker_layer_caching: true
+    steps:
+    - run:
+        command: echo 18
+  test-20:
+    machine:
+      image: ubuntu-2204:current
+      docker_layer_caching: true
+    steps:
+    - run:
+        command: echo 20
+workflows:
+  ci:
+    jobs:
+    - test-18
+    - test-20
+  version: 2

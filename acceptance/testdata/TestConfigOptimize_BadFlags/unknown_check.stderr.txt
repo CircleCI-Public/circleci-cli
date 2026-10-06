@@ -1,0 +1,4 @@
+error: --only "nope" is not a check; the checks are resource-class
+
+Suggestions:
+  • Pass one or more of: resource-class

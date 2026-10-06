@@ -24,7 +24,6 @@ package cmdconfig
 
 import (
 	"fmt"
-	"net/http"
 
 	"github.com/MakeNowJust/heredoc"
 	"github.com/spf13/cobra"
@@ -33,7 +32,6 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/clikit/iostream"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmdutil"
 	"github.com/CircleCI-Public/circleci-cli/internal/configcmd"
-	"github.com/CircleCI-Public/circleci-cli/internal/httpcl"
 )
 
 func newProcessCmd() *cobra.Command {
@@ -89,12 +87,9 @@ func newProcessCmd() *cobra.Command {
 				return err
 			}
 
-			params, err := parsePipelineParams(pipelineParams)
+			params, err := pipelineParamsFlag(pipelineParams)
 			if err != nil {
-				return clierrors.New("config.invalid_params", "Invalid pipeline parameters",
-					fmt.Sprintf("Could not parse pipeline parameters: %s", err)).
-					WithSuggestions("Pass parameters as a YAML map: --pipeline-parameters 'key: value'").
-					WithExitCode(clierrors.ExitBadArguments)
+				return err
 			}
 
 			orgID, err := optionalAuthOrgID(ctx, client, org, "circleci config process",
@@ -105,19 +100,7 @@ func newProcessCmd() *cobra.Command {
 
 			result, err := configcmd.Process(ctx, client, configYAML, orgID, previewNext, params)
 			if err != nil {
-				// A 401 on an anonymous call means this host will not compile
-				// without credentials, so the generic "token was rejected" wording
-				// APIErr uses for an authenticated 401 would be wrong here.
-				if !client.Authenticated() && httpcl.HasStatusCode(err, http.StatusUnauthorized) {
-					return clierrors.New("auth.token_missing", "Authentication required",
-						"This CircleCI host requires an API token to process config.").
-						WithSuggestions(
-							"Run: circleci auth login",
-							"Or set the CIRCLE_TOKEN environment variable",
-						).
-						WithExitCode(clierrors.ExitAuthError)
-				}
-				return configAPIErr(err)
+				return compileAPIErr(client, err, "process")
 			}
 
 			if !result.Valid {
@@ -139,8 +122,16 @@ func newProcessCmd() *cobra.Command {
 	return cmd
 }
 
-// parsePipelineParams parses pipeline parameters from either a YAML/JSON string
-// or a file path. File is tried first; if not found, the value is parsed as inline YAML.
-func parsePipelineParams(input string) (map[string]any, error) {
-	return configcmd.ParsePipelineParams(input)
+// pipelineParamsFlag parses --pipeline-parameters, from either a YAML/JSON
+// string or a file path. File is tried first; if not found, the value is
+// parsed as inline YAML.
+func pipelineParamsFlag(input string) (map[string]any, error) {
+	params, err := configcmd.ParsePipelineParams(input)
+	if err != nil {
+		return nil, clierrors.New("config.invalid_params", "Invalid pipeline parameters",
+			fmt.Sprintf("Could not parse pipeline parameters: %s", err)).
+			WithSuggestions("Pass parameters as a YAML map: --pipeline-parameters 'key: value'").
+			WithExitCode(clierrors.ExitBadArguments)
+	}
+	return params, nil
 }

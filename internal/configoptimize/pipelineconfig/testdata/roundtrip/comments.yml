@@ -1,0 +1,12 @@
+# comment above the document
+version: 2.1 # comment beside a key
+
+# comment above a key
+jobs:
+  build:   # trailing comment with extra spaces
+    docker:
+      - image: cimg/base:current
+    steps:
+      # comment inside a sequence
+      - checkout
+# comment at end of file

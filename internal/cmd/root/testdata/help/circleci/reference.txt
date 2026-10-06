@@ -48,7 +48,7 @@ for example. `5034460f-c7c4-4c43-9457-de07e2029e7b`.
 
 ### `circleci config <command>`
 
-Generate, validate, process and pack config YAML
+Generate, validate, process, pack and optimize config YAML
 
 Work with the pipeline configuration file at .circleci/config.yml.
 
@@ -84,6 +84,37 @@ the current directory.
 - Re-run is a no-op when a config already exists: 
   `circleci config generate`
 - ✓ Using existing config at .circleci/config.yml
+
+#### `circleci config optimize [<path>] [flags]`
+
+Report changes that lower a config's credit spend
+
+Find cheaper resource classes from per-job usage. JSON fields: schema_version, command, summary.result, findings[].id
+
+| Flag                           | Description                                                                                  |
+| ------------------------------ | -------------------------------------------------------------------------------------------- |
+| `--credit-rates string`        | credits per minute per class (YAML file; default built-in gen1)                              |
+| `--jq string`                  | Process values from the response using jq syntax (see `circleci help formatting`)            |
+| `--json`                       | Output as JSON                                                                               |
+| `--only strings`               | checks to run: resource-class (default all)                                                  |
+| `--org string`                 | Organization slug (e.g. gh/myorg) or UUID for private orb resolution; defaults to git remote |
+| `--pipeline-parameters string` | pipeline parameters as a YAML map or path to a YAML file                                     |
+| `--usage string`               | per-job CPU and memory usage (JSON file), for resource classes                               |
+| `-v, --verbose`                | also list report-only findings, with evidence                                                |
+
+
+**Arguments:**
+
+`<path>` is the config, by default `.circleci/config.yml`; `-` reads stdin.
+
+**Examples:**
+
+- Report cheaper resource classes, sized from usage: 
+  `circleci config optimize --usage usage.json`
+- Price the classes with your own credit rates: 
+  `circleci config optimize --usage usage.json --credit-rates rates.yml`
+- The report as JSON: 
+  `circleci config optimize --usage usage.json --json`
 
 #### `circleci config pack <path>`
 

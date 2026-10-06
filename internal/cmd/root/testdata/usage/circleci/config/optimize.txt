@@ -1,0 +1,13 @@
+Usage:  circleci config optimize [<path>] [flags]
+
+Flags:
+      --credit-rates string          credits per minute per class (YAML file; default built-in gen1)
+  -h, --help                         help for optimize
+      --jq string                    Process values from the response using jq syntax
+      --json                         Output as JSON
+      --only strings                 checks to run: resource-class (default all)
+      --org string                   Organization slug (e.g. gh/myorg) or UUID for private orb resolution; defaults to git remote
+      --pipeline-parameters string   pipeline parameters as a YAML map or path to a YAML file
+      --usage string                 per-job CPU and memory usage (JSON file), for resource classes
+  -v, --verbose                      also list report-only findings, with evidence
+  

@@ -1,0 +1,27 @@
+version: 2
+jobs:
+  alone:
+    machine:
+      image: ubuntu-2204:current
+      docker_layer_caching: true
+    steps:
+    - checkout
+  first:
+    machine:
+      image: ubuntu-2204:current
+      docker_layer_caching: true
+    steps:
+    - checkout
+  second:
+    machine:
+      image: ubuntu-2204:current
+      docker_layer_caching: true
+    steps:
+    - checkout
+workflows:
+  ci:
+    jobs:
+    - alone
+    - first
+    - second
+  version: 2

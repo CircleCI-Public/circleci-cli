@@ -1,0 +1,33 @@
+version: 2.1
+jobs:
+  param:
+    parameters:
+      dlc:
+        type: boolean
+        default: true
+    machine:
+      image: ubuntu-2204:current
+      docker_layer_caching: << parameters.dlc >>
+    steps: [checkout]
+  twice:
+    machine:
+      image: ubuntu-2204:current
+      docker_layer_caching: true
+    steps: [checkout]
+  wrapped:
+    docker:
+      - image: cimg/base:current
+    steps:
+      - setup_remote_docker:
+          docker_layer_caching: true
+workflows:
+  ci:
+    jobs:
+      - param
+      - twice:
+          name: twice-a
+      - twice:
+          name: twice-b
+      - wrapped:
+          pre-steps:
+            - run: echo before

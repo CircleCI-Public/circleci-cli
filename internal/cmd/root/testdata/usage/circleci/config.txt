@@ -2,6 +2,7 @@ Usage:  circleci config <command> [flags]
 
 Available commands:
   generate
+  optimize
   pack
   process
   validate

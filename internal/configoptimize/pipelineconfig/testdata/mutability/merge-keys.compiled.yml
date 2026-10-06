@@ -1,0 +1,20 @@
+version: 2
+jobs:
+  merged:
+    machine:
+      image: ubuntu-2204:current
+      docker_layer_caching: true
+    steps:
+    - checkout
+  overridden:
+    machine:
+      image: ubuntu-2204:current
+      docker_layer_caching: true
+    steps:
+    - checkout
+workflows:
+  ci:
+    jobs:
+    - merged
+    - overridden
+  version: 2

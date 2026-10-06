@@ -24,7 +24,6 @@ package cmdconfig
 
 import (
 	"fmt"
-	"net/http"
 
 	"github.com/MakeNowJust/heredoc"
 	"github.com/spf13/cobra"
@@ -33,7 +32,6 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/clikit/iostream"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmdutil"
 	"github.com/CircleCI-Public/circleci-cli/internal/configcmd"
-	"github.com/CircleCI-Public/circleci-cli/internal/httpcl"
 )
 
 func newValidateCmd() *cobra.Command {
@@ -104,19 +102,7 @@ func newValidateCmd() *cobra.Command {
 
 			result, err := configcmd.Validate(ctx, client, yaml, orgID, previewNext)
 			if err != nil {
-				// A 401 on an anonymous call means this host will not compile
-				// without credentials, so the generic "token was rejected" wording
-				// APIErr uses for an authenticated 401 would be wrong here.
-				if !client.Authenticated() && httpcl.HasStatusCode(err, http.StatusUnauthorized) {
-					return clierrors.New("auth.token_missing", "Authentication required",
-						"This CircleCI host requires an API token to validate config.").
-						WithSuggestions(
-							"Run: circleci auth login",
-							"Or set the CIRCLE_TOKEN environment variable",
-						).
-						WithExitCode(clierrors.ExitAuthError)
-				}
-				return configAPIErr(err)
+				return compileAPIErr(client, err, "validate")
 			}
 
 			if jsonOut {

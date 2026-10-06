@@ -1,0 +1,14 @@
+version: 2.1
+x-defaults: &defaults
+  resource_class: medium
+  docker:
+    - image: cimg/base:current
+jobs:
+  build:
+    <<: *defaults
+    steps:
+      - checkout
+  test:
+    <<: [*defaults]
+    resource_class: large
+    steps: [checkout]

@@ -1,0 +1,38 @@
+Report changes that lower a config's credit spend
+
+## Usage
+
+`circleci config optimize [<path>] [flags]`
+
+## Arguments
+
+`<path>` is the config, by default `.circleci/config.yml`; `-` reads stdin.
+
+## Flags
+
+| Flag                           | Description                                                                                  |
+| ------------------------------ | -------------------------------------------------------------------------------------------- |
+| `--credit-rates string`        | credits per minute per class (YAML file; default built-in gen1)                              |
+| `--jq string`                  | Process values from the response using jq syntax (see `circleci help formatting`)            |
+| `--json`                       | Output as JSON                                                                               |
+| `--only strings`               | checks to run: resource-class (default all)                                                  |
+| `--org string`                 | Organization slug (e.g. gh/myorg) or UUID for private orb resolution; defaults to git remote |
+| `--pipeline-parameters string` | pipeline parameters as a YAML map or path to a YAML file                                     |
+| `--usage string`               | per-job CPU and memory usage (JSON file), for resource classes                               |
+| `-v, --verbose`                | also list report-only findings, with evidence                                                |
+
+Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `circleci --help`.
+
+## Examples
+
+- Report cheaper resource classes, sized from usage: 
+  `circleci config optimize --usage usage.json`
+- Price the classes with your own credit rates: 
+  `circleci config optimize --usage usage.json --credit-rates rates.yml`
+- The report as JSON: 
+  `circleci config optimize --usage usage.json --json`
+
+## Details
+
+Find cheaper resource classes from per-job usage. JSON fields: schema_version, command, summary.result, findings[].id
+

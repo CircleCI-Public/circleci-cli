@@ -211,9 +211,7 @@ type CircleCI struct {
 	// DLC state.
 	dlcPurgeStatus map[string]int // projectID → HTTP status to return (default 204)
 	// Config compile state.
-	compileValid       bool
-	compileOutputYAML  string
-	compileErrors      []string
+	compile            func(config string) CompileResponse
 	lastCompileOwnerID string
 
 	// Org state.
@@ -344,8 +342,7 @@ func NewCircleCI(t *testing.T, tokens ...string) *CircleCI {
 		orbUnlistedPackages:               map[string]bool{},
 		orbCategoryMembers:                map[string][]string{},
 		dlcPurgeStatus:                    map[string]int{},
-		compileValid:                      true,
-		compileOutputYAML:                 "# compiled output\nversion: \"2.1\"\n",
+		compile:                           fixedCompile(CompileResponse{Valid: true, OutputYAML: "# compiled output\nversion: \"2.1\"\n"}),
 		orgs:                              map[string]Org{},
 		orgIDsBySlug:                      map[string]string{},
 		orgSettings:                       map[string]any{},
@@ -5597,14 +5594,31 @@ func (f *CircleCI) handleSetPolicySettings(w http.ResponseWriter, r *http.Reques
 
 // --- Config compile + org helpers ---
 
+// CompileResponse is what the compile route answers: the compiled YAML when
+// Valid, else the Errors.
+type CompileResponse struct {
+	Valid      bool
+	OutputYAML string
+	Errors     []string
+}
+
+func fixedCompile(resp CompileResponse) func(string) CompileResponse {
+	return func(string) CompileResponse { return resp }
+}
+
 // SetCompileResponse configures what the compile route returns. Pass
 // valid=false and one or more error messages to simulate a compilation failure.
 func (f *CircleCI) SetCompileResponse(valid bool, outputYAML string, errors ...string) {
+	f.SetCompileFunc(fixedCompile(CompileResponse{Valid: valid, OutputYAML: outputYAML, Errors: errors}))
+}
+
+// SetCompileFunc makes the compile route answer each request with fn's
+// response to the config it was sent, for a test whose command compiles
+// several different configs. It replaces any SetCompileResponse.
+func (f *CircleCI) SetCompileFunc(fn func(config string) CompileResponse) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
-	f.compileValid = valid
-	f.compileOutputYAML = outputYAML
-	f.compileErrors = errors
+	f.compile = fn
 }
 
 // LastCompileOwnerID returns the owning org UUID sent on the most recent compile
@@ -5650,6 +5664,9 @@ func (f *CircleCI) handleCompileConfig(w http.ResponseWriter, r *http.Request) {
 	// resolved to the expected organization UUID before the compile call.
 	var body struct {
 		Data struct {
+			Attributes struct {
+				Config string `json:"config"`
+			} `json:"attributes"`
 			References struct {
 				Org struct {
 					ID string `json:"id"`
@@ -5661,10 +5678,10 @@ func (f *CircleCI) handleCompileConfig(w http.ResponseWriter, r *http.Request) {
 
 	f.mu.Lock()
 	f.lastCompileOwnerID = body.Data.References.Org.ID
-	valid := f.compileValid
-	outputYAML := f.compileOutputYAML
-	errs := f.compileErrors
+	compile := f.compile
 	f.mu.Unlock()
+	res := compile(body.Data.Attributes.Config)
+	valid, outputYAML, errs := res.Valid, res.OutputYAML, res.Errors
 
 	attrs := map[string]any{"phase": "ended", "outcome": "succeeded"}
 	if !valid {

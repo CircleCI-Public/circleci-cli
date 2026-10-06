@@ -31,6 +31,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"strings"
 
@@ -41,6 +42,7 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/clikit/iostream"
 	"github.com/CircleCI-Public/circleci-cli/internal/apiclient"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmdutil"
+	"github.com/CircleCI-Public/circleci-cli/internal/httpcl"
 )
 
 // NewConfigCmd returns the "circleci config" command group.
@@ -48,7 +50,7 @@ func NewConfigCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "config <command>",
 		GroupID: "ci",
-		Short:   "Generate, validate, process and pack config YAML",
+		Short:   "Generate, validate, process, pack and optimize config YAML",
 		Long: heredoc.Doc(`
 			Work with the pipeline configuration file at .circleci/config.yml.
 
@@ -63,6 +65,7 @@ func NewConfigCmd() *cobra.Command {
 	cmd.AddCommand(newValidateCmd())
 	cmd.AddCommand(newProcessCmd())
 	cmd.AddCommand(newPackCmd())
+	cmd.AddCommand(newOptimizeCmd())
 
 	return cmd
 }
@@ -168,4 +171,22 @@ func printValidationErrors(ctx context.Context, errs []string) {
 
 func configAPIErr(err error) *clierrors.CLIError {
 	return cmdutil.APIErr(err, "", "config.api_error", "Config API request failed")
+}
+
+// compileAPIErr is configAPIErr for a compile call made with a client that may
+// be unauthenticated. A 401 on an anonymous call means this host will not
+// compile without credentials, so the generic "token was rejected" wording
+// APIErr uses for an authenticated 401 would be wrong here. verb completes
+// "requires an API token to <verb> config." (e.g. "validate").
+func compileAPIErr(client *apiclient.Client, err error, verb string) *clierrors.CLIError {
+	if !client.Authenticated() && httpcl.HasStatusCode(err, http.StatusUnauthorized) {
+		return clierrors.New("auth.token_missing", "Authentication required",
+			fmt.Sprintf("This CircleCI host requires an API token to %s config.", verb)).
+			WithSuggestions(
+				"Run: circleci auth login",
+				"Or set the CIRCLE_TOKEN environment variable",
+			).
+			WithExitCode(clierrors.ExitAuthError)
+	}
+	return configAPIErr(err)
 }
