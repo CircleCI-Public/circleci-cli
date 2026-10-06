@@ -34,15 +34,13 @@ vars:
   GH_NAME: 'circleci'
   GH_EMAIL: 'ops+deploy-bot@circleci.com'
 
-  # Release version. Every merge to main tags and publishes, so the patch
-  # component is the CI build number: unique and monotonically increasing
-  # without any manual bookkeeping. Bump RELEASE_SERIES for a minor or major
-  # release — 1.1.<build> sorts above every 1.0.<build> under semver.
+  # Release version: the newest "## [x.y.z]" heading in CHANGELOG.md (see
+  # RELEASE.md). Keep the pattern in step with sectionHeading in cmd/ci/release.
   #
   # No pre-release suffix: these are full releases, marked latest on GitHub and
   # published to the stable channel of every package manager.
-  RELEASE_SERIES: '1.0'
-  RELEASE_VERSION: 'v{{.RELEASE_SERIES}}.{{env "CIRCLE_BUILD_NUM" | default "0"}}'
+  RELEASE_VERSION:
+    sh: sed -n -E 's/^## \[([0-9]+\.[0-9]+\.[0-9]+)\].*/v\1/p' CHANGELOG.md | head -n 1
 
 tasks:
   build:
@@ -426,8 +424,32 @@ tasks:
       - task: generate
       - git diff --exit-code
 
+  ci:release-pr:
+    desc: Open, update or close the release PR for what's merged since the last release (CI only)
+    cmds:
+      - go run ./cmd/ci/release pr
+
+  ci:halt-unless-unreleased:
+    desc: End the CI job, successfully, unless the release is untagged — its release PR was just merged (CI only)
+    vars:
+      VERSION: '{{.RELEASE_VERSION}}'
+    cmds:
+      # ls-remote exits 2 when the tag doesn't exist. Any other failure fails the job.
+      - |
+        if [ -z '{{.VERSION}}' ]; then
+          echo 'CHANGELOG.md has no "## [x.y.z]" release section.' >&2
+          exit 1
+        fi
+        status=0
+        git ls-remote --exit-code --tags origin 'refs/tags/{{.VERSION}}' >/dev/null || status=$?
+        case "$status" in
+          0) echo '{{.VERSION}} is already released.'; circleci-agent step halt ;;
+          2) echo 'Releasing {{.VERSION}}.' ;;
+          *) exit "$status" ;;
+        esac
+
   ci:release:
-    desc: Tag, build, and publish a release
+    desc: Tag, build, and publish the newest release in CHANGELOG.md
     vars:
       VERSION: '{{.RELEASE_VERSION}}'
     cmds:
@@ -439,7 +461,12 @@ tasks:
         fi
       - git tag -a '{{.VERSION}}' -m 'Release {{.VERSION}}'
       - git push origin '{{.VERSION}}'
-      - go tool -modfile tools/go.mod goreleaser release --clean
+      # The GitHub release's notes are the version's CHANGELOG.md section, which
+      # its release PR added. Written outside dist/, which --clean empties.
+      - |
+        notes="$(mktemp)"
+        go run ./cmd/ci/release notes > "$notes"
+        go tool -modfile tools/go.mod goreleaser release --clean --release-notes "$notes"
       - task: ci:packagecloud
       - task: ci:cloudsmith
       - task: ci:virustotal
@@ -470,7 +497,7 @@ tasks:
     cmds:
       # Submit what users actually download: the archives and the Linux packages.
       # VirusTotal unpacks archives and scans the contained binaries.
-      - go run ./cmd/virustotal submit {{if .DRY_RUN}}--dry-run {{end}}dist/*.tar.gz dist/*.zip dist/*.deb dist/*.rpm
+      - go run ./cmd/ci/virustotal submit {{if .DRY_RUN}}--dry-run {{end}}dist/*.tar.gz dist/*.zip dist/*.deb dist/*.rpm
 
   ci:packagecloud:
     desc: Publish the Linux nfpm packages (rpm + deb) from dist/ to packagecloud
@@ -481,9 +508,9 @@ tasks:
       REPO: '{{default "circleci/circleci" .REPO}}'
       DRY_RUN: '{{default "" .DRY_RUN}}'
     cmds:
-      # goreleaser only pushes to packagecloud under a Pro licence, so cmd/packagecloud
+      # goreleaser only pushes to packagecloud under a Pro licence, so cmd/ci/packagecloud
       # uploads the nfpm output to the public REST API instead — no Ruby CLI needed.
-      - go run ./cmd/packagecloud pkg push {{if .DRY_RUN}}--dry-run {{end}}--repo '{{.REPO}}' dist/*.rpm dist/*.deb
+      - go run ./cmd/ci/packagecloud pkg push {{if .DRY_RUN}}--dry-run {{end}}--repo '{{.REPO}}' dist/*.rpm dist/*.deb
 
   ci:cloudsmith:
     desc: Publish the Linux nfpm packages (deb + rpm) from dist/ to Cloudsmith
@@ -494,11 +521,11 @@ tasks:
       CLOUDSMITH_REPO: '{{default "circleci-deps/public" .CLOUDSMITH_REPO}}'
       DRY_RUN: '{{default "" .DRY_RUN}}'
     cmds:
-      # goreleaser can't push to Cloudsmith without a Pro licence, so cmd/cloudsmith
+      # goreleaser can't push to Cloudsmith without a Pro licence, so cmd/ci/cloudsmith
       # uploads the nfpm output to the public REST API instead. Every package is
       # published to the generic "any-distro/any-version" distribution.
-      - go run ./cmd/cloudsmith push deb {{if .DRY_RUN}}--dry-run {{end}}--repo '{{.CLOUDSMITH_REPO}}' dist/*.deb
-      - go run ./cmd/cloudsmith push rpm {{if .DRY_RUN}}--dry-run {{end}}--repo '{{.CLOUDSMITH_REPO}}' dist/*.rpm
+      - go run ./cmd/ci/cloudsmith push deb {{if .DRY_RUN}}--dry-run {{end}}--repo '{{.CLOUDSMITH_REPO}}' dist/*.deb
+      - go run ./cmd/ci/cloudsmith push rpm {{if .DRY_RUN}}--dry-run {{end}}--repo '{{.CLOUDSMITH_REPO}}' dist/*.rpm
 
   ci:build:
     desc: Dry-run a release — build a snapshot (incl. nfpms) and dry-run the packagecloud publish
@@ -511,7 +538,9 @@ tasks:
           git config --global user.email '{{.GH_EMAIL}}'
           git config --global user.name '{{.GH_NAME}}'
         fi
-      - git tag -a '{{.VERSION}}' -m 'Release {{.VERSION}}'
+      # Forced: the version is usually released already, and its tag may have
+      # been fetched. The tag is never pushed.
+      - git tag -f -a '{{.VERSION}}' -m 'Release {{.VERSION}}'
       - go tool -modfile tools/go.mod goreleaser release --snapshot --skip=snapcraft --skip=chocolatey --clean
       - task: ci:packagecloud
         vars:
