@@ -330,19 +330,23 @@ func (n *Notifier) Finish() *ReleaseInfo {
 	return rel
 }
 
-// PrintReleaseNotice writes the two-line update notice to stderr, blank-line padded and
-// after all command output. The second line links the new release's GitHub
-// release page. It is a no-op when rel is nil.
+// PrintReleaseNotice writes the update notice to stderr, blank-line padded and
+// after all command output: the version transition, then the command that
+// upgrades this install when upgradeCommand is known, then the new release's
+// GitHub page. It is a no-op when rel is nil.
 //
 // The notice only prints when both Out and Err are TTYs (see ShouldCheck), so
 // color is always safe here — there is no pipe to corrupt. The color helpers
 // still fall back to plain text under NO_COLOR / TERM=dumb, so the message text
 // is unchanged when color is disabled.
-func PrintReleaseNotice(ctx context.Context, currentVersion string, rel *ReleaseInfo) {
+func PrintReleaseNotice(ctx context.Context, currentVersion string, rel *ReleaseInfo, upgradeCommand string) {
 	if rel == nil {
 		return
 	}
 	printNotice(ctx, "circleci", currentVersion, rel.Version)
+	if upgradeCommand != "" {
+		iostream.ErrPrintf(ctx, "To upgrade, please run: %s\n", upgradeCommand)
+	}
 	iostream.ErrPrintf(ctx, "%s\n\n", iostream.Muted(ctx, releaseURL(rel.Version)))
 }
 

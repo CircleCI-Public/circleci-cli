@@ -35,6 +35,7 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/clikit/iostream"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmdutil"
 	"github.com/CircleCI-Public/circleci-cli/internal/config"
+	"github.com/CircleCI-Public/circleci-cli/internal/installmethod"
 	"github.com/CircleCI-Public/circleci-cli/internal/update"
 )
 
@@ -46,6 +47,9 @@ type versionInfo struct {
 	// which a caller can tell apart from "up to date".
 	Latest   *string `json:"latest"`
 	Outdated *bool   `json:"outdated"`
+	// UpgradeCommand is null when the install method is unknown, so there is no
+	// command to recommend.
+	UpgradeCommand *string `json:"upgrade_command"`
 }
 
 func readBuildInfo(version string) versionInfo {
@@ -103,8 +107,9 @@ func NewVersionCmd(version string) *cobra.Command {
 
 			JSON fields: version (release tag, or "dev" for unreleased builds), commit (full git
 			hash), modified (true when built from a dirty working tree), latest (newest release),
-			outdated (true when latest is newer). latest and outdated are null when unknown: a dev
-			build, update checks off, or offline.
+			outdated (true when latest is newer), upgrade_command (the command that upgrades this
+			install). latest and outdated are null when unknown (a dev build, update checks off,
+			or offline), and upgrade_command is null when the install method is unknown.
 		`, "`"),
 		Example: heredoc.Doc(`
 			# Print version and commit hash
@@ -127,6 +132,9 @@ func NewVersionCmd(version string) *cobra.Command {
 				if skip, _ := cmd.Root().Flags().GetBool("skip-update-check"); !skip {
 					info.Latest, info.Outdated = checkLatest(ctx, version)
 				}
+				if command := installmethod.UpgradeCommand(); command != "" {
+					info.UpgradeCommand = &command
+				}
 				b, _ := json.MarshalIndent(info, "", "  ")
 				_, _ = fmt.Fprintln(iostream.Out(ctx), string(b))
 				return nil
@@ -144,6 +152,6 @@ func NewVersionCmd(version string) *cobra.Command {
 		},
 	}
 
-	cmd.Flags().BoolVar(&jsonOut, "json", false, "output as JSON (fields: version, commit, modified, latest, outdated)")
+	cmd.Flags().BoolVar(&jsonOut, "json", false, "output as JSON (fields: version, commit, modified, latest, outdated, upgrade_command)")
 	return cmd
 }

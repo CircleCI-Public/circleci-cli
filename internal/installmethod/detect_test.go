@@ -137,3 +137,58 @@ func TestFromPath(t *testing.T) {
 		})
 	}
 }
+
+func TestUpgradeCommandFor(t *testing.T) {
+	tests := []struct {
+		name    string
+		method  string
+		exe     string
+		files   []string // paths that exist
+		wantCmd string
+	}{
+		{name: "Homebrew formula", method: "homebrew", exe: "/opt/homebrew/Cellar/circleci/1.2.0/bin/circleci", wantCmd: "brew upgrade circleci"},
+		{name: "Homebrew preview cask", method: "homebrew", exe: "/opt/homebrew/Caskroom/circleci@next/1.2.0/circleci", wantCmd: "brew upgrade --cask circleci@next"},
+		{name: "snap", method: "snap", exe: "/snap/circleci/123/circleci", wantCmd: "sudo snap refresh circleci"},
+		{
+			name:    "winget",
+			method:  "winget",
+			exe:     `C:\Users\dev\AppData\Local\Microsoft\WinGet\Packages\CircleCI.CLI_Microsoft.Winget.Source_8wekyb3d8bbwe\circleci.exe`,
+			wantCmd: "winget upgrade --id CircleCI.CLI",
+		},
+		{
+			name:    "winget preview package",
+			method:  "winget",
+			exe:     `C:\Users\dev\AppData\Local\Microsoft\WinGet\Packages\CircleCI.CLI.Preview_Microsoft.Winget.Source_8wekyb3d8bbwe\circleci.exe`,
+			wantCmd: "winget upgrade --id CircleCI.CLI.Preview",
+		},
+		{name: "Chocolatey", method: "chocolatey", exe: `C:\ProgramData\chocolatey\lib\circleci-cli\tools\circleci.exe`, wantCmd: "choco upgrade circleci-cli"},
+		{name: "deb", method: "deb", exe: "/usr/bin/circleci", wantCmd: "sudo apt-get update && sudo apt-get install --only-upgrade circleci"},
+		{name: "rpm", method: "rpm", exe: "/usr/bin/circleci", wantCmd: "sudo dnf upgrade --refresh circleci"},
+		{name: "Docker image", method: "docker", exe: "/usr/local/bin/circleci", wantCmd: "docker pull circleci/circleci-cli:v1"},
+		{name: "Alpine Docker image", method: "docker", exe: "/usr/local/bin/circleci", files: []string{"/etc/alpine-release"}, wantCmd: "docker pull circleci/circleci-cli:v1-alpine"},
+		{name: "install script", method: "install-script", exe: "/usr/local/bin/circleci", wantCmd: installScriptCommand},
+		{name: "unknown install has no command", method: "other", exe: "/home/dev/tools/circleci", wantCmd: ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			exists := func(path string) bool { return slices.Contains(tt.files, path) }
+			assert.Check(t, cmp.Equal(upgradeCommandFor(tt.method, tt.exe, exists), tt.wantCmd))
+		})
+	}
+}
+
+func TestForceEnv(t *testing.T) {
+	t.Run("a known method overrides detection", func(t *testing.T) {
+		t.Setenv(ForceEnv, "homebrew")
+		assert.Check(t, cmp.Equal(Detect(), "homebrew"))
+		assert.Check(t, cmp.Equal(UpgradeCommand(), "brew upgrade circleci"))
+	})
+
+	t.Run("an unknown value is ignored", func(t *testing.T) {
+		t.Setenv(ForceEnv, "not-a-method")
+		// The test binary runs from Go's build cache, which is no install method.
+		assert.Check(t, cmp.Equal(Detect(), "other"))
+		assert.Check(t, cmp.Equal(UpgradeCommand(), ""))
+	})
+}

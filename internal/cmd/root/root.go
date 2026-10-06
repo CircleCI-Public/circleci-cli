@@ -369,7 +369,7 @@ func NewRootCmd(version string) *cobra.Command {
 		// PersistentPostRunE runs only when the command's RunE succeeded, so the
 		// notice never lands on top of an error and always follows all output.
 		if rel := updateNotifier.Finish(); rel != nil {
-			update.PrintReleaseNotice(ctx, update.EffectiveVersion(version), rel)
+			update.PrintReleaseNotice(ctx, update.EffectiveVersion(version), rel, installmethod.UpgradeCommand())
 		}
 		tc := cmdutil.GetTelemetry(ctx)
 		_ = tc.Close()

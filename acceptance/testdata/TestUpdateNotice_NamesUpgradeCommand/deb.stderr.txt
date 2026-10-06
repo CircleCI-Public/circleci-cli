@@ -1,0 +1,5 @@
+
+A new version of circleci is available: 1.2.0 → 1.3.0
+To upgrade, please run: sudo apt-get update && sudo apt-get install --only-upgrade circleci
+https://github.com/CircleCI-Public/circleci-cli/releases/tag/v1.3.0
+

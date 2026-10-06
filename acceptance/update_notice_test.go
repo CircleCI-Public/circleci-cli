@@ -31,7 +31,9 @@ import (
 
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/assert/cmp"
+	"gotest.tools/v3/golden"
 
+	"github.com/CircleCI-Public/circleci-cli/internal/installmethod"
 	"github.com/CircleCI-Public/circleci-cli/internal/testing/binary"
 	testenv "github.com/CircleCI-Public/circleci-cli/internal/testing/env"
 	"github.com/CircleCI-Public/circleci-cli/internal/testing/fakes"
@@ -178,4 +180,23 @@ func TestUpdateNotice_AbsentWhenServerUnavailable(t *testing.T) {
 
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
 	assert.Check(t, !strings.Contains(result.Stderr, "A new version of circleci"))
+}
+
+// TestUpdateNotice_NamesUpgradeCommand pins the full notice for every install
+// method, so the exact command each one is told to run is visible in the goldens.
+// "other" is the fallback: no command line, just the release link.
+func TestUpdateNotice_NamesUpgradeCommand(t *testing.T) {
+	for _, method := range []string{
+		"homebrew", "winget", "chocolatey", "deb", "rpm", "snap", "docker", "install-script", "other",
+	} {
+		t.Run(method, func(t *testing.T) {
+			_, env := setupUpdateFake(t)
+			env.Extra[installmethod.ForceEnv] = method
+
+			result := runSettingList(t, env)
+
+			assert.Check(t, cmp.Equal(result.ExitCode, 0), "stderr: %s", result.Stderr)
+			assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+		})
+	}
 }

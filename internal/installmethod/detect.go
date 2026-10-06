@@ -43,13 +43,40 @@ const (
 	methodWinget        = "winget"
 )
 
+// ForceEnv makes Detect and UpgradeCommand report the named install method
+// instead of working it out from the binary's path. Acceptance tests need it
+// because the binary under test always runs from a temp dir. Internal (double
+// underscore); never user-set.
+const ForceEnv = "__CIRCLE_INSTALL_METHOD"
+
+// installScriptCommand re-runs the install script, which puts the latest release
+// over the old binary and uses sudo itself when the directory needs it.
+const installScriptCommand = "curl -fsSL https://raw.githubusercontent.com/CircleCI-Public/circleci-cli/main/install.sh | bash"
+
 // Detect returns how the running binary was installed: one of "homebrew",
 // "snap", "winget", "chocolatey", "deb", "rpm", "docker", "install-script" or
 // "other". It never fails; anything it cannot place is "other".
 func Detect() string {
+	method, _ := detect()
+	return method
+}
+
+// UpgradeCommand returns the command that upgrades the running binary the same
+// way it was installed, such as "brew upgrade circleci", or "" when the install
+// method is unknown and there is no command to recommend.
+func UpgradeCommand() string {
+	_, command := detect()
+	return command
+}
+
+func detect() (method, upgradeCommand string) {
+	if forced := os.Getenv(ForceEnv); isMethod(forced) {
+		return forced, upgradeCommandFor(forced, "", func(string) bool { return false })
+	}
+
 	exe, err := os.Executable()
 	if err != nil {
-		return methodOther
+		return methodOther, ""
 	}
 	// Package managers link the binary onto PATH, so follow the link to where it
 	// really lives: /usr/local/bin/circleci on an Intel Mac is a symlink into
@@ -57,7 +84,17 @@ func Detect() string {
 	if resolved, err := filepath.EvalSymlinks(exe); err == nil {
 		exe = resolved
 	}
-	return fromPath(exe, fileExists)
+	method = fromPath(exe, fileExists)
+	return method, upgradeCommandFor(method, exe, fileExists)
+}
+
+func isMethod(s string) bool {
+	switch s {
+	case methodChocolatey, methodDeb, methodDocker, methodHomebrew, methodInstallScript,
+		methodOther, methodRPM, methodSnap, methodWinget:
+		return true
+	}
+	return false
 }
 
 // fromPath classifies a resolved executable path. exists reports whether a file
@@ -98,6 +135,44 @@ func fromPath(exe string, exists func(string) bool) string {
 		return methodInstallScript
 	default:
 		return methodOther
+	}
+}
+
+// upgradeCommandFor returns the command that upgrades an install of the given
+// method. exe and exists pick between variants of one method: the preview
+// Homebrew cask and winget package, and the Alpine Docker image.
+func upgradeCommandFor(method, exe string, exists func(string) bool) string {
+	switch method {
+	case methodHomebrew:
+		if strings.Contains(exe, "/Caskroom/circleci@next/") {
+			return "brew upgrade --cask circleci@next"
+		}
+		return "brew upgrade circleci"
+	case methodSnap:
+		return "sudo snap refresh circleci"
+	case methodWinget:
+		if strings.Contains(strings.ToLower(exe), `\circleci.cli.preview_`) {
+			return "winget upgrade --id CircleCI.CLI.Preview"
+		}
+		return "winget upgrade --id CircleCI.CLI"
+	case methodChocolatey:
+		return "choco upgrade circleci-cli"
+	case methodDeb:
+		// apt only sees the new version once its package lists are refreshed, and
+		// install --only-upgrade upgrades just this package, where apt-get upgrade
+		// would upgrade everything on the machine.
+		return "sudo apt-get update && sudo apt-get install --only-upgrade circleci"
+	case methodRPM:
+		return "sudo dnf upgrade --refresh circleci"
+	case methodDocker:
+		if exists("/etc/alpine-release") {
+			return "docker pull circleci/circleci-cli:v1-alpine"
+		}
+		return "docker pull circleci/circleci-cli:v1"
+	case methodInstallScript:
+		return installScriptCommand
+	default:
+		return ""
 	}
 }
 
