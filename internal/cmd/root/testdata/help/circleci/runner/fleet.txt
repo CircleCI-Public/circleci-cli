@@ -1,0 +1,29 @@
+View runner fleets
+
+## Usage
+
+`circleci runner fleet <command> [flags]`
+
+## General Commands
+
+| Command | Description        |
+| ------- | ------------------ |
+| `list`  | List runner fleets |
+
+## Targeted Commands
+
+| Command | Description         |
+| ------- | ------------------- |
+| `get`   | Show a runner fleet |
+
+## Flags
+
+Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `circleci --help`.
+
+## Details
+
+View the agents and tasks of your self-hosted runner fleets.
+
+A fleet is the set of runner agents attached to one resource class, and shares
+that resource class's ID. This uses an experimental API: its output may change.
+

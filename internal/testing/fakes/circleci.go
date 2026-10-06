@@ -105,6 +105,9 @@ type CircleCI struct {
 	resourceClasses []ResourceClass          // all resource classes
 	runnerTokens    map[string][]RunnerToken // fully qualified resource class → tokens
 	runnerAgents    []RunnerAgent            // all agents
+	runnerFleets    []RunnerFleet            // all fleets; see runner_fleets.go
+
+	runnerFleetUnavailable bool // fleet endpoints answer 503
 
 	runnerTokenCreateStatus   int // 0 = default success response
 	runnerTokenCreateBody     any
@@ -298,6 +301,7 @@ func NewCircleCI(t *testing.T, tokens ...string) *CircleCI {
 		resourceClasses:                   []ResourceClass{},
 		runnerTokens:                      map[string][]RunnerToken{},
 		runnerAgents:                      []RunnerAgent{},
+		runnerFleets:                      []RunnerFleet{},
 		deletedTokens:                     map[string]bool{},
 		deletedRCs:                        map[string]bool{},
 		hiddenRunnerOrgs:                  map[string]bool{},
@@ -469,6 +473,10 @@ func NewCircleCI(t *testing.T, tokens ...string) *CircleCI {
 	// filter[resource_class]= (or its filter[slug]= alias), GET /{id} fetches one, POST creates one, and
 	// DELETE /{id} removes one (optionally ?force=true).
 	r.Get("/api/v3/runner/agents", f.handleListRunnerAgents)
+	// Fleets share their ID with the resource class. GET /runner/fleets takes exactly one of
+	// filter[org_id]=, filter[namespace]=, filter[resource_class]= or filter[resource_class_id]=.
+	r.Get("/api/v3/runner/fleets", f.handleListRunnerFleets)
+	r.Get("/api/v3/runner/fleets/{id}", f.handleGetRunnerFleet)
 	r.Get("/api/v3/runner/resource-classes", f.handleListResourceClassesV3)
 	r.Get("/api/v3/runner/resource-classes/{id}", f.handleGetResourceClassV3)
 	r.Post("/api/v3/runner/resource-classes/{id}/update", f.handleUpdateResourceClass)

@@ -1,0 +1,36 @@
+Show a runner fleet
+
+## Usage
+
+`circleci runner fleet get <resource-class> [flags]`
+
+## Arguments
+
+`<resource-class>` is the runner resource class whose fleet to show,
+in the form `namespace/name` (for example, `my-org/my-runner`) or as its ID.
+
+## Flags
+
+| Flag          | Description                                                                       |
+| ------------- | --------------------------------------------------------------------------------- |
+| `--jq string` | Process values from the response using jq syntax (see `circleci help formatting`) |
+| `--json`      | Output as JSON                                                                    |
+
+Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `circleci --help`.
+
+## Examples
+
+- Show the fleet of a resource class: 
+  `circleci runner fleet get my-org/my-runner`
+- Show it by resource class ID: 
+  `circleci runner fleet get 01234567-89ab-4cde-8f01-23456789abcd`
+- Show how many tasks are waiting for an agent: 
+  `circleci runner fleet get my-org/my-runner --json --jq '.queued_tasks'`
+
+## Details
+
+Show a fleet's agent counts by state, its running and queued tasks, and the
+agents attached to it. This uses an experimental API: its output may change.
+
+JSON fields: id, resource_class, active_agents, idle_agents, disconnected_agents, agent_count, last_task_claimed_at, running_tasks, queued_tasks, agents (id, name)
+

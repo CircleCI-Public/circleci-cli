@@ -20,6 +20,7 @@ Manage self-hosted runners
 
 | Command          | Description                    |
 | ---------------- | ------------------------------ |
+| `fleet`          | View runner fleets             |
 | `instance`       | Manage runner instances        |
 | `resource-class` | Manage runner resource classes |
 | `token`          | Manage runner tokens           |

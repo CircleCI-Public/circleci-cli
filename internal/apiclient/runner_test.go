@@ -28,6 +28,7 @@ import (
 	"errors"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"testing"
 
 	"github.com/go-chi/chi/v5"
@@ -37,6 +38,7 @@ import (
 
 	"github.com/CircleCI-Public/circleci-cli/clikit/iostream"
 	"github.com/CircleCI-Public/circleci-cli/internal/apiclient"
+	"github.com/CircleCI-Public/circleci-cli/internal/httpcl"
 )
 
 // newRunnerFake builds a minimal fake that responds to the v3 resource-classes endpoints.
@@ -186,5 +188,129 @@ func TestUpdateResourceClass(t *testing.T) {
 		unknownID := uuid.MustParse("00000000-0000-0000-0000-000000000000")
 		_, err := client.UpdateResourceClass(ctx, unknownID, "new desc")
 		assert.Check(t, err != nil)
+	})
+}
+
+func fleetJSON(id, name string, running, queued *int) map[string]any {
+	attrs := map[string]any{
+		"name":                name,
+		"active_agents":       1,
+		"idle_agents":         2,
+		"disconnected_agents": 3,
+		"agent_count":         6,
+	}
+	if running != nil {
+		attrs["running_tasks"] = *running
+		attrs["queued_tasks"] = *queued
+	}
+	return map[string]any{
+		"id":         id,
+		"attributes": attrs,
+		"references": map[string]any{
+			"resource_class": map[string]any{"id": id},
+			"runner_agents": []any{map[string]any{
+				"id":         "11111111-1111-4111-8111-111111111111",
+				"attributes": map[string]any{"name": "agent-a"},
+			}},
+		},
+	}
+}
+
+func TestRunnerFleets(t *testing.T) {
+	ctx := iostream.Testing(context.Background())
+
+	const (
+		idA = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"
+		idB = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"
+	)
+
+	var queries []url.Values
+	r := chi.NewMux()
+	r.Get("/api/v3/runner/fleets", func(w http.ResponseWriter, r *http.Request) {
+		queries = append(queries, r.URL.Query())
+		w.Header().Set("Content-Type", "application/json")
+		if r.URL.Query().Get("page[cursor]") == "" {
+			next := "page-2"
+			_ = json.NewEncoder(w).Encode(map[string]any{
+				"data": []any{fleetJSON(idA, "ns/a", nil, nil)},
+				"page": map[string]any{"next": next},
+			})
+			return
+		}
+		_ = json.NewEncoder(w).Encode(map[string]any{
+			"data": []any{fleetJSON(idB, "ns/b", nil, nil)},
+			"page": map[string]any{"next": nil},
+		})
+	})
+	r.Get("/api/v3/runner/fleets/{id}", func(w http.ResponseWriter, r *http.Request) {
+		id := chi.URLParam(r, "id")
+		if id != idA {
+			w.WriteHeader(http.StatusNotFound)
+			_ = json.NewEncoder(w).Encode(map[string]any{"message": "not found"})
+			return
+		}
+		running, queued := 4, 5
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(map[string]any{"data": fleetJSON(id, "ns/a", &running, &queued)})
+	})
+	srv := httptest.NewServer(r)
+	t.Cleanup(srv.Close)
+	client := apiclient.New(apiclient.Config{BaseURL: srv.URL, Token: "test-token"})
+
+	t.Run("list follows the cursor and sends one filter", func(t *testing.T) {
+		queries = nil
+		fleets, err := client.ListRunnerFleetsByNamespace(ctx, "ns")
+		assert.NilError(t, err)
+		assert.Assert(t, cmp.Len(fleets, 2))
+		assert.Check(t, cmp.Equal(fleets[0].Attributes.Name, "ns/a"))
+		assert.Check(t, cmp.Equal(fleets[1].Attributes.Name, "ns/b"))
+		assert.Assert(t, cmp.Len(queries, 2))
+		assert.Check(t, cmp.Equal(queries[0].Get("filter[namespace]"), "ns"))
+		assert.Check(t, cmp.Equal(queries[0].Get("page[limit]"), "250"))
+		assert.Check(t, cmp.Equal(queries[1].Get("page[cursor]"), "page-2"))
+	})
+
+	t.Run("each list variant selects its own filter", func(t *testing.T) {
+		org := uuid.MustParse("cccccccc-cccc-4ccc-8ccc-cccccccccccc")
+		rcID := uuid.MustParse(idA)
+		cases := []struct {
+			name, param, want string
+			call              func() ([]apiclient.RunnerFleet, error)
+		}{
+			{"org", "filter[org_id]", org.String(), func() ([]apiclient.RunnerFleet, error) {
+				return client.ListRunnerFleetsByOrg(ctx, org)
+			}},
+			{"resource class", "filter[resource_class]", "ns/a", func() ([]apiclient.RunnerFleet, error) {
+				return client.ListRunnerFleetsByResourceClass(ctx, "ns/a")
+			}},
+			{"resource class id", "filter[resource_class_id]", idA, func() ([]apiclient.RunnerFleet, error) {
+				return client.ListRunnerFleetsByResourceClassID(ctx, rcID)
+			}},
+		}
+		for _, tc := range cases {
+			queries = nil
+			_, err := tc.call()
+			assert.NilError(t, err, tc.name)
+			assert.Assert(t, len(queries) > 0, tc.name)
+			assert.Check(t, cmp.Equal(queries[0].Get(tc.param), tc.want), tc.name)
+		}
+	})
+
+	t.Run("get decodes task counts and agents", func(t *testing.T) {
+		fleet, err := client.GetRunnerFleet(ctx, uuid.MustParse(idA))
+		assert.NilError(t, err)
+		assert.Check(t, cmp.Equal(fleet.ID.String(), idA))
+		assert.Check(t, cmp.Equal(fleet.Attributes.AgentCount, 6))
+		assert.Assert(t, fleet.Attributes.RunningTasks != nil && fleet.Attributes.QueuedTasks != nil)
+		assert.Check(t, cmp.Equal(*fleet.Attributes.RunningTasks, 4))
+		assert.Check(t, cmp.Equal(*fleet.Attributes.QueuedTasks, 5))
+		assert.Check(t, cmp.Nil(fleet.Attributes.LastTaskClaimedAt))
+		assert.Assert(t, cmp.Len(fleet.References.RunnerAgents, 1))
+		assert.Check(t, cmp.Equal(fleet.References.RunnerAgents[0].Attributes.Name, "agent-a"))
+	})
+
+	t.Run("get unknown fleet is a 404 error", func(t *testing.T) {
+		_, err := client.GetRunnerFleet(ctx, uuid.MustParse(idB))
+		assert.Check(t, httpcl.HasStatusCode(err, http.StatusNotFound))
 	})
 }

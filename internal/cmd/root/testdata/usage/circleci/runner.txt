@@ -2,6 +2,7 @@ Usage:  circleci runner <command> [flags]
 
 Available commands:
   config
+  fleet
   instance
   open
   resource-class

@@ -2786,3 +2786,337 @@ func TestRunnerTokenCreate_LimitReached(t *testing.T) {
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
 	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 }
+
+// --- fleet ---
+
+// testARMRCID is my-org/arm-runner in setupRunnerFake; testLinuxRCID is declared above.
+const testARMRCID = "22222222-2222-4222-8222-222222222222"
+
+// setupFleetFake extends the runner fake with a fleet for each of its two resource classes:
+// my-org/linux-runner has agents and has claimed a task, my-org/arm-runner has done neither.
+func setupFleetFake(t *testing.T) (*fakes.CircleCI, *testenv.TestEnv) {
+	t.Helper()
+	fake, env := setupRunnerFake(t)
+	fake.AddRunnerFleet(fakes.RunnerFleet{
+		ResourceClass:      "my-org/linux-runner",
+		ActiveAgents:       2,
+		IdleAgents:         1,
+		DisconnectedAgents: 1,
+		RunningTasks:       2,
+		QueuedTasks:        5,
+		LastTaskClaimedAt:  "2026-04-18T12:00:00Z",
+		Agents: []fakes.RunnerFleetAgent{
+			{ID: "aaaaaaaa-1111-4111-8111-aaaaaaaaaaaa", Name: "runner-1"},
+			{ID: "aaaaaaaa-2222-4222-8222-aaaaaaaaaaaa", Name: "runner-2"},
+			{ID: "aaaaaaaa-3333-4333-8333-aaaaaaaaaaaa", Name: "runner-3"},
+			{ID: "aaaaaaaa-4444-4444-8444-aaaaaaaaaaaa", Name: "runner-4"},
+		},
+	})
+	fake.AddRunnerFleet(fakes.RunnerFleet{ResourceClass: "my-org/arm-runner"})
+	return fake, env
+}
+
+func runFleet(t *testing.T, env *testenv.TestEnv, tty bool, args ...string) binary.CLIResult {
+	t.Helper()
+	return binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    append([]string{"runner", "fleet"}, args...),
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+		TTY:     tty,
+	})
+}
+
+func TestRunnerFleetList(t *testing.T) {
+	_, env := setupFleetFake(t)
+
+	result := runFleet(t, env, false, "list", "--org", "gh/my-org")
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 0))
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+}
+
+func TestRunnerFleetList_Color(t *testing.T) {
+	_, env := setupFleetFake(t)
+
+	result := runFleet(t, env, true, "list", "--org", "gh/my-org")
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 0))
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+}
+
+func TestRunnerFleetList_Namespace(t *testing.T) {
+	_, env := setupFleetFake(t)
+
+	result := runFleet(t, env, false, "list", "--namespace", "my-org")
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 0))
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+}
+
+func TestRunnerFleetList_NamespaceNoMatch(t *testing.T) {
+	_, env := setupFleetFake(t)
+
+	result := runFleet(t, env, false, "list", "--namespace", "other-org")
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 0))
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+}
+
+func TestRunnerFleetList_ResourceClass(t *testing.T) {
+	fake, env := setupFleetFake(t)
+
+	for _, tc := range []struct {
+		name, ref, param string
+	}{
+		{"ByName", "my-org/linux-runner", "filter[resource_class]"},
+		{"ByID", testLinuxRCID, "filter[resource_class_id]"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			result := runFleet(t, env, false, "list", "--resource-class", tc.ref)
+
+			assert.Check(t, cmp.Equal(result.ExitCode, 0))
+			assert.Check(t, golden.String(result.Stdout, "TestRunnerFleetList_ResourceClass.txt"))
+			assert.Check(t, golden.String(result.Stderr, "TestRunnerFleetList_ResourceClass.stderr.txt"))
+
+			var queried bool
+			for _, req := range fake.AllRequests() {
+				if req.URL.Path == "/api/v3/runner/fleets" && req.URL.Query().Get(tc.param) == tc.ref {
+					queried = true
+				}
+			}
+			assert.Check(t, queried, "expected a fleets request filtered by %s=%s", tc.param, tc.ref)
+		})
+	}
+}
+
+func TestRunnerFleetList_FiltersMutuallyExclusive(t *testing.T) {
+	_, env := setupFleetFake(t)
+
+	for _, tc := range []struct {
+		name string
+		args []string
+	}{
+		{"NamespaceOrg", []string{"--namespace", "my-org", "--org", "gh/my-org"}},
+		{"NamespaceResourceClass", []string{"--namespace", "my-org", "--resource-class", "my-org/arm-runner"}},
+		{"OrgResourceClass", []string{"--org", "gh/my-org", "--resource-class", "my-org/arm-runner"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			result := runFleet(t, env, false, append([]string{"list"}, tc.args...)...)
+
+			assert.Check(t, cmp.Equal(result.ExitCode, 1))
+			assert.Check(t, golden.String(result.Stderr, "TestRunnerFleetList_FiltersMutuallyExclusive_"+tc.name+".stderr.txt"))
+		})
+	}
+}
+
+func TestRunnerFleetList_MalformedResourceClass(t *testing.T) {
+	fake, env := setupFleetFake(t)
+
+	result := runFleet(t, env, false, "list", "--resource-class", "not-a-resource-class")
+
+	assert.Check(t, cmp.Equal(result.ExitCode, clierrors.ExitBadArguments))
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+
+	t.Run("no request is made", func(t *testing.T) {
+		assert.Check(t, cmp.Len(fake.AllRequests(), 0))
+	})
+}
+
+func TestRunnerFleetList_ResourceClassNotFound(t *testing.T) {
+	_, env := setupFleetFake(t)
+
+	result := runFleet(t, env, false, "list", "--resource-class", "my-org/no-such-runner")
+
+	assert.Check(t, cmp.Equal(result.ExitCode, clierrors.ExitNotFound))
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+}
+
+func TestRunnerFleetList_OrgNotAccessible(t *testing.T) {
+	fake, env := setupFleetFake(t)
+	fake.HideRunnerOrg(testRunnerOrgID)
+
+	result := runFleet(t, env, false, "list", "--org", testRunnerOrgID)
+
+	assert.Check(t, cmp.Equal(result.ExitCode, clierrors.ExitNotFound))
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+}
+
+func TestRunnerFleetList_Unavailable(t *testing.T) {
+	fake, env := setupFleetFake(t)
+	fake.SetRunnerFleetUnavailable()
+
+	result := runFleet(t, env, false, "list", "--org", "gh/my-org")
+
+	assert.Check(t, cmp.Equal(result.ExitCode, clierrors.ExitAPIError))
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+}
+
+func TestRunnerFleetList_JSON(t *testing.T) {
+	_, env := setupFleetFake(t)
+
+	result := runFleet(t, env, false, "list", "--namespace", "my-org", "--json")
+
+	assert.Assert(t, cmp.Equal(result.ExitCode, 0), "stderr: %s", result.Stderr)
+	assert.Check(t, cmp.Equal(result.Stderr, ""))
+
+	var out []map[string]any
+	assert.NilError(t, json.Unmarshal([]byte(result.Stdout), &out))
+	assert.Check(t, cmp.DeepEqual(out, []map[string]any{
+		{
+			"id":                   testLinuxRCID,
+			"resource_class":       "my-org/linux-runner",
+			"active_agents":        float64(2),
+			"idle_agents":          float64(1),
+			"disconnected_agents":  float64(1),
+			"agent_count":          float64(4),
+			"last_task_claimed_at": "2026-04-18T12:00:00Z",
+		},
+		{
+			"id":                   testARMRCID,
+			"resource_class":       "my-org/arm-runner",
+			"active_agents":        float64(0),
+			"idle_agents":          float64(0),
+			"disconnected_agents":  float64(0),
+			"agent_count":          float64(0),
+			"last_task_claimed_at": nil,
+		},
+	}))
+}
+
+func TestRunnerFleetGet(t *testing.T) {
+	_, env := setupFleetFake(t)
+
+	for _, tc := range []struct {
+		name, ref string
+	}{
+		{"ByName", "my-org/linux-runner"},
+		{"ByID", testLinuxRCID},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			result := runFleet(t, env, false, "get", tc.ref)
+
+			assert.Check(t, cmp.Equal(result.ExitCode, 0))
+			assert.Check(t, golden.String(result.Stdout, "TestRunnerFleetGet.txt"))
+			assert.Check(t, golden.String(result.Stderr, "TestRunnerFleetGet.stderr.txt"))
+		})
+	}
+}
+
+func TestRunnerFleetGet_Color(t *testing.T) {
+	_, env := setupFleetFake(t)
+
+	result := runFleet(t, env, true, "get", "my-org/linux-runner")
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 0))
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+}
+
+func TestRunnerFleetGet_NeverClaimed(t *testing.T) {
+	_, env := setupFleetFake(t)
+
+	result := runFleet(t, env, false, "get", "my-org/arm-runner")
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 0))
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+}
+
+// The server caps the agents a fleet embeds; agent_count is the true total.
+func TestRunnerFleetGet_TruncatedAgents(t *testing.T) {
+	fake, env := setupRunnerFake(t)
+	fake.AddRunnerFleet(fakes.RunnerFleet{
+		ResourceClass: "my-org/linux-runner",
+		ActiveAgents:  1,
+		AgentCount:    150,
+		Agents:        []fakes.RunnerFleetAgent{{ID: "aaaaaaaa-1111-4111-8111-aaaaaaaaaaaa", Name: "runner-1"}},
+	})
+
+	result := runFleet(t, env, false, "get", "my-org/linux-runner")
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 0))
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+}
+
+func TestRunnerFleetGet_NotFound(t *testing.T) {
+	_, env := setupFleetFake(t)
+
+	for _, tc := range []struct {
+		name, ref string
+	}{
+		{"ByName", "my-org/no-such-runner"},
+		{"ByID", testUnknownRCID},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			result := runFleet(t, env, false, "get", tc.ref)
+
+			assert.Check(t, cmp.Equal(result.ExitCode, clierrors.ExitNotFound))
+			assert.Check(t, golden.String(result.Stdout, "TestRunnerFleetGet_NotFound_"+tc.name+".txt"))
+			assert.Check(t, golden.String(result.Stderr, "TestRunnerFleetGet_NotFound_"+tc.name+".stderr.txt"))
+		})
+	}
+}
+
+func TestRunnerFleetGet_MalformedResourceClass(t *testing.T) {
+	fake, env := setupFleetFake(t)
+
+	result := runFleet(t, env, false, "get", "not-a-resource-class")
+
+	assert.Check(t, cmp.Equal(result.ExitCode, clierrors.ExitBadArguments))
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+
+	t.Run("no request is made", func(t *testing.T) {
+		assert.Check(t, cmp.Len(fake.AllRequests(), 0))
+	})
+}
+
+func TestRunnerFleetGet_Unavailable(t *testing.T) {
+	fake, env := setupFleetFake(t)
+	fake.SetRunnerFleetUnavailable()
+
+	result := runFleet(t, env, false, "get", "my-org/linux-runner")
+
+	assert.Check(t, cmp.Equal(result.ExitCode, clierrors.ExitAPIError))
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+}
+
+func TestRunnerFleetGet_JSON(t *testing.T) {
+	_, env := setupFleetFake(t)
+
+	result := runFleet(t, env, false, "get", "my-org/linux-runner", "--json")
+
+	assert.Assert(t, cmp.Equal(result.ExitCode, 0), "stderr: %s", result.Stderr)
+	assert.Check(t, cmp.Equal(result.Stderr, ""))
+
+	var out map[string]any
+	assert.NilError(t, json.Unmarshal([]byte(result.Stdout), &out))
+	assert.Check(t, cmp.DeepEqual(out, map[string]any{
+		"id":                   testLinuxRCID,
+		"resource_class":       "my-org/linux-runner",
+		"active_agents":        float64(2),
+		"idle_agents":          float64(1),
+		"disconnected_agents":  float64(1),
+		"agent_count":          float64(4),
+		"last_task_claimed_at": "2026-04-18T12:00:00Z",
+		"running_tasks":        float64(2),
+		"queued_tasks":         float64(5),
+		"agents": []any{
+			map[string]any{"id": "aaaaaaaa-1111-4111-8111-aaaaaaaaaaaa", "name": "runner-1"},
+			map[string]any{"id": "aaaaaaaa-2222-4222-8222-aaaaaaaaaaaa", "name": "runner-2"},
+			map[string]any{"id": "aaaaaaaa-3333-4333-8333-aaaaaaaaaaaa", "name": "runner-3"},
+			map[string]any{"id": "aaaaaaaa-4444-4444-8444-aaaaaaaaaaaa", "name": "runner-4"},
+		},
+	}))
+}

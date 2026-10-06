@@ -391,3 +391,95 @@ func (c *Client) listRunnerAgents(ctx context.Context, filter, value string) ([]
 		cursor = *env.Page.Next
 	}
 }
+
+// RunnerFleet is a runner fleet: the agent and task summary of one resource class. Its ID is the
+// resource class's ID. RunningTasks and QueuedTasks are only populated by GetRunnerFleet; the
+// list endpoint omits them.
+type RunnerFleet struct {
+	ID         uuid.UUID `json:"id"`
+	Attributes struct {
+		Name               string     `json:"name"`
+		ActiveAgents       int        `json:"active_agents"`
+		IdleAgents         int        `json:"idle_agents"`
+		DisconnectedAgents int        `json:"disconnected_agents"`
+		AgentCount         int        `json:"agent_count"`
+		RunningTasks       *int       `json:"running_tasks"`
+		QueuedTasks        *int       `json:"queued_tasks"`
+		LastTaskClaimedAt  *time.Time `json:"last_task_claimed_at"`
+	} `json:"attributes"`
+	References struct {
+		ResourceClass struct {
+			ID uuid.UUID `json:"id"`
+		} `json:"resource_class"`
+		// RunnerAgents is capped by the server; AgentCount is the true total.
+		RunnerAgents []struct {
+			ID         uuid.UUID `json:"id"`
+			Attributes struct {
+				Name string `json:"name"`
+			} `json:"attributes"`
+		} `json:"runner_agents"`
+	} `json:"references"`
+}
+
+// ListRunnerFleetsByOrg returns every fleet in an organization.
+func (c *Client) ListRunnerFleetsByOrg(ctx context.Context, orgID uuid.UUID) ([]RunnerFleet, error) {
+	return c.listRunnerFleets(ctx, "org_id", orgID.String())
+}
+
+// ListRunnerFleetsByNamespace returns every fleet in a namespace.
+func (c *Client) ListRunnerFleetsByNamespace(ctx context.Context, namespace string) ([]RunnerFleet, error) {
+	return c.listRunnerFleets(ctx, "namespace", namespace)
+}
+
+// ListRunnerFleetsByResourceClass returns the fleet of the resource class named by its fully
+// qualified namespace/name.
+func (c *Client) ListRunnerFleetsByResourceClass(ctx context.Context, resourceClass string) ([]RunnerFleet, error) {
+	return c.listRunnerFleets(ctx, "resource_class", resourceClass)
+}
+
+// ListRunnerFleetsByResourceClassID returns the fleet of the resource class with the given ID.
+func (c *Client) ListRunnerFleetsByResourceClassID(ctx context.Context, id uuid.UUID) ([]RunnerFleet, error) {
+	return c.listRunnerFleets(ctx, "resource_class_id", id.String())
+}
+
+// fleetPageLimit is the largest page[limit] GET /api/v3/runner/fleets accepts.
+const fleetPageLimit = 250
+
+// listRunnerFleets pages GET /api/v3/runner/fleets under one filter, which the endpoint requires
+// exactly one of.
+func (c *Client) listRunnerFleets(ctx context.Context, filter, value string) ([]RunnerFleet, error) {
+	var all []RunnerFleet
+	cursor := ""
+
+	for {
+		var env v3List[RunnerFleet]
+		_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodGet, "/api/v3/runner/fleets",
+			filterParam(filter, value),
+			pageLimit(fleetPageLimit),
+			pageCursor(cursor),
+			httpcl.JSONDecoder(&env),
+		))
+		if err != nil {
+			return nil, err
+		}
+		all = append(all, env.Data...)
+		if env.Page.Next == nil || *env.Page.Next == "" {
+			return all, nil
+		}
+		cursor = *env.Page.Next
+	}
+}
+
+// GetRunnerFleet returns one fleet by its ID, which is its resource class's ID. Unlike the list,
+// it includes running and queued task counts.
+func (c *Client) GetRunnerFleet(ctx context.Context, id uuid.UUID) (*RunnerFleet, error) {
+	var resp v3Entity[RunnerFleet]
+	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodGet, "/api/v3/runner/fleets/%s",
+		httpcl.RouteParams(id.String()),
+		httpcl.JSONDecoder(&resp),
+	))
+	if err != nil {
+		return nil, err
+	}
+	return &resp.Data, nil
+}
