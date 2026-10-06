@@ -24,6 +24,7 @@ package acceptance_test
 
 import (
 	"encoding/json"
+	"net/http"
 	"strings"
 	"testing"
 
@@ -75,6 +76,67 @@ func TestVersionJSON(t *testing.T) {
 
 	assert.Equal(t, info.Version, "dev", "expected default version 'dev', got %q", info.Version)
 	assert.Check(t, info.Commit != "", "commit field should be set")
+
+	// A dev build can't be compared with a release, so both freshness fields are
+	// present and null rather than missing.
+	var out map[string]any
+	assert.NilError(t, json.Unmarshal([]byte(result.Stdout), &out))
+	assert.Check(t, cmp.Contains(out, "latest"))
+	assert.Check(t, cmp.Contains(out, "outdated"))
+	assert.Check(t, cmp.DeepEqual(freshness(out), map[string]any{"latest": nil, "outdated": nil}))
+}
+
+// runVersionJSON runs `circleci version --json` and decodes its output.
+func runVersionJSON(t *testing.T, env *testenv.TestEnv) map[string]any {
+	t.Helper()
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"version", "--json"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+	assert.Assert(t, cmp.Equal(result.ExitCode, 0), "stderr: %s", result.Stderr)
+
+	var out map[string]any
+	assert.NilError(t, json.Unmarshal([]byte(result.Stdout), &out), "stdout was not valid JSON: %q", result.Stdout)
+	return out
+}
+
+// freshness picks out the fields that say whether the build is current, so a
+// test can compare them whole without pinning the build's commit hash.
+func freshness(out map[string]any) map[string]any {
+	return map[string]any{"latest": out["latest"], "outdated": out["outdated"]}
+}
+
+func TestVersionJSON_ReportsNewerRelease(t *testing.T) {
+	_, env := setupUpdateFake(t) // latest 1.3.0, this build treated as 1.2.0
+
+	out := runVersionJSON(t, env)
+	assert.Check(t, cmp.DeepEqual(freshness(out), map[string]any{"latest": "1.3.0", "outdated": true}))
+}
+
+func TestVersionJSON_UpToDate(t *testing.T) {
+	_, env := setupUpdateFake(t)
+	env.Extra["__CIRCLE_UPDATE_FORCE"] = "1.3.0"
+
+	out := runVersionJSON(t, env)
+	assert.Check(t, cmp.DeepEqual(freshness(out), map[string]any{"latest": "1.3.0", "outdated": false}))
+}
+
+func TestVersionJSON_UnknownWhenUpdateCheckOff(t *testing.T) {
+	_, env := setupUpdateFake(t)
+	env.Extra["CIRCLE_NO_UPDATE_CHECK"] = "1"
+
+	out := runVersionJSON(t, env)
+	assert.Check(t, cmp.DeepEqual(freshness(out), map[string]any{"latest": nil, "outdated": nil}))
+}
+
+func TestVersionJSON_UnknownWhenReleaseUnavailable(t *testing.T) {
+	fake, env := setupUpdateFake(t)
+	fake.SetReleaseStatus(http.StatusServiceUnavailable)
+
+	out := runVersionJSON(t, env)
+	assert.Check(t, cmp.DeepEqual(freshness(out), map[string]any{"latest": nil, "outdated": nil}))
 }
 
 func TestVersionFlagMatchesSubcommand(t *testing.T) {
