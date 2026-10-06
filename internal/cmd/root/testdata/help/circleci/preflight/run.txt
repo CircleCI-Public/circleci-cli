@@ -1,0 +1,39 @@
+Push the working tree to a temporary branch and watch its run
+
+## Usage
+
+`circleci preflight run [flags]`
+
+## Flags
+
+| Flag                  | Description                                                        |
+| --------------------- | ------------------------------------------------------------------ |
+| `--interval duration` | how often to poll the run (default 5s)                             |
+| `--json`              | Output as JSON                                                     |
+| `--no-cleanup`        | keep the branch, and the run going, when the preflight stops       |
+| `--no-failfast`       | wait for the whole run instead of stopping at the first failed job |
+| `--no-watch`          | return once the run starts, keeping the branch                     |
+| `--project string`    | project slug (e.g. gh/org/repo); defaults to git remote            |
+| `--remote string`     | git remote to push the branch to (default "origin")                |
+| `--timeout duration`  | maximum time to watch the run (default 30m0s)                      |
+
+Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `circleci --help`.
+
+## Examples
+
+- Run local changes through CI, stopping at the first failure: 
+  `circleci preflight run`
+- Stream events for a coding agent: 
+  `circleci preflight run --json`
+- Push and return once the run starts; clean up later: 
+  `circleci preflight run --no-watch`
+
+## Details
+
+Push the working tree to a `cci/preflight/<id>` branch and watch the run it starts,
+reporting each failed job's steps and tests as it fails. See `circleci help preflight-guide`.
+
+--json streams one event per line, by type: branch_pushed (preflight_id, branch,
+commit, base, changes), run_started (run_id, url), job_failed (job.id/name/workflow/url/
+failed_steps[]/failed_tests[]), run_summary (run_id, outcome, failed_jobs[], ...)
+

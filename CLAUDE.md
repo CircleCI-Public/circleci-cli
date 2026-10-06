@@ -191,6 +191,7 @@ internal/cmd/
 ├── org/                  circleci org list/setting.
 ├── pipeline/             circleci pipeline create/list/run.
 ├── policy/               circleci policy push/diff/fetch/decide/eval/logs/settings/test.
+├── preflight/            circleci preflight run/cleanup — run the working tree through CI.
 ├── project/              circleci project create/get/list/follow/link/open + env/dlc/
 │                         setting/trigger.
 ├── run/                  circleci run trigger/get/list/watch/cancel/open.
@@ -227,6 +228,9 @@ internal/
 ├── orbinit/              Scaffolds a new orb project from the Orb-Template repo.
 ├── org/                  Shared organization operations (slug/ID resolution).
 ├── pack/                 Merges a directory tree of YAML files into one document.
+├── preflight/            Snapshots the working tree to a cci/preflight/<uuid> branch (shells
+│                         out to git, never touching HEAD/index), watches the run the push
+│                         starts, and emits the preflight event stream.
 ├── projectref/           Reads/writes .circleci/info.yml — the per-checkout project record
 │                         that survives repository renames and standalone projects.
 ├── reposcan/             Detects language stack, container image, and setup commands.
@@ -342,7 +346,8 @@ through `iostream.Streams`.
 | `CIRCLE_EXTENSION_HOST` | Override the extension registry host |
 | `CIRCLE_ORB_TEMPLATE_URL` | Override the Orb-Template source for `orb init` |
 | `CIRCLE_LOGIN_TIMEOUT` | Duration string overriding the `auth login` browser-flow timeout |
-| `CIRCLE_SHA_WAIT_MS` | Shortens how long `run watch` waits for a SHA to appear |
+| `CIRCLE_SHA_WAIT_MS` | Shortens how long `run watch` waits for a SHA to appear, and `preflight run` for its run to start |
+| `CIRCLE_PREFLIGHT_ID` | Fixes the UUID `preflight run` uses for its branch, so tests can register its run in advance |
 | `__CIRCLE_UPDATE_FORCE` | Bypasses the update notifier's TTY/dev-build gates and supplies the version to treat as current (`internal/update`). Double-underscore = internal, never user-set |
 
 ---
