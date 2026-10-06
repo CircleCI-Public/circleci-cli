@@ -6,6 +6,15 @@ is added by its release PR (see [RELEASE.md](RELEASE.md)) and becomes its GitHub
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2026-10-06
+
+### What's Changed
+* [PIPE-9912] Surface pipeline warnings across all CLI commands by @parkuman in https://github.com/CircleCI-Public/circleci-cli/pull/1869
+* ONP-4197 | List `runner token` rows by resource class ID, without a lookup by @atulsingh0 in https://github.com/CircleCI-Public/circleci-cli/pull/1879
+
+
+**Full Changelog**: https://github.com/CircleCI-Public/circleci-cli/compare/v1.1.0...v1.2.0
+
 ## [1.1.0] - 2026-10-06
 
 ### What's Changed
