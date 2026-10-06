@@ -74,8 +74,8 @@ func TestParseChecks(t *testing.T) {
 		want []string
 	}{
 		{name: "none means every module", only: nil, want: nil},
-		{name: "check names map to modules", only: []string{"resource-class"}, want: []string{"resourceclass"}},
-		{name: "spaces around a name are ignored", only: []string{" resource-class "}, want: []string{"resourceclass"}},
+		{name: "check names map to modules", only: []string{"resource-class", "cache"}, want: []string{"resourceclass", "cache"}},
+		{name: "spaces around a name are ignored", only: []string{" cache "}, want: []string{"cache"}},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
@@ -88,7 +88,7 @@ func TestParseChecks(t *testing.T) {
 		_, err := registry.ParseChecks([]string{"nope"})
 		unknown, ok := errors.AsType[*registry.UnknownCheckError](err)
 		assert.Assert(t, ok, "want an UnknownCheckError, got %v", err)
-		assert.Check(t, cmp.DeepEqual(unknown.Known, []string{"resource-class"}))
+		assert.Check(t, cmp.DeepEqual(unknown.Known, []string{"cache", "resource-class"}))
 		assert.Check(t, cmp.ErrorContains(err, `"nope" is not a check`))
 	})
 }

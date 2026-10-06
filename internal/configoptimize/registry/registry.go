@@ -31,6 +31,7 @@ import (
 	"strings"
 
 	"github.com/CircleCI-Public/circleci-cli/internal/configoptimize/module"
+	"github.com/CircleCI-Public/circleci-cli/internal/configoptimize/module/cache"
 	"github.com/CircleCI-Public/circleci-cli/internal/configoptimize/module/resourceclass"
 	"github.com/CircleCI-Public/circleci-cli/internal/configoptimize/pricing"
 	"github.com/CircleCI-Public/circleci-cli/internal/configoptimize/reconcile"
@@ -40,6 +41,9 @@ import (
 // Deps are the dependencies modules receive through their constructors.
 type Deps struct {
 	Pricing pricing.Provider
+	// Repo is the checkout root the config belongs to, "" when unknown. The
+	// cache key fix reads lockfiles from it.
+	Repo string
 	// Usage is per-job resource usage for the resource-class downsize, nil
 	// when none was given.
 	Usage *usage.Data
@@ -49,6 +53,7 @@ type Deps struct {
 // order findings are reported in.
 func Catalog(deps Deps) []module.Analyzer {
 	return []module.Analyzer{
+		cache.NewWithRepo(deps.Repo),
 		resourceclass.New(deps.Pricing, deps.Usage),
 	}
 }
@@ -75,7 +80,7 @@ func Select(catalog []module.Analyzer, names []string) []module.Analyzer {
 }
 
 // checks maps the names config optimize's --only takes to module names.
-var checks = map[string]string{"resource-class": resourceclass.Name}
+var checks = map[string]string{"resource-class": resourceclass.Name, "cache": cache.Name}
 
 // CheckNames are the names --only takes, sorted.
 func CheckNames() []string {

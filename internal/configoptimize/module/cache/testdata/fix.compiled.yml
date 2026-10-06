@@ -1,0 +1,111 @@
+version: 2
+jobs:
+  flask:
+    docker:
+    - image: x
+    steps:
+    - checkout
+    - restore_cache:
+        keys:
+        - deps-flask-{{ epoch }}
+    - run:
+        command: cd projects/flask && pip install --user -r requirements.txt
+    - save_cache:
+        key: deps-flask-{{ epoch }}
+        paths:
+        - ~/.npm
+  rxjs:
+    docker:
+    - image: x
+    steps:
+    - checkout
+    - restore_cache:
+        keys:
+        - deps-rxjs-{{ epoch }}
+    - run:
+        command: cd projects/rxjs && npm ci --ignore-scripts
+    - save_cache:
+        key: deps-rxjs-{{ epoch }}
+        paths:
+        - ~/.npm
+  lo:
+    docker:
+    - image: x
+    steps:
+    - checkout
+    - restore_cache:
+        keys:
+        - deps-lo-{{ epoch }}
+    - run:
+        command: cd projects/lo && go mod download
+    - save_cache:
+        key: deps-lo-{{ epoch }}
+        paths:
+        - ~/.npm
+  hugo:
+    docker:
+    - image: x
+    steps:
+    - checkout
+    - restore_cache:
+        keys:
+        - deps-hugo-{{ epoch }}
+    - run:
+        command: cd projects/hugo && go mod download
+    - save_cache:
+        key: deps-hugo-{{ epoch }}
+        paths:
+        - ~/.npm
+  gson:
+    docker:
+    - image: x
+    steps:
+    - checkout
+    - restore_cache:
+        keys:
+        - deps-gson-{{ epoch }}
+    - run:
+        command: cd projects/gson && mvn -q -B dependency:resolve
+    - save_cache:
+        key: deps-gson-{{ epoch }}
+        paths:
+        - ~/.npm
+  serde:
+    docker:
+    - image: x
+    steps:
+    - checkout
+    - restore_cache:
+        keys:
+        - deps-serde-{{ epoch }}
+    - run:
+        command: cd projects/serde && cargo fetch
+    - save_cache:
+        key: deps-serde-{{ epoch }}
+        paths:
+        - ~/.npm
+  zod:
+    docker:
+    - image: x
+    steps:
+    - checkout
+    - restore_cache:
+        keys:
+        - deps-zod-{{ epoch }}
+    - run:
+        command: cd projects/zod && yarn install --ignore-scripts
+    - save_cache:
+        key: deps-zod-{{ epoch }}
+        paths:
+        - ~/.npm
+workflows:
+  baseline:
+    jobs:
+    - flask
+    - rxjs
+    - lo
+    - hugo
+    - gson
+    - serde
+    - zod
+  version: 2

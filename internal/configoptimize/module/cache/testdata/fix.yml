@@ -1,0 +1,28 @@
+# Key-fix cases: one install per package manager, each keyed on {{ epoch }}
+# passed in at its call site. fix.compiled.yml is
+# `circleci config process fix.yml`; update both together.
+version: 2.1
+
+jobs:
+  install:
+    parameters:
+      project: {type: string}
+      install: {type: string}
+      cache_key: {type: string}
+    docker: [{image: x}]
+    steps:
+      - checkout
+      - restore_cache: {keys: ["deps-<< parameters.project >>-<< parameters.cache_key >>"]}
+      - run: cd projects/<< parameters.project >> && << parameters.install >>
+      - save_cache: {key: "deps-<< parameters.project >>-<< parameters.cache_key >>", paths: [~/.npm]}
+
+workflows:
+  baseline:
+    jobs:
+      - install: {name: flask, project: flask, install: pip install --user -r requirements.txt, cache_key: "{{ epoch }}"}
+      - install: {name: rxjs, project: rxjs, install: npm ci --ignore-scripts, cache_key: "{{ epoch }}"}
+      - install: {name: lo, project: lo, install: go mod download, cache_key: "{{ epoch }}"}
+      - install: {name: hugo, project: hugo, install: go mod download, cache_key: "{{ epoch }}"} # the repo lacks its go.sum
+      - install: {name: gson, project: gson, install: mvn -q -B dependency:resolve, cache_key: "{{ epoch }}"}
+      - install: {name: serde, project: serde, install: cargo fetch, cache_key: "{{ epoch }}"}
+      - install: {name: zod, project: zod, install: yarn install --ignore-scripts, cache_key: "{{ epoch }}"}

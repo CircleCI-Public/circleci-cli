@@ -27,6 +27,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/MakeNowJust/heredoc"
@@ -38,6 +39,7 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/internal/cmdutil"
 	"github.com/CircleCI-Public/circleci-cli/internal/configoptimize/apicompile"
 	"github.com/CircleCI-Public/circleci-cli/internal/configoptimize/engine"
+	"github.com/CircleCI-Public/circleci-cli/internal/configoptimize/module/cache"
 	"github.com/CircleCI-Public/circleci-cli/internal/configoptimize/pipelineconfig"
 	"github.com/CircleCI-Public/circleci-cli/internal/configoptimize/pricing/static"
 	"github.com/CircleCI-Public/circleci-cli/internal/configoptimize/publish"
@@ -63,17 +65,17 @@ func newOptimizeCmd() *cobra.Command {
 			`, "`"),
 		},
 		Long: heredoc.Doc(`
-			Find cheaper resource classes from per-job usage. JSON fields: schema_version, command, summary.result, findings[].id
+			Find cheaper resource classes and cache keys. JSON fields: schema_version, command, summary.result, findings[].id
 		`),
 		Example: heredoc.Doc(`
-			# Report what could change, sizing classes from usage
-			$ circleci config optimize --usage usage.json
+			# Report what could change
+			$ circleci config optimize
 
 			# Write the optimized config, sizing classes from usage
 			$ circleci config optimize --usage usage.json -o optimized.yml
 
-			# The report as JSON
-			$ circleci config optimize --usage usage.json --json
+			# Only the cache keys, as JSON
+			$ circleci config optimize --only cache --json
 		`),
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -90,7 +92,7 @@ func newOptimizeCmd() *cobra.Command {
 	f.BoolVarP(&o.force, "force", "f", false, "overwrite the -o file, or skip the clean-worktree check")
 	f.StringVar(&o.usage, "usage", "", "per-job CPU and memory usage (JSON file), for resource classes")
 	f.StringVar(&o.rates, "credit-rates", "", "credits per minute per class (YAML file; default built-in gen1)")
-	f.StringSliceVar(&o.only, "only", nil, "checks to run: resource-class (default all)")
+	f.StringSliceVar(&o.only, "only", nil, "checks to run: resource-class, cache (default all)")
 	f.StringVar(&o.params, "pipeline-parameters", "", "pipeline parameters as a YAML map or path to a YAML file")
 	f.BoolVarP(&o.verbose, "verbose", "v", false, "also list report-only findings, with evidence")
 	cmdutil.AddJSONFlag(cmd, &o.jsonOut)
@@ -123,7 +125,7 @@ func runOptimize(ctx context.Context, path string, o optimizeOptions) error {
 	if err != nil {
 		return optimizeWriteErr(err)
 	}
-	in, client, err := optimizeInput(ctx, path, o)
+	in, client, err := optimizeInput(ctx, path, file, o)
 	if err != nil {
 		return err
 	}
@@ -157,8 +159,8 @@ func optimizeFlagsCheck(path string, o optimizeOptions) error {
 }
 
 // optimizeInput loads the inputs and builds the engine's input. path is the
-// config as given ("-" for stdin).
-func optimizeInput(ctx context.Context, path string, o optimizeOptions) (engine.AnalyzeInput, *apiclient.Client, error) {
+// config as given ("-" for stdin), file its path on disk ("" for stdin).
+func optimizeInput(ctx context.Context, path, file string, o optimizeOptions) (engine.AnalyzeInput, *apiclient.Client, error) {
 	var none engine.AnalyzeInput
 	rates, _, err := static.Load(o.rates)
 	if err != nil {
@@ -177,8 +179,12 @@ func optimizeInput(ctx context.Context, path string, o optimizeOptions) (engine.
 		return none, nil, optimizeArgsErr("args.invalid_value", "--only "+err.Error(),
 			"Pass one or more of: "+strings.Join(registry.CheckNames(), ", "))
 	}
+	var repo string // only the cache check reads the checkout
+	if len(modules) == 0 || slices.Contains(modules, cache.Name) {
+		repo = engine.RepoRoot(file)
+	}
 	selected := registry.Select(registry.Catalog(registry.Deps{
-		Pricing: rates, Usage: usageData}), modules)
+		Pricing: rates, Repo: repo, Usage: usageData}), modules)
 	params, err := pipelineParamsFlag(o.params)
 	if err != nil {
 		return none, nil, err

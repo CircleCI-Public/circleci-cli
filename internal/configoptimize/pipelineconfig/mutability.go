@@ -151,10 +151,12 @@ func NewMutability(a *Authored, eff *Effective) *Mutability {
 	for _, j := range eff.Jobs {
 		m.effSteps[j.Name] = len(j.Steps())
 	}
+	eff.tracer = m
 	m.root = a.Root()
 	if m.root == nil {
 		return m
 	}
+	eff.Setup = IsTrue(MapGet(m.root, "setup"))
 	for _, d := range a.Documents() {
 		collectAliased(d, m.aliased)
 	}

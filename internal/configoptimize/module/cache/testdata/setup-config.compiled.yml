@@ -1,0 +1,21 @@
+version: 2
+jobs:
+  setup:
+    docker:
+    - image: cimg/base:current
+    steps:
+    - restore_cache:
+        keys:
+        - setup-{{ .BuildNum }}
+  install:
+    docker:
+    - image: cimg/node:18.20
+    steps:
+    - run:
+        command: npm ci
+workflows:
+  setup:
+    jobs:
+    - setup
+    - install
+  version: 2

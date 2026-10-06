@@ -37,6 +37,26 @@ import (
 type Effective struct {
 	// Jobs in name order.
 	Jobs []Job
+	// Setup is true for a setup (dynamic) config, whose real config is
+	// generated at runtime. The compiler drops `setup: true`, so it is read
+	// from the authored copy when the Mutability is built.
+	Setup bool
+
+	// tracer follows a compiled value back to the authored config. It is
+	// set when the Mutability for this copy is built; modules reach it
+	// only through Trace, never the authored bytes.
+	tracer *Mutability
+}
+
+// Trace follows the compiled scalar at path (e.g. ["jobs", "build", "steps",
+// "1", "restore_cache", "keys", "0"]) back to the authored config and
+// resolves every substitution in it. Without an authored copy
+// the trace is broken, which makes the value uninspectable.
+func (e *Effective) Trace(job string, path []string) Trace {
+	if e.tracer == nil {
+		return Trace{Problem: "no authored config"}
+	}
+	return e.tracer.Trace(job, path, walk(e.jobNode(job), path[min(2, len(path)):]))
 }
 
 // Node returns the compiled node at path, e.g. ["jobs", "build", "steps",

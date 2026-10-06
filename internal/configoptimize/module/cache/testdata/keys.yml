@@ -1,0 +1,269 @@
+# Cache key cases: one job per case, named for it, each with its own key
+# prefix so no case matches another's save. keys.compiled.yml is
+# `circleci config process keys.yml`; update both together.
+version: 2.1
+
+parameters:
+  git_revision: {type: string, default: "main"} # named like a built-in, but a trigger can override it
+  stable_choice: {type: enum, enum: ["v1", "v2"], default: "v1"}
+  ck: {type: enum, enum: ["{{ epoch }}", "stable"], default: "stable"}
+  alt-key: {type: enum, enum: ["{{ .BuildNum }}", "1{{ .BuildNum }}"], default: "{{ .BuildNum }}"}
+
+jobs:
+  # Call sites and parameter defaults.
+  keyed:
+    parameters: {cache_key: {type: string, default: '{{ checksum "package-lock.json" }}'}}
+    docker: [{image: x}]
+    steps:
+      - restore_cache: {keys: ["keyed-<< parameters.cache_key >>"]}
+      - save_cache: {key: "keyed-<< parameters.cache_key >>", paths: [~/.npm]}
+  volatile-default:
+    parameters: {cache_key: {type: string, default: "{{ epoch }}"}}
+    docker: [{image: x}]
+    steps:
+      - restore_cache: {keys: ["vd-<< parameters.cache_key >>"]}
+      - save_cache: {key: "vd-<< parameters.cache_key >>", paths: [~/.npm]}
+  matrixed:
+    parameters: {cache_key: {type: string}}
+    docker: [{image: x}]
+    steps:
+      - restore_cache: {keys: ["mx-<< parameters.cache_key >>"]}
+  build:
+    parameters: {os: {type: string}}
+    docker: [{image: x}]
+    steps: [{restore_cache: {keys: ["a-<< parameters.os >>-{{ .BuildNum }}"]}}]
+  build-linux:
+    parameters: {arch: {type: string}}
+    docker: [{image: x}]
+    steps: [{restore_cache: {keys: ["b-<< parameters.arch >>-{{ .BuildNum }}"]}}]
+  aliased:
+    parameters: {os: {type: string}}
+    docker: [{image: x}]
+    steps: [{restore_cache: {keys: ["al-<< parameters.os >>-{{ .BuildNum }}"]}}]
+  excluded:
+    parameters: {os: {type: string}, arch: {type: string}}
+    docker: [{image: x}]
+    steps: [{run: echo excluded}]
+  actual:
+    docker: [{image: x}]
+    steps: [{restore_cache: {keys: ["ac-{{ .BuildNum }}"]}}]
+
+  # Fallbacks, saves and edges.
+  stable-fallback:
+    docker: [{image: x}]
+    steps:
+      - restore_cache: {keys: ["npm-{{ .Revision }}", "npm-"]}
+      - save_cache: {key: "npm-{{ .Revision }}", paths: [~/.npm]}
+  cross-save:
+    docker: [{image: x}]
+    steps: [{save_cache: {key: 'shared-{{ checksum "package-lock.json" }}', paths: [~/.npm]}}]
+  cross-restore:
+    docker: [{image: x}]
+    steps: [{restore_cache: {keys: ['shared-{{ checksum "package-lock.json" }}']}}]
+  broad-a:
+    docker: [{image: x}]
+    steps: [{save_cache: {key: 'v1-a-{{ checksum "a.lock" }}', paths: [~/.npm]}}]
+  broad-b:
+    docker: [{image: x}]
+    steps: [{save_cache: {key: 'v1-b-{{ checksum "b.lock" }}', paths: [~/.npm]}}]
+  broad-restore:
+    docker: [{image: x}]
+    steps: [{restore_cache: {keys: ["v1-{{ epoch }}", "v1-"]}}]
+  broad-exact-save:
+    docker: [{image: x}]
+    steps: [{save_cache: {key: "b1-", paths: [/tmp/a]}}]
+  broad-longer-save:
+    docker: [{image: x}]
+    steps: [{save_cache: {key: "b1-a", paths: [/tmp/b]}}]
+  broad-exact-restore:
+    docker: [{image: x}]
+    steps: [{restore_cache: {keys: ["b1-"]}}]
+  seed-save:
+    docker: [{image: x}]
+    steps: [{save_cache: {key: seed-42-seeded, paths: [/tmp/data]}}]
+  seed-restore:
+    docker: [{image: x}]
+    steps: [{restore_cache: {keys: ["seed-{{ .BuildNum }}"]}}]
+  correlated-prefix:
+    docker: [{image: x}]
+    steps:
+      - restore_cache: {keys: ["cp-{{ .BuildNum }}"]}
+      - save_cache: {key: "cp-{{ .BuildNum }}-seeded", paths: [/tmp/deps]}
+  cj-save:
+    docker: [{image: x}]
+    steps: [{save_cache: {key: "cj-{{ .BuildNum }}", paths: [/tmp/deps]}}]
+  cj-restore:
+    docker: [{image: x}]
+    steps: [{restore_cache: {keys: ["cj-{{ .BuildNum }}"]}}]
+  no-save:
+    docker: [{image: x}]
+    steps: [{restore_cache: {keys: ["ns-{{ .BuildNum }}"]}}]
+  save-first:
+    docker: [{image: x}]
+    steps:
+      - save_cache: {key: "sf-{{ .BuildNum }}", paths: [/tmp/deps]}
+      - restore_cache: {keys: ["sf-{{ .BuildNum }}"]}
+  save-first-epoch:
+    docker: [{image: x}]
+    steps:
+      - save_cache: {key: "se-{{ epoch }}", paths: [/tmp/deps]}
+      - run: sleep 2
+      - restore_cache: {keys: ["se-{{ epoch }}"]}
+  sha-seed:
+    docker: [{image: x}]
+    steps: [{save_cache: {key: "sha-{{ .Environment.CIRCLE_SHA1 }}", paths: [/tmp/deps]}}]
+  sha-consume:
+    docker: [{image: x}]
+    steps: [{restore_cache: {keys: ["sha-{{ .Revision }}"]}}]
+
+  # Tokens and scopes.
+  epoch-no-spaces:
+    docker: [{image: x}]
+    steps:
+      - restore_cache: {keys: ["sp-{{epoch}}"]}
+      - save_cache: {key: "sp-{{epoch}}", paths: [/tmp/deps]}
+  epoch-and-buildnum:
+    docker: [{image: x}]
+    steps:
+      - restore_cache: {keys: ["eb-{{ .BuildNum }}-{{ epoch }}"]}
+      - save_cache: {key: "eb-{{ .BuildNum }}-{{ epoch }}", paths: [/tmp/deps]}
+  parallel:
+    parallelism: 2
+    docker: [{image: x}]
+    steps:
+      - restore_cache: {keys: ["par-{{ .BuildNum }}"]}
+      - save_cache: {key: "par-{{ .BuildNum }}", paths: [/tmp/deps]}
+  parallel-epoch:
+    parallelism: 2
+    docker: [{image: x}]
+    steps:
+      - restore_cache: {keys: ["pe-{{ epoch }}"]}
+      - save_cache: {key: "pe-{{ epoch }}", paths: [/tmp/deps]}
+  workflow-id:
+    docker: [{image: x}]
+    steps:
+      - restore_cache: {keys: ["wf-{{ .Environment.CIRCLE_WORKFLOW_ID }}"]}
+      - save_cache: {key: "wf-{{ .Environment.CIRCLE_WORKFLOW_ID }}", paths: [~/.npm]}
+  epoch-then-revision:
+    docker: [{image: x}]
+    steps:
+      - restore_cache: {keys: ["er-{{ epoch }}", "er-{{ .Revision }}"]}
+      - save_cache: {key: "er-{{ .Revision }}", paths: [~/.npm]}
+  revision-then-epoch:
+    docker: [{image: x}]
+    steps:
+      - restore_cache: {keys: ["re-{{ .Revision }}", "re-{{ epoch }}"]}
+      - save_cache: {key: "re-{{ .Revision }}", paths: [~/.npm]}
+  revision-build-output:
+    docker: [{image: x}]
+    steps:
+      - restore_cache: {keys: ["bo-{{ .Revision }}"]}
+      - save_cache: {key: "bo-{{ .Revision }}", paths: [dist]}
+  revision-mixed-paths:
+    docker: [{image: x}]
+    steps:
+      - restore_cache: {keys: ["mp-{{ .Revision }}"]}
+      - save_cache: {key: "mp-{{ .Revision }}", paths: [~/.npm, dist]}
+  revision-param-path:
+    parameters: {dir: {type: string, default: "~/.npm"}}
+    docker: [{image: x}]
+    steps:
+      - restore_cache: {keys: ["pa-{{ .Revision }}"]}
+      - save_cache: {key: "pa-{{ .Revision }}", paths: ["<< parameters.dir >>"]}
+  revision-no-save:
+    docker: [{image: x}]
+    steps: [{restore_cache: {keys: ["rn-{{ .Revision }}"]}}]
+  bare-env-var:
+    docker: [{image: x}]
+    steps: [{restore_cache: {keys: ["bv-$CIRCLE_SHA1"]}}]
+  buildnum-branch-adjacent: # build 1 on "2fix" and build 12 on "fix" share a key
+    docker: [{image: x}]
+    steps: [{restore_cache: {keys: ["ba-{{ .BuildNum }}{{ .Branch }}"]}}]
+  buildnum-param-adjacent:
+    parameters: {k: {type: string, default: "{{ .BuildNum }}"}}
+    docker: [{image: x}]
+    steps: [{restore_cache: {keys: ["bp-<< parameters.k >>{{ .Branch }}"]}}]
+  epoch-branch-adjacent:
+    docker: [{image: x}]
+    steps: [{restore_cache: {keys: ["ea-{{ epoch }}{{ .Branch }}"]}}]
+
+  # Values that cannot be inspected.
+  untraceable:
+    docker: [{image: x}]
+    steps: [{restore_cache: {keys: ["ut-<< pipeline.parameters.git_revision >>-{{ epoch }}"]}}]
+  enum-stable:
+    docker: [{image: x}]
+    steps: [{restore_cache: {keys: ["es-<< pipeline.parameters.stable_choice >>"]}}]
+  enum-mixed:
+    docker: [{image: x}]
+    steps: [{restore_cache: {keys: ["en-<< pipeline.parameters.ck >>"]}}]
+  enum-alternatives:
+    docker: [{image: x}]
+    steps:
+      - restore_cache: {keys: ["alt-<< pipeline.parameters.alt-key >>"]}
+      - save_cache: {key: "alt-<< pipeline.parameters.alt-key >>", paths: [/tmp/deps]}
+  adjacent-unknown:
+    docker: [{image: x}]
+    steps: [{restore_cache: {keys: ["pad-{{ .BuildNum }}{{ .Environment.PAD }}"]}}]
+
+  # An install and no cache.
+  candidate:
+    docker: [{image: x}]
+    steps: [checkout, {run: npm ci}]
+
+workflows:
+  keys:
+    jobs:
+      - keyed: {name: keyed-default}
+      - keyed: {name: keyed-volatile, cache_key: "{{ epoch }}"}
+      - volatile-default: {name: volatile-default-kept}
+      - volatile-default: {name: volatile-default-overridden, cache_key: '{{ checksum "package-lock.json" }}'}
+      - matrixed: {matrix: {parameters: {cache_key: ["{{ epoch }}", "{{ .BuildNum }}", '{{ checksum "package-lock.json" }}']}}}
+      - build: {matrix: {parameters: {os: [macos]}}}
+      - build-linux: {matrix: {parameters: {arch: [amd64]}}}
+      - aliased: {matrix: {alias: all-aliased, parameters: {os: [linux]}}}
+      - excluded:
+          matrix:
+            parameters: {os: [linux, macos], arch: [amd64]}
+            exclude: [{os: linux, arch: amd64}]
+      - actual: {name: excluded-amd64-linux}
+      - stable-fallback
+      - cross-save
+      - cross-restore
+      - broad-a
+      - broad-b
+      - broad-restore
+      - broad-exact-save
+      - broad-longer-save
+      - broad-exact-restore
+      - seed-save
+      - seed-restore
+      - correlated-prefix
+      - cj-save
+      - cj-restore
+      - no-save
+      - save-first
+      - save-first-epoch
+      - sha-seed
+      - sha-consume: {requires: [sha-seed]}
+      - epoch-no-spaces
+      - epoch-and-buildnum
+      - parallel
+      - parallel-epoch
+      - workflow-id
+      - epoch-then-revision
+      - revision-then-epoch
+      - revision-build-output
+      - revision-mixed-paths
+      - revision-param-path
+      - revision-no-save
+      - bare-env-var
+      - buildnum-branch-adjacent
+      - buildnum-param-adjacent
+      - epoch-branch-adjacent
+      - untraceable
+      - enum-stable
+      - enum-mixed
+      - enum-alternatives
+      - adjacent-unknown
+      - candidate

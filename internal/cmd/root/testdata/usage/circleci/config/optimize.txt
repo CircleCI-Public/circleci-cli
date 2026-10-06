@@ -7,7 +7,7 @@ Flags:
       --in-place                     replace <path>; needs a clean git worktree
       --jq string                    Process values from the response using jq syntax
       --json                         Output as JSON
-      --only strings                 checks to run: resource-class (default all)
+      --only strings                 checks to run: resource-class, cache (default all)
       --org string                   Organization slug (e.g. gh/myorg) or UUID for private orb resolution; defaults to git remote
   -o, --output string                write the optimized config to this file (- for stdout)
       --pipeline-parameters string   pipeline parameters as a YAML map or path to a YAML file

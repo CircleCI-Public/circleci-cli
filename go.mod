@@ -39,6 +39,7 @@ require (
 	golang.org/x/sys v0.48.0
 	gopkg.in/yaml.v3 v3.0.1
 	gotest.tools/v3 v3.5.2
+	mvdan.cc/sh/v3 v3.14.1
 )
 
 require (

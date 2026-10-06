@@ -1,0 +1,519 @@
+version: 2
+jobs:
+  epoch-then-revision:
+    docker:
+    - image: x
+    steps:
+    - restore_cache:
+        keys:
+        - er-{{ epoch }}
+        - er-{{ .Revision }}
+    - save_cache:
+        key: er-{{ .Revision }}
+        paths:
+        - ~/.npm
+  revision-no-save:
+    docker:
+    - image: x
+    steps:
+    - restore_cache:
+        keys:
+        - rn-{{ .Revision }}
+  cross-save:
+    docker:
+    - image: x
+    steps:
+    - save_cache:
+        key: shared-{{ checksum "package-lock.json" }}
+        paths:
+        - ~/.npm
+  correlated-prefix:
+    docker:
+    - image: x
+    steps:
+    - restore_cache:
+        keys:
+        - cp-{{ .BuildNum }}
+    - save_cache:
+        key: cp-{{ .BuildNum }}-seeded
+        paths:
+        - /tmp/deps
+  revision-mixed-paths:
+    docker:
+    - image: x
+    steps:
+    - restore_cache:
+        keys:
+        - mp-{{ .Revision }}
+    - save_cache:
+        key: mp-{{ .Revision }}
+        paths:
+        - ~/.npm
+        - dist
+  workflow-id:
+    docker:
+    - image: x
+    steps:
+    - restore_cache:
+        keys:
+        - wf-{{ .Environment.CIRCLE_WORKFLOW_ID }}
+    - save_cache:
+        key: wf-{{ .Environment.CIRCLE_WORKFLOW_ID }}
+        paths:
+        - ~/.npm
+  enum-mixed:
+    docker:
+    - image: x
+    steps:
+    - restore_cache:
+        keys:
+        - en-stable
+  bare-env-var:
+    docker:
+    - image: x
+    steps:
+    - restore_cache:
+        keys:
+        - bv-$CIRCLE_SHA1
+  save-first:
+    docker:
+    - image: x
+    steps:
+    - save_cache:
+        key: sf-{{ .BuildNum }}
+        paths:
+        - /tmp/deps
+    - restore_cache:
+        keys:
+        - sf-{{ .BuildNum }}
+  revision-then-epoch:
+    docker:
+    - image: x
+    steps:
+    - restore_cache:
+        keys:
+        - re-{{ .Revision }}
+        - re-{{ epoch }}
+    - save_cache:
+        key: re-{{ .Revision }}
+        paths:
+        - ~/.npm
+  volatile-default-overridden:
+    docker:
+    - image: x
+    steps:
+    - restore_cache:
+        keys:
+        - vd-{{ checksum "package-lock.json" }}
+    - save_cache:
+        key: vd-{{ checksum "package-lock.json" }}
+        paths:
+        - ~/.npm
+  cj-save:
+    docker:
+    - image: x
+    steps:
+    - save_cache:
+        key: cj-{{ .BuildNum }}
+        paths:
+        - /tmp/deps
+  parallel:
+    parallelism: 2
+    docker:
+    - image: x
+    steps:
+    - restore_cache:
+        keys:
+        - par-{{ .BuildNum }}
+    - save_cache:
+        key: par-{{ .BuildNum }}
+        paths:
+        - /tmp/deps
+  enum-stable:
+    docker:
+    - image: x
+    steps:
+    - restore_cache:
+        keys:
+        - es-v1
+  epoch-and-buildnum:
+    docker:
+    - image: x
+    steps:
+    - restore_cache:
+        keys:
+        - eb-{{ .BuildNum }}-{{ epoch }}
+    - save_cache:
+        key: eb-{{ .BuildNum }}-{{ epoch }}
+        paths:
+        - /tmp/deps
+  broad-exact-restore:
+    docker:
+    - image: x
+    steps:
+    - restore_cache:
+        keys:
+        - b1-
+  sha-seed:
+    docker:
+    - image: x
+    steps:
+    - save_cache:
+        key: sha-{{ .Environment.CIRCLE_SHA1 }}
+        paths:
+        - /tmp/deps
+  save-first-epoch:
+    docker:
+    - image: x
+    steps:
+    - save_cache:
+        key: se-{{ epoch }}
+        paths:
+        - /tmp/deps
+    - run:
+        command: sleep 2
+    - restore_cache:
+        keys:
+        - se-{{ epoch }}
+  broad-b:
+    docker:
+    - image: x
+    steps:
+    - save_cache:
+        key: v1-b-{{ checksum "b.lock" }}
+        paths:
+        - ~/.npm
+  seed-restore:
+    docker:
+    - image: x
+    steps:
+    - restore_cache:
+        keys:
+        - seed-{{ .BuildNum }}
+  buildnum-branch-adjacent:
+    docker:
+    - image: x
+    steps:
+    - restore_cache:
+        keys:
+        - ba-{{ .BuildNum }}{{ .Branch }}
+  epoch-branch-adjacent:
+    docker:
+    - image: x
+    steps:
+    - restore_cache:
+        keys:
+        - ea-{{ epoch }}{{ .Branch }}
+  build-macos:
+    docker:
+    - image: x
+    steps:
+    - restore_cache:
+        keys:
+        - a-macos-{{ .BuildNum }}
+  adjacent-unknown:
+    docker:
+    - image: x
+    steps:
+    - restore_cache:
+        keys:
+        - pad-{{ .BuildNum }}{{ .Environment.PAD }}
+  broad-restore:
+    docker:
+    - image: x
+    steps:
+    - restore_cache:
+        keys:
+        - v1-{{ epoch }}
+        - v1-
+  sha-consume:
+    docker:
+    - image: x
+    steps:
+    - restore_cache:
+        keys:
+        - sha-{{ .Revision }}
+  matrixed-{{ .BuildNum }}:
+    docker:
+    - image: x
+    steps:
+    - restore_cache:
+        keys:
+        - mx-{{ .BuildNum }}
+  broad-exact-save:
+    docker:
+    - image: x
+    steps:
+    - save_cache:
+        key: b1-
+        paths:
+        - /tmp/a
+  revision-param-path:
+    docker:
+    - image: x
+    steps:
+    - restore_cache:
+        keys:
+        - pa-{{ .Revision }}
+    - save_cache:
+        key: pa-{{ .Revision }}
+        paths:
+        - ~/.npm
+  keyed-volatile:
+    docker:
+    - image: x
+    steps:
+    - restore_cache:
+        keys:
+        - keyed-{{ epoch }}
+    - save_cache:
+        key: keyed-{{ epoch }}
+        paths:
+        - ~/.npm
+  broad-a:
+    docker:
+    - image: x
+    steps:
+    - save_cache:
+        key: v1-a-{{ checksum "a.lock" }}
+        paths:
+        - ~/.npm
+  cross-restore:
+    docker:
+    - image: x
+    steps:
+    - restore_cache:
+        keys:
+        - shared-{{ checksum "package-lock.json" }}
+  buildnum-param-adjacent:
+    docker:
+    - image: x
+    steps:
+    - restore_cache:
+        keys:
+        - bp-{{ .BuildNum }}{{ .Branch }}
+  keyed-default:
+    docker:
+    - image: x
+    steps:
+    - restore_cache:
+        keys:
+        - keyed-{{ checksum "package-lock.json" }}
+    - save_cache:
+        key: keyed-{{ checksum "package-lock.json" }}
+        paths:
+        - ~/.npm
+  matrixed-{{ epoch }}:
+    docker:
+    - image: x
+    steps:
+    - restore_cache:
+        keys:
+        - mx-{{ epoch }}
+  no-save:
+    docker:
+    - image: x
+    steps:
+    - restore_cache:
+        keys:
+        - ns-{{ .BuildNum }}
+  revision-build-output:
+    docker:
+    - image: x
+    steps:
+    - restore_cache:
+        keys:
+        - bo-{{ .Revision }}
+    - save_cache:
+        key: bo-{{ .Revision }}
+        paths:
+        - dist
+  build-linux-amd64:
+    docker:
+    - image: x
+    steps:
+    - restore_cache:
+        keys:
+        - b-amd64-{{ .BuildNum }}
+  parallel-epoch:
+    parallelism: 2
+    docker:
+    - image: x
+    steps:
+    - restore_cache:
+        keys:
+        - pe-{{ epoch }}
+    - save_cache:
+        key: pe-{{ epoch }}
+        paths:
+        - /tmp/deps
+  excluded-amd64-macos:
+    docker:
+    - image: x
+    steps:
+    - run:
+        command: echo excluded
+  volatile-default-kept:
+    docker:
+    - image: x
+    steps:
+    - restore_cache:
+        keys:
+        - vd-{{ epoch }}
+    - save_cache:
+        key: vd-{{ epoch }}
+        paths:
+        - ~/.npm
+  aliased-linux:
+    docker:
+    - image: x
+    steps:
+    - restore_cache:
+        keys:
+        - al-linux-{{ .BuildNum }}
+  seed-save:
+    docker:
+    - image: x
+    steps:
+    - save_cache:
+        key: seed-42-seeded
+        paths:
+        - /tmp/data
+  epoch-no-spaces:
+    docker:
+    - image: x
+    steps:
+    - restore_cache:
+        keys:
+        - sp-{{epoch}}
+    - save_cache:
+        key: sp-{{epoch}}
+        paths:
+        - /tmp/deps
+  stable-fallback:
+    docker:
+    - image: x
+    steps:
+    - restore_cache:
+        keys:
+        - npm-{{ .Revision }}
+        - npm-
+    - save_cache:
+        key: npm-{{ .Revision }}
+        paths:
+        - ~/.npm
+  candidate:
+    docker:
+    - image: x
+    steps:
+    - checkout
+    - run:
+        command: npm ci
+  cj-restore:
+    docker:
+    - image: x
+    steps:
+    - restore_cache:
+        keys:
+        - cj-{{ .BuildNum }}
+  untraceable:
+    docker:
+    - image: x
+    steps:
+    - restore_cache:
+        keys:
+        - ut-main-{{ epoch }}
+  excluded-amd64-linux:
+    docker:
+    - image: x
+    steps:
+    - restore_cache:
+        keys:
+        - ac-{{ .BuildNum }}
+  broad-longer-save:
+    docker:
+    - image: x
+    steps:
+    - save_cache:
+        key: b1-a
+        paths:
+        - /tmp/b
+  enum-alternatives:
+    docker:
+    - image: x
+    steps:
+    - restore_cache:
+        keys:
+        - alt-{{ .BuildNum }}
+    - save_cache:
+        key: alt-{{ .BuildNum }}
+        paths:
+        - /tmp/deps
+  matrixed-{{ checksum "package-lock.json" }}:
+    docker:
+    - image: x
+    steps:
+    - restore_cache:
+        keys:
+        - mx-{{ checksum "package-lock.json" }}
+workflows:
+  keys:
+    jobs:
+    - keyed-default
+    - keyed-volatile
+    - volatile-default-kept
+    - volatile-default-overridden
+    - matrixed-{{ epoch }}
+    - matrixed-{{ .BuildNum }}
+    - matrixed-{{ checksum "package-lock.json" }}
+    - build-macos
+    - build-linux-amd64
+    - aliased-linux
+    - excluded-amd64-macos
+    - excluded-amd64-linux
+    - stable-fallback
+    - cross-save
+    - cross-restore
+    - broad-a
+    - broad-b
+    - broad-restore
+    - broad-exact-save
+    - broad-longer-save
+    - broad-exact-restore
+    - seed-save
+    - seed-restore
+    - correlated-prefix
+    - cj-save
+    - cj-restore
+    - no-save
+    - save-first
+    - save-first-epoch
+    - sha-seed
+    - sha-consume:
+        requires:
+        - sha-seed
+        upstream:
+          sha-seed:
+          - success
+    - epoch-no-spaces
+    - epoch-and-buildnum
+    - parallel
+    - parallel-epoch
+    - workflow-id
+    - epoch-then-revision
+    - revision-then-epoch
+    - revision-build-output
+    - revision-mixed-paths
+    - revision-param-path
+    - revision-no-save
+    - bare-env-var
+    - buildnum-branch-adjacent
+    - buildnum-param-adjacent
+    - epoch-branch-adjacent
+    - untraceable
+    - enum-stable
+    - enum-mixed
+    - enum-alternatives
+    - adjacent-unknown
+    - candidate
+  version: 2
