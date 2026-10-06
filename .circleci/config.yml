@@ -101,37 +101,21 @@ jobs:
       - run: task ci:test
       - store_results
 
-  mark-release:
-    executor: linux
-    steps:
-      - run:
-          name: Plan deployment
-          command: |
-            circleci run release plan "${CIRCLE_JOB}" \
-              --environment-name="default" \
-              --component-name="${CIRCLE_PROJECT_REPONAME}" \
-              --target-version="1.0.${CIRCLE_BUILD_NUM}-${CIRCLE_SHA1:0:7}"
-      - run:
-          name: Update deployment status to running
-          command: circleci run release update "${CIRCLE_JOB}" --status=RUNNING
-      - run:
-          name: Update deployment status to success
-          command: circleci run release update "${CIRCLE_JOB}" --status=SUCCESS
-          when: on_success
-      - run:
-          name: Update deployment status to failed
-          command: circleci run release update "${CIRCLE_JOB}" --status=FAILED
-          when: on_fail
-
   deploy:
     executor: linux
     parameters:
+      # Run before anything is installed, so a push with nothing to release
+      # stops cheaply.
+      gate_steps:
+        type: steps
+        default: []
       publish_steps:
         type: steps
         default:
           - run: task ci:release
     steps:
       - setup
+      - steps: << parameters.gate_steps >>
       - setup-docker
       - run: sudo apt update --yes
       - run:
@@ -179,6 +163,13 @@ jobs:
       - run:
           name: Verify circleci/circleci-cli:v1-alpine
           command: docker run --rm circleci/circleci-cli:v1-alpine sh -c 'uname -m; circleci version'
+
+  # Opens or updates the release PR (see RELEASE.md).
+  release-pr:
+    executor: linux
+    steps:
+      - setup
+      - run: task ci:release-pr
 
   docs:
     executor: linux
@@ -256,12 +247,21 @@ workflows:
             branches:
               only: main
 
-      - mark-release:
+      - release-pr:
+          # One at a time, so two pushes can't race to rewrite release/next.
+          serial-group: << pipeline.project.slug >>/release-pr
           requires:
             - ok-to-deploy
+          context:
+            - devex-release
 
+      # Publishes only on the push that merges the release PR; halts otherwise.
       - deploy:
           serial-group: << pipeline.project.slug >>/deploy
+          gate_steps:
+            - run:
+                name: Halt unless the release is unpublished
+                command: task ci:halt-unless-unreleased
           requires:
             - ok-to-deploy
           context:

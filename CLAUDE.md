@@ -107,6 +107,9 @@ Consult when the topic comes up: [agents/09-robustness.md](agents/09-robustness.
 cmd/circleci/main.go      Entry point. Cobra bootstrap + top-level error handling.
                           (Lives under cmd/circleci/ so `go install .../cmd/circleci`
                           produces a binary named `circleci`, not `circleci-cli`.)
+cmd/ci/                   Release-time helper programs run from the Taskfile's ci: tasks:
+                          release (the release PR — see RELEASE.md), packagecloud,
+                          cloudsmith, virustotal. Never shipped.
 acceptance/               Acceptance tests — exec the compiled binary against fake servers.
 agents/                   Design guidelines (normative — see above).
 clikit/                   Terminal I/O + presentation layer — its own Go module, published
@@ -146,7 +149,7 @@ Three constraints when editing `clikit`:
 already run both modules; by hand, name the module path
 (`github.com/CircleCI-Public/circleci-cli/clikit/...`) or `cd clikit` first.
 
-**Releasing.** Go resolves a module in a subdirectory only from a `clikit/vX.Y.Z` tag — the CLI's
+**Releasing.** A release is made by merging the release PR — see [RELEASE.md](RELEASE.md). Go resolves a module in a subdirectory only from a `clikit/vX.Y.Z` tag — the CLI's
 own `vX.Y.Z` tag does nothing for it. `task ci:tag-clikit`, the last step of `ci:release`, pushes
 that tag on every release, mirroring the CLI version, so `clikit/v1.0.123` is the clikit that
 shipped in `v1.0.123`. It must stay **last**: with two tags on one commit

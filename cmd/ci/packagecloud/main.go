@@ -30,10 +30,10 @@
 //
 // Usage:
 //
-//	PACKAGECLOUD_TOKEN=... go run ./cmd/packagecloud pkg push --repo circleci/circleci dist/*.rpm dist/*.deb
-//	PACKAGECLOUD_TOKEN=... go run ./cmd/packagecloud repo list
-//	PACKAGECLOUD_TOKEN=... go run ./cmd/packagecloud repo get circleci/runner
-//	PACKAGECLOUD_TOKEN=... go run ./cmd/packagecloud repo create circleci/circleci
+//	PACKAGECLOUD_TOKEN=... go run ./cmd/ci/packagecloud pkg push --repo circleci/circleci dist/*.rpm dist/*.deb
+//	PACKAGECLOUD_TOKEN=... go run ./cmd/ci/packagecloud repo list
+//	PACKAGECLOUD_TOKEN=... go run ./cmd/ci/packagecloud repo get circleci/runner
+//	PACKAGECLOUD_TOKEN=... go run ./cmd/ci/packagecloud repo create circleci/circleci
 package main
 
 import (
