@@ -33,8 +33,10 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 
+	"github.com/google/uuid"
 	"gopkg.in/yaml.v3"
 )
 
@@ -91,16 +93,13 @@ func (i *Info) EffectiveSlug() string {
 		return ""
 	}
 	if strings.HasPrefix(i.Project.Slug, "circleci/") && i.Project.ID != "" && i.Organization.ID != "" {
-		return SlugFor(i.Organization.ID, i.Project.ID)
+		orgID, oErr := canonicaliseUUIDString(i.Organization.ID)
+		projectID, pErr := canonicaliseUUIDString(i.Project.ID)
+		if oErr == nil && pErr == nil {
+			return "circleci/" + orgID + "/" + projectID
+		}
 	}
 	return i.Project.Slug
-}
-
-// SlugFor builds the slug of a CircleCI-native project from its organization and
-// project IDs. The API accepts UUIDs in place of the compact IDs a slug usually
-// carries, which is what lets a caller holding only IDs address the project.
-func SlugFor(orgID, projectID string) string {
-	return "circleci/" + orgID + "/" + projectID
 }
 
 // ErrNotFound is returned by Read when no info file exists.
@@ -126,8 +125,9 @@ func Read(workDir string) (*Info, error) {
 	if err := yaml.Unmarshal(data, &info); err != nil {
 		return nil, fmt.Errorf("parsing %s: %w", FilePath, err)
 	}
-	if info.Project.Slug == "" {
-		return nil, fmt.Errorf("%s is missing required 'project.slug' field", FilePath)
+	info, err = normalise(info)
+	if err != nil {
+		return nil, err
 	}
 	return &info, nil
 }
@@ -135,11 +135,18 @@ func Read(workDir string) (*Info, error) {
 // Write serialises info to .circleci/info.yml inside workDir, creating the
 // .circleci directory if needed.
 func Write(workDir string, info *Info) error {
+	if info == nil {
+		return errors.New("nil is not a valid repository info struct")
+	}
+	i, err := normalise(*info)
+	if err != nil {
+		return err
+	}
 	target := Path(workDir)
 	if err := os.MkdirAll(filepath.Dir(target), 0o755); err != nil { //#nosec:G301 // .circleci/ is a repo-shared directory, world-readable like the surrounding workspace
 		return fmt.Errorf("creating .circleci directory: %w", err)
 	}
-	data, err := yaml.Marshal(info)
+	data, err := yaml.Marshal(i)
 	if err != nil {
 		return fmt.Errorf("serialising info: %w", err)
 	}
@@ -147,4 +154,121 @@ func Write(workDir string, info *Info) error {
 		return fmt.Errorf("writing %s: %w", FilePath, err)
 	}
 	return nil
+}
+
+func normalise(info Info) (Info, error) {
+	var orgID string
+	var projectID string
+	var err error
+
+	if info.Organization.ID != "" {
+		orgID, err = canonicaliseUUIDString(info.Organization.ID)
+		if err != nil {
+			return Info{}, fmt.Errorf("%s is not a valid org ID: %w", info.Organization.ID, err)
+		}
+	}
+	if info.Organization.Name != "" && info.Organization.Name != strings.TrimSpace(info.Organization.Name) {
+		return Info{}, fmt.Errorf("%q is not a valid org name", info.Organization.Name)
+	}
+	if info.Project.ID != "" {
+		projectID, err = canonicaliseUUIDString(info.Project.ID)
+		if err != nil {
+			return Info{}, fmt.Errorf("%s is not a valid project ID: %w", info.Project.ID, err)
+		}
+	}
+	if info.Project.Name != "" && info.Project.Name != strings.TrimSpace(info.Project.Name) {
+		return Info{}, fmt.Errorf("%q is not a valid project name", info.Project.Name)
+	}
+	slug, err := normaliseSlug(info.Project.Slug)
+	if err != nil {
+		return Info{}, err
+	}
+
+	return Info{
+		Organization: Organization{
+			ID:   orgID,
+			Name: info.Organization.Name,
+		},
+		Project: Project{
+			ID:   projectID,
+			Name: info.Project.Name,
+			Slug: slug,
+		},
+	}, nil
+}
+
+func normaliseSlug(slug string) (string, error) {
+	if slug == "" {
+		return "", fmt.Errorf("%s is missing required 'project.slug' field", FilePath)
+	}
+	slugParts := strings.SplitN(slug, "/", 3)
+	if len(slugParts) != 3 {
+		return "", fmt.Errorf("%q is not a valid slug", slug)
+	}
+	switch slugParts[0] {
+	case "circleci":
+		if slugParts[1] == "" || !validCircleCISlugComponent(slugParts[1]) {
+			return "", fmt.Errorf("%q is not a valid slug", slug)
+		}
+		if slugParts[2] == "" || !validCircleCISlugComponent(slugParts[2]) {
+			return "", fmt.Errorf("%q is not a valid slug", slug)
+		}
+		canonicalOrgID, oErr := canonicaliseUUIDString(slugParts[1])
+		canonicalProjectID, pErr := canonicaliseUUIDString(slugParts[2])
+		if (oErr == nil) != (pErr == nil) {
+			return "", errors.New("mixing ID encodings in a slug is not permitted")
+		}
+		return fmt.Sprintf("circleci/%s/%s", canonicalOrgID, canonicalProjectID), nil
+	case "bb", "bitbucket":
+		if slugParts[1] == "" || !validVCSName(slugParts[1]) {
+			return "", fmt.Errorf("%q is not a valid slug", slug)
+		}
+		if slugParts[2] == "" || !validVCSName(slugParts[2]) {
+			return "", fmt.Errorf("%q is not a valid slug", slug)
+		}
+		return fmt.Sprintf("bb/%s/%s", slugParts[1], slugParts[2]), nil
+	case "gh", "github":
+		if slugParts[1] == "" || !validVCSName(slugParts[1]) {
+			return "", fmt.Errorf("%q is not a valid slug", slug)
+		}
+		if slugParts[2] == "" || !validVCSName(slugParts[2]) {
+			return "", fmt.Errorf("%q is not a valid slug", slug)
+		}
+		return fmt.Sprintf("gh/%s/%s", slugParts[1], slugParts[2]), nil
+	default:
+		return "", fmt.Errorf("slugs may not start with %s/", slugParts[0])
+	}
+}
+
+func canonicaliseUUIDString(s string) (string, error) {
+	id, err := uuid.Parse(s)
+	if err != nil {
+		return s, err
+	}
+	return id.String(), nil
+}
+
+// This is intentionally looser than the actual enforcement for CircleCI org
+// and project names. This is just rough validation to prevent obviously-wrong
+// data from being persisted.
+var validCircleCISlugComponentRegex = regexp.MustCompile(`^[A-Za-z0-9-]{14,36}$`)
+
+func validCircleCISlugComponent(s string) bool {
+	return validCircleCISlugComponentRegex.MatchString(s) &&
+		s != "." &&
+		s != ".." &&
+		!strings.ContainsRune(s, '/')
+}
+
+// This is intentionally looser than the actual enforcement by Bitbucket and
+// GitHub. We're aiming here for rough validation to allow for fast, local and
+// potentially offline error handling and to avoid persisting obviously-wrong
+// data. This also has to match both UUIDs and base58-encoded UUIDs.
+var validVCSNameRegex = regexp.MustCompile(`^[A-Za-z0-9._-]+$`)
+
+func validVCSName(s string) bool {
+	return validVCSNameRegex.MatchString(s) &&
+		s != "." &&
+		s != ".." &&
+		!strings.ContainsRune(s, '/')
 }

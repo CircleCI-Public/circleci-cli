@@ -53,8 +53,11 @@ const (
 	// The org and project IDs are real UUIDs: the v3 entities the CLI decodes type
 	// them as such, so a placeholder string would fail to parse rather than fail an
 	// assertion.
-	onboardOrgID          = "a0000000-0000-4000-8000-00000000d001"
-	onboardProjectID      = "a0000000-0000-4000-8000-00000000d002"
+	onboardOrgID     = "a0000000-0000-4000-8000-00000000d001"
+	onboardProjectID = "a0000000-0000-4000-8000-00000000d002"
+	// onboardProjectSlug is the slug the API gives a CircleCI-native project:
+	// base58 encodings of its org and project IDs.
+	onboardProjectSlug    = "circleci/LkwArLszcuhTqGrCN12C56/LkwArLszcuhTqGrCN12C57"
 	onboardPipelineDefID  = "pdef-uuid-1"
 	onboardRepoExternalID = "123456789"
 )
@@ -318,7 +321,7 @@ func TestOnboard_PostSignup_FreshSignup_ContinuesToProjectSetup(t *testing.T) {
 	)
 	fake.SetCreateProjectResponse(map[string]any{
 		"id":                onboardProjectID,
-		"slug":              "circleci/myorg/my-repo",
+		"slug":              onboardProjectSlug,
 		"name":              "my-repo",
 		"organization_name": "myorg",
 		"organization_slug": "circleci/myorg",
@@ -701,11 +704,11 @@ func TestOnboard_PostSignup_ProjectNameConflict_Resumes(t *testing.T) {
 	dir, fake, env := onboardRepo(t)
 	fake.SetCreateProjectConflict()
 	fake.AddProjectBySlug("circleci/myorg/my-repo", onboardProjectID, "my-repo", onboardOrgID)
-	// Adopting it hydrates the record from the slug its UUIDs build, which is the
-	// only handle available once the name is taken.
-	fake.AddProjectInfo("circleci/"+onboardOrgID+"/"+onboardProjectID, fakes.ProjectInfo{
+	// Adopting it hydrates the record by looking the project up by its ID, which is
+	// the only handle available once the name is taken.
+	fake.AddProjectInfo(onboardProjectID, fakes.ProjectInfo{
 		ID:               onboardProjectID,
-		Slug:             "circleci/myorg/my-repo",
+		Slug:             onboardProjectSlug,
 		Name:             "my-repo",
 		OrganizationName: "myorg",
 		OrganizationSlug: "circleci/myorg",

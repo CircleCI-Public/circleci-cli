@@ -259,6 +259,9 @@ internal/
 ├── telemetry/            Segment event sender + background delegate + receiver/.
 ├── agent/                Detect() — identifies the calling AI agent / MCP host so telemetry
 │                         attributes tool-call subprocesses correctly.
+├── installmethod/        Detect(): how the running binary was installed (homebrew, snap,
+│                         winget, …), worked out from its path. Reported in telemetry.
+├── buildinfo/            AgeDays(): days since the commit the binary was built from.
 ├── bulkhead/             Runs a slice of work with bounded parallelism.
 └── conventions/          Tests enforcing this repo's own house rules (currently the testing
                           rules from agents/14-testing.md), with allowlists naming the files

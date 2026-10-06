@@ -516,7 +516,7 @@ func adoptExistingProject(
 		return nil
 	}
 
-	proj, err := client.GetProjectInfo(ctx, projectref.SlugFor(existing.OrgID.String(), existing.ID.String()))
+	proj, err := client.GetProjectInfo(ctx, existing.ID.String())
 	if err != nil {
 		reportUnresolvedConflict(ctx, workDir, selectedOrg, name)
 		return nil

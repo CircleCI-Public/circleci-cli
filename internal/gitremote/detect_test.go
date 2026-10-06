@@ -121,14 +121,14 @@ func TestDetect_PrefersInfoYml(t *testing.T) {
 		{
 			name: "circleci slug with uuids yields canonical slug",
 			info: projectref.Info{
-				Organization: projectref.Organization{ID: "E6i3yYZeWZhcf8UNqcKfjN"},
+				Organization: projectref.Organization{ID: "c1e89d5c-d2e5-4db2-b2d7-a35cf73160ad"},
 				Project: projectref.Project{
-					Slug: "circleci/OrgShortId/ProjShortId",
-					ID:   "13c8F7nusayivoSxC6GMsw",
+					Slug: "circleci/E6i3yYZeWZhcf8UNqcKfjN/13c8F7nusayivoSxC6GMsw",
+					ID:   "3b524838-a95e-44eb-bc56-deb0af23ef19",
 				},
 			},
-			wantSlug:  "circleci/E6i3yYZeWZhcf8UNqcKfjN/13c8F7nusayivoSxC6GMsw",
-			wantOrgID: "E6i3yYZeWZhcf8UNqcKfjN",
+			wantSlug:  "circleci/c1e89d5c-d2e5-4db2-b2d7-a35cf73160ad/3b524838-a95e-44eb-bc56-deb0af23ef19",
+			wantOrgID: "c1e89d5c-d2e5-4db2-b2d7-a35cf73160ad",
 		},
 		{
 			// The ID form addresses CircleCI-native projects only — the API answers
@@ -182,7 +182,7 @@ func TestDetect_SurfacesMalformedInfoYml(t *testing.T) {
 	// Valid YAML, but missing the required project.slug field.
 	assert.NilError(t, os.WriteFile(
 		filepath.Join(dir, projectref.FilePath),
-		[]byte("organization:\n  id: OID\n"), 0o644,
+		[]byte("organization:\n  id: c1e89d5c-d2e5-4db2-b2d7-a35cf73160ad\n"), 0o644,
 	))
 
 	cwd, err := os.Getwd()
@@ -253,10 +253,10 @@ func TestDetectRepoName_IgnoresInfoYml(t *testing.T) {
 func TestDetectRepoName_FallsBackToLinkedName(t *testing.T) {
 	dir := t.TempDir() // no git repository at all, so the remote is unreadable
 	writeErr := projectref.Write(dir, &projectref.Info{
-		Organization: projectref.Organization{ID: "org-uuid"},
+		Organization: projectref.Organization{ID: "c1e89d5c-d2e5-4db2-b2d7-a35cf73160ad"},
 		Project: projectref.Project{
 			Slug: "gh/myorg/api",
-			ID:   "proj-uuid",
+			ID:   "3b524838-a95e-44eb-bc56-deb0af23ef19",
 			Name: "api",
 		},
 	})
@@ -276,10 +276,10 @@ func TestDetectRepoName_FallsBackToLinkedName(t *testing.T) {
 func TestDetectFromRemote_IgnoresInfoYml(t *testing.T) {
 	dir := t.TempDir()
 	assert.NilError(t, projectref.Write(dir, &projectref.Info{
-		Organization: projectref.Organization{ID: "OID"},
+		Organization: projectref.Organization{ID: "c1e89d5c-d2e5-4db2-b2d7-a35cf73160ad"},
 		Project: projectref.Project{
 			Slug: "gh/myorg/myrepo",
-			ID:   "PID",
+			ID:   "3b524838-a95e-44eb-bc56-deb0af23ef19",
 		},
 	}))
 

@@ -404,6 +404,7 @@ func NewCircleCI(t *testing.T, tokens ...string) *CircleCI {
 	r.Post("/api/v2/project/{vcs}/{org}/{repo}/envvar", f.handleSetEnvVar)
 	r.Delete("/api/v2/project/{vcs}/{org}/{repo}/envvar/{name}", f.handleDeleteEnvVar)
 	r.Get("/api/v2/project/{vcs}/{org}/{repo}", f.handleGetProjectInfo)
+	r.Get("/api/v2/project/{projectID}", f.handleGetProjectInfoByID)
 	r.Get("/api/v3/pipelines", f.handleListPipelineDefinitions)
 	r.Post("/api/v3/pipelines", f.handleCreatePipelineDefinition)
 	r.Get("/api/v3/triggers", f.handleListTriggers)
@@ -2626,7 +2627,7 @@ type VCSInfo struct {
 }
 
 // AddProjectInfo registers a project info response for GET /api/v2/project/<slug>.
-// slug should be in "vcs/org/repo" form.
+// slug should be in "vcs/org/repo" form, or a bare project ID.
 func (f *CircleCI) AddProjectInfo(slug string, info ProjectInfo) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -3837,8 +3838,19 @@ func providerOrDefault(repo ProviderRepo) string {
 
 func (f *CircleCI) handleGetProjectInfo(w http.ResponseWriter, r *http.Request) {
 	slug := chi.URLParam(r, "vcs") + "/" + chi.URLParam(r, "org") + "/" + chi.URLParam(r, "repo")
+	f.serveProjectInfo(w, r, slug)
+}
+
+// handleGetProjectInfoByID serves GET /api/v2/project/{projectID}: the real API
+// accepts a bare project UUID in place of a slug. Register it with
+// AddProjectInfo(projectID, ...).
+func (f *CircleCI) handleGetProjectInfoByID(w http.ResponseWriter, r *http.Request) {
+	f.serveProjectInfo(w, r, chi.URLParam(r, "projectID"))
+}
+
+func (f *CircleCI) serveProjectInfo(w http.ResponseWriter, r *http.Request, key string) {
 	f.mu.RLock()
-	info, ok := f.projectInfos[slug]
+	info, ok := f.projectInfos[key]
 	f.mu.RUnlock()
 
 	if !ok {
