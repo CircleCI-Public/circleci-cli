@@ -1,0 +1,11 @@
+Usage:  circleci preflight cleanup [flags]
+
+Flags:
+  -n, --dry-run           show what would be deleted without deleting
+  -h, --help              help for cleanup
+      --id string         only clean up the preflight with this ID
+      --include-running   also delete branches whose run has not ended
+      --json              Output as JSON
+      --project string    project slug (e.g. gh/org/repo); defaults to git remote
+      --remote string     git remote to delete branches from (default "origin")
+  

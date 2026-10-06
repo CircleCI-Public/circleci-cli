@@ -509,6 +509,82 @@ JSON fields: id, state, number, created_at, triggered — or triggered, message 
 - Output as JSON for scripting: 
   `circleci pipeline run --project gh/myorg/myrepo --definition-id 2338d0ae-5541-4bbf-88a2-55e9f7281f80 --branch main --json`
 
+### `circleci preflight <command>`
+
+Run uncommitted changes through CI before you commit
+
+Run your working tree through CircleCI without committing it.
+
+A preflight snapshots the working tree — staged, unstaged and untracked
+changes, minus ignored files — into one commit on a throwaway branch
+under `cci/preflight/`, diffed against the default branch, pushes it,
+and lets the project's push trigger start a run. Your HEAD, index and
+working tree are never touched.
+Jobs can detect a preflight from the branch name, e.g.
+`[[ $CIRCLE_BRANCH == cci/preflight/* ]]`.
+
+#### `circleci preflight cleanup [flags]`
+
+Delete preflight branches left on the remote
+
+Delete the `cci/preflight/*` branches that preflights left behind — after
+--no-watch or --no-cleanup, or when a preflight was killed. Branches whose
+run is still going are skipped, since a preflight may still be watching them.
+
+JSON fields: preflight_id, branch, commit, run_id, status (deleted,
+would_delete, skipped_running, delete_failed), error
+
+| Flag                | Description                                             |
+| ------------------- | ------------------------------------------------------- |
+| `-n, --dry-run`     | show what would be deleted without deleting             |
+| `--id string`       | only clean up the preflight with this ID                |
+| `--include-running` | also delete branches whose run has not ended            |
+| `--json`            | Output as JSON                                          |
+| `--project string`  | project slug (e.g. gh/org/repo); defaults to git remote |
+| `--remote string`   | git remote to delete branches from (default "origin")   |
+
+
+**Examples:**
+
+- Delete every finished preflight branch: 
+  `circleci preflight cleanup`
+- Show what would be deleted: 
+  `circleci preflight cleanup --dry-run`
+- Delete one preflight's branch, even if its run is still going: 
+  `circleci preflight cleanup --id 4b1f8e2a-6c1d-4f7e-9a3b-2d5c8e1f0a4b --include-running`
+
+#### `circleci preflight run [flags]`
+
+Push the working tree to a temporary branch and watch its run
+
+Push the working tree to a `cci/preflight/<id>` branch and watch the run it starts,
+reporting each failed job's steps and tests as it fails. See `circleci help preflight-guide`.
+
+--json streams one event per line, by type: branch_pushed (preflight_id, branch,
+commit, base, changes), run_started (run_id, url), job_failed (job.id/name/workflow/url/
+failed_steps[]/failed_tests[]), run_summary (run_id, outcome, failed_jobs[], ...)
+
+| Flag                  | Description                                                        |
+| --------------------- | ------------------------------------------------------------------ |
+| `--interval duration` | how often to poll the run (default 5s)                             |
+| `--json`              | Output as JSON                                                     |
+| `--no-cleanup`        | keep the branch, and the run going, when the preflight stops       |
+| `--no-failfast`       | wait for the whole run instead of stopping at the first failed job |
+| `--no-watch`          | return once the run starts, keeping the branch                     |
+| `--project string`    | project slug (e.g. gh/org/repo); defaults to git remote            |
+| `--remote string`     | git remote to push the branch to (default "origin")                |
+| `--timeout duration`  | maximum time to watch the run (default 30m0s)                      |
+
+
+**Examples:**
+
+- Run local changes through CI, stopping at the first failure: 
+  `circleci preflight run`
+- Stream events for a coding agent: 
+  `circleci preflight run --json`
+- Push and return once the run starts; clean up later: 
+  `circleci preflight run --no-watch`
+
 ### `circleci run <command>`
 
 Trigger, watch and cancel pipeline runs

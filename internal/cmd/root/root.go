@@ -57,6 +57,7 @@ import (
 	cmdorg "github.com/CircleCI-Public/circleci-cli/internal/cmd/org"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmd/pipeline"
 	cmdpolicy "github.com/CircleCI-Public/circleci-cli/internal/cmd/policy"
+	cmdpreflight "github.com/CircleCI-Public/circleci-cli/internal/cmd/preflight"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmd/project"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmd/receivetelemetry"
 	cmdrun "github.com/CircleCI-Public/circleci-cli/internal/cmd/run"
@@ -239,6 +240,7 @@ func NewRootCmd(version string) *cobra.Command {
 	cmd.AddCommand(cmdorb.NewOrbCmd())
 	cmd.AddCommand(cmdorg.NewOrgCmd())
 	cmd.AddCommand(cmdpolicy.NewPolicyCmd())
+	cmd.AddCommand(cmdpreflight.NewPreflightCmd())
 	cmd.AddCommand(cmdrun.NewRunCmd())
 	cmd.AddCommand(cmdversion.NewVersionCmd(version))
 	cmd.AddCommand(completion.NewCompletionCmd())
