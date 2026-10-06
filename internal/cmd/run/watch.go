@@ -396,6 +396,7 @@ func watchState(state runGetOutput) ui.RunWatchState {
 	out := ui.RunWatchState{
 		Workflows:         make([]ui.RunWatchWorkflow, 0, len(state.Workflows)),
 		Errors:            watchErrors(state.Errors),
+		Warnings:          watchWarnings(state.Warnings),
 		Done:              runEnded(state),
 		AllWorkflowsEnded: allWorkflowsEnded(state.Workflows),
 		Outcome:           deriveDisplayStatus(state),
@@ -505,6 +506,14 @@ func watchErrors(errs []errorOutput) []ui.RunWatchError {
 	return out
 }
 
+func watchWarnings(warns []warningOutput) []ui.RunWatchWarning {
+	out := make([]ui.RunWatchWarning, 0, len(warns))
+	for _, w := range warns {
+		out = append(out, ui.RunWatchWarning{Type: w.Type, Message: w.Message, Description: w.Description, URL: w.URL})
+	}
+	return out
+}
+
 // watchFingerprint summarises the statuses in a poll, so the non-interactive
 // path can print a line only when something actually moved.
 func watchFingerprint(state ui.RunWatchState) string {
@@ -533,6 +542,7 @@ func printWatchLine(ctx context.Context, state ui.RunWatchState, elapsed time.Du
 }
 
 func watchFailFastResult(ctx context.Context, state ui.RunWatchState, runID uuid.UUID, elapsed time.Duration) error {
+	printWatchWarnings(ctx, state)
 	names := failedJobNames(state)
 	iostream.ErrPrintf(ctx, "%s Run %s has failing job(s): %s — exiting (%s)\n",
 		iostream.SymbolFail(ctx), runID, strings.Join(names, ", "), ui.FormatElapsed(elapsed))
@@ -552,6 +562,7 @@ func failedJobNames(state ui.RunWatchState) []string {
 }
 
 func watchFinalResult(ctx context.Context, state ui.RunWatchState, runID uuid.UUID, elapsed time.Duration) error {
+	printWatchWarnings(ctx, state)
 	switch state.Outcome {
 	case "succeeded":
 		iostream.ErrPrintf(ctx, "%s Run %s succeeded (%s)\n",
@@ -595,6 +606,18 @@ func runErrorLine(e ui.RunWatchError) string {
 		return "error: " + msg
 	}
 	return e.Type + " error: " + msg
+}
+
+func printWatchWarnings(ctx context.Context, state ui.RunWatchState) {
+	for _, w := range state.Warnings {
+		iostream.ErrPrintf(ctx, "%s %s\n", iostream.SymbolWarn(ctx), strings.TrimSpace(w.Message))
+		if w.Description != "" {
+			iostream.ErrPrintf(ctx, "  %s\n", w.Description)
+		}
+		if w.URL != "" {
+			iostream.ErrPrintf(ctx, "  \u2192 %s\n", w.URL)
+		}
+	}
 }
 
 // runFailureSuggestions is what to do next about a failed run: validate the

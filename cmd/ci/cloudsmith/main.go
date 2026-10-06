@@ -23,7 +23,7 @@
 // Command cloudsmith publishes Linux packages (.deb and .rpm) to a Cloudsmith
 // repository via the public REST API.
 //
-// Like cmd/packagecloud, this is a small release-time tool: goreleaser can't push
+// Like cmd/ci/packagecloud, this is a small release-time tool: goreleaser can't push
 // to Cloudsmith without a Pro licence, so we drive the API directly instead.
 //
 // Uploading a package is a two-step flow:
@@ -38,8 +38,8 @@
 //
 // Usage:
 //
-//	CLOUDSMITH_API_KEY=... go run ./cmd/cloudsmith push deb --repo circleci-deps/public dist/*.deb
-//	CLOUDSMITH_API_KEY=... go run ./cmd/cloudsmith push rpm --repo circleci-deps/public dist/*.rpm
+//	CLOUDSMITH_API_KEY=... go run ./cmd/ci/cloudsmith push deb --repo circleci-deps/public dist/*.deb
+//	CLOUDSMITH_API_KEY=... go run ./cmd/ci/cloudsmith push rpm --repo circleci-deps/public dist/*.rpm
 package main
 
 import (

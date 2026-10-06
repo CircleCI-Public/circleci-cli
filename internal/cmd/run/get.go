@@ -93,9 +93,9 @@ func newGetCmd() *cobra.Command {
 			recent runs; --no-interactive, --json, or a non-interactive session skips it
 			and resolves the latest run directly.
 
-			JSON fields: id, phase, outcome, current_outcome, branch, tag, revision,
-			repository_url, commit.subject/url/author_name/author_login, created_at,
-			errors[].type/message, workflows[].id/name/phase/outcome/current_outcome/duration/
+			JSON fields: id, phase, outcome, current_outcome, branch, tag, revision, repository_url,
+			commit.subject/url/author_name/author_login, created_at, errors[].type/message,
+			warnings[].type/message/description/url, workflows[].id/name/phase/outcome/current_outcome/duration/
 			jobs[].id/name/phase/outcome/current_outcome/type
 		`),
 		Example: heredoc.Doc(`
@@ -154,12 +154,20 @@ type runGetOutput struct {
 	Commit         *commitOutput    `json:"commit,omitempty"`
 	CreatedAt      string           `json:"created_at"`
 	Errors         []errorOutput    `json:"errors,omitempty"`
+	Warnings       []warningOutput  `json:"warnings,omitempty"`
 	Workflows      []workflowOutput `json:"workflows"`
 }
 
 type errorOutput struct {
 	Type    string `json:"type"`
 	Message string `json:"message"`
+}
+
+type warningOutput struct {
+	Type        string `json:"type"`
+	Message     string `json:"message"`
+	Description string `json:"description,omitempty"`
+	URL         string `json:"url,omitempty"`
 }
 
 // commitOutput is the JSON shape for a run's head commit, shared by run get and
@@ -925,6 +933,11 @@ func buildOutput(r *apiclient.RunV3, workflows []apiclient.WorkflowV3, wfJobs []
 		errs[i] = errorOutput{Type: e.Type, Message: e.Message}
 	}
 
+	warns := make([]warningOutput, len(r.Warnings))
+	for i, w := range r.Warnings {
+		warns[i] = warningOutput{Type: w.Type, Message: w.Message, Description: w.Description, URL: w.URL}
+	}
+
 	return runGetOutput{
 		ID:             r.ID,
 		Phase:          r.Phase,
@@ -937,6 +950,7 @@ func buildOutput(r *apiclient.RunV3, workflows []apiclient.WorkflowV3, wfJobs []
 		Commit:         commitOutputFrom(r.Commit),
 		CreatedAt:      r.CreatedAt.Format("2006-01-02 15:04:05 UTC"),
 		Errors:         errs,
+		Warnings:       warns,
 		Workflows:      wflows,
 	}
 }
@@ -1020,6 +1034,18 @@ func runMarkdown(r runGetOutput, u string) string {
 			_, _ = fmt.Fprintf(&md, "- **%s**: %s\n", e.Type, e.Message)
 		}
 	}
+	if len(r.Warnings) > 0 {
+		md.WriteString("\n## Warnings\n")
+		for _, w := range r.Warnings {
+			_, _ = fmt.Fprintf(&md, "- %s\n", w.Message)
+			if w.Description != "" {
+				_, _ = fmt.Fprintf(&md, "  %s\n", w.Description)
+			}
+			if w.URL != "" {
+				_, _ = fmt.Fprintf(&md, "  \u2192 %s\n", w.URL)
+			}
+		}
+	}
 	md.WriteString("\n")
 
 	if len(r.Workflows) == 0 {
@@ -1082,10 +1108,11 @@ func runItemsWithProjects(runs []apiclient.RunV3, withProject bool) []ui.RunGetI
 			project = cmdutil.RepoSlug(runs[i].RepositoryURL)
 		}
 		items[i] = ui.RunGetItem{
-			ID:     runs[i].ID,
-			Icon:   apiclient.PhaseOutcomeSymbol(runs[i].Phase, runs[i].Outcome, runs[i].CurrentOutcome),
-			Label:  runItemLabel(&runs[i], project),
-			Errors: runItemErrors(runs[i].Errors),
+			ID:       runs[i].ID,
+			Icon:     apiclient.PhaseOutcomeSymbol(runs[i].Phase, runs[i].Outcome, runs[i].CurrentOutcome),
+			Label:    runItemLabel(&runs[i], project),
+			Errors:   runItemErrors(runs[i].Errors),
+			Warnings: runItemWarnings(runs[i].Warnings),
 		}
 	}
 	return items
@@ -1100,6 +1127,17 @@ func runItemErrors(errs []apiclient.RunError) []ui.RunGetError {
 	out := make([]ui.RunGetError, len(errs))
 	for i, e := range errs {
 		out[i] = ui.RunGetError{Type: e.Type, Message: e.Message}
+	}
+	return out
+}
+
+func runItemWarnings(warns []apiclient.RunWarning) []ui.RunGetWarning {
+	if len(warns) == 0 {
+		return nil
+	}
+	out := make([]ui.RunGetWarning, len(warns))
+	for i, w := range warns {
+		out[i] = ui.RunGetWarning{Type: w.Type, Message: w.Message, Description: w.Description, URL: w.URL}
 	}
 	return out
 }
@@ -1152,7 +1190,11 @@ func runItemLabel(r *apiclient.RunV3, project string) string {
 			desc = apiclient.PhaseOutcomeText(r.Phase, r.Outcome, r.CurrentOutcome)
 		}
 	}
-	return desc + " - " + relativeTime(r.CreatedAt)
+	label := desc + " - " + relativeTime(r.CreatedAt)
+	if len(r.Warnings) > 0 {
+		label += " ⚠"
+	}
+	return label
 }
 
 // Commit-subject display caps. The picker and the run get detail view give a

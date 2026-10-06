@@ -23,7 +23,7 @@
 // Command virustotal submits release artifacts to VirusTotal via the public v3
 // API so every published binary has an antivirus scan on record.
 //
-// Like cmd/packagecloud and cmd/cloudsmith, this is a small release-time tool
+// Like cmd/ci/packagecloud and cmd/ci/cloudsmith, this is a small release-time tool
 // driving a REST API directly. It is deliberately best-effort: submission is a
 // nice-to-have record, not a release gate. VirusTotal frequently false-flags Go
 // binaries, so this tool never inspects the verdict and never fails the release —
@@ -41,7 +41,7 @@
 //
 // Usage:
 //
-//	VT_APIKEY=... go run ./cmd/virustotal submit dist/*.tar.gz dist/*.zip dist/*.deb dist/*.rpm
+//	VT_APIKEY=... go run ./cmd/ci/virustotal submit dist/*.tar.gz dist/*.zip dist/*.deb dist/*.rpm
 package main
 
 import (

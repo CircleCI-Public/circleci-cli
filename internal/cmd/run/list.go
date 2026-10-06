@@ -59,7 +59,7 @@ func newListCmd() *cobra.Command {
 			The markdown table includes the commit subject; the JSON adds the full
 			commit and repository detail.
 
-			JSON fields: id, phase, outcome, current_outcome, branch, tag, revision, repository_url, commit.subject/url/author_name/author_login, created_at
+			JSON fields: id, phase, outcome, current_outcome, branch, tag, revision, repository_url, commit.subject/url/author_name/author_login, created_at, warnings[].type/message/description/url
 		`),
 		Example: heredoc.Doc(`
 			# List recent runs for the current project
@@ -109,16 +109,17 @@ func newListCmd() *cobra.Command {
 }
 
 type runListEntry struct {
-	ID             uuid.UUID     `json:"id"`
-	Phase          string        `json:"phase"`
-	Outcome        string        `json:"outcome,omitempty"`
-	CurrentOutcome string        `json:"current_outcome,omitempty"`
-	Branch         string        `json:"branch,omitempty"`
-	Tag            string        `json:"tag,omitempty"`
-	Revision       string        `json:"revision,omitempty"`
-	RepositoryURL  string        `json:"repository_url,omitempty"`
-	Commit         *commitOutput `json:"commit,omitempty"`
-	CreatedAt      string        `json:"created_at"`
+	ID             uuid.UUID       `json:"id"`
+	Phase          string          `json:"phase"`
+	Outcome        string          `json:"outcome,omitempty"`
+	CurrentOutcome string          `json:"current_outcome,omitempty"`
+	Branch         string          `json:"branch,omitempty"`
+	Tag            string          `json:"tag,omitempty"`
+	Revision       string          `json:"revision,omitempty"`
+	RepositoryURL  string          `json:"repository_url,omitempty"`
+	Commit         *commitOutput   `json:"commit,omitempty"`
+	CreatedAt      string          `json:"created_at"`
+	Warnings       []warningOutput `json:"warnings,omitempty"`
 }
 
 func runList(ctx context.Context, client *apiclient.Client, projectSlug, branch string, limit int, jsonOut bool) error {
@@ -170,6 +171,10 @@ func toListEntry(r *apiclient.RunV3) runListEntry {
 	if len(rev) > 7 {
 		rev = rev[:7]
 	}
+	warns := make([]warningOutput, len(r.Warnings))
+	for i, w := range r.Warnings {
+		warns[i] = warningOutput{Type: w.Type, Message: w.Message, Description: w.Description, URL: w.URL}
+	}
 	return runListEntry{
 		ID:             r.ID,
 		Phase:          r.Phase,
@@ -181,13 +186,18 @@ func toListEntry(r *apiclient.RunV3) runListEntry {
 		RepositoryURL:  r.RepositoryURL,
 		Commit:         commitOutputFrom(r.Commit),
 		CreatedAt:      r.CreatedAt.Format("2006-01-02 15:04 UTC"),
+		Warnings:       warns,
 	}
 }
 
 func printList(ctx context.Context, entries []runListEntry) {
 	table := mdtable.New("Ref", "Revision", "Subject", "ID", "Created", "Status")
 	for _, e := range entries {
-		table.Row(refDisplay(e.Branch, e.Tag), orDash(e.Revision), orDash(entrySubject(e)), "`"+e.ID.String()+"`", e.CreatedAt, apiclient.PhaseOutcomeStatus(e.Phase, e.Outcome, e.CurrentOutcome))
+		status := apiclient.PhaseOutcomeStatus(e.Phase, e.Outcome, e.CurrentOutcome)
+		if len(e.Warnings) > 0 {
+			status += " :warning:"
+		}
+		table.Row(refDisplay(e.Branch, e.Tag), orDash(e.Revision), orDash(entrySubject(e)), "`"+e.ID.String()+"`", e.CreatedAt, status)
 	}
 	iostream.PrintMarkdown(ctx, "# Runs\n"+table.Render())
 }
