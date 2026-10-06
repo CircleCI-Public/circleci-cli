@@ -1,0 +1,7 @@
+jobs:
+  build:
+    machine:
+      docker_layer_caching: true
+      # this note describes image and must stay
+      image: ubuntu-2204:current
+    steps: [checkout]

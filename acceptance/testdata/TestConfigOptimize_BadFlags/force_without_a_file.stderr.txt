@@ -1,0 +1,4 @@
+error: --force only applies with -o FILE or --in-place
+
+Suggestions:
+  • Add -o FILE or --in-place, or leave out --force

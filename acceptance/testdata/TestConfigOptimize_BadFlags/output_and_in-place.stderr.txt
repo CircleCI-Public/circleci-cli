@@ -1,0 +1,1 @@
+if any flags in the group [output in-place] are set none of the others can be; [in-place output] were all set

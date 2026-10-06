@@ -39,6 +39,8 @@ type Loaded struct {
 	Mutability *pipelineconfig.Mutability
 	// Compiler identifies what compiled the effective copy.
 	Compiler string
+	// Compiled is the compiler's raw output, for the apply checks.
+	Compiled []byte
 }
 
 // Load parses and compiles a config. It refuses a config that does not
@@ -51,6 +53,15 @@ func Load(ctx context.Context, compiler pipelineconfig.Compiler, src []byte, par
 	res, err := compiler.Compile(ctx, pipelineconfig.CompileInput{ConfigYAML: src, PipelineParameters: params})
 	if err != nil {
 		return nil, compileError(err)
+	}
+	return fromCompiled(authored, res)
+}
+
+// loadCompiled is Load for bytes whose compile result is already in hand.
+func loadCompiled(src []byte, res pipelineconfig.CompileResult) (*Loaded, error) {
+	authored, err := parse(src)
+	if err != nil {
+		return nil, err
 	}
 	return fromCompiled(authored, res)
 }
@@ -73,6 +84,7 @@ func fromCompiled(authored *pipelineconfig.Authored, res pipelineconfig.CompileR
 		Effective:  eff,
 		Mutability: pipelineconfig.NewMutability(authored, eff),
 		Compiler:   res.Compiler,
+		Compiled:   res.CompiledYAML,
 	}, nil
 }
 

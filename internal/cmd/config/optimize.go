@@ -23,6 +23,7 @@
 package cmdconfig
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -39,15 +40,16 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/internal/configoptimize/engine"
 	"github.com/CircleCI-Public/circleci-cli/internal/configoptimize/pipelineconfig"
 	"github.com/CircleCI-Public/circleci-cli/internal/configoptimize/pricing/static"
+	"github.com/CircleCI-Public/circleci-cli/internal/configoptimize/publish"
 	"github.com/CircleCI-Public/circleci-cli/internal/configoptimize/registry"
 	"github.com/CircleCI-Public/circleci-cli/internal/configoptimize/report"
 	"github.com/CircleCI-Public/circleci-cli/internal/configoptimize/usage"
 )
 
 type optimizeOptions struct {
-	org, params, rates, usage string
-	jsonOut, verbose          bool
-	only                      []string
+	output, org, params, rates, usage string
+	inPlace, force, jsonOut, verbose  bool
+	only                              []string
 }
 
 func newOptimizeCmd() *cobra.Command {
@@ -64,11 +66,11 @@ func newOptimizeCmd() *cobra.Command {
 			Find cheaper resource classes from per-job usage. JSON fields: schema_version, command, summary.result, findings[].id
 		`),
 		Example: heredoc.Doc(`
-			# Report cheaper resource classes, sized from usage
+			# Report what could change, sizing classes from usage
 			$ circleci config optimize --usage usage.json
 
-			# Price the classes with your own credit rates
-			$ circleci config optimize --usage usage.json --credit-rates rates.yml
+			# Write the optimized config, sizing classes from usage
+			$ circleci config optimize --usage usage.json -o optimized.yml
 
 			# The report as JSON
 			$ circleci config optimize --usage usage.json --json
@@ -83,6 +85,9 @@ func newOptimizeCmd() *cobra.Command {
 		},
 	}
 	f := cmd.Flags()
+	f.StringVarP(&o.output, "output", "o", "", "write the optimized config to this file (- for stdout)")
+	f.BoolVar(&o.inPlace, "in-place", false, "replace <path>; needs a clean git worktree")
+	f.BoolVarP(&o.force, "force", "f", false, "overwrite the -o file, or skip the clean-worktree check")
 	f.StringVar(&o.usage, "usage", "", "per-job CPU and memory usage (JSON file), for resource classes")
 	f.StringVar(&o.rates, "credit-rates", "", "credits per minute per class (YAML file; default built-in gen1)")
 	f.StringSliceVar(&o.only, "only", nil, "checks to run: resource-class (default all)")
@@ -91,23 +96,64 @@ func newOptimizeCmd() *cobra.Command {
 	cmdutil.AddJSONFlag(cmd, &o.jsonOut)
 	cmdutil.AddJQFlag(cmd)
 	cmdutil.AddOrgFlag(cmd, &o.org, cmdutil.OrgFlag{Purpose: "for private orb resolution", DefaultsToGitRemote: true})
+	cmd.MarkFlagsMutuallyExclusive("output", "in-place")
 	cmd.MarkFlagsMutuallyExclusive("verbose", "json")
 	return cmd
 }
 
 func runOptimize(ctx context.Context, path string, o optimizeOptions) error {
+	if err := optimizeFlagsCheck(path, o); err != nil {
+		return err
+	}
+	// file is the config's path on disk, "" when it is read from stdin.
+	file := path
+	if path == "-" {
+		file = ""
+	}
+	var (
+		before publish.Snapshot
+		err    error
+	)
+	switch {
+	case o.inPlace:
+		before, err = publish.PreflightInPlace(file, o.force)
+	case o.output != "" && o.output != "-":
+		err = publish.PreflightToFile(o.output, file, o.force)
+	}
+	if err != nil {
+		return optimizeWriteErr(err)
+	}
 	in, client, err := optimizeInput(ctx, path, o)
 	if err != nil {
 		return err
 	}
-	doc, err := engine.Analyze(ctx, in)
-	if err != nil {
-		return optimizeEngineErr(client, err)
+	if !o.inPlace && o.output == "" {
+		doc, err := engine.Analyze(ctx, in)
+		if err != nil {
+			return optimizeEngineErr(client, err)
+		}
+		if o.jsonOut {
+			return iostream.PrintJSON(ctx, doc)
+		}
+		return report.WriteText(iostream.Out(ctx), doc, report.TextOptions{Verbose: o.verbose})
 	}
-	if o.jsonOut {
-		return iostream.PrintJSON(ctx, doc)
+	return optimizeWrite(ctx, client, in, file, before, o)
+}
+
+// optimizeFlagsCheck refuses flag combinations cobra cannot express.
+func optimizeFlagsCheck(path string, o optimizeOptions) error {
+	switch {
+	case o.output == "-" && o.jsonOut:
+		return optimizeArgsErr("args.conflicting_flags", "-o - writes the config to stdout, so --json cannot use it",
+			"Write the config to a file with -o FILE, or leave out --json")
+	case o.inPlace && path == "-":
+		return optimizeArgsErr("args.conflicting_flags", "--in-place needs a config file, not stdin",
+			"Pass the config's path, or write the result with -o FILE")
+	case o.force && !o.inPlace && (o.output == "" || o.output == "-"):
+		return optimizeArgsErr("args.missing_flag", "--force only applies with -o FILE or --in-place",
+			"Add -o FILE or --in-place, or leave out --force")
 	}
-	return report.WriteText(iostream.Out(ctx), doc, report.TextOptions{Verbose: o.verbose})
+	return nil
 }
 
 // optimizeInput loads the inputs and builds the engine's input. path is the
@@ -116,19 +162,19 @@ func optimizeInput(ctx context.Context, path string, o optimizeOptions) (engine.
 	var none engine.AnalyzeInput
 	rates, _, err := static.Load(o.rates)
 	if err != nil {
-		return none, nil, optimizeArgsErr(fmt.Sprintf("--credit-rates %s: %v", o.rates, err),
+		return none, nil, optimizeArgsErr("args.invalid_value", fmt.Sprintf("--credit-rates %s: %v", o.rates, err),
 			"Pass a table with flat_charges, credits_per_minute, ladders and sizes, or leave it out to use the built-in one")
 	}
 	var usageData *usage.Data
 	if o.usage != "" {
 		if usageData, err = usage.Load(o.usage); err != nil {
-			return none, nil, optimizeArgsErr(fmt.Sprintf("--usage %s: %v", o.usage, err),
+			return none, nil, optimizeArgsErr("args.invalid_value", fmt.Sprintf("--usage %s: %v", o.usage, err),
 				"Export usage as JSON with per-job CPU and memory samples")
 		}
 	}
 	modules, err := registry.ParseChecks(o.only)
 	if err != nil {
-		return none, nil, optimizeArgsErr("--only "+err.Error(),
+		return none, nil, optimizeArgsErr("args.invalid_value", "--only "+err.Error(),
 			"Pass one or more of: "+strings.Join(registry.CheckNames(), ", "))
 	}
 	selected := registry.Select(registry.Catalog(registry.Deps{
@@ -152,6 +198,55 @@ func optimizeInput(ctx context.Context, path string, o optimizeOptions) (engine.
 	}, client, nil
 }
 
+// optimizeWrite applies the changes and writes the config, then reports what
+// was written: JSON on stdout, or the text report on stderr. file is the
+// config's path on disk ("" for stdin) and before what PreflightInPlace saw
+// of it.
+func optimizeWrite(ctx context.Context, client *apiclient.Client, in engine.AnalyzeInput, file string, before publish.Snapshot, o optimizeOptions) error {
+	res, err := engine.Apply(ctx, in)
+	if err != nil {
+		return optimizeEngineErr(client, err)
+	}
+	switch {
+	case o.inPlace && bytes.Equal(res.Output, in.Config):
+		err = publish.VerifyUnchanged(file, in.Config)
+	case o.inPlace:
+		err = publish.InPlace(file, before, in.Config, res.Output, o.force)
+	case o.output == "-":
+		_, err = iostream.Out(ctx).Write(res.Output)
+	default:
+		err = publish.ToFile(o.output, res.Output, file, o.force)
+	}
+	incomplete, partial := errors.AsType[*publish.IncompleteError](err)
+	if err != nil && !partial {
+		return optimizeWriteErr(err)
+	}
+	if o.jsonOut {
+		if err := iostream.PrintJSON(ctx, res.Document); err != nil {
+			return err
+		}
+	} else {
+		// Built first, then printed with ErrPrint, which honors --quiet.
+		var text strings.Builder
+		if err := report.WriteText(&text, res.Document, report.TextOptions{Verbose: o.verbose}); err != nil {
+			return err
+		}
+		iostream.ErrPrint(ctx, text.String())
+	}
+	if partial {
+		return clierrors.New(incomplete.Code, "Output incomplete", incomplete.Error()).
+			WithSuggestions("Check the file, then run the command again if it is not complete").
+			WithExitCode(clierrors.ExitGeneralError)
+	}
+	if res.Rejected > 0 {
+		return clierrors.New("config.optimize_rejected", "Changes rejected",
+			fmt.Sprintf("%d planned change(s) did not compile as planned and were left out", res.Rejected)).
+			WithSuggestions("See the rejected changes and their reasons in the report above").
+			WithExitCode(clierrors.ExitValidationFail)
+	}
+	return nil
+}
+
 // optimizeEngineErr maps a failed compile call the way config process does,
 // and passes the engine's own CLIErrors through.
 func optimizeEngineErr(client *apiclient.Client, err error) error {
@@ -167,8 +262,21 @@ func optimizeEngineErr(client *apiclient.Client, err error) error {
 	return compileAPIErr(client, transport.Err, "compile")
 }
 
-func optimizeArgsErr(message, suggestion string) error {
-	return clierrors.New("args.invalid_value", "Invalid flags", message).
+func optimizeArgsErr(code, message, suggestion string) error {
+	return clierrors.New(code, "Invalid flags", message).
 		WithSuggestions(suggestion).
 		WithExitCode(clierrors.ExitBadArguments)
+}
+
+func optimizeWriteErr(err error) error {
+	if refused, ok := errors.AsType[*publish.RefusedError](err); ok {
+		e := clierrors.New(refused.Code, "Output not written", refused.Reason).WithExitCode(clierrors.ExitBadArguments)
+		if refused.Suggestion != "" {
+			e = e.WithSuggestions(refused.Suggestion)
+		}
+		return e
+	}
+	return clierrors.New("output.write_failed", "Could not write output file", err.Error()).
+		WithSuggestions("Check that the directory exists and is writable").
+		WithExitCode(clierrors.ExitGeneralError)
 }

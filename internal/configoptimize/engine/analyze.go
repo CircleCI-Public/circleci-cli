@@ -62,7 +62,7 @@ func Analyze(ctx context.Context, in AnalyzeInput) (report.Document, error) {
 	if err != nil {
 		return report.Document{}, err
 	}
-	return report.Build(meta(in, loaded), entries), nil
+	return report.Build(meta(report.CommandReport, in, loaded), entries), nil
 }
 
 // evaluate runs every module on the effective copy and decides each
@@ -92,7 +92,7 @@ func evaluate(ctx context.Context, loaded *Loaded, in AnalyzeInput) ([]reconcile
 	return reconcile.Feasibility(findings, loaded.Effective, loaded.Mutability, in.Policy), nil
 }
 
-func meta(in AnalyzeInput, loaded *Loaded) report.Meta {
+func meta(command string, in AnalyzeInput, loaded *Loaded) report.Meta {
 	names := make([]string, 0, len(in.Modules))
 	var missing []string
 	for _, m := range in.Modules {
@@ -104,7 +104,7 @@ func meta(in AnalyzeInput, loaded *Loaded) report.Meta {
 		}
 	}
 	return report.Meta{
-		Command:            report.CommandReport,
+		Command:            command,
 		InputPath:          in.Path,
 		Input:              in.Config,
 		PipelineParameters: in.Params,

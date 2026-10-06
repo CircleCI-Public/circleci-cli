@@ -73,7 +73,8 @@ func TestForceFlagHasDestructiveHint(t *testing.T) {
 	// Commands whose --force is NOT a destructive API operation (e.g. overwrite
 	// a local config file). Add to this list only with a comment explaining why.
 	allowlist := map[string]bool{
-		"circleci project link": true, // --force overwrites .circleci/config.yml locally, no API mutation
+		"circleci config optimize": true, // --force overwrites a local file (-o or --in-place), no API mutation
+		"circleci project link":    true, // --force overwrites .circleci/config.yml locally, no API mutation
 	}
 
 	cmd := root.NewRootCmd("test")

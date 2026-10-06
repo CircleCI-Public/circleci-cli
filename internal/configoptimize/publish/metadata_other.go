@@ -20,6 +20,14 @@
 //
 // SPDX-License-Identifier: MIT
 
-// Package reconcile decides what happens to findings: which are actionable
-// and which are report-only, and the plan of edits for the actionable ones.
-package reconcile
+//go:build unix && !darwin
+
+package publish
+
+import "syscall"
+
+// hiddenMetadata lists what a replacement would drop that
+// extendedAttributes cannot see. On Linux a POSIX ACL is an extended
+// attribute (system.posix_acl_access), so it is already counted; chattr
+// flags are not read.
+func hiddenMetadata(string, *syscall.Stat_t) ([]string, error) { return nil, nil }

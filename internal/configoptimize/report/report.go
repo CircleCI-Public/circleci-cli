@@ -246,7 +246,7 @@ func resultLine(doc Document) string {
 		if doc.Command == CommandWrite {
 			return fmt.Sprintf("Result: candidate produced (%d %s). Validate it with real runs before keeping it.", s.Applied, plural(s.Applied, "change"))
 		}
-		return fmt.Sprintf("Result: a candidate can be produced (%d %s); validate it with real runs before keeping it.", s.Actionable, plural(s.Actionable, "change"))
+		return fmt.Sprintf("Result: a candidate can be produced (%d %s); -o FILE writes it.", s.Actionable, plural(s.Actionable, "change"))
 	case ResultAllRejected:
 		return fmt.Sprintf("Result: no candidate: the compile check rejected all %d %s.", s.Rejected, plural(s.Rejected, "change"))
 	case ResultMissingInput:

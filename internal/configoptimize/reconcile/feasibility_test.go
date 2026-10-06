@@ -30,6 +30,7 @@ import (
 
 	"github.com/CircleCI-Public/circleci-cli/internal/configoptimize/finding"
 	"github.com/CircleCI-Public/circleci-cli/internal/configoptimize/pipelineconfig"
+	"github.com/CircleCI-Public/circleci-cli/internal/configoptimize/plan"
 	"github.com/CircleCI-Public/circleci-cli/internal/configoptimize/reconcile"
 )
 
@@ -72,7 +73,11 @@ workflows: {ci: {jobs: [a, b]}}
 		entries := reconcile.Feasibility([]finding.Finding{set(true)}, eff, mut, reconcile.Policy{})
 		assert.Assert(t, cmp.Len(entries, 1))
 		assert.Assert(t, cmp.Equal(entries[0].Disposition, finding.DispositionActionable), entries[0].Reason)
-		assert.Check(t, cmp.DeepEqual(entries[0].Authored, []reconcile.AuthoredSite{{Path: path, Insert: true}}))
+		groups := reconcile.Plan(entries).Groups
+		assert.Assert(t, cmp.Len(groups, 1))
+		g := groups[0]
+		assert.Check(t, cmp.DeepEqual(g.Edits, []plan.Edit{{Op: plan.Insert, Path: path, Value: "large"}}))
+		assert.Check(t, cmp.DeepEqual(g.Expected.Set, []plan.SetValue{{Path: path, Value: "large"}}))
 	})
 }
 

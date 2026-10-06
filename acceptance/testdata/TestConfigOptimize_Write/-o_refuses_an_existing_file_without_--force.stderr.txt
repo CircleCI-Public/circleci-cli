@@ -1,0 +1,4 @@
+error: optimized.yml already exists
+
+Suggestions:
+  • Pass --force to overwrite it

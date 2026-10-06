@@ -24,6 +24,7 @@ package acceptance_test
 
 import (
 	"encoding/json"
+	"os"
 	"path/filepath"
 	"slices"
 	"testing"
@@ -116,6 +117,59 @@ func TestConfigOptimize(t *testing.T) {
 	}
 }
 
+// compileEcho answers a compile with the config it was sent. For a config with
+// no orbs or parameters that is what the real compile returns, so each edit
+// config optimize compiles comes back as written.
+func compileEcho(config string) fakes.CompileResponse {
+	return fakes.CompileResponse{Valid: true, OutputYAML: config}
+}
+
+func TestConfigOptimize_Write(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	fake.SetCompileFunc(compileEcho)
+
+	t.Run("-o writes the optimized config to a file", func(t *testing.T) {
+		dir := optimizeDir(t)
+		result := runOptimize(t, fake, dir, "--usage", "usage.json", "-o", "optimized.yml")
+		assert.Check(t, cmp.Equal(result.ExitCode, 0))
+		assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+		assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+		out, err := os.ReadFile(filepath.Join(dir, "optimized.yml")) //#nosec:G304 // test output
+		assert.Check(t, err)
+		assert.Check(t, golden.String(string(out), t.Name()+".yml.txt"))
+	})
+	t.Run("-o - writes the optimized config to stdout", func(t *testing.T) {
+		result := runOptimize(t, fake, optimizeDir(t), "--usage", "usage.json", "-o", "-")
+		assert.Check(t, cmp.Equal(result.ExitCode, 0))
+		assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+		assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+	})
+	t.Run("-o refuses an existing file without --force", func(t *testing.T) {
+		dir := optimizeDir(t)
+		writeFile(t, filepath.Join(dir, "optimized.yml"), "keep me\n")
+		result := runOptimize(t, fake, dir, "--usage", "usage.json", "-o", "optimized.yml")
+		assert.Check(t, cmp.Equal(result.ExitCode, 2))
+		assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+		assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+	})
+	t.Run("--in-place refuses a config outside a git worktree", func(t *testing.T) {
+		result := runOptimize(t, fake, optimizeDir(t), "--usage", "usage.json", "--in-place")
+		assert.Check(t, cmp.Equal(result.ExitCode, 2))
+		assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+		assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+	})
+	t.Run("--in-place --force replaces the config", func(t *testing.T) {
+		dir := optimizeDir(t)
+		result := runOptimize(t, fake, dir, "--usage", "usage.json", "--in-place", "--force")
+		assert.Check(t, cmp.Equal(result.ExitCode, 0))
+		assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+		assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+		out, err := os.ReadFile(filepath.Join(dir, ".circleci", "config.yml")) //#nosec:G304 // test output
+		assert.Check(t, err)
+		assert.Check(t, golden.String(string(out), t.Name()+".yml.txt"))
+	})
+}
+
 func TestConfigOptimize_Invalid(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
 	fake.SetCompileResponse(false, "", "unknown orb 'myorg/unknown@1.0.0'")
@@ -134,6 +188,11 @@ func TestConfigOptimize_BadFlags(t *testing.T) {
 		wantExit int
 	}{
 		{name: "unknown check", args: []string{"--only", "nope"}, wantExit: 2},
+		{name: "json to stdout", args: []string{"-o", "-", "--json"}, wantExit: 2},
+		{name: "force without a file", args: []string{"--force"}, wantExit: 2},
+		{name: "in-place from stdin", args: []string{"--in-place", "-"}, wantExit: 2},
+		// Cobra's mutually-exclusive check exits 1, as for runner instance list.
+		{name: "output and in-place", args: []string{"-o", "x.yml", "--in-place"}, wantExit: 1},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {

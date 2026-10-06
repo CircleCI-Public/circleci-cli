@@ -1,0 +1,9 @@
+{
+  "error": true,
+  "code": "args.conflicting_flags",
+  "message": "-o - writes the config to stdout, so --json cannot use it",
+  "suggestions": [
+    "Write the config to a file with -o FILE, or leave out --json"
+  ],
+  "exit_code": 2
+}

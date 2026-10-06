@@ -214,8 +214,8 @@ internal/
 ├── artifacts/            Listing and downloading job artifacts.
 ├── configcmd/            Backs circleci config validate/process/pack.
 ├── configgen/            Renders pipeline YAML from a reposcan.Result and writes it to disk.
-├── configoptimize/       Backs circleci config optimize: the resource-class check and its
-│                         report.
+├── configoptimize/       Backs circleci config optimize: the resource-class check, the
+│                         edits, and compile-checked writes (publish).
 ├── deployinit/           Scans and patches .circleci/config.yml to add deploy marker steps.
 ├── extension/            Plugin mechanism — discovers circleci-* binaries on PATH.
 ├── githubapp/            CircleCI GitHub App install detection + browser install flow.

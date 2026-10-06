@@ -1,0 +1,4 @@
+error: --in-place needs a config file, not stdin
+
+Suggestions:
+  • Pass the config's path, or write the result with -o FILE

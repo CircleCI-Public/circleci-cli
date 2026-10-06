@@ -20,6 +20,35 @@
 //
 // SPDX-License-Identifier: MIT
 
-// Package reconcile decides what happens to findings: which are actionable
-// and which are report-only, and the plan of edits for the actionable ones.
-package reconcile
+//go:build darwin
+
+package publish_test
+
+import (
+	"os/exec"
+	"testing"
+
+	"gotest.tools/v3/assert"
+	"gotest.tools/v3/assert/cmp"
+)
+
+// macOS hides ACLs from listxattr and keeps file flags in the stat
+// structure, so both need their own check.
+func TestInPlaceDarwinMetadata(t *testing.T) {
+	tests := []struct {
+		name string
+		args []string
+	}{
+		{name: "an ACL", args: []string{"chmod", "+a", "everyone allow read"}},
+		{name: "file flags", args: []string{"chflags", "nodump"}},
+	}
+	for _, tc := range tests {
+		t.Run("refuses "+tc.name+" without --force", func(t *testing.T) {
+			_, path := gitRepo(t)
+			out, err := exec.Command(tc.args[0], append(tc.args[1:], path)...).CombinedOutput() //#nosec:G204 // fixed test commands
+			assert.NilError(t, err, "%s", out)
+			assert.Check(t, cmp.Equal(refusedCode(t, preflightInPlace(path, false)), "output.metadata"))
+			assert.NilError(t, preflightInPlace(path, true), "--force accepts the loss")
+		})
+	}
+}
