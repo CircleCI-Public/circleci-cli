@@ -561,9 +561,9 @@ With no run UUID in an interactive terminal, a picker walks you through the
 recent runs; --no-interactive, --json, or a non-interactive session skips it
 and resolves the latest run directly.
 
-JSON fields: id, phase, outcome, current_outcome, branch, tag, revision,
-repository_url, commit.subject/url/author_name/author_login, created_at,
-errors[].type/message, workflows[].id/name/phase/outcome/current_outcome/duration/
+JSON fields: id, phase, outcome, current_outcome, branch, tag, revision, repository_url,
+commit.subject/url/author_name/author_login, created_at, errors[].type/message,
+warnings[].type/message/description/url, workflows[].id/name/phase/outcome/current_outcome/duration/
 jobs[].id/name/phase/outcome/current_outcome/type
 
 | Flag                  | Description                                                                       |
@@ -610,7 +610,7 @@ current git repository's remote unless overridden with --project.
 The markdown table includes the commit subject; the JSON adds the full
 commit and repository detail.
 
-JSON fields: id, phase, outcome, current_outcome, branch, tag, revision, repository_url, commit.subject/url/author_name/author_login, created_at
+JSON fields: id, phase, outcome, current_outcome, branch, tag, revision, repository_url, commit.subject/url/author_name/author_login, created_at, warnings[].type/message/description/url
 
 | Flag                   | Description                                                                       |
 | ---------------------- | --------------------------------------------------------------------------------- |
@@ -4671,9 +4671,9 @@ This is the personal counterpart to "circleci run list": rather than a
 single project, it shows your runs everywhere, in the order the API
 returns them, with the project of each run in its own column.
 
-JSON: an array of runs, each { project, project_id, id, phase, outcome,
-current_outcome, branch, tag, revision, created_at }, where project is
-the run's "org/repo" repository (when known) and project_id its UUID.
+JSON: an array of runs, each { project, project_id, id, phase, outcome, current_outcome,
+branch, tag, revision, created_at, warnings[].type/message/description/url },
+where project is the run's "org/repo" repository (when known) and project_id its UUID.
 
 | Flag          | Description                                                                       |
 | ------------- | --------------------------------------------------------------------------------- |

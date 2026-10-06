@@ -35,7 +35,7 @@ This is the personal counterpart to "circleci run list": rather than a
 single project, it shows your runs everywhere, in the order the API
 returns them, with the project of each run in its own column.
 
-JSON: an array of runs, each { project, project_id, id, phase, outcome,
-current_outcome, branch, tag, revision, created_at }, where project is
-the run's "org/repo" repository (when known) and project_id its UUID.
+JSON: an array of runs, each { project, project_id, id, phase, outcome, current_outcome,
+branch, tag, revision, created_at, warnings[].type/message/description/url },
+where project is the run's "org/repo" repository (when known) and project_id its UUID.
 
