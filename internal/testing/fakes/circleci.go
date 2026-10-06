@@ -2204,21 +2204,9 @@ func (f *CircleCI) SetRunnerTokenCreateResponse(status int, body any) {
 
 // --- V3 runner token handlers (/api/v3/runner/tokens) ---
 
-// runnerTokenV3ListEntity renders a token as a V3 list item. List items carry
-// only attributes; the resource class is reconstructed by the CLI from its filter.
-func runnerTokenV3ListEntity(t RunnerToken) map[string]any {
-	return map[string]any{
-		"id": t.ID,
-		"attributes": map[string]any{
-			"nickname":   t.Nickname,
-			"created_at": t.CreatedAt,
-		},
-	}
-}
-
-// runnerTokenV3CreateEntity renders a token as a V3 create response. Token value
-// is included only when set.
-func runnerTokenV3CreateEntity(t RunnerToken) map[string]any {
+// runnerTokenV3Entity renders a token as a V3 entity, with the references that
+// name its resource class. Token value is included only when set (create).
+func runnerTokenV3Entity(t RunnerToken, rcID string) map[string]any {
 	attrs := map[string]any{
 		"nickname":   t.Nickname,
 		"created_at": t.CreatedAt,
@@ -2226,34 +2214,59 @@ func runnerTokenV3CreateEntity(t RunnerToken) map[string]any {
 	if t.Token != "" {
 		attrs["token"] = t.Token
 	}
-	return map[string]any{"id": t.ID, "attributes": attrs}
+	return map[string]any{
+		"id":         t.ID,
+		"attributes": attrs,
+		"references": map[string]any{
+			"resource_class": map[string]any{
+				"id":         rcID,
+				"attributes": map[string]any{"resource_class": t.ResourceClass},
+			},
+		},
+	}
 }
 
 // handleListRunnerTokensV3 serves GET /api/v3/runner/tokens. As in the real API,
-// filter[resource_class] (namespace/name) is required, and a request without it is a
-// 400 rather than an empty list — so a client that drops or renames the filter
-// fails loudly instead of silently reporting no tokens.
+// exactly one of filter[resource_class] (namespace/name) or filter[resource_class_id]
+// is required, and a request with none or both is a 400 rather than an empty
+// list, so a client that drops or renames the filter fails loudly instead of
+// silently reporting no tokens.
 func (f *CircleCI) handleListRunnerTokensV3(w http.ResponseWriter, r *http.Request) {
-	resourceClass := r.URL.Query().Get("filter[resource_class]")
-	if resourceClass == "" {
+	q := r.URL.Query()
+	name, id := q.Get("filter[resource_class]"), q.Get("filter[resource_class_id]")
+	if (name == "") == (id == "") {
 		render.Status(r, http.StatusBadRequest)
 		render.JSON(w, r, map[string]any{"error": map[string]any{
 			"type":   "validation_error",
-			"title":  "Missing Required Filter",
-			"detail": "Query parameter 'filter[resource_class]' is required.",
+			"title":  "Invalid Filter",
+			"detail": "Exactly one of 'filter[resource_class]' or 'filter[resource_class_id]' is required.",
 		}})
 		return
 	}
 
 	f.mu.RLock()
-	tokens := f.runnerTokens[resourceClass]
+	var rc ResourceClass
+	for _, c := range f.resourceClasses {
+		if !f.deletedRCs[c.ResourceClass] && (c.ID == id || c.ResourceClass == name) {
+			rc = c
+			break
+		}
+	}
+	tokens := f.runnerTokens[rc.ResourceClass]
 	deleted := f.deletedTokens
 	f.mu.RUnlock()
 
+	// An unknown class is a 404, as in runner-admin, which masks inaccessible ones too.
+	if rc.ID == "" {
+		runnerNotFound(w, r, "Resource class not found.")
+		return
+	}
+
 	items := []any{}
 	for _, tok := range tokens {
+		tok.ResourceClass = rc.ResourceClass
 		if !deleted[tok.ID] {
-			items = append(items, runnerTokenV3ListEntity(tok))
+			items = append(items, runnerTokenV3Entity(tok, rc.ID))
 		}
 	}
 	render.JSON(w, r, map[string]any{"data": items})
@@ -2324,7 +2337,7 @@ func (f *CircleCI) handleCreateRunnerTokenV3(w http.ResponseWriter, r *http.Requ
 	f.runnerTokens[resourceClass] = append(f.runnerTokens[resourceClass], tok)
 	f.mu.Unlock()
 	render.Status(r, http.StatusCreated)
-	render.JSON(w, r, map[string]any{"data": runnerTokenV3CreateEntity(tok)})
+	render.JSON(w, r, map[string]any{"data": runnerTokenV3Entity(tok, rcID)})
 }
 
 // handleDeleteRunnerTokenV3 serves DELETE /api/v3/runner/tokens/{id}. As in

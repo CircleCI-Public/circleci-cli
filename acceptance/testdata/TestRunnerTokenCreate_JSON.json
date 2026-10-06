@@ -1,1 +1,1 @@
-{"id":"b344b1b8-3b0f-547e-aa7b-998acf933f14","resource_class":"my-org/linux-runner","nickname":"","created_at":"2026-01-01T00:00:00Z","token":"fake-runner-token-value"}
+{"id":"b344b1b8-3b0f-547e-aa7b-998acf933f14","resource_class":"my-org/linux-runner","resource_class_id":"11111111-1111-4111-8111-111111111111","nickname":"","created_at":"2026-01-01T00:00:00Z","token":"fake-runner-token-value"}

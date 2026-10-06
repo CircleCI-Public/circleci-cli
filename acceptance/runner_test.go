@@ -1041,10 +1041,10 @@ func TestRunnerTokenList(t *testing.T) {
 	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 }
 
-// The V3 tokens endpoint is scoped by filter[resource_class], the namespace/name. The fake
-// rejects a request without it, but this pins the exact query so that renaming
-// the filter (it was once filter[resource_class_id]) or sending the UUID instead
-// of the namespace/name fails here rather than in production.
+// A namespace/name goes straight to the tokens endpoint as filter[resource_class], with no
+// resource class lookup first. The fake rejects a request without a filter, but this pins
+// the exact query and the request count so that renaming the filter or reintroducing
+// the lookup fails here rather than in production.
 func TestRunnerTokenList_FiltersByResourceClass(t *testing.T) {
 	fake, env := setupRunnerFake(t)
 	fake.AddRunnerToken("my-org/arm-runner", fakeToken("10000000-0000-4000-8000-00000000000a", "my-org/arm-runner", "arm-server"))
@@ -1058,17 +1058,13 @@ func TestRunnerTokenList_FiltersByResourceClass(t *testing.T) {
 
 	assert.Check(t, cmp.Equal(result.ExitCode, 0), "stderr: %s", result.Stderr)
 
-	t.Run("check tokens request", func(t *testing.T) {
-		var tokenReqs []httprecorder.Request
-		for _, req := range fake.AllRequests() {
-			if req.URL.Path == "/api/v3/runner/tokens" {
-				tokenReqs = append(tokenReqs, req)
-			}
-		}
-		assert.Assert(t, cmp.Len(tokenReqs, 1))
+	t.Run("check the only request is the tokens request", func(t *testing.T) {
+		reqs := fake.AllRequests()
+		assert.Assert(t, cmp.Len(reqs, 1))
 
-		assert.Check(t, cmp.Equal(tokenReqs[0].Method, http.MethodGet))
-		assert.Check(t, cmp.DeepEqual(tokenReqs[0].URL.Query(), url.Values{
+		assert.Check(t, cmp.Equal(reqs[0].Method, http.MethodGet))
+		assert.Check(t, cmp.Equal(reqs[0].URL.Path, "/api/v3/runner/tokens"))
+		assert.Check(t, cmp.DeepEqual(reqs[0].URL.Query(), url.Values{
 			"filter[resource_class]": {"my-org/linux-runner"},
 		}))
 	})
@@ -1086,8 +1082,8 @@ func TestRunnerTokenList_FiltersByResourceClass(t *testing.T) {
 	})
 }
 
-// --resource-class also accepts a resource class's UUID. The tokens endpoint
-// only filters by namespace/name, so the CLI resolves the ID first.
+// --resource-class also accepts a resource class's UUID, which goes straight to the
+// tokens endpoint as filter[resource_class_id], with no resource class lookup first.
 func TestRunnerTokenList_ByID(t *testing.T) {
 	fake, env := setupRunnerFake(t)
 
@@ -1104,15 +1100,12 @@ func TestRunnerTokenList_ByID(t *testing.T) {
 
 	t.Run("check requests", func(t *testing.T) {
 		reqs := fake.AllRequests()
-		assert.Assert(t, cmp.Len(reqs, 2))
+		assert.Assert(t, cmp.Len(reqs, 1))
 
 		assert.Check(t, cmp.Equal(reqs[0].Method, http.MethodGet))
-		assert.Check(t, cmp.Equal(reqs[0].URL.Path, "/api/v3/runner/resource-classes/11111111-1111-4111-8111-111111111111"))
-
-		assert.Check(t, cmp.Equal(reqs[1].Method, http.MethodGet))
-		assert.Check(t, cmp.Equal(reqs[1].URL.Path, "/api/v3/runner/tokens"))
-		assert.Check(t, cmp.DeepEqual(reqs[1].URL.Query(), url.Values{
-			"filter[resource_class]": {"my-org/linux-runner"},
+		assert.Check(t, cmp.Equal(reqs[0].URL.Path, "/api/v3/runner/tokens"))
+		assert.Check(t, cmp.DeepEqual(reqs[0].URL.Query(), url.Values{
+			"filter[resource_class_id]": {"11111111-1111-4111-8111-111111111111"},
 		}))
 	})
 }
@@ -1132,8 +1125,8 @@ func TestRunnerTokenList_ByID_JSON(t *testing.T) {
 	var out []map[string]any
 	assert.NilError(t, json.Unmarshal([]byte(result.Stdout), &out))
 	assert.Check(t, cmp.DeepEqual(out, []map[string]any{
-		{"id": "10000000-0000-4000-8000-000000000001", "resource_class": "my-org/linux-runner", "nickname": "prod-server-1", "created_at": "2026-01-01T00:00:00Z"},
-		{"id": "10000000-0000-4000-8000-000000000002", "resource_class": "my-org/linux-runner", "nickname": "prod-server-2", "created_at": "2026-01-01T00:00:00Z"},
+		{"id": "10000000-0000-4000-8000-000000000001", "resource_class": "my-org/linux-runner", "resource_class_id": "11111111-1111-4111-8111-111111111111", "nickname": "prod-server-1", "created_at": "2026-01-01T00:00:00Z"},
+		{"id": "10000000-0000-4000-8000-000000000002", "resource_class": "my-org/linux-runner", "resource_class_id": "11111111-1111-4111-8111-111111111111", "nickname": "prod-server-2", "created_at": "2026-01-01T00:00:00Z"},
 	}))
 }
 
@@ -1170,7 +1163,7 @@ func TestRunnerTokenList_ByID_NotFound(t *testing.T) {
 }
 
 // Without --resource-class the CLI lists tokens once per resource class in the
-// org, and every one of those requests must carry that resource class's namespace/name.
+// org, and every one of those requests must carry that resource class's ID.
 func TestRunnerTokenList_EnumerationFiltersEachResourceClass(t *testing.T) {
 	fake, env := setupRunnerFake(t)
 
@@ -1190,10 +1183,13 @@ func TestRunnerTokenList_EnumerationFiltersEachResourceClass(t *testing.T) {
 		}
 		q := req.URL.Query()
 		assert.Check(t, cmp.Len(q, 1), "unexpected query on tokens request: %s", req.URL.RawQuery)
-		filters = append(filters, q.Get("filter[resource_class]"))
+		filters = append(filters, q.Get("filter[resource_class_id]"))
 	}
 	slices.Sort(filters)
-	assert.Check(t, cmp.DeepEqual(filters, []string{"my-org/arm-runner", "my-org/linux-runner"}))
+	assert.Check(t, cmp.DeepEqual(filters, []string{
+		"11111111-1111-4111-8111-111111111111",
+		"22222222-2222-4222-8222-222222222222",
+	}))
 }
 
 func TestRunnerTokenList_Color(t *testing.T) {

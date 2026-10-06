@@ -81,7 +81,7 @@ func newTokenListCmd() *cobra.Command {
 			Without --resource-class, lists tokens for all resource classes
 			in the organization (--org or inferred from the git remote).
 
-			JSON fields: id, resource_class, nickname, created_at
+			JSON fields: id, resource_class, resource_class_id, nickname, created_at
 		`),
 		Example: heredoc.Doc(`
 			# List tokens for all resource classes in the org inferred from the git remote
@@ -93,8 +93,8 @@ func newTokenListCmd() *cobra.Command {
 			# List tokens for a specific resource class
 			$ circleci runner token list --resource-class my-org/my-runner
 
-			# Output as JSON
-			$ circleci runner token list --json
+			# List tokens for a resource class given by its ID
+			$ circleci runner token list --resource-class 01234567-89ab-4cde-8f01-23456789abcd
 
 			# Extract IDs with --jq
 			$ circleci runner token list --resource-class my-org/my-runner --json --jq '.[].id'
@@ -117,57 +117,104 @@ func newTokenListCmd() *cobra.Command {
 }
 
 type tokenOutput struct {
-	ID            string `json:"id"`
-	ResourceClass string `json:"resource_class"`
-	Nickname      string `json:"nickname"`
-	CreatedAt     string `json:"created_at"`
+	ID              string `json:"id"`
+	ResourceClass   string `json:"resource_class"`
+	ResourceClassID string `json:"resource_class_id"`
+	Nickname        string `json:"nickname"`
+	CreatedAt       string `json:"created_at"`
 }
 
 func runTokenList(ctx context.Context, client *apiclient.Client, org, resourceClass string, jsonOut bool) error {
-	// rcs is the set of resource classes whose tokens we list. Each one's
-	// ResourceClass (namespace/name) is both the V3 filter value and the output's resource_class.
-	var rcs []apiclient.ResourceClass
-
+	var out []tokenOutput
+	var err error
 	if resourceClass != "" {
+		out, resourceClass, err = listTokensForResourceClass(ctx, client, resourceClass)
+	} else {
+		out, err = listTokensForOrg(ctx, client, org)
+	}
+	if err != nil {
+		return err
+	}
+	return printTokenList(ctx, out, resourceClass, jsonOut)
+}
+
+// listTokensForResourceClass lists the tokens of one resource class given as
+// namespace/name or ID, in a single request. It also returns the name to report
+// the class by.
+func listTokensForResourceClass(ctx context.Context, client *apiclient.Client, resourceClass string) ([]tokenOutput, string, error) {
+	id, isID, err := parseResourceClassRef(resourceClass)
+	if err != nil {
+		return nil, "", err
+	}
+
+	var tokens []apiclient.RunnerToken
+	if isID {
+		tokens, err = client.ListRunnerTokensByResourceClassID(ctx, id)
+	} else {
+		tokens, err = client.ListRunnerTokensByResourceClass(ctx, resourceClass)
+	}
+	if err != nil {
+		// The API answers 404 for a class that does not exist and for one the caller cannot access.
+		if httpcl.HasStatusCode(err, http.StatusNotFound) {
+			return nil, "", resourceClassNotFoundErr(resourceClass, isID)
+		}
+		return nil, "", apiErr(err, resourceClass)
+	}
+
+	// Rows carry the namespace/name, but an ID with no tokens has none to read it
+	// from, and the "No tokens found" message names the class by namespace/name.
+	if len(tokens) == 0 && isID {
 		rc, err := resolveResourceClass(ctx, client, resourceClass)
 		if err != nil {
-			return err
+			return nil, "", err
 		}
-		rcs = []apiclient.ResourceClass{*rc}
-		// Report the namespace/name, not the UUID, when the flag was given an ID.
 		resourceClass = rc.ResourceClass
-	} else {
-		orgID, err := cmdutil.ResolveOrgSlugOrID(ctx, client, org, "circleci runner token list")
-		if err != nil {
-			return err
+	}
+	return tokenOutputs(tokens), resourceClass, nil
+}
+
+// listTokensForOrg lists the tokens of every resource class in the organization,
+// one request per class.
+func listTokensForOrg(ctx context.Context, client *apiclient.Client, org string) ([]tokenOutput, error) {
+	orgID, err := cmdutil.ResolveOrgSlugOrID(ctx, client, org, "circleci runner token list")
+	if err != nil {
+		return nil, err
+	}
+	classes, err := client.ListResourceClassesByOrg(ctx, orgID)
+	if err != nil {
+		if httpcl.HasStatusCode(err, http.StatusNotFound) {
+			return nil, orgNotAccessibleErr(orgID)
 		}
-		classes, err := client.ListResourceClassesByOrg(ctx, orgID)
-		if err != nil {
-			if httpcl.HasStatusCode(err, http.StatusNotFound) {
-				return orgNotAccessibleErr(orgID)
-			}
-			return apiErr(err, orgID.String())
-		}
-		rcs = classes
+		return nil, apiErr(err, orgID.String())
 	}
 
 	var out []tokenOutput
-	for _, rc := range rcs {
-		tokens, err := client.ListRunnerTokensV3(ctx, rc.ResourceClass)
+	for _, rc := range classes {
+		rcID, err := resourceClassUUID(&rc)
 		if err != nil {
-			return apiErr(err, rc.ResourceClass)
+			return nil, err
 		}
-		for _, t := range tokens {
-			out = append(out, tokenOutput{
-				ID:            t.ID,
-				ResourceClass: t.ResourceClass,
-				Nickname:      t.Nickname,
-				CreatedAt:     t.CreatedAt,
-			})
+		tokens, err := client.ListRunnerTokensByResourceClassID(ctx, rcID)
+		if err != nil {
+			return nil, apiErr(err, rc.ResourceClass)
 		}
+		out = append(out, tokenOutputs(tokens)...)
 	}
+	return out, nil
+}
 
-	return printTokenList(ctx, out, resourceClass, jsonOut)
+func tokenOutputs(tokens []apiclient.RunnerToken) []tokenOutput {
+	out := make([]tokenOutput, 0, len(tokens))
+	for _, t := range tokens {
+		out = append(out, tokenOutput{
+			ID:              t.ID,
+			ResourceClass:   t.ResourceClass,
+			ResourceClassID: t.ResourceClassID,
+			Nickname:        t.Nickname,
+			CreatedAt:       t.CreatedAt,
+		})
+	}
+	return out
 }
 
 func printTokenList(ctx context.Context, out []tokenOutput, resourceClass string, jsonOut bool) error {
@@ -215,7 +262,7 @@ func newTokenCreateCmd() *cobra.Command {
 			The token value is shown only once and cannot be retrieved afterwards.
 			Store it securely. If lost, delete this token and create a new one.
 
-			JSON fields: id, resource_class, nickname, created_at, token
+			JSON fields: id, resource_class, resource_class_id, nickname, created_at, token
 		`),
 		Example: heredoc.Doc(`
 			# Create a token for a resource class
@@ -251,11 +298,12 @@ func newTokenCreateCmd() *cobra.Command {
 }
 
 type tokenCreateOutput struct {
-	ID            string `json:"id"`
-	ResourceClass string `json:"resource_class"`
-	Nickname      string `json:"nickname"`
-	CreatedAt     string `json:"created_at"`
-	Token         string `json:"token"`
+	ID              string `json:"id"`
+	ResourceClass   string `json:"resource_class"`
+	ResourceClassID string `json:"resource_class_id"`
+	Nickname        string `json:"nickname"`
+	CreatedAt       string `json:"created_at"`
+	Token           string `json:"token"`
 }
 
 func runTokenCreate(ctx context.Context, client *apiclient.Client, resourceClass, nickname string, jsonOut bool) error {
@@ -269,17 +317,18 @@ func runTokenCreate(ctx context.Context, client *apiclient.Client, resourceClass
 		return err
 	}
 
-	tok, err := client.CreateRunnerTokenV3(ctx, rcID, rc.ResourceClass, nickname)
+	tok, err := client.CreateRunnerTokenV3(ctx, rcID, nickname)
 	if err != nil {
 		return apiErr(err, rc.ResourceClass)
 	}
 
 	out := tokenCreateOutput{
-		ID:            tok.ID,
-		ResourceClass: tok.ResourceClass,
-		Nickname:      tok.Nickname,
-		CreatedAt:     tok.CreatedAt,
-		Token:         tok.Token,
+		ID:              tok.ID,
+		ResourceClass:   tok.ResourceClass,
+		ResourceClassID: tok.ResourceClassID,
+		Nickname:        tok.Nickname,
+		CreatedAt:       tok.CreatedAt,
+		Token:           tok.Token,
 	}
 
 	if jsonOut {

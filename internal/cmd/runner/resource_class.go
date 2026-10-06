@@ -306,7 +306,7 @@ func runResourceClassCreate(ctx context.Context, client *apiclient.Client,
 		if err != nil {
 			return tokenGenerationErr(err, out.ResourceClass)
 		}
-		tok, err := client.CreateRunnerTokenV3(ctx, rcID, out.ResourceClass, defaultTokenNickname)
+		tok, err := client.CreateRunnerTokenV3(ctx, rcID, defaultTokenNickname)
 		if err != nil {
 			return tokenGenerationErr(err, out.ResourceClass)
 		}
