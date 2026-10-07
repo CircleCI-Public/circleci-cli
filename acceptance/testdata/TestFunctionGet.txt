@@ -11,6 +11,19 @@ Install a Go toolchain and link it onto PATH for later steps.
 | version  | string | stable  | Go version spec: a release (1.22) \| stable.     |
 | cache    | bool   | true    | Use the job cache. Turn off for hermetic builds. |
 
+## Example
+
+```yaml
+functions:
+  setup-go: github.com/circleci-functions/setup-go@v0.5.1-684fd5b
+jobs:
+  build:
+    steps:
+      - setup-go:
+          with:
+            version: "1.22"
+```
+
 ## Published versions
 | Version        |
 | -------------- |

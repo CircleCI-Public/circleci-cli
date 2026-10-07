@@ -25,6 +25,7 @@ package cmdfunction
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/MakeNowJust/heredoc"
 	"github.com/google/uuid"
@@ -45,6 +46,7 @@ type getEntry struct {
 	LatestVersion string          `json:"latest_version"`
 	Versions      []string        `json:"versions"`
 	Flags         []function.Flag `json:"flags"`
+	Example       string          `json:"example,omitempty"`
 }
 
 func newGetCmd() *cobra.Command {
@@ -63,7 +65,7 @@ func newGetCmd() *cobra.Command {
 			A bare name resolves against %[1]sgithub.com/circleci-functions%[1]s.
 
 			JSON fields: id, name, description, version, latest_version,
-			versions, flags.
+			versions, flags, example.
 		`, "`"),
 		Example: heredoc.Doc(`
 			# Show a function at its latest version
@@ -145,6 +147,8 @@ func runGet(ctx context.Context, client *apiclient.Client, arg, version string, 
 	if flags == nil {
 		flags = []function.Flag{}
 	}
+	// The config that runs this version, which the toolkit renders at release.
+	example, _ := descriptor.Content["example"].(string)
 
 	entry := getEntry{
 		ID:            fn.ID,
@@ -154,6 +158,7 @@ func runGet(ctx context.Context, client *apiclient.Client, arg, version string, 
 		LatestVersion: fn.LatestVersion,
 		Versions:      versions,
 		Flags:         flags,
+		Example:       example,
 	}
 
 	if jsonOut {
@@ -177,6 +182,10 @@ func printFunction(ctx context.Context, e getEntry) {
 			table.Row(tableCell(f.Name), tableCell(f.Type), tableCell(f.Default), tableCell(f.Description))
 		}
 		md += "\n## Arguments\n" + table.Render()
+	}
+
+	if e.Example != "" {
+		md += "\n## Example\n\n```yaml\n" + strings.TrimRight(e.Example, "\n") + "\n```\n"
 	}
 
 	if len(e.Versions) > 0 {

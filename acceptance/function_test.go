@@ -45,6 +45,18 @@ const (
 	setupGoDescription = "Install a Go toolchain and link it onto PATH for later steps.\n\nExample:\n  circleci run setup-go@<version> -- --version 1.22"
 )
 
+// setupGoExample is the latest release's example config, as the toolkit
+// renders it at release.
+const setupGoExample = `functions:
+  setup-go: ` + setupGoName + "@" + setupGoLatest + `
+jobs:
+  build:
+    steps:
+      - setup-go:
+          with:
+            version: "1.22"
+`
+
 func setupFunctionFake(t *testing.T) *testenv.TestEnv {
 	t.Helper()
 	fake := fakes.NewCircleCI(t)
@@ -57,6 +69,7 @@ func setupFunctionFake(t *testing.T) *testenv.TestEnv {
 		"name":        "setup-go",
 		"description": "Install a Go toolchain and link it onto PATH for later steps.",
 		"version":     setupGoLatest,
+		"example":     setupGoExample,
 		"flags": []any{
 			map[string]any{
 				"name": "version", "type": "string", "default": "stable",
@@ -195,6 +208,7 @@ func TestFunctionGet_JSON(t *testing.T) {
 					"description": "Use the job cache.\nTurn off for hermetic builds.",
 				},
 			},
+			"example": setupGoExample,
 		}))
 	})
 
