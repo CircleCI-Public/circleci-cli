@@ -208,6 +208,7 @@ func TestFunctionGet_JSON(t *testing.T) {
 					"description": "Use the job cache.\nTurn off for hermetic builds.",
 				},
 			},
+			"example": setupGoExample,
 		}))
 	})
 
