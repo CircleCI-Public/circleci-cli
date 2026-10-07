@@ -48,10 +48,7 @@ func apiErr(err error, subject string) error {
 func notFoundErr(name string) error {
 	return clierrors.New("function.not_found", "Not found",
 		fmt.Sprintf("No published function found for %q.", name)).
-		WithSuggestions(
-			"Run 'circleci function list' to see published functions",
-			"Functions published under the legacy circleci/<name> prefix are not listed",
-		).
+		WithSuggestions("Run 'circleci function list' to see published functions").
 		WithExitCode(clierrors.ExitNotFound)
 }
 
