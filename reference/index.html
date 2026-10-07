@@ -898,8 +898,9 @@ with an empty string.</p><p><strong>Examples:</strong></p><ul><li>Substitute a s
 also reports the newest release, asking CircleCI at most once a day. Turn that off
 with <code>circleci setting set update-check off</code>.</p><p>JSON fields: version (release tag, or &ldquo;dev&rdquo; for unreleased builds), commit (full git
 hash), modified (true when built from a dirty working tree), latest (newest release),
-outdated (true when latest is newer). latest and outdated are null when unknown: a dev
-build, update checks off, or offline.</p><table><thead><tr><th>Flag</th><th>Description</th></tr></thead><tbody><tr><td><code>--json</code></td><td>output as JSON (fields: version, commit, modified, latest, outdated)</td></tr></tbody></table><p><strong>Examples:</strong></p><ul><li>Print version and commit hash:
+outdated (true when latest is newer), upgrade_command (the command that upgrades this
+install). latest and outdated are null when unknown (a dev build, update checks off,
+or offline), and upgrade_command is null when the install method is unknown.</p><table><thead><tr><th>Flag</th><th>Description</th></tr></thead><tbody><tr><td><code>--json</code></td><td>output as JSON (fields: version, commit, modified, latest, outdated, upgrade_command)</td></tr></tbody></table><p><strong>Examples:</strong></p><ul><li>Print version and commit hash:
 <code>circleci version</code></li><li>Print as JSON:
 <code>circleci version --json</code></li><li>Extract just the commit hash:
 <code>circleci version --json | jq -r .commit</code></li><li>Check whether a newer release is available:
