@@ -22,7 +22,12 @@
 
 package function
 
-import "strconv"
+import (
+	"bytes"
+	"strconv"
+
+	"gopkg.in/yaml.v3"
+)
 
 // Flag is one argument a function accepts, read out of a published descriptor.
 type Flag struct {
@@ -81,4 +86,45 @@ func str(m map[string]any, key string) string {
 	default:
 		return ""
 	}
+}
+
+// ExampleStep returns the step from a descriptor's example config, keyed by
+// alias instead of the function's own name. An example is rendered when the
+// function is released, so one that is missing or shaped unexpectedly yields
+// "" rather than an error.
+func ExampleStep(content map[string]any, alias string) string {
+	example, _ := content["example"].(string)
+	if example == "" {
+		return ""
+	}
+	var doc yaml.Node
+	if yaml.Unmarshal([]byte(example), &doc) != nil || len(doc.Content) == 0 {
+		return ""
+	}
+	jobs := findMappingValue(doc.Content[0], "jobs")
+	if jobs == nil || jobs.Kind != yaml.MappingNode || len(jobs.Content) != 2 {
+		return ""
+	}
+	steps := findMappingValue(jobs.Content[1], "steps")
+	if steps == nil || steps.Kind != yaml.SequenceNode || len(steps.Content) != 1 {
+		return ""
+	}
+
+	step := steps.Content[0]
+	switch {
+	case step.Kind == yaml.ScalarNode:
+		step.Value = alias
+	case step.Kind == yaml.MappingNode && len(step.Content) == 2:
+		step.Content[0].Value = alias
+	default:
+		return ""
+	}
+
+	var buf bytes.Buffer
+	enc := yaml.NewEncoder(&buf)
+	enc.SetIndent(2)
+	if enc.Encode(&yaml.Node{Kind: yaml.SequenceNode, Content: []*yaml.Node{step}}) != nil || enc.Close() != nil {
+		return ""
+	}
+	return buf.String()
 }

@@ -67,3 +67,11 @@ func TestFlags(t *testing.T) {
 		})
 	}
 }
+
+// A function with no flags to show publishes a bare step, which has no key to
+// rename.
+func TestExampleStepBare(t *testing.T) {
+	example := "functions:\n  setup-aws: github.com/circleci-functions/setup-aws@v0.1.1\njobs:\n  build:\n    steps:\n      - setup-aws\n"
+	got := function.ExampleStep(map[string]any{"example": example}, "aws")
+	assert.Check(t, cmp.Equal(got, "- aws\n"))
+}

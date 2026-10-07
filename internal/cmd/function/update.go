@@ -108,7 +108,7 @@ func runUpdate(ctx context.Context, client *apiclient.Client, alias, version, pa
 		return malformedPinErr(alias, pin.Function)
 	}
 
-	ref, err := resolveReference(ctx, client, pin.Function, version, !dryRun && !jsonOut)
+	ref, _, err := resolveReference(ctx, client, pin.Function, version, !dryRun && !jsonOut)
 	if err != nil {
 		return err
 	}
