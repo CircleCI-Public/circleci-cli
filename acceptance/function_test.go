@@ -45,6 +45,18 @@ const (
 	setupGoDescription = "Install a Go toolchain and link it onto PATH for later steps.\n\nExample:\n  circleci run setup-go@<version> -- --version 1.22"
 )
 
+// setupGoExample is the latest release's example config, as the toolkit
+// renders it at release.
+const setupGoExample = `functions:
+  setup-go: ` + setupGoName + "@" + setupGoLatest + `
+jobs:
+  build:
+    steps:
+      - setup-go:
+          with:
+            version: "1.22"
+`
+
 func setupFunctionFake(t *testing.T) *testenv.TestEnv {
 	t.Helper()
 	fake := fakes.NewCircleCI(t)
@@ -57,6 +69,7 @@ func setupFunctionFake(t *testing.T) *testenv.TestEnv {
 		"name":        "setup-go",
 		"description": "Install a Go toolchain and link it onto PATH for later steps.",
 		"version":     setupGoLatest,
+		"example":     setupGoExample,
 		"flags": []any{
 			map[string]any{
 				"name": "version", "type": "string", "default": "stable",
@@ -336,6 +349,7 @@ func TestFunctionAdd_JSON(t *testing.T) {
 		"function": setupGoName,
 		"version":  setupGoLatest,
 		"config":   ".circleci/config.yml",
+		"step":     "- setup-go:\n    with:\n      version: \"1.22\"\n",
 	}))
 	assert.Check(t, cmp.Contains(readFnConfig(t, dir), "setup-go: "+setupGoName+"@"+setupGoLatest))
 }
@@ -380,6 +394,15 @@ func TestFunctionAddOptions(t *testing.T) {
 		result := runFunctionIn(t, env, dir, "add", "setup-go", "--as", "go", "--version", "v0.9.0-aaa1111")
 		assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
 		assert.Check(t, cmp.Contains(readFnConfig(t, dir), "go: "+setupGoName+"@v0.9.0-aaa1111"))
+		// That version publishes no example, so only the step name is offered.
+		assert.Check(t, cmp.Contains(result.Stdout, `Invoke it as a step named "go".`))
+	})
+
+	t.Run("The example step is invoked by the alias", func(t *testing.T) {
+		dir := writeFnConfig(t, baseConfig)
+		result := runFunctionIn(t, env, dir, "add", "setup-go", "--as", "go")
+		assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+		assert.Check(t, cmp.Contains(result.Stdout, "    - go:\n        with:\n"))
 	})
 
 	t.Run("--dry-run leaves the file byte-identical", func(t *testing.T) {
@@ -389,6 +412,7 @@ func TestFunctionAddOptions(t *testing.T) {
 		result := runFunctionIn(t, env, dir, "add", "setup-go", "--dry-run")
 		assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
 		assert.Check(t, cmp.Contains(result.Stdout, "Would add"))
+		assert.Check(t, cmp.Contains(result.Stdout, "Invoke it from a job's steps:\n\n  - setup-go:\n"))
 		assert.Check(t, cmp.Equal(readFnConfig(t, dir), before))
 	})
 

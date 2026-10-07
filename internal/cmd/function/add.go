@@ -25,8 +25,10 @@ package cmdfunction
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/MakeNowJust/heredoc"
+	"github.com/google/uuid"
 	"github.com/spf13/cobra"
 
 	clierrors "github.com/CircleCI-Public/circleci-cli/clikit/errors"
@@ -45,6 +47,7 @@ type addResult struct {
 	Function string `json:"function"`
 	Version  string `json:"version"`
 	Config   string `json:"config"`
+	Step     string `json:"step,omitempty"`
 }
 
 func newAddCmd() *cobra.Command {
@@ -65,7 +68,7 @@ func newAddCmd() *cobra.Command {
 
 			A default alias that clashes with an orb or command gets %[1]s-fn%[1]s appended.
 
-			JSON fields: alias, function, version, config.
+			JSON fields: alias, function, version, config, step.
 		`, "`"),
 		Example: heredoc.Doc(`
 			# Declare a function at its latest version
@@ -127,10 +130,11 @@ func runAdd(ctx context.Context, client *apiclient.Client, arg, alias, version, 
 		return err
 	}
 
-	ref, err := resolveReference(ctx, client, name, version, !dryRun && !jsonOut)
+	ref, resolved, err := resolveReference(ctx, client, name, version, !dryRun && !jsonOut)
 	if err != nil {
 		return err
 	}
+	step := exampleStep(ctx, client, resolved, alias)
 
 	if conflict != "" {
 		iostream.ErrPrintf(ctx, "%s Aliased as %q: %q already names %s %s in this config\n",
@@ -144,16 +148,47 @@ func runAdd(ctx context.Context, client *apiclient.Client, arg, alias, version, 
 	}
 
 	if jsonOut {
-		return iostream.PrintJSON(ctx, addResult{Alias: alias, Function: ref.Path, Version: ref.Version, Config: path})
+		return iostream.PrintJSON(ctx, addResult{Alias: alias, Function: ref.Path, Version: ref.Version, Config: path, Step: step})
 	}
 	if dryRun {
 		iostream.Printf(ctx, "Would add to the functions block in %s:\n\n  %s: %s\n", path, alias, ref)
+		if step != "" {
+			iostream.Printf(ctx, "\nInvoke it from a job's steps:\n\n%s", indent(step, "  "))
+		}
 		return nil
 	}
 
 	iostream.Printf(ctx, "%s Declared %s as %s in %s\n", iostream.SymbolOK(ctx), alias, ref, path)
-	iostream.Printf(ctx, "  Invoke it as a step named %q.\n", alias)
+	if step == "" {
+		iostream.Printf(ctx, "  Invoke it as a step named %q.\n", alias)
+		return nil
+	}
+	iostream.Printf(ctx, "  Invoke it from a job's steps:\n\n%s", indent(step, "    "))
 	return nil
+}
+
+// exampleStep returns the step from the resolved version's example config,
+// keyed by alias. It is a hint: a version with no example, or one that cannot
+// be fetched, yields "" rather than failing an add.
+func exampleStep(ctx context.Context, client *apiclient.Client, version apiclient.FunctionVersion, alias string) string {
+	if version.ID == uuid.Nil {
+		return ""
+	}
+	descriptor, err := client.GetFunctionVersion(ctx, version.ID)
+	if err != nil {
+		return ""
+	}
+	return function.ExampleStep(descriptor.Content, alias)
+}
+
+func indent(s, prefix string) string {
+	lines := strings.SplitAfter(s, "\n")
+	for i, line := range lines {
+		if line != "" {
+			lines[i] = prefix + line
+		}
+	}
+	return strings.Join(lines, "")
 }
 
 // resolveAlias returns the alias to write and what, if anything, forced it to
@@ -190,30 +225,33 @@ func resolveAlias(path, alias string, explicit bool) (string, string, error) {
 }
 
 // resolveReference turns a name and an optional version into a pinnable
-// reference, defaulting to the function's latest release.
-func resolveReference(ctx context.Context, client *apiclient.Client, name, version string, spin bool) (function.Reference, error) {
+// reference, defaulting to the function's latest release, along with the
+// published version it names.
+func resolveReference(ctx context.Context, client *apiclient.Client, name, version string, spin bool) (function.Reference, apiclient.FunctionVersion, error) {
 	sp := iostream.Spinner(ctx, spin, fmt.Sprintf("Resolving %s", name))
 	fn, err := client.GetFunctionByName(ctx, name)
 	sp.Stop()
 	if err != nil {
-		return function.Reference{}, apiErr(err, name)
+		return function.Reference{}, apiclient.FunctionVersion{}, apiErr(err, name)
 	}
 
 	if version == "" {
 		if fn.LatestVersion == "" {
-			return function.Reference{}, noVersionsErr(name)
+			return function.Reference{}, apiclient.FunctionVersion{}, noVersionsErr(name)
 		}
-		return function.Reference{Path: fn.Name, Version: fn.LatestVersion}, nil
+		latest, _ := fn.Find(fn.LatestVersion)
+		return function.Reference{Path: fn.Name, Version: fn.LatestVersion}, latest, nil
 	}
 
-	if _, ok := fn.Find(version); !ok {
+	found, ok := fn.Find(version)
+	if !ok {
 		versions := make([]string, 0, len(fn.Versions))
 		for _, v := range fn.Versions {
 			versions = append(versions, v.Version)
 		}
-		return function.Reference{}, versionNotPublishedErr(name, version, versions)
+		return function.Reference{}, apiclient.FunctionVersion{}, versionNotPublishedErr(name, version, versions)
 	}
-	return function.Reference{Path: fn.Name, Version: version}, nil
+	return function.Reference{Path: fn.Name, Version: version}, found, nil
 }
 
 func article(kind string) string {
