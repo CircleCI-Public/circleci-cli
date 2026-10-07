@@ -261,6 +261,8 @@ internal/
 │                         attributes tool-call subprocesses correctly.
 ├── installmethod/        Detect(): how the running binary was installed (homebrew, snap,
 │                         winget, …), worked out from its path. Reported in telemetry.
+│                         UpgradeCommand(): the matching upgrade command, shown in the
+│                         update notice and `version --json`.
 ├── buildinfo/            AgeDays(): days since the commit the binary was built from.
 ├── bulkhead/             Runs a slice of work with bounded parallelism.
 └── conventions/          Tests enforcing this repo's own house rules (currently the testing
@@ -347,6 +349,7 @@ through `iostream.Streams`.
 | `CIRCLE_LOGIN_TIMEOUT` | Duration string overriding the `auth login` browser-flow timeout |
 | `CIRCLE_SHA_WAIT_MS` | Shortens how long `run watch` waits for a SHA to appear |
 | `__CIRCLE_UPDATE_FORCE` | Bypasses the update notifier's TTY/dev-build gates and supplies the version to treat as current (`internal/update`). Double-underscore = internal, never user-set |
+| `__CIRCLE_INSTALL_METHOD` | Makes `installmethod` report the named install method (e.g. `homebrew`) instead of detecting it, so acceptance tests can check each upgrade command. Double-underscore = internal, never user-set |
 
 ---
 

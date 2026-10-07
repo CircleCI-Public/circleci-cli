@@ -31,6 +31,7 @@ import (
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/assert/cmp"
 
+	"github.com/CircleCI-Public/circleci-cli/internal/installmethod"
 	"github.com/CircleCI-Public/circleci-cli/internal/testing/binary"
 	testenv "github.com/CircleCI-Public/circleci-cli/internal/testing/env"
 )
@@ -84,6 +85,18 @@ func TestVersionJSON(t *testing.T) {
 	assert.Check(t, cmp.Contains(out, "latest"))
 	assert.Check(t, cmp.Contains(out, "outdated"))
 	assert.Check(t, cmp.DeepEqual(freshness(out), map[string]any{"latest": nil, "outdated": nil}))
+
+	// The test binary runs from a temp dir, which is no known install method.
+	assert.Check(t, cmp.Contains(out, "upgrade_command"))
+	assert.Check(t, cmp.Nil(out["upgrade_command"]))
+}
+
+func TestVersionJSON_UpgradeCommand(t *testing.T) {
+	env := testenv.New(t)
+	env.Extra[installmethod.ForceEnv] = "homebrew"
+
+	out := runVersionJSON(t, env)
+	assert.Check(t, cmp.Equal(out["upgrade_command"], "brew upgrade circleci"))
 }
 
 // runVersionJSON runs `circleci version --json` and decodes its output.

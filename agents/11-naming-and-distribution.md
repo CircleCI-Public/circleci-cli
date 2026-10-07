@@ -15,9 +15,10 @@
    They run in the background during `PersistentPreRunE` and are drained in
    `PersistentPostRunE`, which only runs on success, so a notice never lands on
    top of an error. Implementation in `internal/update`.
-6. **Stay channel-agnostic in user-facing upgrade text.** This CLI ships through
-   seven channels, so link the release page rather than naming one package
-   manager's upgrade command.
+6. **Name the upgrade command only when you know the install method.** This CLI
+   ships through many channels, so the command comes from
+   `installmethod.UpgradeCommand()`, never a guess. When the method is unknown,
+   say nothing about how to upgrade and just link the release page.
 
 ---
 
@@ -190,17 +191,22 @@ Most argument parsing libraries (cobra, click, clap, etc.) can generate completi
 ## Update Notifications
 
 `circleci` notifies users after a successful command when a newer release
-exists. The message is deliberately channel-agnostic — we ship through seven
-channels, so it links the GitHub release page for the new version rather than
-naming one package manager's upgrade command:
+exists. When it can tell how the binary was installed (`internal/installmethod`),
+it names the command that upgrades that install, then links the GitHub release
+page for the new version:
 
 ```
 $ circleci run get
 [...]
 
 A new version of circleci is available: 1.2.0 → 1.3.0
+To upgrade, please run: brew upgrade circleci
 https://github.com/CircleCI-Public/circleci-cli/releases/tag/v1.3.0
 ```
+
+When the install method is unknown, the middle line is left out rather than
+guessed. `circleci version --json` reports the same command as `upgrade_command`
+for agents and scripts, which never see the notice.
 
 The implementation lives in `internal/update` (business logic) and is wired in
 `internal/cmd/root/root.go`. What it does and why:
