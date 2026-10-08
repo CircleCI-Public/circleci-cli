@@ -6,6 +6,15 @@ is added by its release PR (see [RELEASE.md](RELEASE.md)) and becomes its GitHub
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0] - 2026-10-08
+
+### What's Changed
+* Name the upgrade command in the update notice by @EnoshAnwar in https://github.com/CircleCI-Public/circleci-cli/pull/1891
+* Add circleci runner fleet list/get by @soulchips in https://github.com/CircleCI-Public/circleci-cli/pull/1893
+
+
+**Full Changelog**: https://github.com/CircleCI-Public/circleci-cli/compare/v1.3.0...v1.4.0
+
 ## [1.3.0] - 2026-10-07
 
 ### What's Changed
