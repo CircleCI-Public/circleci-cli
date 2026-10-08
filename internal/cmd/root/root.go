@@ -355,8 +355,8 @@ func NewRootCmd(version string) *cobra.Command {
 	var updateNotifier *update.Notifier
 
 	cmd.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
-		for i := range args {
-			args[i] = strings.TrimSpace(args[i])
+		if err := validateInput(cmd, args); err != nil {
+			return err
 		}
 		if _, err := initConfig(cmd); err != nil {
 			return err
@@ -430,4 +430,13 @@ func startUpdateNotifier(cmd *cobra.Command, version string) *update.Notifier {
 
 	src := update.NewProxySource(cmdutil.LoadClientOptionalAuth(ctx))
 	return update.Start(ctx, src, statePath, update.EffectiveVersion(version))
+}
+
+// validateInput trims whitespace from the positional args in place and checks
+// the command's required flags and flag groups, before any config is loaded.
+func validateInput(cmd *cobra.Command, args []string) error {
+	for i := range args {
+		args[i] = strings.TrimSpace(args[i])
+	}
+	return cmdutil.ValidateFlags(cmd)
 }

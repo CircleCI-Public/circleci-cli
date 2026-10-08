@@ -218,7 +218,7 @@ func TestRunnerResourceClassList_FiltersMutuallyExclusive(t *testing.T) {
 				WorkDir: t.TempDir(),
 			})
 
-			assert.Check(t, cmp.Equal(result.ExitCode, 1))
+			assert.Check(t, cmp.Equal(result.ExitCode, clierrors.ExitBadArguments))
 			assert.Check(t, golden.String(result.Stderr, "TestRunnerResourceClassList_FiltersMutuallyExclusive_"+tc.name+".stderr.txt"))
 		})
 	}
@@ -1537,7 +1537,7 @@ func TestRunnerInstanceList_FiltersMutuallyExclusive(t *testing.T) {
 				WorkDir: t.TempDir(),
 			})
 
-			assert.Check(t, cmp.Equal(result.ExitCode, 1))
+			assert.Check(t, cmp.Equal(result.ExitCode, clierrors.ExitBadArguments))
 			assert.Check(t, golden.String(result.Stderr, "TestRunnerInstanceList_FiltersMutuallyExclusive_"+tc.name+".stderr.txt"))
 		})
 	}
@@ -1748,7 +1748,7 @@ func TestRunnerInstanceList_ConflictingScopes(t *testing.T) {
 		WorkDir: t.TempDir(),
 	})
 
-	assert.Check(t, cmp.Equal(result.ExitCode, 1))
+	assert.Check(t, cmp.Equal(result.ExitCode, clierrors.ExitBadArguments))
 	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 }
 
@@ -2908,7 +2908,7 @@ func TestRunnerFleetList_FiltersMutuallyExclusive(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			result := runFleet(t, env, false, append([]string{"list"}, tc.args...)...)
 
-			assert.Check(t, cmp.Equal(result.ExitCode, 1))
+			assert.Check(t, cmp.Equal(result.ExitCode, clierrors.ExitBadArguments))
 			assert.Check(t, golden.String(result.Stderr, "TestRunnerFleetList_FiltersMutuallyExclusive_"+tc.name+".stderr.txt"))
 		})
 	}

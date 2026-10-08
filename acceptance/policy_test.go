@@ -345,10 +345,11 @@ func TestPolicyEval_Errors(t *testing.T) {
 		args     []string
 		wantExit int // exact expected exit code
 	}{
-		// Cobra argument/flag errors are unclassified → ExitGeneralError (1).
+		// Cobra argument errors are unclassified → ExitGeneralError (1).
 		{"missing policy arg", []string{"policy", "eval", "--input", input, "--no-compile"}, 1},
-		{"missing input flag", []string{"policy", "eval", policy, "--no-compile"}, 1},
-		// Structured CLIErrors carry their own exit codes.
+		// Structured CLIErrors carry their own exit codes. Required-flag and
+		// flag-group failures are converted to ExitBadArguments by the root.
+		{"missing input flag", []string{"policy", "eval", policy, "--no-compile"}, 2},
 		{"input file not found", []string{"policy", "eval", policy, "--input", dir.Join("no_such.yml"), "--no-compile"}, 2},
 		{"policy path not found", []string{"policy", "eval", dir.Join("no_such.rego"), "--input", input, "--no-compile"}, 7},
 		{"meta and metafile conflict", []string{"policy", "eval", policy, "--input", input, "--meta", "{}", "--metafile", "somefile", "--no-compile"}, 2},
