@@ -101,6 +101,9 @@ type CircleCI struct {
 	workflowsV3ByRun    map[string][]WorkflowV3 // run UUID → ordered workflows
 	workflowsV3NotFound map[string]bool         // run UUID → workflows list returns 404
 
+	// Charges (v3 analysis) state.
+	runCharges map[string][]RunCharge // run UUID → per-workflow charge rows
+
 	// Runner (v3) state.
 	resourceClasses []ResourceClass          // all resource classes
 	runnerTokens    map[string][]RunnerToken // fully qualified resource class → tokens
@@ -298,6 +301,7 @@ func NewCircleCI(t *testing.T, tokens ...string) *CircleCI {
 		workflowsV3:                       map[string]WorkflowV3{},
 		workflowsV3ByRun:                  map[string][]WorkflowV3{},
 		workflowsV3NotFound:               map[string]bool{},
+		runCharges:                        map[string][]RunCharge{},
 		resourceClasses:                   []ResourceClass{},
 		runnerTokens:                      map[string][]RunnerToken{},
 		runnerAgents:                      []RunnerAgent{},
@@ -467,6 +471,9 @@ func NewCircleCI(t *testing.T, tokens ...string) *CircleCI {
 	r.Get("/api/v3/runs", f.handleListMyRunsV3)
 	r.Get("/api/v3/runs/{id}", f.handleGetRunV3)
 	r.Post("/api/v3/runs/search", f.handleSearchRunsV3)
+	// Analysis (v3) routes. Only the pipeline.id-filtered charges search is
+	// modelled: the filter selects the rows AddRunCharges registered.
+	r.Post("/api/v3/analysis/charges", f.handleSearchCharges)
 	// Runner (v3) routes. GET /runner/agents lists agents under exactly one of
 	// filter[org_id]=, filter[resource_class]= or filter[namespace]=.
 	// List/create/delete for resource classes all live on
@@ -1444,6 +1451,89 @@ func (f *CircleCI) handleGetWorkflowsV3(w http.ResponseWriter, r *http.Request) 
 		items = append(items, workflowV3Entity(wf))
 	}
 	render.JSON(w, r, map[string]any{"data": items})
+}
+
+// RunCharge is one per-workflow row of a run's charges, as served by
+// POST /api/v3/analysis/charges.
+type RunCharge struct {
+	ProjectID string
+	Workflow  string
+	Credits   int64
+}
+
+// AddRunCharges registers the charge rows a charges search filtered by
+// pipeline.id == "<runID>" returns.
+func (f *CircleCI) AddRunCharges(runID string, charges ...RunCharge) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.runCharges[runID] = append(f.runCharges[runID], charges...)
+}
+
+// handleSearchCharges serves the charges analysis for a single run. A filter
+// without a pipeline.id pin matches nothing: no test needs a wider search.
+// Rows are paged one at a time so the client's cursor handling is exercised.
+func (f *CircleCI) handleSearchCharges(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		Analysis string `json:"analysis"`
+		Scope    struct {
+			ProjectIDs []string `json:"project_ids"`
+		} `json:"scope"`
+		Filter string `json:"filter"`
+		Page   struct {
+			Cursor string `json:"cursor"`
+		} `json:"page"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || len(body.Scope.ProjectIDs) == 0 {
+		render.Status(r, http.StatusBadRequest)
+		render.JSON(w, r, map[string]any{"message": "bad request"})
+		return
+	}
+
+	runID := chargePipelineFilter(body.Filter)
+	f.mu.RLock()
+	var rows []any
+	for _, c := range f.runCharges[runID] {
+		if !slices.Contains(body.Scope.ProjectIDs, c.ProjectID) {
+			continue
+		}
+		rows = append(rows, map[string]any{
+			"attributes": map[string]any{
+				"name":            c.Workflow,
+				"credits":         c.Credits,
+				"runs":            1,
+				"credits_per_run": float64(c.Credits),
+			},
+			"references": map[string]any{"project": map[string]any{"id": c.ProjectID}},
+		})
+	}
+	f.mu.RUnlock()
+
+	offset, _ := strconv.Atoi(body.Page.Cursor)
+	page := []any{}
+	pageInfo := map[string]any{}
+	if offset < len(rows) {
+		page = rows[offset : offset+1]
+		if offset+1 < len(rows) {
+			pageInfo["next"] = strconv.Itoa(offset + 1)
+		}
+	}
+	render.JSON(w, r, map[string]any{"data": page, "page": pageInfo})
+}
+
+// chargePipelineFilter extracts the run pinned by a charges filter expression
+// like `pipeline.id == "<uuid>"`, or "" when none is pinned.
+func chargePipelineFilter(filter string) string {
+	const key = `pipeline.id == "`
+	i := strings.Index(filter, key)
+	if i < 0 {
+		return ""
+	}
+	rest := filter[i+len(key):]
+	j := strings.Index(rest, `"`)
+	if j < 0 {
+		return ""
+	}
+	return rest[:j]
 }
 
 // RunV3 is a stored run served by the run-detail, run-search, and my-runs

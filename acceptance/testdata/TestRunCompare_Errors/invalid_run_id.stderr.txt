@@ -1,0 +1,4 @@
+error: "not-a-uuid" is not a valid run UUID.
+
+Suggestions:
+  • Find run UUIDs with: circleci run list --json

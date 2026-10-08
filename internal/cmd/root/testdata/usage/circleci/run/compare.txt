@@ -1,0 +1,7 @@
+Usage:  circleci run compare <old-run-id> <new-run-id> [flags]
+
+Flags:
+  -h, --help        help for compare
+      --jq string   Process values from the response using jq syntax
+      --json        Output as JSON
+  
