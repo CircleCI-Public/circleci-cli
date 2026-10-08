@@ -30,12 +30,15 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"os/exec"
+	"path/filepath"
 	"testing"
 
 	"github.com/go-git/go-git/v6"
 	"github.com/go-git/go-git/v6/config"
 
 	"github.com/CircleCI-Public/circleci-cli/clikit/iostream"
+	"github.com/CircleCI-Public/circleci-cli/internal/testing/gitconfig"
 
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
@@ -238,6 +241,7 @@ func TestExtractZip_StripsWrapperAndRejectsZipSlip(t *testing.T) {
 }
 
 func TestInitRepoAndCheckoutAlpha(t *testing.T) {
+	gitconfig.Isolate(t)
 	dir := fs.NewDir(t, "orbinit", fs.WithFile("README.md", "hi"))
 
 	repo, w, err := InitRepo(dir.Path(), "https://github.com/acme/my-orb.git", "main")
@@ -287,6 +291,7 @@ func TestInitRepoAndCheckoutAlpha(t *testing.T) {
 // The clone's own origin wins: it is where the author actually intends to push,
 // so the URL orb init was given must not overwrite it.
 func TestInitRepo_AdoptsExistingRepo(t *testing.T) {
+	gitconfig.Isolate(t)
 	dir := fs.NewDir(t, "orbinit", fs.WithFile("README.md", "hi"))
 
 	// Stand in for `git clone` of an empty repository: a repository with an
@@ -322,6 +327,7 @@ func TestInitRepo_AdoptsExistingRepo(t *testing.T) {
 // empty repository has an origin but an unborn HEAD, so the initial commit must
 // land on the branch orb init was told to track.
 func TestInitRepo_EmptyCloneUsesConfiguredBranch(t *testing.T) {
+	gitconfig.Isolate(t)
 	dir := fs.NewDir(t, "orbinit", fs.WithFile("README.md", "hi"))
 
 	// Stand in for `git clone` of an empty repository: an origin, no commits.
@@ -345,6 +351,7 @@ func TestInitRepo_EmptyCloneUsesConfiguredBranch(t *testing.T) {
 // repository that already has commits keeps its current branch, so a requested
 // branch that disagrees must not move HEAD.
 func TestInitRepo_AdoptedRepoKeepsItsBranch(t *testing.T) {
+	gitconfig.Isolate(t)
 	dir := fs.NewDir(t, "orbinit", fs.WithFile("README.md", "hi"))
 
 	// The first init puts the repository on "trunk" with a commit.
@@ -363,6 +370,58 @@ func TestInitRepo_AdoptedRepoKeepsItsBranch(t *testing.T) {
 	assert.Check(t, is.Equal(head.Name().Short(), "trunk"))
 }
 
+// TestInitRepo_SignsWhenGpgSignEnabled covers authors whose git config sets
+// commit.gpgSign: go-git cannot sign, so the initial commit goes through the git
+// binary and must come out signed rather than failing.
+func TestInitRepo_SignsWhenGpgSignEnabled(t *testing.T) {
+	for _, bin := range []string{"git", "ssh-keygen"} {
+		if _, err := exec.LookPath(bin); err != nil {
+			t.Skipf("%s not on PATH", bin)
+		}
+	}
+	global := gitconfig.Isolate(t)
+	key := filepath.Join(t.TempDir(), "id_ed25519")
+	dir := fs.NewDir(t, "orbinit", fs.WithFile("README.md", "hi"))
+
+	var repo *git.Repository
+	assert.Assert(t, t.Run("configure ssh commit signing", func(t *testing.T) {
+		out, err := exec.Command("ssh-keygen", "-q", "-t", "ed25519", "-N", "", "-f", key).CombinedOutput()
+		assert.NilError(t, err, string(out))
+		assert.NilError(t, os.WriteFile(global, []byte(
+			"[user]\n\tname = test\n\temail = test@test.com\n\tsigningkey = "+filepath.ToSlash(key)+"\n"+
+				"[gpg]\n\tformat = ssh\n"+
+				"[commit]\n\tgpgsign = true\n"), 0o600))
+	}))
+
+	assert.Assert(t, t.Run("InitRepo commits", func(t *testing.T) {
+		var err error
+		repo, _, err = InitRepo(dir.Path(), "https://github.com/acme/my-orb.git", "main")
+		assert.NilError(t, err)
+	}))
+
+	t.Run("the initial commit is signed and on the configured branch", func(t *testing.T) {
+		head, err := repo.Head()
+		assert.NilError(t, err)
+		assert.Check(t, is.Equal(head.Name().Short(), "main"))
+		commit, err := repo.CommitObject(head.Hash())
+		assert.NilError(t, err)
+		assert.Check(t, is.Contains(commit.Signature, "BEGIN SSH SIGNATURE"))
+		assert.Check(t, is.Equal(commit.Message, "feat: Initial commit.\n"))
+	})
+}
+
+// TestInitRepo_SigningWithoutGit names the problem when signing is required but
+// there is no git binary to do it.
+func TestInitRepo_SigningWithoutGit(t *testing.T) {
+	global := gitconfig.Isolate(t)
+	assert.NilError(t, os.WriteFile(global, []byte("[commit]\n\tgpgsign = true\n"), 0o600))
+	t.Setenv("PATH", t.TempDir())
+
+	dir := fs.NewDir(t, "orbinit", fs.WithFile("README.md", "hi"))
+	_, _, err := InitRepo(dir.Path(), "https://github.com/acme/my-orb.git", "main")
+	assert.Check(t, is.ErrorIs(err, ErrSigningNeedsGit))
+}
+
 // TestInitRepo_BrokenRepoStillErrors keeps a real failure loud: a .git that is
 // not a usable repository must not be silently re-initialised over.
 func TestInitRepo_BrokenRepoStillErrors(t *testing.T) {
@@ -374,6 +433,7 @@ func TestInitRepo_BrokenRepoStillErrors(t *testing.T) {
 
 // TestInspectRepo reports what orb init can reuse instead of prompting for it.
 func TestInspectRepo(t *testing.T) {
+	gitconfig.Isolate(t)
 	t.Run("reads origin from a clone with no commits", func(t *testing.T) {
 		dir := fs.NewDir(t, "orbinit")
 		repo, err := git.PlainInit(dir.Path(), false)

@@ -35,6 +35,7 @@ import (
 	"gotest.tools/v3/assert/cmp"
 
 	"github.com/CircleCI-Public/circleci-cli/internal/projectref"
+	"github.com/CircleCI-Public/circleci-cli/internal/testing/gitconfig"
 )
 
 func TestSlugFromRemote(t *testing.T) {
@@ -199,6 +200,7 @@ func TestDetect_SurfacesMalformedInfoYml(t *testing.T) {
 // so resolving through Detect would hand callers an opaque project ID where they
 // show the user a suggested project name (onboard, `project create`).
 func TestDetectRepoName_IgnoresInfoYml(t *testing.T) {
+	gitconfig.Isolate(t)
 	dir := t.TempDir()
 	repo, err := git.PlainInit(dir, false)
 	assert.NilError(t, err)
@@ -208,13 +210,7 @@ func TestDetectRepoName_IgnoresInfoYml(t *testing.T) {
 	})
 	assert.NilError(t, err)
 
-	// Detection needs a resolvable HEAD and an origin/HEAD symref. Signing is
-	// disabled locally so an ambient commit.gpgSign=true cannot fail the commit.
-	cfg, err := repo.Config()
-	assert.NilError(t, err)
-	cfg.Raw.Section("commit").SetOption("gpgsign", "false")
-	assert.NilError(t, repo.SetConfig(cfg))
-
+	// Detection needs a resolvable HEAD and an origin/HEAD symref.
 	wt, err := repo.Worktree()
 	assert.NilError(t, err)
 	commit, err := wt.Commit("init", &git.CommitOptions{
@@ -306,6 +302,7 @@ func TestDetectFromRemote_IgnoresInfoYml(t *testing.T) {
 // detect project" failure. The slug and current branch must still resolve; the
 // default branch is simply left empty.
 func TestDetectFromRemote_NoOriginHEAD(t *testing.T) {
+	gitconfig.Isolate(t)
 	dir := t.TempDir()
 
 	repo, err := git.PlainInit(dir, false)
@@ -347,6 +344,7 @@ func TestDetectFromRemote_NoOriginHEAD(t *testing.T) {
 // must follow the "commondir" pointer to read them — otherwise the origin URL
 // and default branch are invisible and Detect fails.
 func TestDetectFromRemote_Worktree(t *testing.T) {
+	gitconfig.Isolate(t)
 	mainDir := t.TempDir() // the shared repo the worktree links back to
 	wtDir := t.TempDir()   // the linked worktree's working directory
 	wtGitDir := filepath.Join(mainDir, ".git", "worktrees", "wt1")
