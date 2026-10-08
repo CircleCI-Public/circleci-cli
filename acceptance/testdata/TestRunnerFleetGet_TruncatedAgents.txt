@@ -1,0 +1,17 @@
+# Runner Fleet
+- Resource Class: my-org/linux-runner
+- ID: `11111111-1111-4111-8111-111111111111`
+- Active: 1
+- Idle: 0
+- Disconnected: 0
+- Agents: 150
+- Running Tasks: 0
+- Queued Tasks: 0
+- Last Task Claimed: never
+
+## Agents
+| Agent    | ID                                   |
+| -------- | ------------------------------------ |
+| runner-1 | aaaaaaaa-1111-4111-8111-aaaaaaaaaaaa |
+
+Showing 1 of 150 agents. List them all with: `circleci runner instance list --resource-class my-org/linux-runner`

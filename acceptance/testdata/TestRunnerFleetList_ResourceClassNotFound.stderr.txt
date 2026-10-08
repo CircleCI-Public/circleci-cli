@@ -1,0 +1,4 @@
+error: No runner resource class named "my-org/no-such-runner", or it belongs to an organization your token cannot access.
+
+Suggestions:
+  • List available resource classes with: circleci runner resource-class list

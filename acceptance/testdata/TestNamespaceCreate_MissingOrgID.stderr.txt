@@ -1,1 +1,4 @@
-required flag(s) "org" not set
+error: Required flag(s) "org" not set.
+
+Suggestions:
+  • Run 'circleci namespace create --help' to see the flags and how they combine

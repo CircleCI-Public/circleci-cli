@@ -1,0 +1,7 @@
+Usage:  circleci runner fleet get <resource-class> [flags]
+
+Flags:
+  -h, --help        help for get
+      --jq string   Process values from the response using jq syntax
+      --json        Output as JSON
+  

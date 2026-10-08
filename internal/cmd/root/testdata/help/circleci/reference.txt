@@ -3771,6 +3771,79 @@ in the form `namespace/name` (for example, `my-org/my-runner`) or as its ID.
 - Generate config from an existing token value (no API token creation): 
   `circleci runner config my-org/my-runner --token "$EXISTING_TOKEN_VALUE"`
 
+#### `circleci runner fleet <command>`
+
+View runner fleets
+
+View the agents and tasks of your self-hosted runner fleets.
+
+A fleet is the set of runner agents attached to one resource class, and shares
+that resource class's ID. This uses an experimental API: its output may change.
+
+##### `circleci runner fleet get <resource-class> [flags]`
+
+Show a runner fleet
+
+Show a fleet's agent counts by state, its running and queued tasks, and the
+agents attached to it. This uses an experimental API: its output may change.
+
+JSON fields: id, resource_class, active_agents, idle_agents, disconnected_agents, agent_count, last_task_claimed_at, running_tasks, queued_tasks, agents (id, name)
+
+| Flag          | Description                                                                       |
+| ------------- | --------------------------------------------------------------------------------- |
+| `--jq string` | Process values from the response using jq syntax (see `circleci help formatting`) |
+| `--json`      | Output as JSON                                                                    |
+
+
+**Arguments:**
+
+`<resource-class>` is the runner resource class whose fleet to show,
+in the form `namespace/name` (for example, `my-org/my-runner`) or as its ID.
+
+**Examples:**
+
+- Show the fleet of a resource class: 
+  `circleci runner fleet get my-org/my-runner`
+- Show it by resource class ID: 
+  `circleci runner fleet get 01234567-89ab-4cde-8f01-23456789abcd`
+- Show how many tasks are waiting for an agent: 
+  `circleci runner fleet get my-org/my-runner --json --jq '.queued_tasks'`
+
+##### `circleci runner fleet list [flags]`
+
+List runner fleets
+
+List the runner fleets of an organization, a namespace, or one resource class.
+
+This uses an experimental API: its output may change.
+
+JSON fields: id, resource_class, active_agents, idle_agents, disconnected_agents, agent_count, last_task_claimed_at
+
+| Flag                      | Description                                                                       |
+| ------------------------- | --------------------------------------------------------------------------------- |
+| `--jq string`             | Process values from the response using jq syntax (see `circleci help formatting`) |
+| `--json`                  | Output as JSON                                                                    |
+| `--namespace string`      | Filter by namespace (organization)                                                |
+| `--org string`            | Organization slug (e.g. gh/myorg) or UUID; defaults to git remote                 |
+| `--resource-class string` | Filter by resource class (namespace/name or ID)                                   |
+
+
+**Aliases:**
+
+
+`circleci runner fleet ls`
+
+**Examples:**
+
+- List fleets for the org inferred from the git remote: 
+  `circleci runner fleet list`
+- List the fleets in one namespace: 
+  `circleci runner fleet list --namespace my-org`
+- Show the fleet of one resource class, by name or ID: 
+  `circleci runner fleet list --resource-class my-org/my-runner`
+- Extract the resource classes with no connected agents: 
+  `circleci runner fleet list --json --jq '.[] | select(.agent_count == 0) | .resource_class'`
+
 #### `circleci runner instance <command>`
 
 Manage runner instances

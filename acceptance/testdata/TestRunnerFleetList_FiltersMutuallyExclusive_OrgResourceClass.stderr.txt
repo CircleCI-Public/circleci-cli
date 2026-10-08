@@ -1,0 +1,4 @@
+error: If any flags in the group [org resource-class namespace] are set none of the others can be; [org resource-class] were all set.
+
+Suggestions:
+  • Run 'circleci runner fleet list --help' to see the flags and how they combine

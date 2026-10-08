@@ -25,6 +25,9 @@ package cmdutil
 import (
 	"fmt"
 	"strings"
+	"unicode"
+
+	"github.com/spf13/cobra"
 
 	clierrors "github.com/CircleCI-Public/circleci-cli/clikit/errors"
 )
@@ -58,5 +61,26 @@ func RequireArgs(args []string, names ...string) error {
 func RequireFlag(name string) error {
 	return clierrors.New("args.flag_missing", "Missing required flag",
 		"Required flag --"+name+" was not set.").
+		WithExitCode(clierrors.ExitBadArguments)
+}
+
+// ValidateFlags runs cobra's required-flag and flag-group checks
+// (MarkFlagRequired, MarkFlagsMutuallyExclusive, MarkFlagsOneRequired,
+// MarkFlagsRequiredTogether) and returns any failure as a structured CLIError
+// with ExitBadArguments. Cobra runs the same checks itself after the
+// persistent pre-run, but returns plain errors that would exit 1; calling this
+// from the root PersistentPreRunE catches them first.
+func ValidateFlags(cmd *cobra.Command) error {
+	err := cmd.ValidateRequiredFlags()
+	if err == nil {
+		err = cmd.ValidateFlagGroups()
+	}
+	if err == nil {
+		return nil
+	}
+	msg := []rune(err.Error())
+	msg[0] = unicode.ToUpper(msg[0])
+	return clierrors.New("args.invalid_flags", "Invalid flags", string(msg)+".").
+		WithSuggestions(fmt.Sprintf("Run '%s --help' to see the flags and how they combine", cmd.CommandPath())).
 		WithExitCode(clierrors.ExitBadArguments)
 }

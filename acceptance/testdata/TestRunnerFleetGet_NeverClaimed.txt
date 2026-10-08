@@ -1,0 +1,10 @@
+# Runner Fleet
+- Resource Class: my-org/arm-runner
+- ID: `22222222-2222-4222-8222-222222222222`
+- Active: 0
+- Idle: 0
+- Disconnected: 0
+- Agents: 0
+- Running Tasks: 0
+- Queued Tasks: 0
+- Last Task Claimed: never

@@ -1,0 +1,5 @@
+error: Unable to determine agent status. This is usually temporary.
+
+Suggestions:
+  • Try again in a few moments
+  • List connected agents without fleet totals with: circleci runner instance list

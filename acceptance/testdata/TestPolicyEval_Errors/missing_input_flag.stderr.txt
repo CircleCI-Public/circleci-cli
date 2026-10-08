@@ -1,1 +1,4 @@
-required flag(s) "input" not set
+error: Required flag(s) "input" not set.
+
+Suggestions:
+  • Run 'circleci policy eval --help' to see the flags and how they combine

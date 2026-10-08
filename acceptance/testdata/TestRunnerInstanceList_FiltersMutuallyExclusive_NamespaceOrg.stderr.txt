@@ -1,1 +1,4 @@
-if any flags in the group [org resource-class namespace] are set none of the others can be; [namespace org] were all set
+error: If any flags in the group [org resource-class namespace] are set none of the others can be; [namespace org] were all set.
+
+Suggestions:
+  • Run 'circleci runner instance list --help' to see the flags and how they combine

@@ -1,0 +1,5 @@
+# Runner Fleets
+| Resource Class      | Active | Idle | Disconnected | Agents | Last Task Claimed    |
+| ------------------- | ------ | ---- | ------------ | ------ | -------------------- |
+| my-org/linux-runner | 2      | 1    | 1            | 4      | 2026-04-18T12:00:00Z |
+| my-org/arm-runner   | 0      | 0    | 0            | 0      | never                |

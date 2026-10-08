@@ -61,6 +61,7 @@ func NewRunnerCmd() *cobra.Command {
 		newResourceClassCmd(),
 		newTokenCmd(),
 		newInstanceCmd(),
+		newFleetCmd(),
 	)
 
 	return cmd
