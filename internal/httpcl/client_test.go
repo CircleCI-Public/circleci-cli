@@ -29,7 +29,9 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strconv"
+	"strings"
 	"testing"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -202,6 +204,51 @@ func TestClient_Call(t *testing.T) {
 		}
 	})
 
+}
+
+func TestClient_Call_NoTimeout(t *testing.T) {
+	// trickle is a transfer that is slow but always making progress, and that
+	// outlasts the client's overall timeout.
+	r := chi.NewMux()
+	r.Get("/trickle", func(w http.ResponseWriter, r *http.Request) {
+		for range 10 {
+			_, _ = w.Write([]byte("chunk"))
+			w.(http.Flusher).Flush()
+			select {
+			case <-time.After(20 * time.Millisecond):
+			case <-r.Context().Done():
+				return
+			}
+		}
+	})
+	srv := httptest.NewServer(r)
+	t.Cleanup(srv.Close)
+
+	c := httpcl.New(httpcl.Config{
+		BaseURL:        srv.URL,
+		Timeout:        50 * time.Millisecond,
+		DisableRetries: true,
+	})
+	ctx := iostream.Testing(context.Background())
+
+	t.Run("without it the overall timeout cuts off a healthy transfer", func(t *testing.T) {
+		var buf strings.Builder
+		_, err := c.Call(ctx, httpcl.NewRequest(http.MethodGet, "/trickle",
+			httpcl.CopyDecoder(&buf),
+		))
+		assert.Check(t, cmp.ErrorIs(err, context.DeadlineExceeded))
+	})
+
+	t.Run("with it the transfer completes", func(t *testing.T) {
+		var buf strings.Builder
+		status, err := c.Call(ctx, httpcl.NewRequest(http.MethodGet, "/trickle",
+			httpcl.NoTimeout(),
+			httpcl.CopyDecoder(&buf),
+		))
+		assert.NilError(t, err)
+		assert.Check(t, cmp.Equal(status, http.StatusOK))
+		assert.Check(t, cmp.Equal(buf.String(), strings.Repeat("chunk", 10)))
+	})
 }
 
 func TestDeprecationWarning_SunsetHeader(t *testing.T) {

@@ -43,6 +43,7 @@ type Request struct {
 	respHeader  *http.Header
 	query       url.Values
 	routeParams []any
+	noTimeout   bool
 }
 
 // NewRequest creates a request with functional options.
@@ -141,6 +142,14 @@ func BytesDecoder(resp *[]byte) func(*Request) {
 			return nil
 		}
 	}
+}
+
+// NoTimeout exempts the request from the client's overall timeout, which
+// bounds the whole request including reading the body. Use it for downloads,
+// which take as long as the connection needs; the caller's context still
+// cancels them.
+func NoTimeout() func(*Request) {
+	return func(r *Request) { r.noTimeout = true }
 }
 
 // Header sets a single request header.

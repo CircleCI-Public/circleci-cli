@@ -161,8 +161,11 @@ func (c *Client) Call(ctx context.Context, r Request) (status int, err error) {
 		bodyReader = bytes.NewReader(b)
 	}
 
-	ctx, cancel := context.WithTimeout(ctx, c.timeout)
-	defer cancel()
+	if !r.noTimeout {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, c.timeout)
+		defer cancel()
+	}
 
 	req, err := retryablehttp.NewRequestWithContext(ctx, r.method, u.String(), bodyReader)
 	if err != nil {

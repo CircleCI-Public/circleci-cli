@@ -164,18 +164,39 @@ func DownloadPaths(ctx context.Context, client Client, entries []Entry, dir stri
 		if err := os.MkdirAll(filepath.Dir(dest), 0o755); err != nil { //#nosec:G301 // 0o755 is appropriate for artifact download directories
 			return fmt.Errorf("creating directory for %q: %w", e.Path, err)
 		}
-		f, err := os.Create(dest) //#nosec:G304 // dest is validated above via HasPrefix check against the clean download dir
+		if err := downloadFile(ctx, client, e, dest); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// downloadFile writes one artifact to dest. It downloads into dest+".partial"
+// and renames that into place only once the transfer has completed, so a
+// failed or interrupted download never leaves a truncated file under the
+// artifact's real name — the partial file is removed instead.
+func downloadFile(ctx context.Context, client Client, e Entry, dest string) (err error) {
+	partial := dest + ".partial"
+	f, err := os.Create(partial) //#nosec:G304 // dest is validated by the caller via HasPrefix check against the clean download dir
+	if err != nil {
+		return fmt.Errorf("creating file %q: %w", dest, err)
+	}
+	defer func() {
 		if err != nil {
-			return fmt.Errorf("creating file %q: %w", dest, err)
+			_ = os.Remove(partial)
 		}
-		dlErr := client.DownloadArtifact(ctx, e.URL, f)
-		closeErr := f.Close()
-		if dlErr != nil {
-			return fmt.Errorf("downloading %q: %w", e.Path, dlErr)
-		}
-		if closeErr != nil {
-			return fmt.Errorf("writing %q: %w", e.Path, closeErr)
-		}
+	}()
+
+	dlErr := client.DownloadArtifact(ctx, e.URL, f)
+	closeErr := f.Close()
+	if dlErr != nil {
+		return fmt.Errorf("downloading %q: %w", e.Path, dlErr)
+	}
+	if closeErr != nil {
+		return fmt.Errorf("writing %q: %w", e.Path, closeErr)
+	}
+	if err := os.Rename(partial, dest); err != nil {
+		return fmt.Errorf("writing %q: %w", e.Path, err)
 	}
 	return nil
 }

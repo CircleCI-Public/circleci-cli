@@ -105,7 +105,10 @@ func FetchTemplate(ctx context.Context, orbPath string) (err error) {
 	}
 	defer func() { _ = os.Remove(tmp.Name()) }()
 
-	_, callErr := client.Call(ctx, httpcl.NewRequest(http.MethodGet, zipURL, httpcl.CopyDecoder(tmp)))
+	_, callErr := client.Call(ctx, httpcl.NewRequest(http.MethodGet, zipURL,
+		httpcl.NoTimeout(),
+		httpcl.CopyDecoder(tmp),
+	))
 	if closeErr := tmp.Close(); callErr == nil {
 		callErr = closeErr
 	}

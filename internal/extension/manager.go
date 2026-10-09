@@ -142,6 +142,9 @@ func (m *Manager) Download(ctx context.Context, ext Extension) (io.ReadCloser, e
 		// ensuring the hasher and file receive the raw bytes matching the release SHA256.
 		httpcl.Header("Accept-Encoding", "identity"),
 		httpcl.Header("Accept", "application/gzip"),
+		// A release binary can take longer than the client's overall timeout
+		// to fetch.
+		httpcl.NoTimeout(),
 		httpcl.CopyDecoder(io.MultiWriter(buf, hasher)),
 	)
 	_, err := m.client.Call(ctx, req)
