@@ -71,6 +71,7 @@ func TestSettingListJSON_Defaults(t *testing.T) {
 	assert.Check(t, cmp.Equal(out["host"], "https://circleci.com"))
 	assert.Check(t, cmp.Equal(out["telemetry"], true))
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".json"))
+	waitForInvocations(t, fs, 1)
 }
 
 func TestSettingListJSON_WithToken(t *testing.T) {
@@ -96,6 +97,7 @@ func TestSettingListJSON_WithToken(t *testing.T) {
 	assert.NilError(t, json.Unmarshal([]byte(result.Stdout), &out))
 	assert.Check(t, cmp.Equal(out["token_set"], true))
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".json"))
+	waitForInvocations(t, fs, 1)
 }
 
 func TestSettingListJSON_WithCustomHost(t *testing.T) {
@@ -129,6 +131,7 @@ func TestSettingListJSON_WithCustomHost(t *testing.T) {
 	assert.NilError(t, json.Unmarshal([]byte(result.Stdout), &out))
 	assert.Check(t, cmp.Equal(out["host"], "https://circleci.example.com"))
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".json"))
+	waitForInvocations(t, fs, 2)
 }
 
 func TestSettingListJSON_TelemetryEnvVarOverride(t *testing.T) {
@@ -327,6 +330,7 @@ func TestTelemetryEnable(t *testing.T) {
 	assert.Equal(t, verify.ExitCode, 0, "stderr: %s", verify.Stderr)
 	assert.Check(t, strings.Contains(verify.Stdout, `"telemetry":true`),
 		"expected telemetry:true in setting list output, got: %q", verify.Stdout)
+	waitForInvocations(t, fs, 2)
 }
 
 func TestTelemetryDisable(t *testing.T) {
@@ -518,4 +522,27 @@ func TestSettingUnsetToken_UnknownKey(t *testing.T) {
 	})
 
 	assert.Equal(t, result.ExitCode, 2, "expected exit code 2 for unknown key")
+}
+
+// waitForInvocations waits until the fake Segment server has received want
+// command_invocation events. Each CLI run hands its events to a detached
+// receive-telemetry process; returning before it has delivered them closes the
+// fake server under it, and on Windows the still-running process keeps the
+// test's temp dir from being removed.
+func waitForInvocations(t *testing.T, fs *fakesegment.Service, want int) {
+	t.Helper()
+	poll.WaitOn(t, func(poll.LogT) poll.Result {
+		got := 0
+		for _, batch := range fs.Batches() {
+			for _, msg := range batch.Messages {
+				if msg.Event == "command_invocation" {
+					got++
+				}
+			}
+		}
+		if got < want {
+			return poll.Continue("received %d of %d command_invocation events", got, want)
+		}
+		return poll.Success()
+	})
 }
