@@ -26,6 +26,7 @@ import (
 	"testing"
 
 	"gotest.tools/v3/assert"
+	"gotest.tools/v3/assert/cmp"
 )
 
 func TestIsTelemetryEnabled(t *testing.T) {
@@ -59,6 +60,34 @@ func TestIsTelemetryEnabled(t *testing.T) {
 
 			cfg := &Config{state: state{Telemetry: tc.storedPreference}}
 			assert.Equal(t, cfg.IsTelemetry(), tc.want)
+		})
+	}
+}
+
+func TestIsAutoUpdate(t *testing.T) {
+	boolPtr := func(b bool) *bool { return &b }
+
+	tests := []struct {
+		name             string
+		storedPreference *bool
+		env              string
+		want             bool
+	}{
+		{name: "off when no preference set", want: false},
+		{name: "stored on respected", storedPreference: boolPtr(true), want: true},
+		{name: "stored off respected", storedPreference: boolPtr(false), want: false},
+		{name: "env var turns it on", env: "1", want: true},
+		{name: "env var turns off a stored on", storedPreference: boolPtr(true), env: "off", want: false},
+		{name: "env var accepts on/off spellings", env: "Yes", want: true},
+		{name: "unrecognised env value falls back to the setting", storedPreference: boolPtr(true), env: "maybe", want: true},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Setenv(AutoUpdateEnv, tc.env)
+
+			cfg := &Config{state: state{AutoUpdate: tc.storedPreference}}
+			assert.Check(t, cmp.Equal(cfg.IsAutoUpdate(), tc.want))
 		})
 	}
 }

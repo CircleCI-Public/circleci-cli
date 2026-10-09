@@ -23,6 +23,7 @@
 package root
 
 import (
+	"context"
 	"os"
 	"strings"
 	"time"
@@ -156,6 +157,7 @@ func NewRootCmd(version string) *cobra.Command {
 
 		traits := map[string]any{
 			"agent":          agentName,
+			"auto_update":    cfg.IsAutoUpdate(),
 			"install_method": installmethod.Detect(),
 			"is_self_hosted": cfg.EffectiveHost() != "https://circleci.com",
 			"is_tty":         iostream.IsTerminal(ctx),
@@ -349,10 +351,11 @@ func NewRootCmd(version string) *cobra.Command {
 
 	extension.RegisterExtensions(cmd)
 
-	// updateNotifier carries the background update check between the pre-run
-	// (which launches it) and the post-run (which drains and prints it). There is
-	// exactly one command execution per process, so a captured variable is safe.
-	var updateNotifier *update.Notifier
+	// check carries the background update check between the pre-run (which
+	// launches it) and the post-run (which drains it, then prints the notice and
+	// starts a background upgrade as allowed). There is exactly one command
+	// execution per process, so a captured variable is safe.
+	var check updateCheck
 
 	cmd.PersistentPreRunE = func(cmd *cobra.Command, args []string) error {
 		if err := validateInput(cmd, args); err != nil {
@@ -361,16 +364,14 @@ func NewRootCmd(version string) *cobra.Command {
 		if _, err := initConfig(cmd); err != nil {
 			return err
 		}
-		updateNotifier = startUpdateNotifier(cmd, version)
+		check = startUpdateCheck(cmd, version)
 		return nil
 	}
 	cmd.PersistentPostRunE = func(cmd *cobra.Command, _ []string) error {
 		ctx := cmd.Context()
 		// PersistentPostRunE runs only when the command's RunE succeeded, so the
 		// notice never lands on top of an error and always follows all output.
-		if rel := updateNotifier.Finish(); rel != nil {
-			update.PrintReleaseNotice(ctx, update.EffectiveVersion(version), rel, installmethod.UpgradeCommand())
-		}
+		finishUpdateCheck(ctx, check, version)
 		tc := cmdutil.GetTelemetry(ctx)
 		_ = tc.Close()
 		return nil
@@ -402,34 +403,72 @@ func NewRootCmd(version string) *cobra.Command {
 	return cmd
 }
 
-// startUpdateNotifier launches the background update check for a normal command
-// run, or returns nil when a check should not happen. The notice is suppressed
-// for telemetry-disabled commands, under --json (scripting), and when the user
-// passes --skip-update-check; the remaining gates live in update.ShouldCheck.
-func startUpdateNotifier(cmd *cobra.Command, version string) *update.Notifier {
+// updateCheck carries the background update check, and whether this run
+// started a background upgrade, from the pre-run to the post-run.
+type updateCheck struct {
+	notifier *update.Notifier
+	updating bool // a background upgrade was started this run
+}
+
+// startUpdateCheck starts a background upgrade when allowed, then launches the
+// background update check for the notice, or neither. Neither runs for
+// telemetry-disabled commands or under --skip-update-check. The notice is also
+// suppressed under --json (scripting), with its remaining gates in
+// update.ShouldCheck. The upgrade has its own gates in update.ShouldAutoUpdate,
+// and deliberately still runs under --json and for agents.
+func startUpdateCheck(cmd *cobra.Command, version string) updateCheck {
 	if cmdutil.IsEverythingDisabled(cmd) {
-		return nil
-	}
-	if f := cmd.Flags().Lookup("json"); f != nil && f.Value.String() == "true" {
-		return nil
+		return updateCheck{}
 	}
 	if skip, _ := cmd.Root().Flags().GetBool("skip-update-check"); skip {
-		return nil
+		return updateCheck{}
 	}
 
 	ctx := cmd.Context()
 	cfg := cmdutil.GetConfig(ctx)
-	if !update.ShouldCheck(ctx, cfg, version) {
-		return nil
-	}
+	check := updateCheck{updating: startAutoUpdate(ctx, cfg, version)}
 
+	if f := cmd.Flags().Lookup("json"); f != nil && f.Value.String() == "true" {
+		return check
+	}
+	if !update.ShouldCheck(ctx, cfg, version) {
+		return check
+	}
 	statePath, err := config.StatePath()
 	if err != nil {
-		return nil
+		return check
 	}
 
 	src := update.NewProxySource(cmdutil.LoadClientOptionalAuth(ctx))
-	return update.Start(ctx, src, statePath, update.EffectiveVersion(version))
+	check.notifier = update.Start(ctx, src, statePath, update.EffectiveVersion(version))
+	return check
+}
+
+// finishUpdateCheck prints the update notice once the command has succeeded,
+// saying so when this run started a background upgrade.
+func finishUpdateCheck(ctx context.Context, check updateCheck, version string) {
+	if rel := check.notifier.Finish(); rel != nil {
+		update.PrintReleaseNotice(ctx, update.EffectiveVersion(version), rel, installmethod.UpgradeCommand(), check.updating)
+	}
+}
+
+// startAutoUpdate starts a background Homebrew upgrade as the command begins,
+// at most once a day, and reports whether it did. It doesn't wait for the update
+// check: Homebrew knows whether its formula has a newer version, and starting
+// here means fast and failing commands still trigger it.
+func startAutoUpdate(ctx context.Context, cfg *config.Config, version string) bool {
+	if !update.ShouldAutoUpdate(cfg, version, installmethod.Detect()) {
+		return false
+	}
+	argv, ok := installmethod.HomebrewUpgrade()
+	if !ok {
+		return false
+	}
+	statePath, err := config.StatePath()
+	if err != nil {
+		return false
+	}
+	return update.StartAutoUpdate(ctx, statePath, argv)
 }
 
 // validateInput trims whitespace from the positional args in place and checks

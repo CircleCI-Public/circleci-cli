@@ -158,6 +158,9 @@ var helpTopics = []helpTopic{
 			%[1]sCIRCLE_NO_UPDATE_CHECK%[1]s: set to any value to disable checking for newer CLI and
 			extension releases. Same effect as %[1]scircleci setting set update-check off%[1]s.
 
+			%[1]sCIRCLE_AUTO_UPDATE%[1]s: set to %[1]son%[1]s to let a Homebrew install upgrade itself in the
+			background, or %[1]soff%[1]s to stop it. Overrides %[1]scircleci setting set auto-update%[1]s.
+
 			%[1]sCIRCLE_NO_PAGER%[1]s: set to any value to print long output directly instead of through a pager.
 
 			%[1]sPAGER%[1]s: names the pager program to send long output through (for example %[1]sless%[1]s or %[1]smore%[1]s).

@@ -333,18 +333,23 @@ func (n *Notifier) Finish() *ReleaseInfo {
 // PrintReleaseNotice writes the update notice to stderr, blank-line padded and
 // after all command output: the version transition, then the command that
 // upgrades this install when upgradeCommand is known, then the new release's
-// GitHub page. It is a no-op when rel is nil.
+// GitHub page. When updating is true a background upgrade has just been started
+// with that command, so the notice says so instead of asking the user to run it.
+// It is a no-op when rel is nil.
 //
 // The notice only prints when both Out and Err are TTYs (see ShouldCheck), so
 // color is always safe here — there is no pipe to corrupt. The color helpers
 // still fall back to plain text under NO_COLOR / TERM=dumb, so the message text
 // is unchanged when color is disabled.
-func PrintReleaseNotice(ctx context.Context, currentVersion string, rel *ReleaseInfo, upgradeCommand string) {
+func PrintReleaseNotice(ctx context.Context, currentVersion string, rel *ReleaseInfo, upgradeCommand string, updating bool) {
 	if rel == nil {
 		return
 	}
 	printNotice(ctx, "circleci", currentVersion, rel.Version)
-	if upgradeCommand != "" {
+	switch {
+	case upgradeCommand != "" && updating:
+		iostream.ErrPrintf(ctx, "Upgrading in the background with: %s\n", upgradeCommand)
+	case upgradeCommand != "":
 		iostream.ErrPrintf(ctx, "To upgrade, please run: %s\n", upgradeCommand)
 	}
 	iostream.ErrPrintf(ctx, "%s\n\n", iostream.Muted(ctx, releaseURL(rel.Version)))
