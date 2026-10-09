@@ -6,6 +6,20 @@ is added by its release PR (see [RELEASE.md](RELEASE.md)) and becomes its GitHub
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.0] - 2026-10-09
+
+### What's Changed
+* Sign the orb init commit when commit.gpgSign is set by @conormcd in https://github.com/CircleCI-Public/circleci-cli/pull/1892
+* Stop artifact downloads timing out after 30 seconds by @pete-woods in https://github.com/CircleCI-Public/circleci-cli/pull/1903
+* Bump github.com/go-git/go-git/v6 in / by @dependabot[bot] in https://github.com/CircleCI-Public/circleci-cli/pull/1898
+* Bump github.com/segmentio/analytics-go/v3 in / by @dependabot[bot] in https://github.com/CircleCI-Public/circleci-cli/pull/1899
+* Bump charm.land/bubbletea/v2 in / by @dependabot[bot] in https://github.com/CircleCI-Public/circleci-cli/pull/1864
+* Bump github.com/NimbleMarkets/ntcharts/v2 in /clikit by @dependabot[bot] in https://github.com/CircleCI-Public/circleci-cli/pull/1865
+* Fix main after segment client upgrade by @pete-woods in https://github.com/CircleCI-Public/circleci-cli/pull/1904
+
+
+**Full Changelog**: https://github.com/CircleCI-Public/circleci-cli/compare/v1.4.0...v1.5.0
+
 ## [1.4.0] - 2026-10-08
 
 ### What's Changed
