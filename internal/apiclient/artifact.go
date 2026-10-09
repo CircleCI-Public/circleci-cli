@@ -74,8 +74,10 @@ func (c *Client) GetJobArtifactsV3(ctx context.Context, jobID string) ([]Artifac
 
 // DownloadArtifact fetches an artifact URL (authenticated) and writes its
 // contents to dst. The URL is a full absolute URL, not a base-relative path.
+// There is no overall deadline: a large artifact takes as long as it takes.
 func (c *Client) DownloadArtifact(ctx context.Context, artifactURL string, dst io.Writer) error {
 	_, err := c.raw.Call(ctx, httpcl.NewRequest(http.MethodGet, artifactURL,
+		httpcl.NoTimeout(),
 		httpcl.CopyDecoder(dst),
 	))
 	return err

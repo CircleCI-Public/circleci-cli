@@ -24,7 +24,10 @@ package artifacts_test
 
 import (
 	"context"
+	"errors"
 	"io"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"gotest.tools/v3/assert"
@@ -43,6 +46,50 @@ func (noopClient) GetJobArtifactsV3(_ context.Context, _ string) ([]apiclient.Ar
 func (noopClient) DownloadArtifact(_ context.Context, _ string, dst io.Writer) error {
 	_, err := io.WriteString(dst, "content")
 	return err
+}
+
+// failingClient writes part of an artifact and then fails, as an interrupted
+// transfer does.
+type failingClient struct{ noopClient }
+
+func (failingClient) DownloadArtifact(_ context.Context, _ string, dst io.Writer) error {
+	_, _ = io.WriteString(dst, "partial")
+	return errors.New("connection reset")
+}
+
+func TestDownload_Atomic(t *testing.T) {
+	entries := []artifacts.Entry{{Path: "image/device.zip", URL: "http://example.com/1"}}
+
+	t.Run("a completed download is written under the artifact's name", func(t *testing.T) {
+		dir := t.TempDir()
+		err := artifacts.Download(context.Background(), noopClient{}, entries, dir)
+		assert.NilError(t, err)
+
+		got, err := os.ReadFile(filepath.Join(dir, "image", "device.zip"))
+		assert.NilError(t, err)
+		assert.Check(t, cmp.Equal(string(got), "content"))
+		names := dirNames(t, filepath.Join(dir, "image"))
+		assert.Check(t, cmp.DeepEqual(names, []string{"device.zip"}))
+	})
+
+	t.Run("a failed download leaves no file behind", func(t *testing.T) {
+		dir := t.TempDir()
+		err := artifacts.Download(context.Background(), failingClient{}, entries, dir)
+		assert.Check(t, cmp.ErrorContains(err, "connection reset"))
+		names := dirNames(t, filepath.Join(dir, "image"))
+		assert.Check(t, cmp.Len(names, 0))
+	})
+}
+
+func dirNames(t *testing.T, dir string) []string {
+	t.Helper()
+	des, err := os.ReadDir(dir)
+	assert.NilError(t, err)
+	names := make([]string, len(des))
+	for i, de := range des {
+		names[i] = de.Name()
+	}
+	return names
 }
 
 func TestDownload_PathTraversal(t *testing.T) {
