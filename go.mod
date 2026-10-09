@@ -29,7 +29,7 @@ require (
 	github.com/muesli/roff v0.1.0
 	github.com/njayp/ophis v1.1.4
 	github.com/pete-woods/go-expect v0.1.4
-	github.com/segmentio/analytics-go/v3 v3.3.0
+	github.com/segmentio/analytics-go/v3 v3.4.0
 	github.com/shirou/gopsutil/v4 v4.26.8
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/pflag v1.0.10
@@ -110,7 +110,6 @@ require (
 	github.com/rcrowley/go-metrics v0.0.0-20201227073835-cf1acfcdf475 // indirect
 	github.com/rivo/uniseg v0.4.7 // indirect
 	github.com/segmentio/asm v1.2.1 // indirect
-	github.com/segmentio/backo-go v1.1.0 // indirect
 	github.com/segmentio/encoding v0.5.4 // indirect
 	github.com/sergi/go-diff v1.4.0 // indirect
 	github.com/sirupsen/logrus v1.10.1 // indirect
