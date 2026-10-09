@@ -23,6 +23,9 @@ notifications are all disabled automatically.
 `CIRCLE_NO_UPDATE_CHECK`: set to any value to disable checking for newer CLI and
 extension releases. Same effect as `circleci setting set update-check off`.
 
+`CIRCLE_AUTO_UPDATE`: set to `on` to let a Homebrew install upgrade itself in the
+background, or `off` to stop it. Overrides `circleci setting set auto-update`.
+
 `CIRCLE_NO_PAGER`: set to any value to print long output directly instead of through a pager.
 
 `PAGER`: names the pager program to send long output through (for example `less` or `more`).

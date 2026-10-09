@@ -23,6 +23,7 @@
 package installmethod
 
 import (
+	"errors"
 	"slices"
 	"testing"
 
@@ -191,4 +192,78 @@ func TestForceEnv(t *testing.T) {
 		assert.Check(t, cmp.Equal(Detect(), "other"))
 		assert.Check(t, cmp.Equal(UpgradeCommand(), ""))
 	})
+}
+
+func TestHomebrewUpgradeFor(t *testing.T) {
+	noBrewOnPath := func(string) (string, error) { return "", errors.New("not found") }
+	brewOnPath := func(string) (string, error) { return "/usr/local/bin/brew", nil }
+
+	tests := []struct {
+		name     string
+		method   string
+		exe      string
+		files    []string // paths that exist
+		lookPath func(string) (string, error)
+		wantArgv []string
+		wantOK   bool
+	}{
+		{
+			name:     "formula, brew found next to its Cellar",
+			method:   "homebrew",
+			exe:      "/opt/homebrew/Cellar/circleci/1.4.0/bin/circleci",
+			files:    []string{"/opt/homebrew/bin/brew"},
+			lookPath: noBrewOnPath,
+			wantArgv: []string{"/opt/homebrew/bin/brew", "upgrade", "circleci"},
+			wantOK:   true,
+		},
+		{
+			name:     "preview cask",
+			method:   "homebrew",
+			exe:      "/opt/homebrew/Caskroom/circleci@next/1.4.0/circleci",
+			files:    []string{"/opt/homebrew/bin/brew"},
+			lookPath: noBrewOnPath,
+			wantArgv: []string{"/opt/homebrew/bin/brew", "upgrade", "--cask", "circleci@next"},
+			wantOK:   true,
+		},
+		{
+			name:     "Linux Homebrew",
+			method:   "homebrew",
+			exe:      "/home/linuxbrew/.linuxbrew/Cellar/circleci/1.4.0/bin/circleci",
+			files:    []string{"/home/linuxbrew/.linuxbrew/bin/brew"},
+			lookPath: noBrewOnPath,
+			wantArgv: []string{"/home/linuxbrew/.linuxbrew/bin/brew", "upgrade", "circleci"},
+			wantOK:   true,
+		},
+		{
+			name:     "falls back to brew on PATH",
+			method:   "homebrew",
+			exe:      "/opt/homebrew/Cellar/circleci/1.4.0/bin/circleci",
+			lookPath: brewOnPath,
+			wantArgv: []string{"/usr/local/bin/brew", "upgrade", "circleci"},
+			wantOK:   true,
+		},
+		{
+			name:     "no brew anywhere",
+			method:   "homebrew",
+			exe:      "/opt/homebrew/Cellar/circleci/1.4.0/bin/circleci",
+			lookPath: noBrewOnPath,
+			wantOK:   false,
+		},
+		{
+			name:     "not a Homebrew install",
+			method:   "deb",
+			exe:      "/usr/bin/circleci",
+			lookPath: brewOnPath,
+			wantOK:   false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			exists := func(path string) bool { return slices.Contains(tt.files, path) }
+			argv, ok := homebrewUpgradeFor(tt.method, tt.exe, exists, tt.lookPath)
+			assert.Check(t, cmp.Equal(ok, tt.wantOK))
+			assert.Check(t, cmp.DeepEqual(argv, tt.wantArgv))
+		})
+	}
 }

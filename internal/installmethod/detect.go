@@ -27,6 +27,7 @@ package installmethod
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 )
@@ -49,6 +50,10 @@ const (
 // underscore); never user-set.
 const ForceEnv = "__CIRCLE_INSTALL_METHOD"
 
+// previewCaskDir is part of the path of a binary installed from the preview
+// Homebrew cask, which upgrades with a different command from the formula.
+const previewCaskDir = "/Caskroom/circleci@next/"
+
 // installScriptCommand re-runs the install script, which puts the latest release
 // over the old binary and uses sudo itself when the directory needs it.
 const installScriptCommand = "curl -fsSL https://raw.githubusercontent.com/CircleCI-Public/circleci-cli/main/install.sh | bash"
@@ -70,13 +75,59 @@ func UpgradeCommand() string {
 }
 
 func detect() (method, upgradeCommand string) {
+	method, exe, exists := resolve()
+	return method, upgradeCommandFor(method, exe, exists)
+}
+
+// HomebrewUpgrade returns the command line that upgrades a Homebrew install of
+// the running binary, naming brew by its full path so it works where brew is
+// not on PATH, as in many agent sandboxes. ok is false for any other install
+// method, or when brew cannot be found.
+func HomebrewUpgrade() (argv []string, ok bool) {
+	method, exe, exists := resolve()
+	return homebrewUpgradeFor(method, exe, exists, exec.LookPath)
+}
+
+func homebrewUpgradeFor(method, exe string, exists func(string) bool, lookPath func(string) (string, error)) ([]string, bool) {
+	if method != methodHomebrew {
+		return nil, false
+	}
+	brew := brewPath(exe, exists, lookPath)
+	if brew == "" {
+		return nil, false
+	}
+	if strings.Contains(exe, previewCaskDir) {
+		return []string{brew, "upgrade", "--cask", "circleci@next"}, true
+	}
+	return []string{brew, "upgrade", "circleci"}, true
+}
+
+// brewPath finds the brew that manages exe: <prefix>/bin/brew, where prefix holds
+// Homebrew's Cellar or Caskroom, falling back to brew on PATH.
+func brewPath(exe string, exists func(string) bool, lookPath func(string) (string, error)) string {
+	for _, dir := range []string{"/Cellar/", "/Caskroom/"} {
+		if i := strings.Index(exe, dir); i > 0 {
+			if candidate := exe[:i] + "/bin/brew"; exists(candidate) {
+				return candidate
+			}
+		}
+	}
+	if p, err := lookPath("brew"); err == nil {
+		return p
+	}
+	return ""
+}
+
+// resolve works out the install method along with the resolved executable path
+// and the file check used, which the command builders need for variants.
+func resolve() (method, exe string, exists func(string) bool) {
 	if forced := os.Getenv(ForceEnv); isMethod(forced) {
-		return forced, upgradeCommandFor(forced, "", func(string) bool { return false })
+		return forced, "", func(string) bool { return false }
 	}
 
 	exe, err := os.Executable()
 	if err != nil {
-		return methodOther, ""
+		return methodOther, "", fileExists
 	}
 	// Package managers link the binary onto PATH, so follow the link to where it
 	// really lives: /usr/local/bin/circleci on an Intel Mac is a symlink into
@@ -84,8 +135,7 @@ func detect() (method, upgradeCommand string) {
 	if resolved, err := filepath.EvalSymlinks(exe); err == nil {
 		exe = resolved
 	}
-	method = fromPath(exe, fileExists)
-	return method, upgradeCommandFor(method, exe, fileExists)
+	return fromPath(exe, fileExists), exe, fileExists
 }
 
 func isMethod(s string) bool {
@@ -144,7 +194,7 @@ func fromPath(exe string, exists func(string) bool) string {
 func upgradeCommandFor(method, exe string, exists func(string) bool) string {
 	switch method {
 	case methodHomebrew:
-		if strings.Contains(exe, "/Caskroom/circleci@next/") {
+		if strings.Contains(exe, previewCaskDir) {
 			return "brew upgrade --cask circleci@next"
 		}
 		return "brew upgrade circleci"

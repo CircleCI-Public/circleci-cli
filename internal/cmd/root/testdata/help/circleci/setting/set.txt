@@ -6,7 +6,7 @@ Set a CLI setting
 
 ## Arguments
 
-- `<key>` is the setting to change. Options are: `token`, `host`, `telemetry`, `theme`, or `update-check`.
+- `<key>` is the setting to change. Options are: `token`, `host`, `telemetry`, `theme`, `update-check`, or `auto-update`.
 - `<value>` is the value to store. Pass `-` to read it from stdin.
   May be omitted for `theme` to pick interactively.
 
@@ -22,8 +22,6 @@ Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `ci
   `echo "mytoken123" | circleci setting set token -`
 - Point to a self-hosted CircleCI server: 
   `circleci setting set host https://circleci.mycompany.com`
-- Enable telemetry: 
-  `circleci setting set telemetry on`
 - Disable telemetry: 
   `circleci setting set telemetry off`
 - Set the color theme used for rendered output: 
@@ -32,6 +30,8 @@ Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `ci
   `circleci setting set theme`
 - Disable update notifications: 
   `circleci setting set update-check off`
+- Let a Homebrew install upgrade itself in the background: 
+  `circleci setting set auto-update on`
 
 ## Details
 

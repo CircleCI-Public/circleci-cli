@@ -34,6 +34,7 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/clikit/iostream"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmdutil"
 	"github.com/CircleCI-Public/circleci-cli/internal/config"
+	"github.com/CircleCI-Public/circleci-cli/internal/installmethod"
 )
 
 func newSetCmd() *cobra.Command {
@@ -42,7 +43,7 @@ func newSetCmd() *cobra.Command {
 		Short: "Set a CLI setting",
 		Annotations: map[string]string{
 			"help:arguments": heredoc.Docf(`
-				- %[1]s<key>%[1]s is the setting to change. Options are: %[1]stoken%[1]s, %[1]shost%[1]s, %[1]stelemetry%[1]s, %[1]stheme%[1]s, or %[1]supdate-check%[1]s.
+				- %[1]s<key>%[1]s is the setting to change. Options are: %[1]stoken%[1]s, %[1]shost%[1]s, %[1]stelemetry%[1]s, %[1]stheme%[1]s, %[1]supdate-check%[1]s, or %[1]sauto-update%[1]s.
 				- %[1]s<value>%[1]s is the value to store. Pass %[1]s-%[1]s to read it from stdin.
 				  May be omitted for %[1]stheme%[1]s to pick interactively.
 			`, "`"),
@@ -60,9 +61,6 @@ func newSetCmd() *cobra.Command {
 			# Point to a self-hosted CircleCI server
 			$ circleci setting set host https://circleci.mycompany.com
 
-			# Enable telemetry
-			$ circleci setting set telemetry on
-
 			# Disable telemetry
 			$ circleci setting set telemetry off
 
@@ -74,6 +72,9 @@ func newSetCmd() *cobra.Command {
 
 			# Disable update notifications
 			$ circleci setting set update-check off
+
+			# Let a Homebrew install upgrade itself in the background
+			$ circleci setting set auto-update on
 		`),
 		Args: cobra.MaximumNArgs(2),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -121,9 +122,11 @@ func runSet(ctx context.Context, secureStorage bool, path, key, value string) (e
 		return runSetTheme(ctx, path, value)
 	case "update-check":
 		return runSetUpdateCheck(ctx, path, value)
+	case "auto-update":
+		return runSetAutoUpdate(ctx, path, value)
 	default:
 		return clierrors.New("setting.unknown_key", "Unknown setting", "Unknown setting key: "+key).
-			WithSuggestions("Valid keys are: token, host, telemetry, theme, update-check").
+			WithSuggestions("Valid keys are: token, host, telemetry, theme, update-check, auto-update").
 			WithExitCode(clierrors.ExitBadArguments)
 	}
 	if err != nil {
@@ -267,6 +270,33 @@ func runSetUpdateCheck(ctx context.Context, path, value string) error {
 		iostream.ErrPrintf(ctx, "%s Update notifications enabled. Saved to %s\n", iostream.SymbolOK(ctx), path)
 	} else {
 		iostream.ErrPrintf(ctx, "%s Update notifications disabled. Saved to %s\n", iostream.SymbolOK(ctx), path)
+	}
+	return nil
+}
+
+func runSetAutoUpdate(ctx context.Context, path, value string) error {
+	enabled, ok := config.ParseOnOff(value)
+	if !ok {
+		return clierrors.New("setting.invalid_value", "Invalid auto-update value", "Invalid value for auto-update: "+value).
+			WithSuggestions("Valid values are: on, off").
+			WithExitCode(clierrors.ExitBadArguments)
+	}
+
+	if err := config.SetAutoUpdate(ctx, enabled, ""); err != nil {
+		return clierrors.New("setting.save_failed", "Failed to save auto-update setting", err.Error()).
+			WithExitCode(clierrors.ExitGeneralError)
+	}
+
+	if !enabled {
+		iostream.ErrPrintf(ctx, "%s Auto-update disabled. Saved to %s\n", iostream.SymbolOK(ctx), path)
+		return nil
+	}
+	iostream.ErrPrintf(ctx, "%s Auto-update enabled. Saved to %s\n", iostream.SymbolOK(ctx), path)
+	if installmethod.Detect() != "homebrew" {
+		iostream.ErrPrintf(ctx, "Note: auto-update only upgrades Homebrew installs for now. This one wasn't installed with Homebrew, so the update notice will keep showing the upgrade command instead.\n")
+	}
+	if !cmdutil.GetConfig(ctx).IsUpdateCheck() {
+		iostream.ErrPrintf(ctx, "Note: update checks are off, so nothing will be upgraded until you run: circleci setting set update-check on\n")
 	}
 	return nil
 }

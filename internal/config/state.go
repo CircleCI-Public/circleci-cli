@@ -100,6 +100,9 @@ type stateData struct {
 	// ("circleci-testsuite"), because each managed extension is versioned and
 	// checked independently of the CLI and of every other extension.
 	CheckedExtensionUpdatesAt map[string]time.Time `yaml:"checked_extension_updates_at,omitempty"`
+	// AutoUpdateStartedAt is when a background upgrade was last started, so one
+	// starts at most once a day however many commands run.
+	AutoUpdateStartedAt time.Time `yaml:"auto_update_started_at,omitempty"`
 }
 
 // Release is the newest release recorded by the last successful update check.
@@ -121,6 +124,13 @@ func (s *State) LatestRelease() Release { return s.data.LatestRelease }
 // SetLatestRelease records the newest release seen (pass the zero Release to
 // clear it).
 func (s *State) SetLatestRelease(r Release) { s.data.LatestRelease = r }
+
+// AutoUpdateStartedAt reports when a background upgrade was last started. The
+// zero value means never.
+func (s *State) AutoUpdateStartedAt() time.Time { return s.data.AutoUpdateStartedAt }
+
+// SetAutoUpdateStartedAt records when a background upgrade was started.
+func (s *State) SetAutoUpdateStartedAt(t time.Time) { s.data.AutoUpdateStartedAt = t }
 
 // CheckedExtensionUpdateAt reports when the registry was last queried for a
 // newer version of the named extension.

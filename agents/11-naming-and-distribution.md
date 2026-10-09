@@ -208,6 +208,26 @@ When the install method is unknown, the middle line is left out rather than
 guessed. `circleci version --json` reports the same command as `upgrade_command`
 for agents and scripts, which never see the notice.
 
+**Auto-update is opt-in, and Homebrew-only for now.** With
+`circleci setting set auto-update on` (or `CIRCLE_AUTO_UPDATE=on`), the CLI starts
+`brew upgrade circleci` as a detached background process when a command starts, at
+most once a day, and the new version takes over on the next run. It doesn't wait
+for the update check: Homebrew knows whether its formula has a newer version, and
+starting with the command means fast and failing commands still trigger it. On the
+run that starts it, the notice's middle line says the upgrade has started instead
+of asking the user to run it.
+
+- **It runs where the notice can't**: for agents and under `--json`, since they are
+  who the notice never reaches and the user opted in on their behalf. It still
+  never runs in CI, for dev builds, or for any other install method.
+- **Only Homebrew**, because it is the one package manager the CLI can drive
+  without admin rights. The others need `sudo` or an elevated shell.
+- **Old versions stay on disk** (`HOMEBREW_NO_INSTALL_CLEANUP`), because a
+  long-running process started from one, such as the MCP server, execs that same
+  path again for every tool call.
+- **Output goes to `auto-update.log`** next to `state.yml`, so a failed upgrade can
+  be diagnosed. Failures are never shown; the next day's window tries again.
+
 The implementation lives in `internal/update` (business logic) and is wired in
 `internal/cmd/root/root.go`. What it does and why:
 
