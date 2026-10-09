@@ -16,7 +16,7 @@ require (
 	github.com/charmbracelet/x/exp/teatest/v2 v2.0.0-20260629091435-9c70f75e26a4
 	github.com/go-chi/chi/v5 v5.3.2
 	github.com/go-chi/render v1.0.3
-	github.com/go-git/go-git/v6 v6.0.0-alpha.5
+	github.com/go-git/go-git/v6 v6.0.0-beta.1
 	github.com/godbus/dbus/v5 v5.2.2
 	github.com/gofrs/flock v0.13.1
 	github.com/google/go-cmp v0.7.0
@@ -46,7 +46,7 @@ require (
 	github.com/BurntSushi/toml v1.6.0 // indirect
 	github.com/Microsoft/go-winio v0.6.2 // indirect
 	github.com/NimbleMarkets/ntcharts/v2 v2.2.0 // indirect
-	github.com/ProtonMail/go-crypto v1.4.1 // indirect
+	github.com/ProtonMail/go-crypto v1.5.2 // indirect
 	github.com/agnivade/levenshtein v1.2.1 // indirect
 	github.com/ajg/form v1.7.1 // indirect
 	github.com/alecthomas/chroma/v2 v2.27.0 // indirect
@@ -75,7 +75,7 @@ require (
 	github.com/ebitengine/purego v0.10.2 // indirect
 	github.com/emirpasic/gods v1.18.1 // indirect
 	github.com/go-git/gcfg/v2 v2.0.2 // indirect
-	github.com/go-git/go-billy/v6 v6.0.0-alpha.2 // indirect
+	github.com/go-git/go-billy/v6 v6.0.0-beta.1 // indirect
 	github.com/go-ini/ini v1.67.0 // indirect
 	github.com/go-logfmt/logfmt v0.6.1 // indirect
 	github.com/go-logr/logr v1.4.4 // indirect
@@ -90,7 +90,6 @@ require (
 	github.com/itchyny/gojq v0.12.19 // indirect
 	github.com/itchyny/timefmt-go v0.1.8 // indirect
 	github.com/kevinburke/ssh_config v1.6.0 // indirect
-	github.com/klauspost/cpuid/v2 v2.3.0 // indirect
 	github.com/lrstanley/bubblezone/v2 v2.0.0 // indirect
 	github.com/lucasb-eyer/go-colorful v1.4.1 // indirect
 	github.com/lufia/plan9stats v0.0.0-20260330125221-c963978e514e // indirect
@@ -101,7 +100,7 @@ require (
 	github.com/muesli/mango-pflag v0.2.0 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	github.com/open-policy-agent/opa v1.4.0 // indirect
-	github.com/pjbgf/sha1cd v0.6.0 // indirect
+	github.com/pjbgf/sha1cd v0.7.0 // indirect
 	github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 // indirect
 	github.com/power-devops/perfstat v0.0.0-20240221224432-82ca36839d55 // indirect
 	github.com/prometheus/client_golang v1.21.1 // indirect
@@ -131,10 +130,10 @@ require (
 	go.opentelemetry.io/otel/metric v1.45.0 // indirect
 	go.opentelemetry.io/otel/sdk v1.45.0 // indirect
 	go.opentelemetry.io/otel/trace v1.45.0 // indirect
-	golang.org/x/crypto v0.56.0 // indirect
+	golang.org/x/crypto v0.57.0 // indirect
 	golang.org/x/exp v0.0.0-20260611194520-c48552f49976 // indirect
 	golang.org/x/image v0.46.0 // indirect
-	golang.org/x/net v0.58.0 // indirect
+	golang.org/x/net v0.59.0 // indirect
 	golang.org/x/text v0.42.0 // indirect
 	golang.org/x/time v0.15.0 // indirect
 	google.golang.org/protobuf v1.36.11 // indirect
