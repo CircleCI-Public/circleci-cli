@@ -28,6 +28,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"time"
 
 	"github.com/segmentio/analytics-go/v3"
 )
@@ -37,6 +38,9 @@ const (
 	EnvWriteKey = "__CIRCLE_TELEMETRY_WRITE_KEY"
 	// EnvTelemetryEndpoint configures the endpoint for the telemetry client.
 	EnvTelemetryEndpoint = "__CIRCLE_TELEMETRY_ENDPOINT"
+
+	// shutdownTimeout bounds how long Close keeps retrying a failed upload.
+	shutdownTimeout = 5 * time.Second
 )
 
 func Receive(in io.Reader) (err error) {
@@ -54,6 +58,11 @@ func Receive(in io.Reader) (err error) {
 	}
 	c, err := analytics.NewWithConfig(writeKey, analytics.Config{
 		Endpoint: endpoint,
+		// We Close straight after enqueueing, so every retry happens during
+		// shutdown. The library's 75s default would leave this detached process
+		// (and its working directory, which Windows then cannot delete) around
+		// for over a minute whenever Segment is unreachable.
+		ShutdownTimeout: shutdownTimeout,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to create segment client: %w", err)
