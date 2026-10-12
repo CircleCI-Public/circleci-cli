@@ -8,15 +8,16 @@ Work with CircleCI from the command line.
 
 ## CI Commands
 
-| Command      | Description                                      |
-| ------------ | ------------------------------------------------ |
-| `artifact`   | List and download a job's artifact files         |
-| `config`     | Generate, validate, process and pack config YAML |
-| `job`        | Inspect a job's details, output and artifacts    |
-| `pipeline`   | Manage the pipeline definitions a run executes   |
-| `run`        | Trigger, watch and cancel pipeline runs          |
-| `testresult` | Inspect test results for a job                   |
-| `workflow`   | Inspect, rerun and cancel workflows (job graphs) |
+| Command      | Description                                          |
+| ------------ | ---------------------------------------------------- |
+| `artifact`   | List and download a job's artifact files             |
+| `config`     | Generate, validate, process and pack config YAML     |
+| `job`        | Inspect a job's details, output and artifacts        |
+| `pipeline`   | Manage the pipeline definitions a run executes       |
+| `preflight`  | Run uncommitted changes through CI before you commit |
+| `run`        | Trigger, watch and cancel pipeline runs              |
+| `testresult` | Inspect test results for a job                       |
+| `workflow`   | Inspect, rerun and cancel workflows (job graphs)     |
 
 ## Management Commands
 
@@ -70,6 +71,7 @@ Work with CircleCI from the command line.
 | `environment`     | Environment variables that can be used with circleci          |
 | `formatting`      | Formatting options for JSON data exported from circleci       |
 | `getting-started` | Install, authenticate, and start using circleci               |
+| `preflight-guide` | How preflight works, and its JSON event stream                |
 | `reference`       | A comprehensive reference of all circleci commands            |
 | `telemetry`       | Information about telemetry in circleci                       |
 | `triggers`        | Event source providers and event presets for project triggers |

@@ -242,6 +242,80 @@ var helpTopics = []helpTopic{
 		`, "`"),
 	},
 	{
+		name:  "preflight-guide",
+		short: "How preflight works, and its JSON event stream",
+		long: heredoc.Docf(`
+			%[1]scircleci preflight run%[1]s tests your working tree on CircleCI before you commit it.
+			It is built for coding agents: change code, preflight it, read the failures, fix, repeat.
+
+			## How it works
+
+			1. The working tree — committed, staged, unstaged and untracked, minus ignored
+			   files — is recorded as one commit whose parent is where HEAD forked from the
+			   remote's default branch, so its diff shows everything you are changing. A
+			   throwaway index is used, so HEAD, the index, the working tree and the stash
+			   are never touched. When nothing differs from the default branch, its commit
+			   is pushed as-is. If the default branch is unknown, the parent is HEAD.
+			2. The commit is pushed to %[1]scci/preflight/<id>%[1]s on the remote (pre-push hooks are
+			   skipped). The project's push trigger starts a run for it; the project must build
+			   pushes to every branch.
+			3. The run is watched. Each failed job is reported once, as soon as it is seen.
+			4. At the first failed job the rest of the run is cancelled; with %[1]s--no-failfast%[1]s
+			   the whole run is awaited instead. Either way the branch is then deleted, unless
+			   %[1]s--no-cleanup%[1]s is passed. %[1]scircleci preflight cleanup%[1]s removes branches
+			   left behind.
+
+			## Detecting a preflight in config
+
+			Jobs see the branch name, so a step can skip work that should not run for
+			uncommitted code — deploys, publishing, slow optional suites:
+
+			%[1]s%[1]s%[1]sshell
+			if [[ "$CIRCLE_BRANCH" == cci/preflight/* ]]; then echo "preflight: skipping deploy"; exit 0; fi
+			%[1]s%[1]s%[1]s
+
+			A workflow can be filtered out entirely with %[1]sbranches: { ignore: /^cci\/preflight\/.*/ }%[1]s.
+
+			## Event stream
+
+			With %[1]s--json%[1]s, stdout carries one JSON object per line and nothing else. Every
+			object has a %[1]stype%[1]s:
+
+			- %[1]sbranch_pushed%[1]s — %[1]spreflight_id%[1]s, %[1]sbranch%[1]s, %[1]scommit%[1]s, %[1]sbase%[1]s (the commit's parent),
+			  %[1]sbase_branch%[1]s (empty when %[1]sbase%[1]s fell back to HEAD) and %[1]schanges%[1]s (false when
+			  nothing differed from %[1]sbase%[1]s and %[1]scommit%[1]s is %[1]sbase%[1]s itself).
+			- %[1]srun_started%[1]s — %[1]srun_id%[1]s, %[1]sproject%[1]s, %[1]sbranch%[1]s, %[1]scommit%[1]s, %[1]surl%[1]s.
+			- %[1]sjob_failed%[1]s — %[1]sjob%[1]s: %[1]sid%[1]s, %[1]sname%[1]s, %[1]sworkflow_id%[1]s, %[1]sworkflow%[1]s, %[1]surl%[1]s,
+			  %[1]sfailed_steps[]%[1]s (%[1]sexecution%[1]s, %[1]snum%[1]s, %[1]sname%[1]s, %[1]sexit_code%[1]s), %[1]sfailed_tests[]%[1]s
+			  (%[1]sclassname%[1]s, %[1]sname%[1]s, %[1]smessage%[1]s; at most 25) and %[1]sfailed_test_count%[1]s.
+			- %[1]srun_summary%[1]s — always last: %[1]srun_id%[1]s, %[1]soutcome%[1]s, %[1]sended%[1]s, %[1]sduration_ms%[1]s,
+			  %[1]surl%[1]s, %[1]serrors[]%[1]s (%[1]stype%[1]s, %[1]smessage%[1]s), %[1]sfailed_jobs[]%[1]s (%[1]sid%[1]s, %[1]sname%[1]s, %[1]sworkflow%[1]s,
+			  %[1]surl%[1]s), %[1]srun_cancelled%[1]s, %[1]sbranch_deleted%[1]s and %[1]scleanup_error%[1]s.
+
+			%[1]soutcome%[1]s is %[1]ssucceeded%[1]s, %[1]sfailed%[1]s or %[1]scanceled%[1]s once the run has ended; %[1]sfailing%[1]s when the
+			preflight stopped at the first failed job; %[1]stimed_out%[1]s or %[1]sinterrupted%[1]s otherwise.
+			Test results are read when the job fails, so a job whose results are still being
+			processed may report no tests.
+
+			Exit codes: 0 succeeded, 1 failed, 3 auth error, 4 API error, 5 no run started,
+			6 cancelled or interrupted, 7 config error, 8 timed out.
+
+			## Acting on failures
+
+			For each %[1]sjob_failed%[1]s event, start from %[1]sfailed_tests%[1]s when present, otherwise from the
+			failed step's output: %[1]scircleci job output get <job.id> --step-num <num>%[1]s. Once the
+			summary arrives, %[1]scircleci run get <run_id> --failure-report%[1]s prints every failed
+			step's condensed output. Fix the code and run the preflight again.
+		`, "`"),
+		example: heredoc.Docf(`
+			### Stream events and keep only failures
+			%[1]s$ circleci preflight run --json | grep '"type":"job_failed"'%[1]s
+
+			### Remove preflight branches left behind
+			%[1]s$ circleci preflight cleanup%[1]s
+		`, "`"),
+	},
+	{
 		name:  "reference",
 		short: "A comprehensive reference of all circleci commands",
 	},

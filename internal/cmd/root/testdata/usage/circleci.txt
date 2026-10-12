@@ -24,6 +24,7 @@ Available commands:
   org
   pipeline
   policy
+  preflight
   project
   run
   runner

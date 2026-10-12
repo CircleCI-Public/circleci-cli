@@ -1,0 +1,70 @@
+# Preflight guide
+`circleci preflight run` tests your working tree on CircleCI before you commit it.
+It is built for coding agents: change code, preflight it, read the failures, fix, repeat.
+
+## How it works
+
+1. The working tree — committed, staged, unstaged and untracked, minus ignored
+   files — is recorded as one commit whose parent is where HEAD forked from the
+   remote's default branch, so its diff shows everything you are changing. A
+   throwaway index is used, so HEAD, the index, the working tree and the stash
+   are never touched. When nothing differs from the default branch, its commit
+   is pushed as-is. If the default branch is unknown, the parent is HEAD.
+2. The commit is pushed to `cci/preflight/<id>` on the remote (pre-push hooks are
+   skipped). The project's push trigger starts a run for it; the project must build
+   pushes to every branch.
+3. The run is watched. Each failed job is reported once, as soon as it is seen.
+4. At the first failed job the rest of the run is cancelled; with `--no-failfast`
+   the whole run is awaited instead. Either way the branch is then deleted, unless
+   `--no-cleanup` is passed. `circleci preflight cleanup` removes branches
+   left behind.
+
+## Detecting a preflight in config
+
+Jobs see the branch name, so a step can skip work that should not run for
+uncommitted code — deploys, publishing, slow optional suites:
+
+```shell
+if [[ "$CIRCLE_BRANCH" == cci/preflight/* ]]; then echo "preflight: skipping deploy"; exit 0; fi
+```
+
+A workflow can be filtered out entirely with `branches: { ignore: /^cci\/preflight\/.*/ }`.
+
+## Event stream
+
+With `--json`, stdout carries one JSON object per line and nothing else. Every
+object has a `type`:
+
+- `branch_pushed` — `preflight_id`, `branch`, `commit`, `base` (the commit's parent),
+  `base_branch` (empty when `base` fell back to HEAD) and `changes` (false when
+  nothing differed from `base` and `commit` is `base` itself).
+- `run_started` — `run_id`, `project`, `branch`, `commit`, `url`.
+- `job_failed` — `job`: `id`, `name`, `workflow_id`, `workflow`, `url`,
+  `failed_steps[]` (`execution`, `num`, `name`, `exit_code`), `failed_tests[]`
+  (`classname`, `name`, `message`; at most 25) and `failed_test_count`.
+- `run_summary` — always last: `run_id`, `outcome`, `ended`, `duration_ms`,
+  `url`, `errors[]` (`type`, `message`), `failed_jobs[]` (`id`, `name`, `workflow`,
+  `url`), `run_cancelled`, `branch_deleted` and `cleanup_error`.
+
+`outcome` is `succeeded`, `failed` or `canceled` once the run has ended; `failing` when the
+preflight stopped at the first failed job; `timed_out` or `interrupted` otherwise.
+Test results are read when the job fails, so a job whose results are still being
+processed may report no tests.
+
+Exit codes: 0 succeeded, 1 failed, 3 auth error, 4 API error, 5 no run started,
+6 cancelled or interrupted, 7 config error, 8 timed out.
+
+## Acting on failures
+
+For each `job_failed` event, start from `failed_tests` when present, otherwise from the
+failed step's output: `circleci job output get <job.id> --step-num <num>`. Once the
+summary arrives, `circleci run get <run_id> --failure-report` prints every failed
+step's condensed output. Fix the code and run the preflight again.
+
+
+## Examples
+### Stream events and keep only failures
+`$ circleci preflight run --json | grep '"type":"job_failed"'`
+
+### Remove preflight branches left behind
+`$ circleci preflight cleanup`
