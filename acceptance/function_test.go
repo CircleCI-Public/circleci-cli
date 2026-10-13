@@ -41,6 +41,8 @@ import (
 const (
 	setupGoName   = "github.com/circleci-functions/setup-go"
 	setupGoLatest = "v0.5.1-684fd5b"
+	// An untagged build, which the API only lists on request.
+	setupGoPseudo = "v0.5.2-0.20261007152818-72ffa3f7a023"
 	// The package description, which a version without its own falls back to.
 	setupGoDescription = "Install a Go toolchain and link it onto PATH for later steps.\n\nExample:\n  circleci run setup-go@<version> -- --version 1.22"
 )
@@ -81,6 +83,7 @@ func setupFunctionFake(t *testing.T) *testenv.TestEnv {
 			},
 		},
 	})
+	fake.AddFunctionVersion(setupGoName, setupGoPseudo, map[string]any{"name": "setup-go", "version": setupGoPseudo})
 	fake.AddFunction("github.com/circleci-functions/setup-browser-tools",
 		"Install browsers and browser-testing tools.", "v0.1.0-f29f758")
 
@@ -139,6 +142,28 @@ func TestFunctionList_JSON(t *testing.T) {
 	// --json carries the whole description; only the table is summarized.
 	assert.Check(t, cmp.Contains(out[0]["description"].(string), "Example:"))
 	assert.Check(t, cmp.DeepEqual(out[0]["versions"], []any{setupGoLatest, "v0.9.0-aaa1111"}))
+}
+
+func TestFunctionList_Pseudo(t *testing.T) {
+	env := setupFunctionFake(t)
+
+	t.Run("Pseudo-versions are left out by default", func(t *testing.T) {
+		result := runFunction(t, env, "list", "--json")
+		assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+
+		var out []map[string]any
+		assert.NilError(t, json.Unmarshal([]byte(result.Stdout), &out))
+		assert.Check(t, cmp.DeepEqual(out[0]["versions"], []any{setupGoLatest, "v0.9.0-aaa1111"}))
+	})
+
+	t.Run("--include-pseudo lists them", func(t *testing.T) {
+		result := runFunction(t, env, "list", "--json", "--include-pseudo")
+		assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+
+		var out []map[string]any
+		assert.NilError(t, json.Unmarshal([]byte(result.Stdout), &out))
+		assert.Check(t, cmp.DeepEqual(out[0]["versions"], []any{setupGoLatest, "v0.9.0-aaa1111", setupGoPseudo}))
+	})
 }
 
 func TestFunctionListAPIUnavailable(t *testing.T) {
@@ -227,6 +252,28 @@ func TestFunctionGet_JSON(t *testing.T) {
 			"versions":       []any{setupGoLatest, "v0.9.0-aaa1111"},
 			"flags":          []any{},
 		}))
+	})
+}
+
+func TestFunctionGet_Pseudo(t *testing.T) {
+	env := setupFunctionFake(t)
+
+	t.Run("Pseudo-versions are left out of the versions", func(t *testing.T) {
+		result := runFunction(t, env, "get", "setup-go", "--json")
+		assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+
+		var out map[string]any
+		assert.NilError(t, json.Unmarshal([]byte(result.Stdout), &out))
+		assert.Check(t, cmp.DeepEqual(out["versions"], []any{setupGoLatest, "v0.9.0-aaa1111"}))
+	})
+
+	t.Run("A pseudo-version named by --version is found", func(t *testing.T) {
+		result := runFunction(t, env, "get", "setup-go", "--version", setupGoPseudo, "--json")
+		assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+
+		var out map[string]any
+		assert.NilError(t, json.Unmarshal([]byte(result.Stdout), &out))
+		assert.Check(t, cmp.Equal(out["version"], setupGoPseudo))
 	})
 }
 
@@ -397,6 +444,13 @@ func TestFunctionAddOptions(t *testing.T) {
 		assert.Check(t, cmp.Contains(readFnConfig(t, dir), "go: "+setupGoName+"@v0.9.0-aaa1111"))
 		// That version publishes no example, so only the step name is offered.
 		assert.Check(t, cmp.Contains(result.Stdout, `Invoke it as a step named "go".`))
+	})
+
+	t.Run("A pseudo-version can be pinned by name", func(t *testing.T) {
+		dir := writeFnConfig(t, baseConfig)
+		result := runFunctionIn(t, env, dir, "add", "setup-go", "--version", setupGoPseudo)
+		assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+		assert.Check(t, cmp.Contains(readFnConfig(t, dir), setupGoName+"@"+setupGoPseudo))
 	})
 
 	t.Run("The example step is invoked by the alias", func(t *testing.T) {

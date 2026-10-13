@@ -51,9 +51,10 @@ type listEntry struct {
 
 func newListCmd() *cobra.Command {
 	var (
-		pinned     bool
-		jsonOut    bool
-		configFile string
+		pinned        bool
+		includePseudo bool
+		jsonOut       bool
+		configFile    string
 	)
 
 	cmd := &cobra.Command{
@@ -63,12 +64,18 @@ func newListCmd() *cobra.Command {
 		Long: heredoc.Doc(`
 			List every published CircleCI function and its versions.
 
+			Pseudo-versions, untagged builds such as v0.5.2-0.20261007152818-72ffa3f7a023,
+			are left out unless --include-pseudo is set.
+
 			JSON fields: id, name, description, latest_version, versions.
 			With --pinned: alias, function, version.
 		`),
 		Example: heredoc.Doc(`
 			# List published functions
 			$ circleci function list
+
+			# Include pseudo-versions in each function's versions
+			$ circleci function list --include-pseudo --json --jq '.[].versions'
 
 			# List what this repository declares
 			$ circleci function list --pinned
@@ -86,11 +93,12 @@ func newListCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return runList(ctx, client, jsonOut)
+			return runList(ctx, client, includePseudo, jsonOut)
 		},
 	}
 
 	cmd.Flags().BoolVar(&pinned, "pinned", false, "list the functions declared in the local config")
+	cmd.Flags().BoolVar(&includePseudo, "include-pseudo", false, "include pseudo-versions (untagged builds) in each function's versions")
 	cmdutil.AddPipelineConfigFlag(cmd, &configFile)
 	cmdutil.AddJSONFlag(cmd, &jsonOut)
 	cmdutil.AddJQFlag(cmd)
@@ -98,9 +106,9 @@ func newListCmd() *cobra.Command {
 	return cmd
 }
 
-func runList(ctx context.Context, client *apiclient.Client, jsonOut bool) error {
+func runList(ctx context.Context, client *apiclient.Client, includePseudo, jsonOut bool) error {
 	sp := iostream.Spinner(ctx, !jsonOut, "Fetching published functions")
-	functions, err := client.ListFunctions(ctx)
+	functions, err := client.ListFunctions(ctx, includePseudo)
 	sp.Stop()
 	if err != nil {
 		return cmdutil.APIErr(err, "published functions",
