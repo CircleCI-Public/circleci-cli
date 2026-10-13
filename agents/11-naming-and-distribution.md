@@ -213,7 +213,9 @@ for agents and scripts, which never see the notice.
 `brew upgrade circleci` as a detached background process when a command starts, at
 most once a day, and the new version takes over on the next run. It doesn't wait
 for the update check: Homebrew knows whether its formula has a newer version, and
-starting with the command means fast and failing commands still trigger it.
+starting with the command means fast and failing commands still trigger it. On the
+run that starts it, the notice's middle line says the upgrade has started instead
+of asking the user to run it.
 
 - **It runs where the notice can't**: for agents and under `--json`, since they are
   who the notice never reaches and the user opted in on their behalf. It still

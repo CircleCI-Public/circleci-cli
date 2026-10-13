@@ -106,6 +106,7 @@ func TestAutoUpdate_RunsBrewInBackground(t *testing.T) {
 	assert.Check(t, cmp.Equal(result.ExitCode, 0), "stderr: %s", result.Stderr)
 	waitForBrew(t, argsFile)
 	assert.Check(t, cmp.DeepEqual(brewCalls(t, argsFile), []string{"upgrade circleci"}))
+	// The notice says the upgrade has started instead of asking for it.
 	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 }
 
