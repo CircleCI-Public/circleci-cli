@@ -41,7 +41,15 @@ const DefaultOrg = "github.com/circleci-functions"
 var (
 	pathPattern    = regexp.MustCompile(`\A[a-z0-9][a-z0-9.-]*\.[a-z]{2,}(/[A-Za-z0-9._-]+){2,}\z`)
 	versionPattern = regexp.MustCompile(`\Av\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?\z`)
+	// pseudoPattern is the Go module pseudo-version form: a version with a
+	// commit timestamp and hash, such as v0.5.2-0.20261007152818-72ffa3f7a023.
+	pseudoPattern = regexp.MustCompile(`\Av\d+\.(?:0\.0-|\d+\.\d+-(?:[^+]*\.)?0\.)\d{14}-[A-Za-z0-9]+\z`)
 )
+
+// IsPseudoVersion reports whether version is a Go pseudo-version, an untagged build.
+func IsPseudoVersion(version string) bool {
+	return pseudoPattern.MatchString(version)
+}
 
 // ValidatePath reports whether path is a function path the config accepts.
 func ValidatePath(path string) error {

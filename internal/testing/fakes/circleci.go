@@ -44,6 +44,7 @@ import (
 	"github.com/go-chi/render"
 	"github.com/google/uuid"
 
+	"github.com/CircleCI-Public/circleci-cli/internal/function"
 	"github.com/CircleCI-Public/circleci-cli/internal/testing/httprecorder"
 	"github.com/CircleCI-Public/circleci-cli/internal/testing/httprecorder/chirecorder"
 )
@@ -5946,13 +5947,17 @@ func (f *CircleCI) AddFunctionVersion(name, version string, descriptor map[strin
 	f.fnVersionsByFnID[fnID] = append(f.fnVersionsByFnID[fnID], id)
 }
 
-// functionEntityLocked renders a function as a v3 data entity. Callers hold at
-// least a read lock.
-func (f *CircleCI) functionEntityLocked(fn Function) map[string]any {
+// functionEntityLocked renders a function as a v3 data entity. Like the real
+// API, it leaves pseudo-versions out of the versions unless includePseudo is
+// set, but always lists the latest. Callers hold at least a read lock.
+func (f *CircleCI) functionEntityLocked(fn Function, includePseudo bool) map[string]any {
 	versions := []any{}
 	for _, vID := range f.fnVersionsByFnID[fn.ID] {
 		v, ok := f.functionVersions[vID]
 		if !ok {
+			continue
+		}
+		if !includePseudo && v.Version != fn.Latest && function.IsPseudoVersion(v.Version) {
 			continue
 		}
 		versions = append(versions, map[string]any{
@@ -5974,6 +5979,7 @@ func (f *CircleCI) functionEntityLocked(fn Function) map[string]any {
 
 func (f *CircleCI) handleListFunctions(w http.ResponseWriter, r *http.Request) {
 	nameFilter := r.URL.Query().Get("filter[name]")
+	includePseudo := r.URL.Query().Get("filter[pseudo]") == "true"
 
 	f.mu.RLock()
 	defer f.mu.RUnlock()
@@ -5992,7 +5998,7 @@ func (f *CircleCI) handleListFunctions(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 		if fn, ok := f.functions[f.functionsByName[name]]; ok {
-			items = append(items, f.functionEntityLocked(fn))
+			items = append(items, f.functionEntityLocked(fn, includePseudo))
 		}
 	}
 

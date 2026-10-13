@@ -102,14 +102,16 @@ func (w *functionWire) toFunction() *Function {
 }
 
 // ListFunctions lists every discoverable published function, following the
-// cursor until the whole collection has been read.
-func (c *Client) ListFunctions(ctx context.Context) ([]*Function, error) {
+// cursor until the whole collection has been read. Pseudo-versions are left
+// out of each function's versions unless includePseudo is set.
+func (c *Client) ListFunctions(ctx context.Context, includePseudo bool) ([]*Function, error) {
 	result := []*Function{}
 	cursor := ""
 	for {
 		var page v3List[functionWire]
 		_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodGet, "/api/v3/function/packages",
 			pageCursor(cursor),
+			pseudoParam(includePseudo),
 			httpcl.JSONDecoder(&page),
 		))
 		if err != nil {
@@ -128,11 +130,13 @@ func (c *Client) ListFunctions(ctx context.Context) ([]*Function, error) {
 
 // GetFunctionByName resolves a function by its VCS-style name. An unknown name,
 // and any name the API does not consider discoverable, comes back as an empty
-// collection rather than a 404.
-func (c *Client) GetFunctionByName(ctx context.Context, name string) (*Function, error) {
+// collection rather than a 404. Pseudo-versions are left out of its versions
+// unless includePseudo is set.
+func (c *Client) GetFunctionByName(ctx context.Context, name string, includePseudo bool) (*Function, error) {
 	var env v3List[functionWire]
 	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodGet, "/api/v3/function/packages",
 		filterParam("name", name),
+		pseudoParam(includePseudo),
 		httpcl.JSONDecoder(&env),
 	))
 	if err != nil {
@@ -169,4 +173,12 @@ func (c *Client) GetFunctionVersion(ctx context.Context, id uuid.UUID) (*Functio
 		Version: env.Data.Attributes.Version,
 		Content: env.Data.Attributes.Descriptor,
 	}, nil
+}
+
+// pseudoParam asks the API to list pseudo-versions, which it leaves out by default.
+func pseudoParam(include bool) func(*httpcl.Request) {
+	if include {
+		return filterParam("pseudo", "true")
+	}
+	return filterParam("pseudo", "")
 }

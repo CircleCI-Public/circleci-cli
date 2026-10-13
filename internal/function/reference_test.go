@@ -73,6 +73,24 @@ func TestValidateVersion(t *testing.T) {
 	}
 }
 
+func TestIsPseudoVersion(t *testing.T) {
+	for _, v := range []string{
+		"v0.0.0-20261007152818-72ffa3f7a023",
+		"v0.5.2-0.20261007152818-72ffa3f7a023",
+		"v1.2.4-pre.0.20261007152818-72ffa3f7a023",
+	} {
+		t.Run("pseudo: "+v, func(t *testing.T) {
+			assert.Check(t, function.IsPseudoVersion(v))
+		})
+	}
+
+	for _, v := range []string{"v0.5.1-684fd5b", "v1.0.0", "v1.0.0-rc.1", "v0.5.2-0.20261007-72ffa3f7a023", ""} {
+		t.Run("not pseudo: "+v, func(t *testing.T) {
+			assert.Check(t, !function.IsPseudoVersion(v))
+		})
+	}
+}
+
 func TestExpandName(t *testing.T) {
 	t.Run("A bare name expands against the default org", func(t *testing.T) {
 		got, err := function.ExpandName("setup-go")
