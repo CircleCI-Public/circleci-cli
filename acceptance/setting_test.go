@@ -214,6 +214,7 @@ func TestSettingList_TextOutput(t *testing.T) {
 								OS: analytics.OSInfo{Name: hostInfo.OS, Version: hostInfo.PlatformVersion},
 								Traits: map[string]any{
 									"agent":          "",
+									"auto_update":    false,
 									"install_method": "other", // the test binary is built into a temp dir
 									"is_self_hosted": false,
 									"is_tty":         false,
@@ -285,6 +286,7 @@ func TestSettingList_TextOutput_Color(t *testing.T) {
 								OS: analytics.OSInfo{Name: hostInfo.OS, Version: hostInfo.PlatformVersion},
 								Traits: map[string]any{
 									"agent":          "chunk",
+									"auto_update":    false,
 									"install_method": "other", // the test binary is built into a temp dir
 									"is_self_hosted": false,
 									"is_tty":         true,

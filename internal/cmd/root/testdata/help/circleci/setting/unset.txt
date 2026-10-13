@@ -6,7 +6,7 @@ Remove a stored CLI setting
 
 ## Arguments
 
-`<key>` is the setting to remove. Supported keys are `token` and `update-check`.
+`<key>` is the setting to remove. Supported keys are `token`, `update-check` and `auto-update`.
 
 ## Flags
 
@@ -18,6 +18,8 @@ Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `ci
   `circleci setting unset token`
 - Revert update notifications to the default: 
   `circleci setting unset update-check`
+- Turn auto-update back off: 
+  `circleci setting unset auto-update`
 
 ## Details
 
@@ -26,4 +28,5 @@ Remove a stored CLI setting by key.
 Supported keys:
   token         Remove your stored CircleCI personal API token
   update-check  Revert update notifications to the default (enabled)
+  auto-update   Revert auto-update to the default (off)
 

@@ -39,6 +39,24 @@ import (
 // (refreshing its package list) to once a day when there is nothing new.
 const autoUpdateWindow = 24 * time.Hour
 
+// ShouldAutoUpdate reports whether this invocation may upgrade the CLI in the
+// background: the user opted in, update checks are on, it is a released build
+// outside CI, and it was installed with Homebrew, the one package manager the
+// CLI can drive without admin rights. Agents are deliberately included: they
+// never see the update notice, and the user who opted in did so for them too.
+func ShouldAutoUpdate(cfg *config.Config, version, installMethod string) bool {
+	if os.Getenv("CI") != "" {
+		return false
+	}
+	if os.Getenv(ForceEnv) == "" && (version == "" || version == "dev") {
+		return false
+	}
+	if cfg == nil || !cfg.IsAutoUpdate() || !cfg.IsUpdateCheck() {
+		return false
+	}
+	return installMethod == "homebrew"
+}
+
 // AutoUpdateLogPath is where a background upgrade writes its output, next to
 // the state file, so a failed upgrade can be diagnosed.
 func AutoUpdateLogPath(statePath string) string {

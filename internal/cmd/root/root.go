@@ -23,6 +23,7 @@
 package root
 
 import (
+	"context"
 	"os"
 	"strings"
 	"time"
@@ -156,6 +157,7 @@ func NewRootCmd(version string) *cobra.Command {
 
 		traits := map[string]any{
 			"agent":          agentName,
+			"auto_update":    cfg.IsAutoUpdate(),
 			"install_method": installmethod.Detect(),
 			"is_self_hosted": cfg.EffectiveHost() != "https://circleci.com",
 			"is_tty":         iostream.IsTerminal(ctx),
@@ -402,15 +404,15 @@ func NewRootCmd(version string) *cobra.Command {
 	return cmd
 }
 
-// startUpdateNotifier launches the background update check for a normal command
-// run, or returns nil when a check should not happen. The notice is suppressed
-// for telemetry-disabled commands, under --json (scripting), and when the user
-// passes --skip-update-check; the remaining gates live in update.ShouldCheck.
+// startUpdateNotifier starts a background upgrade when allowed, then launches
+// the background update check for a normal command run, or returns nil when a
+// check should not happen. Neither runs for telemetry-disabled commands or under
+// --skip-update-check. The notice is also suppressed under --json (scripting),
+// with its remaining gates in update.ShouldCheck. The upgrade has its own gates
+// in update.ShouldAutoUpdate, and deliberately still runs under --json and for
+// agents.
 func startUpdateNotifier(cmd *cobra.Command, version string) *update.Notifier {
 	if cmdutil.IsEverythingDisabled(cmd) {
-		return nil
-	}
-	if f := cmd.Flags().Lookup("json"); f != nil && f.Value.String() == "true" {
 		return nil
 	}
 	if skip, _ := cmd.Root().Flags().GetBool("skip-update-check"); skip {
@@ -419,6 +421,11 @@ func startUpdateNotifier(cmd *cobra.Command, version string) *update.Notifier {
 
 	ctx := cmd.Context()
 	cfg := cmdutil.GetConfig(ctx)
+	startAutoUpdate(ctx, cfg, version)
+
+	if f := cmd.Flags().Lookup("json"); f != nil && f.Value.String() == "true" {
+		return nil
+	}
 	if !update.ShouldCheck(ctx, cfg, version) {
 		return nil
 	}
@@ -430,6 +437,25 @@ func startUpdateNotifier(cmd *cobra.Command, version string) *update.Notifier {
 
 	src := update.NewProxySource(cmdutil.LoadClientOptionalAuth(ctx))
 	return update.Start(ctx, src, statePath, update.EffectiveVersion(version))
+}
+
+// startAutoUpdate starts a background Homebrew upgrade as the command begins,
+// at most once a day. It doesn't wait for the update check: Homebrew knows
+// whether its formula has a newer version, and starting here means fast and
+// failing commands still trigger it.
+func startAutoUpdate(ctx context.Context, cfg *config.Config, version string) {
+	if !update.ShouldAutoUpdate(cfg, version, installmethod.Detect()) {
+		return
+	}
+	argv, ok := installmethod.HomebrewUpgrade()
+	if !ok {
+		return
+	}
+	statePath, err := config.StatePath()
+	if err != nil {
+		return
+	}
+	update.StartAutoUpdate(ctx, statePath, argv)
 }
 
 // validateInput trims whitespace from the positional args in place and checks

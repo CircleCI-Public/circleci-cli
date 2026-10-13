@@ -8,4 +8,5 @@
 | telemetry    | true                 |
 | theme        | auto                 |
 | update-check | true                 |
+| auto-update  | false                |
 

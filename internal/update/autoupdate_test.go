@@ -35,6 +35,39 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/internal/config"
 )
 
+func TestShouldAutoUpdate(t *testing.T) {
+	tests := []struct {
+		name    string
+		env     map[string]string
+		version string
+		method  string
+		want    bool
+	}{
+		{name: "opted in, Homebrew, released build", env: map[string]string{config.AutoUpdateEnv: "on"}, version: "1.4.0", method: "homebrew", want: true},
+		{name: "off unless opted in", version: "1.4.0", method: "homebrew", want: false},
+		{name: "other install methods never", env: map[string]string{config.AutoUpdateEnv: "on"}, version: "1.4.0", method: "deb", want: false},
+		{name: "dev builds never", env: map[string]string{config.AutoUpdateEnv: "on"}, version: "dev", method: "homebrew", want: false},
+		{name: "never in CI", env: map[string]string{config.AutoUpdateEnv: "on", "CI": "true"}, version: "1.4.0", method: "homebrew", want: false},
+		{name: "never with update checks off", env: map[string]string{config.AutoUpdateEnv: "on", "CIRCLE_NO_UPDATE_CHECK": "1"}, version: "1.4.0", method: "homebrew", want: false},
+		{name: "agents included", env: map[string]string{config.AutoUpdateEnv: "on", "AI_AGENT": "codex"}, version: "1.4.0", method: "homebrew", want: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			for _, key := range []string{config.AutoUpdateEnv, "CI", "CIRCLE_NO_UPDATE_CHECK", ForceEnv, "AI_AGENT"} {
+				t.Setenv(key, "")
+			}
+			for key, value := range tt.env {
+				t.Setenv(key, value)
+			}
+			cfg, err := config.Load(testCtx(), filepath.Join(t.TempDir(), "config.yml"), false)
+			assert.NilError(t, err)
+
+			assert.Check(t, cmp.Equal(ShouldAutoUpdate(cfg, tt.version, tt.method), tt.want))
+		})
+	}
+}
+
 func TestStartAutoUpdate(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("Homebrew does not run on Windows")

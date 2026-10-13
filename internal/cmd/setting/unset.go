@@ -38,7 +38,7 @@ func newUnsetCmd() *cobra.Command {
 		Short: "Remove a stored CLI setting",
 		Annotations: map[string]string{
 			"help:arguments": heredoc.Docf(`
-				%[1]s<key>%[1]s is the setting to remove. Supported keys are %[1]stoken%[1]s and %[1]supdate-check%[1]s.
+				%[1]s<key>%[1]s is the setting to remove. Supported keys are %[1]stoken%[1]s, %[1]supdate-check%[1]s and %[1]sauto-update%[1]s.
 			`, "`"),
 		},
 		Long: heredoc.Doc(`
@@ -47,6 +47,7 @@ func newUnsetCmd() *cobra.Command {
 			Supported keys:
 			  token         Remove your stored CircleCI personal API token
 			  update-check  Revert update notifications to the default (enabled)
+			  auto-update   Revert auto-update to the default (off)
 		`),
 		Example: heredoc.Doc(`
 			# Remove your stored API token
@@ -54,6 +55,9 @@ func newUnsetCmd() *cobra.Command {
 
 			# Revert update notifications to the default
 			$ circleci setting unset update-check
+
+			# Turn auto-update back off
+			$ circleci setting unset auto-update
 		`),
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -81,9 +85,16 @@ func newUnsetCmd() *cobra.Command {
 				}
 				iostream.ErrPrintf(ctx, "%s Reverted update-check to the default in %s\n", iostream.SymbolOK(ctx), configPath)
 				return nil
+			case "auto-update":
+				if err := config.UnsetAutoUpdate(ctx, configPath); err != nil {
+					return clierrors.New("setting.unset_failed", "Failed to remove auto-update setting", err.Error()).
+						WithExitCode(clierrors.ExitGeneralError)
+				}
+				iostream.ErrPrintf(ctx, "%s Reverted auto-update to the default (off) in %s\n", iostream.SymbolOK(ctx), configPath)
+				return nil
 			default:
 				return clierrors.New("setting.unknown_key", "Unknown setting", "Unknown setting key: "+args[0]).
-					WithSuggestions("Valid keys are: token, update-check").
+					WithSuggestions("Valid keys are: token, update-check, auto-update").
 					WithExitCode(clierrors.ExitBadArguments)
 			}
 		},

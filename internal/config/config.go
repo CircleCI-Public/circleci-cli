@@ -34,6 +34,7 @@ import (
 	"os"
 	"os/user"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/gofrs/flock"
@@ -58,6 +59,7 @@ type state struct {
 	Telemetry     *bool      `yaml:"telemetry,omitempty"`
 	Theme         string     `yaml:"theme,omitempty"`
 	UpdateCheck   *bool      `yaml:"update_check,omitempty"`
+	AutoUpdate    *bool      `yaml:"auto_update,omitempty"`
 }
 
 const (
@@ -313,6 +315,54 @@ func (c *Config) IsUpdateCheck() bool {
 		return *c.state.UpdateCheck
 	}
 	return true
+}
+
+// SetAutoUpdate persists the auto-update opt-in. path follows the same
+// convention as Load (empty → XDG default).
+func SetAutoUpdate(ctx context.Context, enabled bool, path string) error {
+	return saveTo(ctx, path, func(cfg *Config) error {
+		cfg.state.AutoUpdate = &enabled
+		return nil
+	})
+}
+
+// UnsetAutoUpdate removes any stored auto-update preference, reverting to the
+// off-by-default behaviour. path follows the same convention as Load.
+func UnsetAutoUpdate(ctx context.Context, path string) error {
+	return saveTo(ctx, path, func(cfg *Config) error {
+		cfg.state.AutoUpdate = nil
+		return nil
+	})
+}
+
+// AutoUpdateEnv turns auto-update on or off for a session. It takes precedence
+// over the stored setting.
+const AutoUpdateEnv = "CIRCLE_AUTO_UPDATE"
+
+// IsAutoUpdate reports whether the user has opted in to the CLI upgrading
+// itself in the background. CIRCLE_AUTO_UPDATE takes precedence over the stored
+// setting when it holds a recognisable on/off value. Auto-update is off unless
+// the user turns it on.
+func (c *Config) IsAutoUpdate() bool {
+	if on, ok := ParseOnOff(os.Getenv(AutoUpdateEnv)); ok {
+		return on
+	}
+	if c.state.AutoUpdate != nil {
+		return *c.state.AutoUpdate
+	}
+	return false
+}
+
+// ParseOnOff reads the on/off spellings the CLI accepts for boolean settings.
+// ok is false for anything else, including the empty string.
+func ParseOnOff(s string) (on, ok bool) {
+	switch strings.ToLower(strings.TrimSpace(s)) {
+	case "on", "true", "yes", "1", "enabled":
+		return true, true
+	case "off", "false", "no", "0", "disabled":
+		return false, true
+	}
+	return false, false
 }
 
 func (c *Config) UserID() uuid.UUID {
