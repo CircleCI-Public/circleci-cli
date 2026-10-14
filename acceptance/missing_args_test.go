@@ -178,3 +178,16 @@ func TestSettingSet_MissingValue(t *testing.T) {
 	})
 	assertMissingArg(t, result, "value")
 }
+
+// --- feedback ---
+
+func TestFeedback_MissingArg(t *testing.T) {
+	env := missingArgEnv(t)
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"feedback"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+	assertMissingArg(t, result, "message")
+}

@@ -1,0 +1,4 @@
+error: API returned 500: Internal Server Error.
+
+Suggestions:
+  • Try again later

@@ -14,6 +14,7 @@ Available commands:
   env
   envvar
   extension
+  feedback
   job
   mcp
   migrate

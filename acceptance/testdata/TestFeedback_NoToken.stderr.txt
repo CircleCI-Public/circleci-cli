@@ -1,0 +1,8 @@
+error: No CircleCI API token found.
+
+Suggestions:
+  • Run: circleci auth login
+  • Or set the CIRCLE_TOKEN environment variable
+  • See: circleci help getting-started
+
+Reference: https://app.circleci.com/settings/user/oauth-clients

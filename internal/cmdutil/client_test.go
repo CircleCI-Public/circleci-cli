@@ -25,6 +25,7 @@ package cmdutil
 import (
 	"errors"
 	"net/http"
+	"slices"
 	"testing"
 
 	"gotest.tools/v3/assert"
@@ -122,5 +123,26 @@ func TestAPIErr(t *testing.T) {
 		err := APIErr(errors.New("dial tcp: connection refused"), "x", "thing.not_found", "No thing found for %q")
 		assert.Check(t, cmp.Equal(err.Code, "api.error"))
 		assert.Check(t, cmp.Equal(err.Message, "dial tcp: connection refused"))
+		assert.Check(t, !slices.Contains(err.Suggestions, FeedbackSuggestion))
+	})
+
+	t.Run("5xx suggests sending feedback", func(t *testing.T) {
+		for _, tc := range []struct {
+			status int
+			body   string
+		}{
+			{status: http.StatusInternalServerError, body: `{"error": {"title": "Internal Server Error."}}`},
+			{status: http.StatusServiceUnavailable, body: "upstream connect error"},
+		} {
+			err := APIErr(httpErr(tc.status, tc.body), "x", "thing.not_found", "No thing found for %q")
+			assert.Check(t, cmp.Contains(err.Suggestions, FeedbackSuggestion), "status %d", tc.status)
+		}
+	})
+
+	t.Run("4xx does not suggest sending feedback", func(t *testing.T) {
+		for _, status := range []int{http.StatusBadRequest, http.StatusNotFound, http.StatusTooManyRequests} {
+			err := APIErr(httpErr(status, `{"error": {"title": "Nope"}}`), "x", "thing.not_found", "No thing found for %q")
+			assert.Check(t, !slices.Contains(err.Suggestions, FeedbackSuggestion), "status %d", status)
+		}
 	})
 }
