@@ -10,7 +10,7 @@ require (
 	charm.land/log/v2 v2.0.1
 	github.com/MakeNowJust/heredoc v1.0.0
 	github.com/NimbleMarkets/ntcharts/v2 v2.7.0
-	github.com/charmbracelet/x/ansi v0.11.8
+	github.com/charmbracelet/x/ansi v0.11.9
 	github.com/charmbracelet/x/exp/teatest/v2 v2.0.0-20260629091435-9c70f75e26a4
 	github.com/charmbracelet/x/mosaic v0.0.0-20260816001655-68d539dca504
 	github.com/charmbracelet/x/term v0.2.2
