@@ -1,0 +1,37 @@
+Send feedback about the CLI to CircleCI
+
+## Usage
+
+`circleci feedback <message> [flags]`
+
+## Arguments
+
+`<message>` is the feedback itself, up to 2000 characters.
+
+## Flags
+
+| Flag            | Description                                                                       |
+| --------------- | --------------------------------------------------------------------------------- |
+| `--jq string`   | Process values from the response using jq syntax (see `circleci help formatting`) |
+| `--json`        | Output as JSON                                                                    |
+| `--tool string` | CLI command or MCP tool the feedback is about (e.g. "run get")                    |
+
+Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `circleci --help`.
+
+## Examples
+
+- Report a missing capability: 
+  `circleci feedback "I wanted to compare job timings between two runs but found no command for it"`
+- Report confusing output from a command: 
+  `circleci feedback "run get shows no jobs for a run that has three" --tool "run get"`
+- Capture just the report ID: 
+  `circleci feedback "context list printed nothing for an org with contexts" --json --jq '.id'`
+
+## Details
+
+Report an unexpected error, a missing capability or confusing output to
+CircleCI. Say what you tried, what you ran and what happened; no secrets.
+Reports include your CircleCI user, the AI agent, and if it came via MCP.
+
+JSON fields: id
+

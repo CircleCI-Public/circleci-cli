@@ -45,7 +45,7 @@ func Detect() string {
 		}
 	}
 
-	mcp := isMCP()
+	mcp := IsMCP()
 	underlying := detectUnderlying()
 
 	if mcp && underlying != "" {
@@ -57,8 +57,8 @@ func Detect() string {
 	return underlying
 }
 
-// isMCP reports whether the CLI is running as a subprocess of the MCP server.
-func isMCP() bool {
+// IsMCP reports whether the CLI is running as a subprocess of the MCP server.
+func IsMCP() bool {
 	v, ok := os.LookupEnv("CIRCLE_MCP")
 	return ok && v != ""
 }

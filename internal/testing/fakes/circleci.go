@@ -154,6 +154,9 @@ type CircleCI struct {
 	deploySettings map[string]DeploySettings // project id → settings entity
 	rollback       *RollbackResult           // response for POST /api/v3/projects/{id}/rollback (nil → 404)
 
+	// Feedback state.
+	feedbackReportError *feedbackReportError // error for POST /api/v3/tool/send-feedback (nil → 200)
+
 	// Policy state.
 	policyBundles   map[string]map[string]string // "ownerID/ctx" → bundle
 	decisionLogs    map[string][]DecisionLog     // "ownerID/ctx" → logs
@@ -449,6 +452,8 @@ func NewCircleCI(t *testing.T, tokens ...string) *CircleCI {
 	r.Get("/api/v3/orgs", f.handleListOrgs)
 	r.Get("/api/v3/orgs/{id}/settings", f.handleGetOrgSettingsV3)
 	r.Post("/api/v3/orgs/{id}/update-settings", f.handleUpdateOrgSettingsV3)
+	// Feedback (v3) routes.
+	r.Post("/api/v3/tool/send-feedback", f.handleSendFeedback)
 	// Job (v3) routes.
 	r.Get("/api/v3/jobs", f.handleListWorkflowJobsV3)
 	r.Get("/api/v3/jobs/{id}", f.handleGetJobV3)
@@ -4184,6 +4189,45 @@ func (f *CircleCI) SetRollback(result RollbackResult) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.rollback = &result
+}
+
+// FeedbackReportID is the ID POST /api/v3/tool/send-feedback reports for every
+// stored report, so output that echoes it stays stable.
+const FeedbackReportID = "5b1d7c3e-0000-4000-8000-00000000fb01"
+
+// feedbackReportError is a v3 error POST /api/v3/tool/send-feedback answers with
+// instead of storing the report.
+type feedbackReportError struct {
+	Status int
+	Title  string
+	Detail string
+}
+
+// SetFeedbackReportError makes POST /api/v3/tool/send-feedback answer every request
+// with status and a v3 error envelope. Until it is called the route answers 200.
+func (f *CircleCI) SetFeedbackReportError(status int, title, detail string) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.feedbackReportError = &feedbackReportError{Status: status, Title: title, Detail: detail}
+}
+
+// handleSendFeedback accepts any body: the request is asserted through the
+// request recorder.
+func (f *CircleCI) handleSendFeedback(w http.ResponseWriter, r *http.Request) {
+	f.mu.RLock()
+	fbErr := f.feedbackReportError
+	f.mu.RUnlock()
+
+	if fbErr != nil {
+		render.Status(r, fbErr.Status)
+		render.JSON(w, r, map[string]any{"error": map[string]any{
+			"title":  fbErr.Title,
+			"detail": fbErr.Detail,
+		}})
+		return
+	}
+
+	render.JSON(w, r, map[string]any{"data": map[string]any{"id": FeedbackReportID}})
 }
 
 func (f *CircleCI) handleRollbackProject(w http.ResponseWriter, r *http.Request) {
