@@ -1,0 +1,5 @@
+error: Got both a positional argument "my-org" and --resource-class.
+
+Suggestions:
+  • Drop --resource-class: the positional argument already selects the namespace filter
+  • Run 'circleci runner instance list --help' to see the usage

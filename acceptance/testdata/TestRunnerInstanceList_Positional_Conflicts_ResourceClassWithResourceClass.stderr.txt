@@ -1,0 +1,5 @@
+error: Got both a positional argument "my-org/linux-runner" and --resource-class.
+
+Suggestions:
+  • Pass the value either as the positional argument or with --resource-class, not both
+  • Run 'circleci runner instance list --help' to see the usage

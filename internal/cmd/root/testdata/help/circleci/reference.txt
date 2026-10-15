@@ -3852,9 +3852,11 @@ View CircleCI runner instances connected to your organization.
 
 Instances are live runner agents currently connected to CircleCI.
 
-##### `circleci runner instance list [flags]`
+##### `circleci runner instance list [namespace | resource-class] [flags]`
 
 List connected runner instances
+
+Give a namespace or resource class as an argument or flag, not both.
 
 STATUS is derived from last_connected_at (online under 2 minutes, idle
 under 30, offline beyond). BUSY says whether the instance holds a task.
@@ -3882,12 +3884,10 @@ JSON fields: id, resource_class, resource_class_id, name, version, status, is_bu
   `circleci runner instance list`
 - List instances for a specific organization (slug or UUID): 
   `circleci runner instance list --org gh/my-org`
+- List instances for a namespace: 
+  `circleci runner instance list my-org`
 - List instances for a specific resource class: 
-  `circleci runner instance list --resource-class my-org/my-runner`
-- List instances for a resource class given by its ID: 
-  `circleci runner instance list --resource-class 01234567-89ab-4cde-8f01-23456789abcd`
-- Extract just the names: 
-  `circleci runner instance list --json --jq '.[].name'`
+  `circleci runner instance list my-org/my-runner`
 
 #### `circleci runner open [flags]`
 

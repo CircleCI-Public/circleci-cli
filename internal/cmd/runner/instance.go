@@ -24,6 +24,7 @@ package runner
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"github.com/MakeNowJust/heredoc"
@@ -61,10 +62,13 @@ func newInstanceListCmd() *cobra.Command {
 	var jsonOut bool
 
 	cmd := &cobra.Command{
-		Use:     "list",
+		Use:     "list [namespace | resource-class]",
 		Aliases: []string{"ls"},
 		Short:   "List connected runner instances",
+		Args:    cobra.MaximumNArgs(1),
 		Long: heredoc.Doc(`
+			Give a namespace or resource class as an argument or flag, not both.
+
 			STATUS is derived from last_connected_at (online under 2 minutes, idle
 			under 30, offline beyond). BUSY says whether the instance holds a task.
 			Hostname, IP and last-used time are not reported by the agents API.
@@ -78,16 +82,19 @@ func newInstanceListCmd() *cobra.Command {
 			# List instances for a specific organization (slug or UUID)
 			$ circleci runner instance list --org gh/my-org
 
+			# List instances for a namespace
+			$ circleci runner instance list my-org
+
 			# List instances for a specific resource class
-			$ circleci runner instance list --resource-class my-org/my-runner
-
-			# List instances for a resource class given by its ID
-			$ circleci runner instance list --resource-class 01234567-89ab-4cde-8f01-23456789abcd
-
-			# Extract just the names
-			$ circleci runner instance list --json --jq '.[].name'
+			$ circleci runner instance list my-org/my-runner
 		`),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if len(args) > 0 {
+				target := instancePositionalTarget(args[0])
+				if err := cmdutil.BindPositional(cmd, args, target, otherScopeFlags(target)...); err != nil {
+					return err
+				}
+			}
 			ctx := cmd.Context()
 			client, err := cmdutil.LoadClient(ctx)
 			if err != nil {
@@ -104,6 +111,30 @@ func newInstanceListCmd() *cobra.Command {
 	cmdutil.AddJQFlag(cmd)
 	cmd.MarkFlagsMutuallyExclusive("org", "resource-class", "namespace")
 	return cmd
+}
+
+// instanceScopeFlags are the mutually exclusive flags that pick what to list.
+var instanceScopeFlags = []string{"org", "resource-class", "namespace"}
+
+// instancePositionalTarget names the flag a positional argument stands for. A
+// UUID or anything containing a "/" is a resource class (a malformed one such as
+// "my-org/" is left for resource class validation to reject); a bare word is a
+// namespace.
+func instancePositionalTarget(arg string) string {
+	if _, err := uuid.Parse(arg); err == nil || strings.Contains(arg, "/") {
+		return "resource-class"
+	}
+	return "namespace"
+}
+
+func otherScopeFlags(target string) []string {
+	var others []string
+	for _, f := range instanceScopeFlags {
+		if f != target {
+			others = append(others, f)
+		}
+	}
+	return others
 }
 
 type instanceOutput struct {

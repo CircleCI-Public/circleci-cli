@@ -54,3 +54,70 @@ func TestInstanceStatus(t *testing.T) {
 		})
 	}
 }
+
+func TestInstancePositionalTarget(t *testing.T) {
+	tests := []struct {
+		name string
+		arg  string
+		want string
+	}{
+		{
+			name: "bare word is a namespace",
+			arg:  "my-org",
+			want: "namespace",
+		},
+		{
+			name: "namespace/name is a resource class",
+			arg:  "my-org/my-runner",
+			want: "resource-class",
+		},
+		{
+			name: "uuid is a resource class",
+			arg:  "11111111-1111-4111-8111-111111111111",
+			want: "resource-class",
+		},
+		{
+			name: "trailing slash is left to resource class validation",
+			arg:  "my-org/",
+			want: "resource-class",
+		},
+		{
+			name: "leading slash is left to resource class validation",
+			arg:  "/my-runner",
+			want: "resource-class",
+		},
+		{
+			name: "truncated uuid is a namespace",
+			arg:  "11111111-1111-4111-8111",
+			want: "namespace",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Check(t, cmp.Equal(instancePositionalTarget(tt.arg), tt.want))
+		})
+	}
+}
+
+func TestOtherScopeFlags(t *testing.T) {
+	tests := []struct {
+		target string
+		want   []string
+	}{
+		{
+			target: "namespace",
+			want:   []string{"org", "resource-class"},
+		},
+		{
+			target: "resource-class",
+			want:   []string{"org", "namespace"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.target, func(t *testing.T) {
+			assert.Check(t, cmp.DeepEqual(otherScopeFlags(tt.target), tt.want))
+		})
+	}
+}
