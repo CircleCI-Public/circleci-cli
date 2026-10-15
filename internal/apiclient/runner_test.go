@@ -191,21 +191,18 @@ func TestUpdateResourceClass(t *testing.T) {
 	})
 }
 
-func fleetJSON(id, name string, running, queued *int) map[string]any {
-	attrs := map[string]any{
-		"name":                name,
-		"active_agents":       1,
-		"idle_agents":         2,
-		"disconnected_agents": 3,
-		"agent_count":         6,
-	}
-	if running != nil {
-		attrs["running_tasks"] = *running
-		attrs["queued_tasks"] = *queued
-	}
+func fleetJSON(id, name string, running, queued int) map[string]any {
 	return map[string]any{
-		"id":         id,
-		"attributes": attrs,
+		"id": id,
+		"attributes": map[string]any{
+			"name":                name,
+			"active_agents":       1,
+			"idle_agents":         2,
+			"disconnected_agents": 3,
+			"agent_count":         6,
+			"running_tasks":       running,
+			"queued_tasks":        queued,
+		},
 		"references": map[string]any{
 			"resource_class": map[string]any{"id": id},
 			"runner_agents": []any{map[string]any{
@@ -232,13 +229,13 @@ func TestRunnerFleets(t *testing.T) {
 		if r.URL.Query().Get("page[cursor]") == "" {
 			next := "page-2"
 			_ = json.NewEncoder(w).Encode(map[string]any{
-				"data": []any{fleetJSON(idA, "ns/a", nil, nil)},
+				"data": []any{fleetJSON(idA, "ns/a", 1, 2)},
 				"page": map[string]any{"next": next},
 			})
 			return
 		}
 		_ = json.NewEncoder(w).Encode(map[string]any{
-			"data": []any{fleetJSON(idB, "ns/b", nil, nil)},
+			"data": []any{fleetJSON(idB, "ns/b", 3, 4)},
 			"page": map[string]any{"next": nil},
 		})
 	})
@@ -249,9 +246,8 @@ func TestRunnerFleets(t *testing.T) {
 			_ = json.NewEncoder(w).Encode(map[string]any{"message": "not found"})
 			return
 		}
-		running, queued := 4, 5
 		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(map[string]any{"data": fleetJSON(id, "ns/a", &running, &queued)})
+		_ = json.NewEncoder(w).Encode(map[string]any{"data": fleetJSON(id, "ns/a", 4, 5)})
 	})
 	srv := httptest.NewServer(r)
 	t.Cleanup(srv.Close)
@@ -264,6 +260,8 @@ func TestRunnerFleets(t *testing.T) {
 		assert.Assert(t, cmp.Len(fleets, 2))
 		assert.Check(t, cmp.Equal(fleets[0].Attributes.Name, "ns/a"))
 		assert.Check(t, cmp.Equal(fleets[1].Attributes.Name, "ns/b"))
+		assert.Check(t, cmp.Equal(fleets[1].Attributes.RunningTasks, 3))
+		assert.Check(t, cmp.Equal(fleets[1].Attributes.QueuedTasks, 4))
 		assert.Assert(t, cmp.Len(queries, 2))
 		assert.Check(t, cmp.Equal(queries[0].Get("filter[namespace]"), "ns"))
 		assert.Check(t, cmp.Equal(queries[0].Get("page[limit]"), "250"))
@@ -301,9 +299,8 @@ func TestRunnerFleets(t *testing.T) {
 		assert.NilError(t, err)
 		assert.Check(t, cmp.Equal(fleet.ID.String(), idA))
 		assert.Check(t, cmp.Equal(fleet.Attributes.AgentCount, 6))
-		assert.Assert(t, fleet.Attributes.RunningTasks != nil && fleet.Attributes.QueuedTasks != nil)
-		assert.Check(t, cmp.Equal(*fleet.Attributes.RunningTasks, 4))
-		assert.Check(t, cmp.Equal(*fleet.Attributes.QueuedTasks, 5))
+		assert.Check(t, cmp.Equal(fleet.Attributes.RunningTasks, 4))
+		assert.Check(t, cmp.Equal(fleet.Attributes.QueuedTasks, 5))
 		assert.Check(t, cmp.Nil(fleet.Attributes.LastTaskClaimedAt))
 		assert.Assert(t, cmp.Len(fleet.References.RunnerAgents, 1))
 		assert.Check(t, cmp.Equal(fleet.References.RunnerAgents[0].Attributes.Name, "agent-a"))

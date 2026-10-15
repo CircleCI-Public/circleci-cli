@@ -35,5 +35,5 @@ List the runner fleets of an organization, a namespace, or one resource class.
 
 This uses an experimental API: its output may change.
 
-JSON fields: id, resource_class, active_agents, idle_agents, disconnected_agents, agent_count, last_task_claimed_at
+JSON fields: id, resource_class, active_agents, idle_agents, disconnected_agents, agent_count, running_tasks, queued_tasks, last_task_claimed_at
 

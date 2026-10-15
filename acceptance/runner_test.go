@@ -2978,6 +2978,8 @@ func TestRunnerFleetList_JSON(t *testing.T) {
 			"idle_agents":          float64(1),
 			"disconnected_agents":  float64(1),
 			"agent_count":          float64(4),
+			"running_tasks":        float64(2),
+			"queued_tasks":         float64(5),
 			"last_task_claimed_at": "2026-04-18T12:00:00Z",
 		},
 		{
@@ -2987,6 +2989,8 @@ func TestRunnerFleetList_JSON(t *testing.T) {
 			"idle_agents":          float64(0),
 			"disconnected_agents":  float64(0),
 			"agent_count":          float64(0),
+			"running_tasks":        float64(0),
+			"queued_tasks":         float64(0),
 			"last_task_claimed_at": nil,
 		},
 	}))

@@ -32,5 +32,5 @@ Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `ci
 Show a fleet's agent counts by state, its running and queued tasks, and the
 agents attached to it. This uses an experimental API: its output may change.
 
-JSON fields: id, resource_class, active_agents, idle_agents, disconnected_agents, agent_count, last_task_claimed_at, running_tasks, queued_tasks, agents (id, name)
+JSON fields: id, resource_class, active_agents, idle_agents, disconnected_agents, agent_count, running_tasks, queued_tasks, last_task_claimed_at, agents (id, name)
 

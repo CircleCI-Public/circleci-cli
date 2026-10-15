@@ -64,7 +64,7 @@ func newFleetCmd() *cobra.Command {
 }
 
 // fleetJSONFields are the fields a fleet carries in --json output.
-const fleetJSONFields = "id, resource_class, active_agents, idle_agents, disconnected_agents, agent_count, last_task_claimed_at"
+const fleetJSONFields = "id, resource_class, active_agents, idle_agents, disconnected_agents, agent_count, running_tasks, queued_tasks, last_task_claimed_at"
 
 // fleetOutput is a fleet as listed. LastTaskClaimedAt is null for a fleet that has never claimed a task.
 type fleetOutput struct {
@@ -74,15 +74,15 @@ type fleetOutput struct {
 	IdleAgents         int     `json:"idle_agents"`
 	DisconnectedAgents int     `json:"disconnected_agents"`
 	AgentCount         int     `json:"agent_count"`
+	RunningTasks       int     `json:"running_tasks"`
+	QueuedTasks        int     `json:"queued_tasks"`
 	LastTaskClaimedAt  *string `json:"last_task_claimed_at"`
 }
 
-// fleetDetailOutput is a single fleet, which adds task counts and the agents attached to it.
+// fleetDetailOutput is a single fleet, which adds the agents attached to it.
 type fleetDetailOutput struct {
 	fleetOutput
-	RunningTasks *int               `json:"running_tasks"`
-	QueuedTasks  *int               `json:"queued_tasks"`
-	Agents       []fleetAgentOutput `json:"agents"`
+	Agents []fleetAgentOutput `json:"agents"`
 }
 
 type fleetAgentOutput struct {
@@ -98,6 +98,8 @@ func toFleetOutput(f apiclient.RunnerFleet) fleetOutput {
 		IdleAgents:         f.Attributes.IdleAgents,
 		DisconnectedAgents: f.Attributes.DisconnectedAgents,
 		AgentCount:         f.Attributes.AgentCount,
+		RunningTasks:       f.Attributes.RunningTasks,
+		QueuedTasks:        f.Attributes.QueuedTasks,
 	}
 	if t := f.Attributes.LastTaskClaimedAt; t != nil {
 		s := timestamp(*t)
@@ -258,10 +260,11 @@ func runFleetList(ctx context.Context, client *apiclient.Client,
 		return nil
 	}
 
-	table := mdtable.New("Resource Class", "Active", "Idle", "Disconnected", "Agents", "Last Task Claimed")
+	table := mdtable.New("Resource Class", "Active", "Idle", "Disconnected", "Agents", "Running", "Queued", "Last Task Claimed")
 	for _, f := range out {
 		table.Row(f.ResourceClass, fmt.Sprint(f.ActiveAgents), fmt.Sprint(f.IdleAgents),
-			fmt.Sprint(f.DisconnectedAgents), fmt.Sprint(f.AgentCount), claimedOrNever(f.LastTaskClaimedAt))
+			fmt.Sprint(f.DisconnectedAgents), fmt.Sprint(f.AgentCount),
+			fmt.Sprint(f.RunningTasks), fmt.Sprint(f.QueuedTasks), claimedOrNever(f.LastTaskClaimedAt))
 	}
 	iostream.PrintMarkdown(ctx, "# Runner Fleets\n"+table.Render())
 	return nil
@@ -285,7 +288,7 @@ func newFleetGetCmd() *cobra.Command {
 			Show a fleet's agent counts by state, its running and queued tasks, and the
 			agents attached to it. This uses an experimental API: its output may change.
 
-			JSON fields: ` + fleetJSONFields + `, running_tasks, queued_tasks, agents (id, name)
+			JSON fields: ` + fleetJSONFields + `, agents (id, name)
 		`),
 		Example: heredoc.Doc(`
 			# Show the fleet of a resource class
@@ -342,25 +345,18 @@ func runFleetGet(ctx context.Context, client *apiclient.Client, resourceClass st
 		agents[i] = fleetAgentOutput{ID: a.ID.String(), Name: a.Attributes.Name}
 	}
 	out := fleetDetailOutput{
-		fleetOutput:  toFleetOutput(*fleet),
-		RunningTasks: fleet.Attributes.RunningTasks,
-		QueuedTasks:  fleet.Attributes.QueuedTasks,
-		Agents:       agents,
+		fleetOutput: toFleetOutput(*fleet),
+		Agents:      agents,
 	}
 
 	if jsonOut {
 		return iostream.PrintJSON(ctx, out)
 	}
 
-	md := fmt.Sprintf("# Runner Fleet\n- Resource Class: %s\n- ID: `%s`\n- Active: %d\n- Idle: %d\n- Disconnected: %d\n- Agents: %d\n",
-		out.ResourceClass, out.ID, out.ActiveAgents, out.IdleAgents, out.DisconnectedAgents, out.AgentCount)
-	if out.RunningTasks != nil {
-		md += fmt.Sprintf("- Running Tasks: %d\n", *out.RunningTasks)
-	}
-	if out.QueuedTasks != nil {
-		md += fmt.Sprintf("- Queued Tasks: %d\n", *out.QueuedTasks)
-	}
-	md += fmt.Sprintf("- Last Task Claimed: %s\n", claimedOrNever(out.LastTaskClaimedAt))
+	md := fmt.Sprintf("# Runner Fleet\n- Resource Class: %s\n- ID: `%s`\n- Active: %d\n- Idle: %d\n- Disconnected: %d\n- Agents: %d\n"+
+		"- Running Tasks: %d\n- Queued Tasks: %d\n- Last Task Claimed: %s\n",
+		out.ResourceClass, out.ID, out.ActiveAgents, out.IdleAgents, out.DisconnectedAgents, out.AgentCount,
+		out.RunningTasks, out.QueuedTasks, claimedOrNever(out.LastTaskClaimedAt))
 
 	if len(agents) > 0 {
 		table := mdtable.New("Agent", "ID")

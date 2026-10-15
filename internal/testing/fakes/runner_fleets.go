@@ -38,8 +38,7 @@ import (
 // server. A fleet whose resource class is not registered is never served.
 //
 // AgentCount is the fleet's true agent total; when zero it defaults to len(Agents), and a
-// test sets it higher to model the server's capped agent list. RunningTasks and QueuedTasks
-// are served by the single-fleet endpoint only, as the list omits them.
+// test sets it higher to model the server's capped agent list.
 type RunnerFleet struct {
 	ResourceClass      string
 	ActiveAgents       int
@@ -73,9 +72,8 @@ func (f *CircleCI) SetRunnerFleetUnavailable() {
 	f.runnerFleetUnavailable = true
 }
 
-// runnerFleetEntity renders a stored fleet as its V3 entity. The task counts are included only
-// when withTasks is set.
-func runnerFleetEntity(fleet RunnerFleet, rc ResourceClass, withTasks bool) map[string]any {
+// runnerFleetEntity renders a stored fleet as its V3 entity.
+func runnerFleetEntity(fleet RunnerFleet, rc ResourceClass) map[string]any {
 	count := fleet.AgentCount
 	if count == 0 {
 		count = len(fleet.Agents)
@@ -86,10 +84,8 @@ func runnerFleetEntity(fleet RunnerFleet, rc ResourceClass, withTasks bool) map[
 		"idle_agents":         fleet.IdleAgents,
 		"disconnected_agents": fleet.DisconnectedAgents,
 		"agent_count":         count,
-	}
-	if withTasks {
-		attrs["running_tasks"] = fleet.RunningTasks
-		attrs["queued_tasks"] = fleet.QueuedTasks
+		"running_tasks":       fleet.RunningTasks,
+		"queued_tasks":        fleet.QueuedTasks,
 	}
 	if fleet.LastTaskClaimedAt != "" {
 		attrs["last_task_claimed_at"] = fleet.LastTaskClaimedAt
@@ -188,7 +184,7 @@ func (f *CircleCI) handleListRunnerFleets(w http.ResponseWriter, r *http.Request
 	slices.SortFunc(matches, func(a, b match) int { return strings.Compare(a.rc.ID, b.rc.ID) })
 	items := make([]any, len(matches))
 	for i, m := range matches {
-		items[i] = runnerFleetEntity(m.fleet, m.rc, false)
+		items[i] = runnerFleetEntity(m.fleet, m.rc)
 	}
 
 	offset, _ := strconv.Atoi(q.Get("page[cursor]"))
@@ -238,7 +234,7 @@ func (f *CircleCI) handleGetRunnerFleet(w http.ResponseWriter, r *http.Request) 
 				runnerFleetUnavailable(w, r)
 				return
 			}
-			render.JSON(w, r, map[string]any{"data": runnerFleetEntity(fl, rc, true)})
+			render.JSON(w, r, map[string]any{"data": runnerFleetEntity(fl, rc)})
 			return
 		}
 	}
