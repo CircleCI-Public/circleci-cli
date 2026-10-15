@@ -6,6 +6,16 @@ is added by its release PR (see [RELEASE.md](RELEASE.md)) and becomes its GitHub
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.0] - 2026-10-15
+
+### What's Changed
+* Update CircleCI config to use new setup-go version by @stiyyagura0901 in https://github.com/CircleCI-Public/circleci-cli/pull/1875
+* List function pseudo-versions only on request by @stiyyagura0901 in https://github.com/CircleCI-Public/circleci-cli/pull/1906
+* [ONP-4286] Show task counts on runner fleet list by @christian-stephen in https://github.com/CircleCI-Public/circleci-cli/pull/1917
+
+
+**Full Changelog**: https://github.com/CircleCI-Public/circleci-cli/compare/v1.5.0...v1.6.0
+
 ## [1.5.0] - 2026-10-09
 
 ### What's Changed
