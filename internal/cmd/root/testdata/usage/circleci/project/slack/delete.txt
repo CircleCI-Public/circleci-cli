@@ -1,0 +1,8 @@
+Usage:  circleci project slack delete [flags]
+
+Flags:
+  -n, --dry-run          show what would be removed without removing it
+  -f, --force            skip confirmation prompt
+  -h, --help             help for delete
+      --project string   project slug (e.g. gh/org/repo); defaults to git remote
+  

@@ -3211,11 +3211,8 @@ to discover tests recursively in every subdirectory.
 
 List, follow and configure CircleCI projects
 
-List, follow, and manage settings for CircleCI projects.
-
 A project corresponds to a version-control repository connected to CircleCI.
-Environment variables are also reachable as the top-level alias
-'circleci envvar'.
+Environment variables also have the top-level alias 'circleci envvar'.
 
 #### `circleci project create [project-name] --org <vcs/org-slug> [flags]`
 
@@ -3647,6 +3644,97 @@ setting's description and current value.
   `circleci project setting set build-forked-pull-requests false --project gh/myorg/myrepo`
 - Output the updated value as JSON: 
   `circleci project setting set auto-cancel-builds true --json`
+
+#### `circleci project slack <command>`
+
+Send a project's notifications to a Slack channel
+
+The CircleCI Slack app must already be installed for the organization.
+These commands are not available on CircleCI Server.
+
+##### `circleci project slack delete [flags]`
+
+Remove a project's Slack channel
+
+Remove the Slack channel from a project. Its Slack notifications stop until a
+channel is set again with 'circleci project slack set --channel'.
+
+| Flag               | Description                                             |
+| ------------------ | ------------------------------------------------------- |
+| `-n, --dry-run`    | show what would be removed without removing it          |
+| `-f, --force`      | skip confirmation prompt                                |
+| `--project string` | project slug (e.g. gh/org/repo); defaults to git remote |
+
+
+**Aliases:**
+
+
+`circleci project slack rm`
+
+**Examples:**
+
+- Remove the current project's Slack channel (with confirmation): 
+  `circleci project slack delete`
+- Preview what would be removed: 
+  `circleci project slack delete --dry-run`
+- Remove it from a specific project without confirmation: 
+  `circleci project slack delete --project gh/myorg/myrepo --force`
+
+##### `circleci project slack get [flags]`
+
+Show a project's Slack channel and Slack preferences
+
+Show the Slack channel a project's notifications go to, whether they are on,
+and which notifications are sent to Slack.
+
+JSON fields: channel_id, channel_name, enabled, disable_reason,
+preferences[] (group, name, enabled)
+
+| Flag               | Description                                                                       |
+| ------------------ | --------------------------------------------------------------------------------- |
+| `--jq string`      | Process values from the response using jq syntax (see `circleci help formatting`) |
+| `--json`           | Output as JSON                                                                    |
+| `--project string` | project slug (e.g. gh/org/repo); defaults to git remote                           |
+
+
+**Examples:**
+
+- Show the current project's Slack channel: 
+  `circleci project slack get`
+- Show it for a specific project: 
+  `circleci project slack get --project gh/myorg/myrepo`
+- Print only the channel ID: 
+  `circleci project slack get --json --jq .channel_id`
+
+##### `circleci project slack set (--channel <name|ID> | --enable | --disable) [flags]`
+
+Set, enable or disable a project's Slack channel
+
+Setting or re-enabling a channel posts a welcome message to it, which is how
+CircleCI checks it can post there. Disabling keeps the channel configured.
+
+JSON fields: channel_id, channel_name, enabled, disable_reason
+
+| Flag               | Description                                                                       |
+| ------------------ | --------------------------------------------------------------------------------- |
+| `--channel string` | Slack channel name (e.g. #ci-alerts) or ID to send notifications to               |
+| `--disable`        | pause Slack notifications, keeping the configured channel                         |
+| `--enable`         | resume Slack notifications for the configured channel                             |
+| `--jq string`      | Process values from the response using jq syntax (see `circleci help formatting`) |
+| `--json`           | Output as JSON                                                                    |
+| `--project string` | project slug (e.g. gh/org/repo); defaults to git remote                           |
+
+
+**Examples:**
+
+- Send the current project's notifications to #ci-alerts: 
+  `circleci project slack set --channel '#ci-alerts'`
+- Use a channel ID (required for private channels): 
+  `circleci project slack set --channel C0123ABCD --project gh/myorg/myrepo`
+- Pause Slack notifications, keeping the channel: 
+  `circleci project slack set --disable`
+- Resume them and print the result as JSON: 
+  `circleci project slack set --enable --json`
 
 #### `circleci project trigger <command>`
 

@@ -1,0 +1,33 @@
+Show a project's Slack channel and Slack preferences
+
+## Usage
+
+`circleci project slack get [flags]`
+
+## Flags
+
+| Flag               | Description                                                                       |
+| ------------------ | --------------------------------------------------------------------------------- |
+| `--jq string`      | Process values from the response using jq syntax (see `circleci help formatting`) |
+| `--json`           | Output as JSON                                                                    |
+| `--project string` | project slug (e.g. gh/org/repo); defaults to git remote                           |
+
+Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `circleci --help`.
+
+## Examples
+
+- Show the current project's Slack channel: 
+  `circleci project slack get`
+- Show it for a specific project: 
+  `circleci project slack get --project gh/myorg/myrepo`
+- Print only the channel ID: 
+  `circleci project slack get --json --jq .channel_id`
+
+## Details
+
+Show the Slack channel a project's notifications go to, whether they are on,
+and which notifications are sent to Slack.
+
+JSON fields: channel_id, channel_name, enabled, disable_reason,
+preferences[] (group, name, enabled)
+

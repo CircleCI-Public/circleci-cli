@@ -1,0 +1,6 @@
+Usage:  circleci project slack <command> [flags]
+
+Available commands:
+  delete
+  get
+  set

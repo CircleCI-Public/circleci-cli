@@ -90,7 +90,6 @@ var overBudget = map[string]int{
 	"circleci/policy/logs":            52,
 	"circleci/policy/push":            43,
 	"circleci/policy/test":            48,
-	"circleci/project":                42,
 	"circleci/project/create":         41,
 	"circleci/project/trigger/create": 41,
 	"circleci/run/get":                53,

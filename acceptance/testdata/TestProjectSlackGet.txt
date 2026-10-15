@@ -1,0 +1,10 @@
+# Slack Channel
+| Channel    | Channel ID  | Enabled |
+| ---------- | ----------- | ------- |
+| #ci-alerts | C0000ALERTS | yes     |
+
+# Slack Notifications
+| Group     | Notification       | Enabled |
+| --------- | ------------------ | ------- |
+| Workflows | Workflow failed    | yes     |
+| Workflows | Workflow succeeded | no      |
