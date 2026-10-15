@@ -84,3 +84,55 @@ func ValidateFlags(cmd *cobra.Command) error {
 		WithSuggestions(fmt.Sprintf("Run '%s --help' to see the flags and how they combine", cmd.CommandPath())).
 		WithExitCode(clierrors.ExitBadArguments)
 }
+
+// BindPositional binds an optional positional argument to the flag named
+// target, so a command can accept `cmd <value>` as shorthand for
+// `cmd --target <value>` and keep a single code path reading the flag's
+// variable. Call it at the top of RunE, before any work.
+//
+// It returns nil when args is empty. An empty or whitespace-only args[0] is
+// rejected with an args.invalid_value error, because binding "" would leave the
+// flag looking unset. When a positional is given and the target
+// flag, or any flag named in conflicts, was also set, it returns an
+// args.positional_conflict error with ExitBadArguments. This check is made here
+// because flag-group validation (MarkFlagsMutuallyExclusive) runs before RunE
+// and would not see the flag that BindPositional sets afterwards. Otherwise the
+// target flag is set to args[0], so Changed(target) reports true.
+//
+// Pair it with cobra.MaximumNArgs(1); only args[0] is used.
+func BindPositional(cmd *cobra.Command, args []string, target string, conflicts ...string) error {
+	if len(args) == 0 {
+		return nil
+	}
+	if strings.TrimSpace(args[0]) == "" {
+		return clierrors.New("args.invalid_value", "Invalid argument", "The positional argument is empty.").
+			WithSuggestions(
+				"Pass a non-empty value, e.g. '"+cmd.CommandPath()+" <value>'",
+				"Omit the positional argument to use the default",
+			).
+			WithExitCode(clierrors.ExitBadArguments)
+	}
+	for _, name := range append([]string{target}, conflicts...) {
+		if !cmd.Flags().Changed(name) {
+			continue
+		}
+		first := "Pass the value either as the positional argument or with --" + target + ", not both"
+		if name != target {
+			first = fmt.Sprintf("Drop --%s: the positional argument already selects the %s filter", name, target)
+		}
+		return clierrors.New("args.positional_conflict", "Conflicting arguments",
+			fmt.Sprintf("Got both a positional argument %q and --%s.", args[0], name)).
+			WithSuggestions(
+				first,
+				fmt.Sprintf("Run '%s --help' to see the usage", cmd.CommandPath()),
+			).
+			WithExitCode(clierrors.ExitBadArguments)
+	}
+	if err := cmd.Flags().Set(target, args[0]); err != nil {
+		return clierrors.New("args.invalid_value", "Invalid argument",
+			fmt.Sprintf("Invalid argument %q: %v.", args[0], err)).
+			WithSuggestions(fmt.Sprintf("Run '%s --help' to see the usage", cmd.CommandPath())).
+			WithExitCode(clierrors.ExitBadArguments)
+	}
+	return nil
+}

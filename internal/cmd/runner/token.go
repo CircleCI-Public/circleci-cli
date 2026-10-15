@@ -72,14 +72,16 @@ func newTokenListCmd() *cobra.Command {
 	var jsonOut bool
 
 	cmd := &cobra.Command{
-		Use:     "list",
+		Use:     "list [resource-class]",
 		Aliases: []string{"ls"},
 		Short:   "List tokens for a resource class",
+		Args:    cobra.MaximumNArgs(1),
 		Long: heredoc.Doc(`
 			List authentication tokens for runner resource classes.
 
-			Without --resource-class, lists tokens for all resource classes
-			in the organization (--org or inferred from the git remote).
+			Pass the resource class as an argument or --resource-class, not
+			both. Without one, lists tokens for every resource class in the
+			organization (--org or inferred from the git remote).
 
 			JSON fields: id, resource_class, resource_class_id, nickname, created_at
 		`),
@@ -91,15 +93,15 @@ func newTokenListCmd() *cobra.Command {
 			$ circleci runner token list --org gh/my-org
 
 			# List tokens for a specific resource class
-			$ circleci runner token list --resource-class my-org/my-runner
-
-			# List tokens for a resource class given by its ID
-			$ circleci runner token list --resource-class 01234567-89ab-4cde-8f01-23456789abcd
+			$ circleci runner token list my-org/my-runner
 
 			# Extract IDs with --jq
 			$ circleci runner token list --resource-class my-org/my-runner --json --jq '.[].id'
 		`),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := cmdutil.BindPositional(cmd, args, "resource-class", "org"); err != nil {
+				return err
+			}
 			ctx := cmd.Context()
 			client, err := cmdutil.LoadClient(ctx)
 			if err != nil {

@@ -1,4 +1,4 @@
-Usage:  circleci runner token list [flags]
+Usage:  circleci runner token list [resource-class] [flags]
 
 Flags:
   -h, --help                    help for list

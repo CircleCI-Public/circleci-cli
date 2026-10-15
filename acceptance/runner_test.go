@@ -1041,6 +1041,122 @@ func TestRunnerTokenList(t *testing.T) {
 	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 }
 
+// A positional resource class behaves exactly like --resource-class.
+func TestRunnerTokenList_Positional(t *testing.T) {
+	fake, env := setupRunnerFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"runner", "token", "list", "my-org/linux-runner"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 0), "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+
+	t.Run("check the filter was applied", func(t *testing.T) {
+		reqs := fake.AllRequests()
+		assert.Assert(t, cmp.Len(reqs, 1))
+		assert.Check(t, cmp.Equal(reqs[0].URL.Path, "/api/v3/runner/tokens"))
+		assert.Check(t, cmp.DeepEqual(reqs[0].URL.Query(), url.Values{
+			"filter[resource_class]": {"my-org/linux-runner"},
+		}))
+	})
+}
+
+func TestRunnerTokenList_Positional_JSON(t *testing.T) {
+	fake, env := setupRunnerFake(t)
+	fake.AddRunnerToken("my-org/arm-runner", fakeToken("10000000-0000-4000-8000-00000000000a", "my-org/arm-runner", "arm-server"))
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"runner", "token", "list", "my-org/linux-runner", "--json"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 0), "stderr: %s", result.Stderr)
+
+	var out []map[string]any
+	assert.NilError(t, json.Unmarshal([]byte(result.Stdout), &out))
+	ids := make([]string, 0, len(out))
+	for _, tok := range out {
+		id, _ := tok["id"].(string)
+		ids = append(ids, id)
+	}
+	assert.Check(t, cmp.DeepEqual(ids, []string{"10000000-0000-4000-8000-000000000001", "10000000-0000-4000-8000-000000000002"}))
+}
+
+func TestRunnerTokenList_Positional_ConflictsWithFlag(t *testing.T) {
+	fake, env := setupRunnerFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"runner", "token", "list", "my-org/linux-runner", "--resource-class", "my-org/arm-runner"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, clierrors.ExitBadArguments))
+	assert.Check(t, cmp.Contains(result.Stderr, `Got both a positional argument "my-org/linux-runner" and --resource-class.`))
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+	assert.Check(t, cmp.Len(fake.AllRequests(), 0), "no request may be made")
+}
+
+func TestRunnerTokenList_Positional_ConflictsWithOrg(t *testing.T) {
+	fake, env := setupRunnerFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"runner", "token", "list", "my-org/linux-runner", "--org", "gh/other"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, clierrors.ExitBadArguments))
+	assert.Check(t, cmp.Contains(result.Stderr, `Got both a positional argument "my-org/linux-runner" and --org.`))
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+	assert.Check(t, cmp.Len(fake.AllRequests(), 0), "no request may be made")
+}
+
+func TestRunnerTokenList_Positional_Empty(t *testing.T) {
+	fake, env := setupRunnerFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"runner", "token", "list", ""},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, clierrors.ExitBadArguments))
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+	assert.Check(t, cmp.Len(fake.AllRequests(), 0), "no request may be made")
+}
+
+func TestRunnerTokenList_TwoPositionals(t *testing.T) {
+	fake, env := setupRunnerFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"runner", "token", "list", "my-org/a", "my-org/b"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	// Cobra's plain arity error exits 1, as for the other MaximumNArgs commands
+	// (see TestConfigValidate_TooManyArgs).
+	assert.Check(t, cmp.Equal(result.ExitCode, 1))
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+	assert.Check(t, cmp.Len(fake.AllRequests(), 0), "no request may be made")
+}
+
 // A namespace/name goes straight to the tokens endpoint as filter[resource_class], with no
 // resource class lookup first. The fake rejects a request without a filter, but this pins
 // the exact query and the request count so that renaming the filter or reintroducing
