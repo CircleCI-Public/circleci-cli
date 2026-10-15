@@ -4310,14 +4310,15 @@ with: `circleci runner token list --resource-class <namespace/name>`
   `ID=$(circleci runner token list --resource-class my-org/my-runner --json --jq '.[0].id')`
 - `circleci runner token delete "$ID" --force --json`
 
-##### `circleci runner token list [flags]`
+##### `circleci runner token list [resource-class] [flags]`
 
 List tokens for a resource class
 
 List authentication tokens for runner resource classes.
 
-Without --resource-class, lists tokens for all resource classes
-in the organization (--org or inferred from the git remote).
+Pass the resource class as an argument or --resource-class, not
+both. Without one, lists tokens for every resource class in the
+organization (--org or inferred from the git remote).
 
 JSON fields: id, resource_class, resource_class_id, nickname, created_at
 
@@ -4341,9 +4342,7 @@ JSON fields: id, resource_class, resource_class_id, nickname, created_at
 - List tokens for all resource classes in a specific org: 
   `circleci runner token list --org gh/my-org`
 - List tokens for a specific resource class: 
-  `circleci runner token list --resource-class my-org/my-runner`
-- List tokens for a resource class given by its ID: 
-  `circleci runner token list --resource-class 01234567-89ab-4cde-8f01-23456789abcd`
+  `circleci runner token list my-org/my-runner`
 - Extract IDs with --jq: 
   `circleci runner token list --resource-class my-org/my-runner --json --jq '.[].id'`
 
