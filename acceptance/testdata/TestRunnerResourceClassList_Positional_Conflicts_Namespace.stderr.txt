@@ -1,0 +1,5 @@
+error: Got both a positional argument "my-org" and --namespace.
+
+Suggestions:
+  • Pass the value either as the positional argument or with --namespace, not both
+  • Run 'circleci runner resource-class list --help' to see the usage

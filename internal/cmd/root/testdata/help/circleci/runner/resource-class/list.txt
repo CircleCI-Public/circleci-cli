@@ -2,7 +2,7 @@ List runner resource classes
 
 ## Usage
 
-`circleci runner resource-class list [flags]`
+`circleci runner resource-class list [namespace] [flags]`
 
 Aliases: `circleci runner resource-class ls`
 
@@ -27,13 +27,15 @@ Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `ci
 - List resource classes for a specific organization (UUID): 
   `circleci runner resource-class list --org f22b6566-597d-46d5-ba74-99ef5bb3d85c`
 - List the resource classes in one namespace: 
-  `circleci runner resource-class list --namespace my-org`
+  `circleci runner resource-class list my-org`
 - Output as JSON: 
   `circleci runner resource-class list --org gh/my-org --json`
 
 ## Details
 
 List CircleCI runner resource classes in an organization, a namespace, or by name.
+
+Pass the namespace as an argument or --namespace, not both.
 
 JSON fields: id, resource_class, description
 

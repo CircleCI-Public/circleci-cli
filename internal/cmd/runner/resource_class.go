@@ -74,11 +74,14 @@ func newResourceClassListCmd() *cobra.Command {
 	var jsonOut bool
 
 	cmd := &cobra.Command{
-		Use:     "list",
+		Use:     "list [namespace]",
 		Aliases: []string{"ls"},
 		Short:   "List runner resource classes",
+		Args:    cobra.MaximumNArgs(1),
 		Long: heredoc.Doc(`
 			List CircleCI runner resource classes in an organization, a namespace, or by name.
+
+			Pass the namespace as an argument or --namespace, not both.
 
 			JSON fields: id, resource_class, description
 		`),
@@ -93,12 +96,24 @@ func newResourceClassListCmd() *cobra.Command {
 			$ circleci runner resource-class list --org f22b6566-597d-46d5-ba74-99ef5bb3d85c
 
 			# List the resource classes in one namespace
-			$ circleci runner resource-class list --namespace my-org
+			$ circleci runner resource-class list my-org
 
 			# Output as JSON
 			$ circleci runner resource-class list --org gh/my-org --json
 		`),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := cmdutil.BindPositional(cmd, args, "namespace", "org", "resource-class"); err != nil {
+				return err
+			}
+			if len(args) > 0 && strings.Contains(args[0], "/") {
+				return clierrors.New("runner.malformed_namespace", "Malformed namespace",
+					fmt.Sprintf("%q is not a namespace: a namespace cannot contain \"/\".", args[0])).
+					WithSuggestions(
+						"To list one resource class, use --resource-class "+args[0],
+						fmt.Sprintf("Run '%s --help' to see the usage", cmd.CommandPath()),
+					).
+					WithExitCode(clierrors.ExitBadArguments)
+			}
 			ctx := cmd.Context()
 			client, err := cmdutil.LoadClient(ctx)
 			if err != nil {

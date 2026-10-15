@@ -157,7 +157,8 @@ func TestRunnerResourceClassList_NamespaceJSON(t *testing.T) {
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
 
 	var out []map[string]any
-	assert.NilError(t, json.Unmarshal([]byte(result.Stdout), &out))
+	err := json.Unmarshal([]byte(result.Stdout), &out)
+	assert.NilError(t, err)
 	resourceClasses := make([]string, 0, len(out))
 	for _, rc := range out {
 		resourceClass, _ := rc["resource_class"].(string)
@@ -222,6 +223,137 @@ func TestRunnerResourceClassList_FiltersMutuallyExclusive(t *testing.T) {
 			assert.Check(t, golden.String(result.Stderr, "TestRunnerResourceClassList_FiltersMutuallyExclusive_"+tc.name+".stderr.txt"))
 		})
 	}
+}
+
+// A positional namespace behaves exactly like --namespace, and does not fall back to the
+// org of the git remote.
+func TestRunnerResourceClassList_Positional(t *testing.T) {
+	fake, env := setupRunnerFake(t)
+	fake.AddResourceClass(fakeRC("44444444-4444-4444-8444-444444444444", "other-org/other-runner", "Another namespace"))
+	dir := t.TempDir()
+	initGitRepoWithRemote(t, dir, "https://github.com/remote-org/remote-repo.git")
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"runner", "resource-class", "list", "my-org"},
+		Env:     env.Environ(),
+		WorkDir: dir,
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 0), "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+
+	t.Run("check the filter was applied", func(t *testing.T) {
+		reqs := fake.AllRequests()
+		assert.Assert(t, cmp.Len(reqs, 1), "no org lookup from the git remote")
+		assert.Check(t, cmp.Equal(reqs[0].URL.Path, "/api/v3/runner/resource-classes"))
+		assert.Check(t, cmp.DeepEqual(reqs[0].URL.Query(), url.Values{
+			"filter[namespace]": {"my-org"},
+		}))
+	})
+}
+
+func TestRunnerResourceClassList_Positional_JSON(t *testing.T) {
+	fake, env := setupRunnerFake(t)
+	fake.AddResourceClass(fakeRC("44444444-4444-4444-8444-444444444444", "other-org/other-runner", "Another namespace"))
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"runner", "resource-class", "list", "my-org", "--json"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Assert(t, cmp.Equal(result.ExitCode, 0), "stderr: %s", result.Stderr)
+
+	var out []map[string]any
+	err := json.Unmarshal([]byte(result.Stdout), &out)
+	assert.NilError(t, err)
+	resourceClasses := make([]string, 0, len(out))
+	for _, rc := range out {
+		resourceClass, _ := rc["resource_class"].(string)
+		resourceClasses = append(resourceClasses, resourceClass)
+	}
+	assert.Check(t, cmp.DeepEqual(resourceClasses, []string{"my-org/linux-runner", "my-org/arm-runner"}))
+	assert.Check(t, cmp.Equal(fake.LastRequest().URL.Query().Get("filter[namespace]"), "my-org"))
+}
+
+func TestRunnerResourceClassList_Positional_Conflicts(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		args []string
+		flag string
+	}{
+		{
+			name: "Namespace",
+			args: []string{"--namespace", "other-org"},
+			flag: "--namespace",
+		},
+		{
+			name: "Org",
+			args: []string{"--org", "gh/my-org"},
+			flag: "--org",
+		},
+		{
+			name: "ResourceClass",
+			args: []string{"--resource-class", "my-org/arm-runner"},
+			flag: "--resource-class",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			fake, env := setupRunnerFake(t)
+
+			result := binary.RunCLI(t, binary.RunOpts{
+				Binary:  binaryPath,
+				Args:    append([]string{"runner", "resource-class", "list", "my-org"}, tc.args...),
+				Env:     env.Environ(),
+				WorkDir: t.TempDir(),
+			})
+
+			assert.Check(t, cmp.Equal(result.ExitCode, clierrors.ExitBadArguments))
+			assert.Check(t, cmp.Contains(result.Stderr, `Got both a positional argument "my-org" and `+tc.flag+`.`))
+			assert.Check(t, golden.String(result.Stderr, "TestRunnerResourceClassList_Positional_Conflicts_"+tc.name+".stderr.txt"))
+			assert.Check(t, cmp.Len(fake.AllRequests(), 0), "no request may be made")
+		})
+	}
+}
+
+// A resource class is not a namespace: a positional containing "/" is rejected rather
+// than sent as a namespace filter.
+func TestRunnerResourceClassList_Positional_ResourceClass(t *testing.T) {
+	fake, env := setupRunnerFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"runner", "resource-class", "list", "my-org/linux-runner"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, clierrors.ExitBadArguments))
+	assert.Check(t, cmp.Contains(result.Stderr, `"my-org/linux-runner" is not a namespace`))
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+	assert.Check(t, cmp.Len(fake.AllRequests(), 0), "no request may be made")
+}
+
+func TestRunnerResourceClassList_TwoPositionals(t *testing.T) {
+	fake, env := setupRunnerFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"runner", "resource-class", "list", "my-org", "other-org"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	// Cobra's own arity error, so the exit code is its generic 1, as for the other
+	// MaximumNArgs commands (see TestConfigValidate_TooManyArgs).
+	assert.Check(t, cmp.Equal(result.ExitCode, 1))
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+	assert.Check(t, cmp.Len(fake.AllRequests(), 0), "no request may be made")
 }
 
 func TestRunnerResourceClassList_NamespaceIgnoresAgents(t *testing.T) {
