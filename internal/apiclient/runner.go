@@ -393,8 +393,7 @@ func (c *Client) listRunnerAgents(ctx context.Context, filter, value string) ([]
 }
 
 // RunnerFleet is a runner fleet: the agent and task summary of one resource class. Its ID is the
-// resource class's ID. RunningTasks and QueuedTasks are only populated by GetRunnerFleet; the
-// list endpoint omits them.
+// resource class's ID.
 type RunnerFleet struct {
 	ID         uuid.UUID `json:"id"`
 	Attributes struct {
@@ -403,8 +402,8 @@ type RunnerFleet struct {
 		IdleAgents         int        `json:"idle_agents"`
 		DisconnectedAgents int        `json:"disconnected_agents"`
 		AgentCount         int        `json:"agent_count"`
-		RunningTasks       *int       `json:"running_tasks"`
-		QueuedTasks        *int       `json:"queued_tasks"`
+		RunningTasks       int        `json:"running_tasks"`
+		QueuedTasks        int        `json:"queued_tasks"`
 		LastTaskClaimedAt  *time.Time `json:"last_task_claimed_at"`
 	} `json:"attributes"`
 	References struct {
@@ -470,8 +469,7 @@ func (c *Client) listRunnerFleets(ctx context.Context, filter, value string) ([]
 	}
 }
 
-// GetRunnerFleet returns one fleet by its ID, which is its resource class's ID. Unlike the list,
-// it includes running and queued task counts.
+// GetRunnerFleet returns one fleet by its ID, which is its resource class's ID.
 func (c *Client) GetRunnerFleet(ctx context.Context, id uuid.UUID) (*RunnerFleet, error) {
 	var resp v3Entity[RunnerFleet]
 	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodGet, "/api/v3/runner/fleets/%s",
