@@ -6,6 +6,17 @@ is added by its release PR (see [RELEASE.md](RELEASE.md)) and becomes its GitHub
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.7.0] - 2026-10-16
+
+### What's Changed
+* Bind positional resource class on runner token list by @soulchips in https://github.com/CircleCI-Public/circleci-cli/pull/1918
+* Bind positional namespace on runner resource-class list by @soulchips in https://github.com/CircleCI-Public/circleci-cli/pull/1919
+* Bind positional namespace or resource class on runner instance list by @soulchips in https://github.com/CircleCI-Public/circleci-cli/pull/1920
+* Treat commit-suffixed function versions as builds by @stiyyagura0901 in https://github.com/CircleCI-Public/circleci-cli/pull/1923
+
+
+**Full Changelog**: https://github.com/CircleCI-Public/circleci-cli/compare/v1.6.0...v1.7.0
+
 ## [1.6.0] - 2026-10-15
 
 ### What's Changed
