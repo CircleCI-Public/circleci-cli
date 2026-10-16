@@ -1,0 +1,184 @@
+name: setup-browser-tools
+description: |-
+    Install browsers and browser-testing tools.
+
+    Example:
+      circleci run github.com/circleci-functions/setup-browser-tools@<version> -- install-chrome --version latest
+version: v0.2.0
+commands:
+    install-browser-tools:
+        description: 'Install a default set of browsers and drivers: Chrome, ChromeDriver, Firefox and geckodriver.'
+        flags:
+            - name: chrome
+              type: bool
+              default: "true"
+              negatable: true
+              description: Install Google Chrome.
+            - name: chromedriver
+              type: bool
+              default: "true"
+              negatable: true
+              description: Install ChromeDriver.
+            - name: firefox
+              type: bool
+              default: "true"
+              negatable: true
+              description: Install Mozilla Firefox.
+            - name: geckodriver
+              type: bool
+              default: "true"
+              negatable: true
+              description: Install geckodriver.
+            - name: chrome-for-testing
+              type: bool
+              default: "false"
+              description: Install Chrome for Testing.
+            - name: chrome-for-testing-driver
+              type: bool
+              default: "false"
+              description: Install the Chrome for Testing ChromeDriver alongside Chrome for Testing.
+            - name: edge
+              type: bool
+              default: "false"
+              description: Install Microsoft Edge.
+            - name: edge-driver
+              type: bool
+              default: "false"
+              description: Install Edge WebDriver.
+            - name: chrome-version
+              type: string
+              default: latest
+              description: Version of Chrome to install.
+            - name: replace-existing-chrome
+              type: bool
+              default: "false"
+              description: Replace an existing Chrome installation when it is a different version.
+            - name: chromedriver-install-dir
+              type: string
+              default: /usr/local/bin
+              description: Directory to install ChromeDriver into.
+            - name: chrome-for-testing-version
+              type: string
+              default: latest
+              description: Version of Chrome for Testing to install.
+            - name: chrome-for-testing-install-dir
+              type: string
+              default: /usr/local/bin
+              description: Directory to symlink Chrome for Testing and its driver into.
+            - name: firefox-version
+              type: string
+              default: latest
+              description: Version of Firefox to install.
+            - name: firefox-install-dir
+              type: string
+              default: /usr/local/bin
+              description: Directory to install Firefox into.
+            - name: geckodriver-version
+              type: string
+              default: latest
+              description: Release tag of geckodriver to install.
+            - name: geckodriver-install-dir
+              type: string
+              default: /usr/local/bin
+              description: Directory to install geckodriver into.
+            - name: edge-version
+              type: string
+              default: latest
+              description: Version of Edge to install.
+            - name: edge-driver-install-dir
+              type: string
+              default: /usr/local/bin
+              description: Directory to install Edge WebDriver into.
+    install-chrome:
+        description: Install Google Chrome.
+        flags:
+            - name: version
+              type: string
+              default: latest
+              description: Version of Chrome to install, e.g. 147.0.7727.55. Defaults to the latest stable release.
+            - name: channel
+              type: string
+              default: stable
+              enum:
+                - stable
+                - beta
+              description: Release channel to install.
+            - name: replace-existing
+              type: bool
+              default: "false"
+              description: Replace an existing Chrome installation when it is a different version.
+            - name: use-cache
+              type: bool
+              default: "false"
+              description: Restore and save Chrome via the job cache. Increases cost and rarely speeds things up; use only when downloads are unreliable.
+            - name: cache-key
+              type: string
+              default: v1
+              description: Cache key prefix, for invalidating cached entries.
+    install-chrome-for-testing:
+        description: Install Chrome for Testing, and optionally its matching ChromeDriver.
+        flags:
+            - name: version
+              type: string
+              default: latest
+              description: Version of Chrome for Testing to install. Defaults to the latest stable release.
+            - name: install-dir
+              type: string
+              default: /usr/local/bin
+              description: Directory to symlink Chrome for Testing and its driver into.
+            - name: chromedriver
+              type: bool
+              default: "true"
+              negatable: true
+              description: Also install the matching Chrome for Testing ChromeDriver.
+    install-chromedriver:
+        description: Install ChromeDriver, matching the installed Chrome.
+        flags:
+            - name: install-dir
+              type: string
+              default: /usr/local/bin
+              description: Directory to install ChromeDriver into. Not honoured on Alpine, where the package manager chooses.
+    install-edge:
+        description: Install Microsoft Edge.
+        flags:
+            - name: version
+              type: string
+              default: latest
+              description: Version of Edge to install. Only honoured on Debian/Ubuntu; macOS always installs the latest.
+    install-edge-driver:
+        description: Install Edge WebDriver, matching the installed Edge.
+        flags:
+            - name: install-dir
+              type: string
+              default: /usr/local/bin
+              description: Directory to install Edge WebDriver into.
+    install-firefox:
+        description: Install Mozilla Firefox.
+        flags:
+            - name: version
+              type: string
+              default: latest
+              description: Version of Firefox to install, e.g. 149.0.2 or 140.9.1esr. Defaults to the latest stable release.
+            - name: install-dir
+              type: string
+              default: /usr/local/bin
+              description: Directory to install Firefox into. A symlink is also created in /usr/local/bin.
+            - name: use-cache
+              type: bool
+              default: "false"
+              description: Restore and save the Firefox installer via the job cache. Ignored when --version is latest.
+            - name: cache-key
+              type: string
+              default: v1
+              description: Cache key prefix, for invalidating cached entries.
+    install-geckodriver:
+        description: Install geckodriver, Mozilla's WebDriver proxy for Firefox.
+        flags:
+            - name: version
+              type: string
+              default: latest
+              description: Release tag of geckodriver to install, e.g. v0.36.0. Defaults to the latest release.
+            - name: install-dir
+              type: string
+              default: /usr/local/bin
+              description: Directory to install geckodriver into.

@@ -39,14 +39,16 @@ import (
 )
 
 type getEntry struct {
-	ID            uuid.UUID       `json:"id"`
-	Name          string          `json:"name"`
-	Description   string          `json:"description,omitempty"`
-	Version       string          `json:"version"`
-	LatestVersion string          `json:"latest_version"`
-	Versions      []string        `json:"versions"`
-	Flags         []function.Flag `json:"flags"`
-	Example       string          `json:"example,omitempty"`
+	ID            uuid.UUID          `json:"id"`
+	Name          string             `json:"name"`
+	Description   string             `json:"description,omitempty"`
+	Version       string             `json:"version"`
+	LatestVersion string             `json:"latest_version"`
+	Versions      []string           `json:"versions"`
+	Flags         []function.Flag    `json:"flags"`
+	Default       string             `json:"default,omitempty"`
+	Commands      []function.Command `json:"commands"`
+	Example       string             `json:"example,omitempty"`
 }
 
 func newGetCmd() *cobra.Command {
@@ -64,8 +66,11 @@ func newGetCmd() *cobra.Command {
 
 			A bare name resolves against %[1]sgithub.com/circleci-functions%[1]s.
 
+			Arguments are those a bare step accepts. Each other command is listed
+			with the arguments of a step that names it as <alias>/<command>.
+
 			JSON fields: id, name, description, version, latest_version,
-			versions, flags, example.
+			versions, flags, default, commands, example.
 		`, "`"),
 		Example: heredoc.Doc(`
 			# Show a function at its latest version
@@ -159,6 +164,8 @@ func runGet(ctx context.Context, client *apiclient.Client, arg, version string, 
 		LatestVersion: fn.LatestVersion,
 		Versions:      versions,
 		Flags:         flags,
+		Default:       function.DefaultCommand(descriptor.Content),
+		Commands:      function.Commands(descriptor.Content),
 		Example:       example,
 	}
 
@@ -178,11 +185,25 @@ func printFunction(ctx context.Context, e getEntry) {
 	md += fmt.Sprintf("**Version:** %s\n**Latest:** %s\n", e.Version, e.LatestVersion)
 
 	if len(e.Flags) > 0 {
-		table := mdtable.New("Argument", "Type", "Default", "Description")
-		for _, f := range e.Flags {
-			table.Row(tableCell(f.Name), tableCell(f.Type), tableCell(f.Default), tableCell(f.Description))
+		md += "\n## Arguments\n" + flagTable(e.Flags)
+	}
+
+	alias := function.AliasFor(e.Name)
+	var commands string
+	for _, c := range e.Commands {
+		if c.Name == e.Default {
+			continue
 		}
-		md += "\n## Arguments\n" + table.Render()
+		commands += fmt.Sprintf("\n### %s/%s\n", alias, c.Name)
+		if c.Description != "" {
+			commands += "\n" + c.Description + "\n"
+		}
+		if len(c.Flags) > 0 {
+			commands += "\n" + flagTable(c.Flags)
+		}
+	}
+	if commands != "" {
+		md += "\n## Commands\n" + commands
 	}
 
 	if e.Example != "" {
@@ -198,4 +219,12 @@ func printFunction(ctx context.Context, e getEntry) {
 	}
 
 	iostream.PrintMarkdown(ctx, md)
+}
+
+func flagTable(flags []function.Flag) string {
+	table := mdtable.New("Argument", "Type", "Default", "Description")
+	for _, f := range flags {
+		table.Row(tableCell(f.Name), tableCell(f.Type), tableCell(f.Default), tableCell(f.Description))
+	}
+	return table.Render()
 }

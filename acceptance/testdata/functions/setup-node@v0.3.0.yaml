@@ -1,0 +1,62 @@
+name: setup-node
+description: Install Node.js, and optionally a project's dependencies, caching what each downloads.
+version: v0.3.0
+example: |
+    functions:
+      setup-node: github.com/circleci-functions/setup-node@v0.3.0
+    jobs:
+      build:
+        steps:
+          - setup-node:
+              with:
+                node-version: "22"
+default: install
+commands:
+    install:
+        description: Install Node.js and put node, npm and npx on PATH. Runs when no command is given.
+        flags:
+            - name: node-version
+              type: string
+              example: "22"
+              description: 'Node.js version to install: an exact or partial version (22, 22.11.0), a semver range (>=20 <23), lts/*, lts/<codename>, lts/-n, or latest. Defaults to .nvmrc, then .node-version, then lts/*.'
+            - name: node-version-file
+              type: string
+              description: 'File to read the Node.js version from: .nvmrc, .node-version, .tool-versions, mise.toml or package.json.'
+            - name: mirror
+              type: string
+              default: https://nodejs.org/dist
+              env:
+                - NODE_MIRROR
+              description: Base URL of a server laid out like https://nodejs.org/dist to download Node.js from. The mirror can also be set via the NODE_MIRROR env var.
+            - name: mirror-token
+              type: string
+              env:
+                - NODE_MIRROR_TOKEN
+              description: Authorization header value to send to --mirror, never to nodejs.org. The token can also be set via the NODE_MIRROR_TOKEN env var.
+            - name: cache
+              type: bool
+              default: "true"
+              description: Restore the Node.js install from the job cache, and save it after a fresh download. Set to false to disable caching.
+    install-packages:
+        description: Install the project's dependencies with its package manager, caching what it downloads.
+        flags:
+            - name: app-dir
+              type: string
+              default: .
+              description: Directory containing package.json.
+            - name: package-manager
+              type: string
+              enum:
+                - npm
+                - yarn
+                - pnpm
+                - bun
+                - ""
+              description: 'Package manager to use: npm, yarn, pnpm, or bun. Auto-detected from lockfile if omitted.'
+            - name: override-command
+              type: string
+              description: Override the default CI install command (e.g. 'npm install --legacy-peer-deps').
+            - name: cache
+              type: bool
+              default: "true"
+              description: Restore the package manager cache before installing and save it at the end. Set to false to disable caching.

@@ -29,6 +29,7 @@ import (
 	"path/filepath"
 	"testing"
 
+	"gopkg.in/yaml.v3"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/golden"
@@ -237,7 +238,8 @@ func TestFunctionGet_JSON(t *testing.T) {
 					"description": "Use the job cache.\nTurn off for hermetic builds.",
 				},
 			},
-			"example": setupGoExample,
+			"commands": []any{},
+			"example":  setupGoExample,
 		}))
 	})
 
@@ -255,7 +257,104 @@ func TestFunctionGet_JSON(t *testing.T) {
 			"latest_version": setupGoLatest,
 			"versions":       []any{setupGoLatest, "v0.9.0"},
 			"flags":          []any{},
+			"commands":       []any{},
 		}))
+	})
+}
+
+// setupCommandsFake publishes functions whose arguments live under commands,
+// using descriptors exactly as the registry published them.
+func setupCommandsFake(t *testing.T) *testenv.TestEnv {
+	t.Helper()
+	fake := fakes.NewCircleCI(t)
+	for _, fn := range []struct{ name, version string }{
+		{"setup-node", "v0.3.0"},
+		{"setup-browser-tools", "v0.2.0"},
+	} {
+		raw, err := os.ReadFile(filepath.Join("testdata", "functions", fn.name+"@"+fn.version+".yaml"))
+		assert.NilError(t, err)
+		var descriptor map[string]any
+		assert.NilError(t, yaml.Unmarshal(raw, &descriptor))
+
+		name := "github.com/circleci-functions/" + fn.name
+		fake.AddFunction(name, "", fn.version)
+		fake.AddFunctionVersion(name, fn.version, descriptor)
+	}
+
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+	return env
+}
+
+func TestFunctionGet_Commands(t *testing.T) {
+	env := setupCommandsFake(t)
+
+	t.Run("A default command supplies the arguments", func(t *testing.T) {
+		result := runFunction(t, env, "get", "setup-node")
+		assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+		assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	})
+
+	t.Run("A function that only groups commands lists every one", func(t *testing.T) {
+		result := runFunction(t, env, "get", "setup-browser-tools")
+		assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+		assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	})
+}
+
+func TestFunctionGet_Commands_JSON(t *testing.T) {
+	env := setupCommandsFake(t)
+
+	t.Run("The default and every command are included", func(t *testing.T) {
+		result := runFunction(t, env, "get", "setup-node", "--json",
+			"--jq", "{flags: [.flags[].name], default, commands: [.commands[] | {name, description, flags: [.flags[].name]}]}")
+		assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+
+		var out map[string]any
+		assert.NilError(t, json.Unmarshal([]byte(result.Stdout), &out))
+		assert.Check(t, cmp.DeepEqual(out, map[string]any{
+			"flags":   []any{"node-version", "node-version-file", "mirror", "mirror-token", "cache"},
+			"default": "install",
+			"commands": []any{
+				map[string]any{
+					"name":        "install",
+					"description": "Install Node.js and put node, npm and npx on PATH. Runs when no command is given.",
+					"flags":       []any{"node-version", "node-version-file", "mirror", "mirror-token", "cache"},
+				},
+				map[string]any{
+					"name":        "install-packages",
+					"description": "Install the project's dependencies with its package manager, caching what it downloads.",
+					"flags":       []any{"app-dir", "package-manager", "override-command", "cache"},
+				},
+			},
+		}))
+	})
+
+	t.Run("A command's flags carry their details", func(t *testing.T) {
+		result := runFunction(t, env, "get", "setup-node", "--json",
+			"--jq", `.commands[] | select(.name == "install-packages") | .flags[0]`)
+		assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+
+		var out map[string]any
+		assert.NilError(t, json.Unmarshal([]byte(result.Stdout), &out))
+		assert.Check(t, cmp.DeepEqual(out, map[string]any{
+			"name": "app-dir", "type": "string", "default": ".",
+			"description": "Directory containing package.json.",
+		}))
+	})
+
+	t.Run("A function with no default has no default key", func(t *testing.T) {
+		result := runFunction(t, env, "get", "setup-browser-tools", "--json")
+		assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+
+		var out map[string]any
+		assert.NilError(t, json.Unmarshal([]byte(result.Stdout), &out))
+		assert.Check(t, cmp.DeepEqual(out["flags"], []any{}))
+		_, hasDefault := out["default"]
+		assert.Check(t, !hasDefault, "default: %v", out["default"])
+		commands, _ := out["commands"].([]any)
+		assert.Check(t, cmp.Len(commands, 8))
 	})
 }
 
