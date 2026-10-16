@@ -1,0 +1,5 @@
+error: "my-org/linux-runner" is not a namespace: a namespace cannot contain "/".
+
+Suggestions:
+  • To list one resource class, use --resource-class my-org/linux-runner
+  • Run 'circleci runner resource-class list --help' to see the usage
