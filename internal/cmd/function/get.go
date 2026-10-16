@@ -107,8 +107,8 @@ func runGet(ctx context.Context, client *apiclient.Client, arg, version string, 
 	}
 
 	sp := iostream.Spinner(ctx, !jsonOut, fmt.Sprintf("Fetching %s", name))
-	// A pseudo-version named by --version is found without the flag.
-	fn, err := client.GetFunctionByName(ctx, name, function.IsPseudoVersion(version))
+	// A build named by --version is found without the flag.
+	fn, err := client.GetFunctionByName(ctx, name, function.IsBuild(version))
 	if err != nil {
 		sp.Stop()
 		return apiErr(err, name)

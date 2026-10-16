@@ -5948,8 +5948,8 @@ func (f *CircleCI) AddFunctionVersion(name, version string, descriptor map[strin
 }
 
 // functionEntityLocked renders a function as a v3 data entity. Like the real
-// API, it leaves pseudo-versions out of the versions unless includePseudo is
-// set, but always lists the latest. Callers hold at least a read lock.
+// API, it leaves builds out of the versions unless includePseudo is set, but
+// always lists the latest. Callers hold at least a read lock.
 func (f *CircleCI) functionEntityLocked(fn Function, includePseudo bool) map[string]any {
 	versions := []any{}
 	for _, vID := range f.fnVersionsByFnID[fn.ID] {
@@ -5957,7 +5957,7 @@ func (f *CircleCI) functionEntityLocked(fn Function, includePseudo bool) map[str
 		if !ok {
 			continue
 		}
-		if !includePseudo && v.Version != fn.Latest && function.IsPseudoVersion(v.Version) {
+		if !includePseudo && v.Version != fn.Latest && function.IsBuild(v.Version) {
 			continue
 		}
 		versions = append(versions, map[string]any{

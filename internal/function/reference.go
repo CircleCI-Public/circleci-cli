@@ -44,11 +44,16 @@ var (
 	// pseudoPattern is the Go module pseudo-version form: a version with a
 	// commit timestamp and hash, such as v0.5.2-0.20261007152818-72ffa3f7a023.
 	pseudoPattern = regexp.MustCompile(`\Av\d+\.(?:0\.0-|\d+\.\d+-(?:[^+]*\.)?0\.)\d{14}-[A-Za-z0-9]+\z`)
+	// commitPattern is the old publish flow's form, which suffixed a version
+	// with its short commit, such as v0.5.4-2ad832a.
+	commitPattern = regexp.MustCompile(`-[0-9a-f]{7}\z`)
 )
 
-// IsPseudoVersion reports whether version is a Go pseudo-version, an untagged build.
-func IsPseudoVersion(version string) bool {
-	return pseudoPattern.MatchString(version)
+// IsBuild reports whether version is a build rather than a release: a Go
+// pseudo-version, or a version with a short commit suffix. The API leaves
+// builds out of a function's versions unless asked.
+func IsBuild(version string) bool {
+	return pseudoPattern.MatchString(version) || commitPattern.MatchString(version)
 }
 
 // ValidatePath reports whether path is a function path the config accepts.

@@ -102,8 +102,8 @@ func (w *functionWire) toFunction() *Function {
 }
 
 // ListFunctions lists every discoverable published function, following the
-// cursor until the whole collection has been read. Pseudo-versions are left
-// out of each function's versions unless includePseudo is set.
+// cursor until the whole collection has been read. Builds are left out of each
+// function's versions unless includePseudo is set.
 func (c *Client) ListFunctions(ctx context.Context, includePseudo bool) ([]*Function, error) {
 	result := []*Function{}
 	cursor := ""
@@ -130,8 +130,8 @@ func (c *Client) ListFunctions(ctx context.Context, includePseudo bool) ([]*Func
 
 // GetFunctionByName resolves a function by its VCS-style name. An unknown name,
 // and any name the API does not consider discoverable, comes back as an empty
-// collection rather than a 404. Pseudo-versions are left out of its versions
-// unless includePseudo is set.
+// collection rather than a 404. Builds are left out of its versions unless
+// includePseudo is set.
 func (c *Client) GetFunctionByName(ctx context.Context, name string, includePseudo bool) (*Function, error) {
 	var env v3List[functionWire]
 	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodGet, "/api/v3/function/packages",
@@ -175,7 +175,8 @@ func (c *Client) GetFunctionVersion(ctx context.Context, id uuid.UUID) (*Functio
 	}, nil
 }
 
-// pseudoParam asks the API to list pseudo-versions, which it leaves out by default.
+// pseudoParam asks the API to list builds, pseudo-versions and commit-suffixed
+// versions, which it leaves out by default.
 func pseudoParam(include bool) func(*httpcl.Request) {
 	if include {
 		return filterParam("pseudo", "true")
