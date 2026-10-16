@@ -37,16 +37,35 @@ type Flag struct {
 	Description string `json:"description,omitempty"`
 }
 
-// Flags reads the arguments a function accepts. A descriptor is served exactly
+// Flags reads the arguments a function accepts: its root flags, then those of
+// the command a bare invocation runs, which a function built with a default
+// subcommand publishes under commands.<default>. A descriptor is served exactly
 // as published and its shape can differ between versions, so a missing or
 // unexpectedly typed field degrades to a thinner result rather than an error.
 func Flags(content map[string]any) []Flag {
-	raw, ok := content["flags"].([]any)
+	var flags []Flag
+	for node := content; node != nil; node = defaultCommand(node) {
+		flags = append(flags, nodeFlags(node)...)
+	}
+	return flags
+}
+
+// defaultCommand returns the command a node runs when invoked without one, or
+// nil if it names none.
+func defaultCommand(node map[string]any) map[string]any {
+	name, _ := node["default"].(string)
+	commands, _ := node["commands"].(map[string]any)
+	cmd, _ := commands[name].(map[string]any)
+	return cmd
+}
+
+func nodeFlags(node map[string]any) []Flag {
+	raw, ok := node["flags"].([]any)
 	if !ok {
 		return nil
 	}
 
-	flags := make([]Flag, 0, len(raw))
+	var flags []Flag
 	for _, entry := range raw {
 		m, ok := entry.(map[string]any)
 		if !ok {
@@ -64,9 +83,6 @@ func Flags(content map[string]any) []Flag {
 			Default:     str(m, "default"),
 			Description: str(m, "description"),
 		})
-	}
-	if len(flags) == 0 {
-		return nil
 	}
 	return flags
 }

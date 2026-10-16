@@ -52,6 +52,43 @@ func TestFlags(t *testing.T) {
 		}))
 	})
 
+	t.Run("A default command contributes its arguments after the root's", func(t *testing.T) {
+		flags := function.Flags(map[string]any{
+			"default": "install",
+			"flags":   []any{map[string]any{"name": "verbose", "type": "bool"}},
+			"commands": map[string]any{
+				"install": map[string]any{
+					"default": "jdk",
+					"flags":   []any{map[string]any{"name": "distribution", "type": "string"}},
+					"commands": map[string]any{
+						"jdk": map[string]any{
+							"flags": []any{map[string]any{"name": "java-version", "type": "slice"}},
+						},
+					},
+				},
+				"uninstall": map[string]any{
+					"flags": []any{map[string]any{"name": "purge", "type": "bool"}},
+				},
+			},
+		})
+		assert.Check(t, cmp.DeepEqual(flags, []function.Flag{
+			{Name: "verbose", Type: "bool"},
+			{Name: "distribution", Type: "string"},
+			{Name: "java-version", Type: "slice"},
+		}))
+	})
+
+	t.Run("Commands without a default contribute nothing", func(t *testing.T) {
+		flags := function.Flags(map[string]any{
+			"commands": map[string]any{
+				"install": map[string]any{
+					"flags": []any{map[string]any{"name": "distribution", "type": "string"}},
+				},
+			},
+		})
+		assert.Check(t, cmp.Len(flags, 0))
+	})
+
 	// The shape can differ between versions, so each of these must degrade
 	// rather than error.
 	for what, content := range map[string]map[string]any{
@@ -61,6 +98,8 @@ func TestFlags(t *testing.T) {
 		"entry not a map":      {"flags": []any{"version"}},
 		"entry has no name":    {"flags": []any{map[string]any{"type": "string"}}},
 		"name is not a string": {"flags": []any{map[string]any{"name": 42}}},
+		"default is unknown":   {"default": "install", "commands": map[string]any{}},
+		"commands is a list":   {"default": "install", "commands": []any{"install"}},
 	} {
 		t.Run(what, func(t *testing.T) {
 			assert.Check(t, cmp.Len(function.Flags(content), 0))
