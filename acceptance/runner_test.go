@@ -2000,6 +2000,190 @@ func TestRunnerInstanceList_ConflictingScopes(t *testing.T) {
 	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 }
 
+// A positional namespace behaves exactly like --namespace.
+func TestRunnerInstanceList_Positional_Namespace(t *testing.T) {
+	fake, env := setupRunnerFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"runner", "instance", "list", "my-org"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 0), "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+
+	t.Run("check the filter was applied", func(t *testing.T) {
+		reqs := fake.AllRequests()
+		assert.Assert(t, cmp.Len(reqs, 1))
+		assert.Check(t, cmp.Equal(reqs[0].URL.Path, "/api/v3/runner/agents"))
+		assert.Check(t, cmp.Equal(reqs[0].URL.Query().Get("filter[namespace]"), "my-org"))
+		assert.Check(t, cmp.Equal(reqs[0].URL.Query().Get("filter[resource_class]"), ""))
+	})
+}
+
+// A positional namespace/name behaves exactly like --resource-class.
+func TestRunnerInstanceList_Positional_ResourceClass(t *testing.T) {
+	fake, env := setupRunnerFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"runner", "instance", "list", "my-org/linux-runner"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 0), "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+
+	t.Run("check the filter was applied", func(t *testing.T) {
+		reqs := fake.AllRequests()
+		assert.Assert(t, cmp.Len(reqs, 1))
+		assert.Check(t, cmp.Equal(reqs[0].URL.Path, "/api/v3/runner/agents"))
+		assert.Check(t, cmp.Equal(reqs[0].URL.Query().Get("filter[resource_class]"), "my-org/linux-runner"))
+		assert.Check(t, cmp.Equal(reqs[0].URL.Query().Get("filter[namespace]"), ""))
+	})
+}
+
+// A positional UUID is resolved to its resource class first, like --resource-class <uuid>.
+func TestRunnerInstanceList_Positional_ID(t *testing.T) {
+	fake, env := setupRunnerFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"runner", "instance", "list", testLinuxRCID},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 0), "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+
+	t.Run("check the filter was applied", func(t *testing.T) {
+		reqs := fake.AllRequests()
+		assert.Assert(t, cmp.Len(reqs, 2))
+		assert.Check(t, cmp.Equal(reqs[0].URL.Path, "/api/v3/runner/resource-classes/"+testLinuxRCID))
+		assert.Check(t, cmp.Equal(reqs[1].URL.Path, "/api/v3/runner/agents"))
+		assert.Check(t, cmp.Equal(reqs[1].URL.Query().Get("filter[resource_class]"), "my-org/linux-runner"))
+	})
+}
+
+func TestRunnerInstanceList_Positional_JSON(t *testing.T) {
+	_, env := setupRunnerFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"runner", "instance", "list", "my-org/linux-runner", "--json"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 0), "stderr: %s", result.Stderr)
+
+	var out []map[string]any
+	err := json.Unmarshal([]byte(result.Stdout), &out)
+	assert.NilError(t, err)
+	names := make([]string, 0, len(out))
+	for _, inst := range out {
+		name, _ := inst["name"].(string)
+		names = append(names, name)
+	}
+	assert.Check(t, cmp.DeepEqual(names, []string{"runner-1"}))
+}
+
+func TestRunnerInstanceList_Positional_Conflicts(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		args []string
+		flag string
+	}{
+		{
+			name: "NamespaceWithOrg",
+			args: []string{"my-org", "--org", "gh/my-org"},
+			flag: "--org",
+		},
+		{
+			name: "NamespaceWithResourceClass",
+			args: []string{"my-org", "--resource-class", "my-org/arm-runner"},
+			flag: "--resource-class",
+		},
+		{
+			name: "NamespaceWithNamespace",
+			args: []string{"my-org", "--namespace", "other-org"},
+			flag: "--namespace",
+		},
+		{
+			name: "ResourceClassWithOrg",
+			args: []string{"my-org/linux-runner", "--org", "gh/my-org"},
+			flag: "--org",
+		},
+		{
+			name: "ResourceClassWithResourceClass",
+			args: []string{"my-org/linux-runner", "--resource-class", "my-org/arm-runner"},
+			flag: "--resource-class",
+		},
+		{
+			name: "ResourceClassWithNamespace",
+			args: []string{"my-org/linux-runner", "--namespace", "my-org"},
+			flag: "--namespace",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			fake, env := setupRunnerFake(t)
+
+			result := binary.RunCLI(t, binary.RunOpts{
+				Binary:  binaryPath,
+				Args:    append([]string{"runner", "instance", "list"}, tc.args...),
+				Env:     env.Environ(),
+				WorkDir: t.TempDir(),
+			})
+
+			assert.Check(t, cmp.Equal(result.ExitCode, clierrors.ExitBadArguments))
+			assert.Check(t, cmp.Contains(result.Stderr, "and "+tc.flag+"."))
+			assert.Check(t, golden.String(result.Stdout, "TestRunnerInstanceList_Positional_Conflicts_"+tc.name+".txt"))
+			assert.Check(t, golden.String(result.Stderr, "TestRunnerInstanceList_Positional_Conflicts_"+tc.name+".stderr.txt"))
+			assert.Check(t, cmp.Len(fake.AllRequests(), 0), "no request may be made")
+		})
+	}
+}
+
+func TestRunnerInstanceList_Positional_Empty(t *testing.T) {
+	fake, env := setupRunnerFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"runner", "instance", "list", ""},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, clierrors.ExitBadArguments))
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+	assert.Check(t, cmp.Len(fake.AllRequests(), 0), "no request may be made")
+}
+
+func TestRunnerInstanceList_TwoPositionals(t *testing.T) {
+	fake, env := setupRunnerFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"runner", "instance", "list", "my-org", "other-org"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	// Cobra's own arity error, so the exit code is its generic 1.
+	assert.Check(t, cmp.Equal(result.ExitCode, 1))
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+	assert.Check(t, cmp.Len(fake.AllRequests(), 0), "no request may be made")
+}
+
 func TestRunnerInstanceList_NoToken(t *testing.T) {
 	env := testenv.New(t)
 

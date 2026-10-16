@@ -1,4 +1,4 @@
-Usage:  circleci runner instance list [flags]
+Usage:  circleci runner instance list [namespace | resource-class] [flags]
 
 Flags:
   -h, --help                    help for list

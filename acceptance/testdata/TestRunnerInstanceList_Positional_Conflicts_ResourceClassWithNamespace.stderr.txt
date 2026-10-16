@@ -1,0 +1,5 @@
+error: Got both a positional argument "my-org/linux-runner" and --namespace.
+
+Suggestions:
+  • Drop --namespace: the positional argument already selects the resource-class filter
+  • Run 'circleci runner instance list --help' to see the usage
