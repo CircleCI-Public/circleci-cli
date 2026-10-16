@@ -1,0 +1,46 @@
+# github.com/circleci-functions/setup-node
+
+Install Node.js, and optionally a project's dependencies, caching what each downloads.
+
+**Version:** v0.3.0
+**Latest:** v0.3.0
+
+## Arguments
+| Argument          | Type   | Default                 | Description                                                                                                                                                                                     |
+| ----------------- | ------ | ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| node-version      | string |                         | Node.js version to install: an exact or partial version (22, 22.11.0), a semver range (>=20 <23), lts/*, lts/<codename>, lts/-n, or latest. Defaults to .nvmrc, then .node-version, then lts/*. |
+| node-version-file | string |                         | File to read the Node.js version from: .nvmrc, .node-version, .tool-versions, mise.toml or package.json.                                                                                        |
+| mirror            | string | https://nodejs.org/dist | Base URL of a server laid out like https://nodejs.org/dist to download Node.js from. The mirror can also be set via the NODE_MIRROR env var.                                                    |
+| mirror-token      | string |                         | Authorization header value to send to --mirror, never to nodejs.org. The token can also be set via the NODE_MIRROR_TOKEN env var.                                                               |
+| cache             | bool   | true                    | Restore the Node.js install from the job cache, and save it after a fresh download. Set to false to disable caching.                                                                            |
+
+## Commands
+
+### setup-node/install-packages
+
+Install the project's dependencies with its package manager, caching what it downloads.
+
+| Argument         | Type   | Default | Description                                                                                                  |
+| ---------------- | ------ | ------- | ------------------------------------------------------------------------------------------------------------ |
+| app-dir          | string | .       | Directory containing package.json.                                                                           |
+| package-manager  | string |         | Package manager to use: npm, yarn, pnpm, or bun. Auto-detected from lockfile if omitted.                     |
+| override-command | string |         | Override the default CI install command (e.g. 'npm install --legacy-peer-deps').                             |
+| cache            | bool   | true    | Restore the package manager cache before installing and save it at the end. Set to false to disable caching. |
+
+## Example
+
+```yaml
+functions:
+  setup-node: github.com/circleci-functions/setup-node@v0.3.0
+jobs:
+  build:
+    steps:
+      - setup-node:
+          with:
+            node-version: "22"
+```
+
+## Published versions
+| Version |
+| ------- |
+| v0.3.0  |
