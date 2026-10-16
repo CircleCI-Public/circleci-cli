@@ -1,0 +1,11 @@
+Usage:  circleci project slack set (--channel <name|ID> | --enable | --disable) [flags]
+
+Flags:
+      --channel string   Slack channel name (e.g. #ci-alerts) or ID to send notifications to
+      --disable          pause Slack notifications, keeping the configured channel
+      --enable           resume Slack notifications for the configured channel
+  -h, --help             help for set
+      --jq string        Process values from the response using jq syntax
+      --json             Output as JSON
+      --project string   project slug (e.g. gh/org/repo); defaults to git remote
+  

@@ -37,11 +37,8 @@ func NewProjectCmd() *cobra.Command {
 		GroupID: "management",
 		Short:   "List, follow and configure CircleCI projects",
 		Long: heredoc.Doc(`
-			List, follow, and manage settings for CircleCI projects.
-
 			A project corresponds to a version-control repository connected to CircleCI.
-			Environment variables are also reachable as the top-level alias
-			'circleci envvar'.
+			Environment variables also have the top-level alias 'circleci envvar'.
 		`),
 	}
 
@@ -60,6 +57,7 @@ func NewProjectCmd() *cobra.Command {
 		newTriggerCmd(),
 		newProjectDLCCmd(),
 		newSettingsCmd(),
+		newSlackCmd(),
 	)
 
 	return cmd

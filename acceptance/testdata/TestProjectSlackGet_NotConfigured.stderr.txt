@@ -1,0 +1,4 @@
+error: Project "gh/myorg/alpha" has no Slack channel configured.
+
+Suggestions:
+  • Run: circleci project slack set --channel <name or ID> --project gh/myorg/alpha

@@ -1,0 +1,37 @@
+Set, enable or disable a project's Slack channel
+
+## Usage
+
+`circleci project slack set (--channel <name|ID> | --enable | --disable) [flags]`
+
+## Flags
+
+| Flag               | Description                                                                       |
+| ------------------ | --------------------------------------------------------------------------------- |
+| `--channel string` | Slack channel name (e.g. #ci-alerts) or ID to send notifications to               |
+| `--disable`        | pause Slack notifications, keeping the configured channel                         |
+| `--enable`         | resume Slack notifications for the configured channel                             |
+| `--jq string`      | Process values from the response using jq syntax (see `circleci help formatting`) |
+| `--json`           | Output as JSON                                                                    |
+| `--project string` | project slug (e.g. gh/org/repo); defaults to git remote                           |
+
+Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `circleci --help`.
+
+## Examples
+
+- Send the current project's notifications to #ci-alerts: 
+  `circleci project slack set --channel '#ci-alerts'`
+- Use a channel ID (required for private channels): 
+  `circleci project slack set --channel C0123ABCD --project gh/myorg/myrepo`
+- Pause Slack notifications, keeping the channel: 
+  `circleci project slack set --disable`
+- Resume them and print the result as JSON: 
+  `circleci project slack set --enable --json`
+
+## Details
+
+Setting or re-enabling a channel posts a welcome message to it, which is how
+CircleCI checks it can post there. Disabling keeps the channel configured.
+
+JSON fields: channel_id, channel_name, enabled, disable_reason
+

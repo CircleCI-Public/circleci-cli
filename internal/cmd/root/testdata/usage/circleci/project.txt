@@ -10,4 +10,5 @@ Available commands:
   list
   open
   setting
+  slack
   trigger
