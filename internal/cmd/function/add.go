@@ -229,8 +229,8 @@ func resolveAlias(path, alias string, explicit bool) (string, string, error) {
 // published version it names.
 func resolveReference(ctx context.Context, client *apiclient.Client, name, version string, spin bool) (function.Reference, apiclient.FunctionVersion, error) {
 	sp := iostream.Spinner(ctx, spin, fmt.Sprintf("Resolving %s", name))
-	// A pseudo-version named by the caller is found, though the API leaves them out by default.
-	fn, err := client.GetFunctionByName(ctx, name, function.IsPseudoVersion(version))
+	// A build named by the caller is found, though the API leaves them out by default.
+	fn, err := client.GetFunctionByName(ctx, name, function.IsBuild(version))
 	sp.Stop()
 	if err != nil {
 		return function.Reference{}, apiclient.FunctionVersion{}, apiErr(err, name)

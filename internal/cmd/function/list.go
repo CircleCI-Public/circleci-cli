@@ -64,8 +64,8 @@ func newListCmd() *cobra.Command {
 		Long: heredoc.Doc(`
 			List every published CircleCI function and its versions.
 
-			Pseudo-versions, untagged builds such as v0.5.2-0.20261007152818-72ffa3f7a023,
-			are left out unless --include-pseudo is set.
+			Builds, such as pseudo-versions (v0.5.2-0.20261007152818-72ffa3f7a023) and
+			commit-suffixed versions (v0.5.4-2ad832a), are left out unless --include-pseudo is set.
 
 			JSON fields: id, name, description, latest_version, versions.
 			With --pinned: alias, function, version.
@@ -74,7 +74,7 @@ func newListCmd() *cobra.Command {
 			# List published functions
 			$ circleci function list
 
-			# Include pseudo-versions in each function's versions
+			# Include builds in each function's versions
 			$ circleci function list --include-pseudo --json --jq '.[].versions'
 
 			# List what this repository declares
@@ -98,7 +98,7 @@ func newListCmd() *cobra.Command {
 	}
 
 	cmd.Flags().BoolVar(&pinned, "pinned", false, "list the functions declared in the local config")
-	cmd.Flags().BoolVar(&includePseudo, "include-pseudo", false, "include pseudo-versions (untagged builds) in each function's versions")
+	cmd.Flags().BoolVar(&includePseudo, "include-pseudo", false, "include builds (pseudo-versions and commit-suffixed versions) in each function's versions")
 	cmdutil.AddPipelineConfigFlag(cmd, &configFile)
 	cmdutil.AddJSONFlag(cmd, &jsonOut)
 	cmdutil.AddJQFlag(cmd)
