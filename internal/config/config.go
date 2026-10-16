@@ -217,44 +217,51 @@ func SetLogin(ctx context.Context, path, host, token string, userID uuid.UUID, s
 	})
 }
 
-func SetLogout(ctx context.Context, secureStorage bool) (SaveResult, error) {
-	return saveToIncludingToken(ctx, "", secureStorage, func(cfg *Config) error {
+// SetLogout clears the stored token and user ID from the file at path, or
+// from the default XDG location when path is empty.
+func SetLogout(ctx context.Context, path string, secureStorage bool) (SaveResult, error) {
+	return saveToIncludingToken(ctx, path, secureStorage, func(cfg *Config) error {
 		cfg.state.Token = ""
 		cfg.state.UserID = nil
 		return nil
 	})
 }
 
-func SetToken(ctx context.Context, token string, secureStorage bool) (SaveResult, error) {
-	return saveToIncludingToken(ctx, "", secureStorage, func(cfg *Config) error {
+// SetToken persists the token to the file at path, or to the default XDG
+// location when path is empty.
+func SetToken(ctx context.Context, path, token string, secureStorage bool) (SaveResult, error) {
+	return saveToIncludingToken(ctx, path, secureStorage, func(cfg *Config) error {
 		cfg.state.Token = token
 		return nil
 	})
 }
 
-// DeleteToken removes the stored API token from both the config file and the
-// system keyring (when secure storage is in use).
-func DeleteToken(ctx context.Context, secureStorage bool) (SaveResult, error) {
-	return SetToken(ctx, "", secureStorage)
+// DeleteToken removes the stored API token from the file at path (or the
+// default XDG location when path is empty) and from the system keyring (when
+// secure storage is in use).
+func DeleteToken(ctx context.Context, path string, secureStorage bool) (SaveResult, error) {
+	return SetToken(ctx, path, "", secureStorage)
 }
 
-// SetHost persists the CircleCI server host. The host is not a secret, so it is
+// SetHost persists the CircleCI server host to the file at path, or to the
+// default XDG location when path is empty. The host is not a secret, so it is
 // always written to the config file and never touches secure storage (passing
 // secureStorage here would make saveTo delete the keyring token).
-func SetHost(ctx context.Context, host string) error {
-	return saveTo(ctx, "", func(cfg *Config) error {
+func SetHost(ctx context.Context, path, host string) error {
+	return saveTo(ctx, path, func(cfg *Config) error {
 		cfg.state.Host = host
 		return nil
 	})
 }
 
-// SetTheme persists the color theme preference. The theme is not a secret, so
+// SetTheme persists the color theme preference to the file at path, or to the
+// default XDG location when path is empty. The theme is not a secret, so
 // it is always written to the config file and never touches secure storage
 // (passing secureStorage here would make saveTo delete the keyring token).
 // Validation of the value is the caller's responsibility (see
 // iostream.IsValidTheme).
-func SetTheme(ctx context.Context, theme string) error {
-	return saveTo(ctx, "", func(cfg *Config) error {
+func SetTheme(ctx context.Context, path, theme string) error {
+	return saveTo(ctx, path, func(cfg *Config) error {
 		cfg.state.Theme = theme
 		return nil
 	})

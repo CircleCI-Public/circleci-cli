@@ -85,7 +85,7 @@ type logoutOutput struct {
 }
 
 func runLogout(ctx context.Context, secureStorage bool, path string, jsonOut bool) error {
-	res, err := config.SetLogout(ctx, secureStorage)
+	res, err := config.SetLogout(ctx, path, secureStorage)
 	if err != nil {
 		return clierrors.New("setting.save_failed", "Failed to save settings", err.Error()).
 			WithExitCode(clierrors.ExitGeneralError)
