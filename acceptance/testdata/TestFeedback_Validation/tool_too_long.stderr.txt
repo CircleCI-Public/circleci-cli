@@ -1,0 +1,4 @@
+error: --tool must be at most 200 characters (got: 201).
+
+Suggestions:
+  • Pass only the command or tool name, e.g. --tool "run get"

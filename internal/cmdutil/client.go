@@ -270,18 +270,25 @@ func APIErr(err error, subject, notFoundCode, notFoundMsg string, notFoundSugges
 		return nf
 	}
 	if he, ok := errors.AsType[*httpcl.HTTPError](err); ok {
+		var cliErr *clierrors.CLIError
 		if apiErr, ok := apiclient.ParseError(err); ok {
 			title := apiErr.Title
 			if title == "" {
 				title = "CircleCI API error"
 			}
-			return clierrors.New("api.error", title,
+			cliErr = clierrors.New("api.error", title,
 				fmt.Sprintf("API returned %d: %s", he.StatusCode, apiErr.Message())).
 				WithExitCode(clierrors.ExitAPIError)
+		} else {
+			cliErr = clierrors.New("api.error", "CircleCI API error",
+				fmt.Sprintf("API returned %d: %s", he.StatusCode, string(he.Body))).
+				WithExitCode(clierrors.ExitAPIError)
 		}
-		return clierrors.New("api.error", "CircleCI API error",
-			fmt.Sprintf("API returned %d: %s", he.StatusCode, string(he.Body))).
-			WithExitCode(clierrors.ExitAPIError)
+		// A 5xx is a CircleCI-side fault worth reporting; a 4xx or network error is not.
+		if he.StatusCode >= http.StatusInternalServerError {
+			cliErr = cliErr.WithSuggestions(FeedbackSuggestion)
+		}
+		return cliErr
 	}
 	return clierrors.New("api.error", "CircleCI API error", err.Error()).
 		WithExitCode(clierrors.ExitAPIError)

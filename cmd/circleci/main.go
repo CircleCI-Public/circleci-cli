@@ -35,6 +35,7 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/clikit/jq"
 	"github.com/CircleCI-Public/circleci-cli/internal/apiclient"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmd/root"
+	"github.com/CircleCI-Public/circleci-cli/internal/cmdutil"
 	"github.com/CircleCI-Public/circleci-cli/internal/extension"
 	"github.com/CircleCI-Public/circleci-cli/internal/httpcl"
 )
@@ -105,6 +106,10 @@ func run() int {
 			err = clierrors.New("api.gone", "CLI out of date", detail).
 				WithSuggestions("Upgrade to the latest version: https://circleci.com/docs/local-cli/").
 				WithExitCode(clierrors.ExitAPIError)
+		}
+		// An unclassified RunE error renders with a pointer to `circleci feedback`.
+		if u, ok := errors.AsType[*cmdutil.UnhandledError](err); ok {
+			err = u.CLIError()
 		}
 		if cliErr, ok := errors.AsType[*clierrors.CLIError](err); ok {
 			if jsonFlagPresent() {

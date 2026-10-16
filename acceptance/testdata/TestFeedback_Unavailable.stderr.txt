@@ -1,0 +1,4 @@
+error: This CircleCI host doesn't accept feedback reports.
+
+Suggestions:
+  • Report the problem at https://github.com/CircleCI-Public/circleci-cli/issues

@@ -1,0 +1,4 @@
+error: The feedback message must be a single argument (got: 4).
+
+Suggestions:
+  • Quote the whole message: circleci feedback "<message>"
