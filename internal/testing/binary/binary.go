@@ -42,6 +42,7 @@ import (
 
 	"github.com/pete-woods/go-expect"
 	"gotest.tools/v3/assert"
+	"gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/skip"
 )
 
@@ -175,9 +176,22 @@ func RunCLI(t *testing.T, opts RunOpts) CLIResult {
 }
 
 // RunCLIInteractive executes the circleci binary attached to a PTY and returns
-// the console so callers can drive interactive input with Expect/Send. Call
-// cmd.Wait() after interaction is complete.
+// the console so callers can drive interactive input with Expect/Send. The
+// command must exit 0; that is checked when the test finishes.
 func RunCLIInteractive(t testing.TB, opts RunOpts) *expect.Console {
+	t.Helper()
+	return runCLIInteractive(t, opts, 0)
+}
+
+// RunCLIInteractiveExitCode is RunCLIInteractive for a command expected to
+// fail: when the test finishes it checks that the command exited with
+// wantExitCode rather than 0.
+func RunCLIInteractiveExitCode(t testing.TB, opts RunOpts, wantExitCode int) *expect.Console {
+	t.Helper()
+	return runCLIInteractive(t, opts, wantExitCode)
+}
+
+func runCLIInteractive(t testing.TB, opts RunOpts, wantExitCode int) *expect.Console {
 	t.Helper()
 
 	// 100 columns is wide enough for the OAuth authorize URL, which is now short
@@ -226,7 +240,27 @@ func RunCLIInteractive(t testing.TB, opts RunOpts) *expect.Console {
 			return
 		}
 
-		assert.Check(t, expect.WaitProcess(ctx, cmd))
+		// On Windows WaitProcess returns nil for a non-zero exit too, leaving
+		// the code only in cmd.ProcessState.
+		var exitCode int
+		err := expect.WaitProcess(ctx, cmd)
+		// On a timeout WaitProcess kills the command, and on Windows returns
+		// nil without setting ProcessState, which would read as exit 0. The
+		// cancel registered above runs after this cleanup, so ctx is done here
+		// only if the timeout fired.
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			assert.Check(t, ctxErr, "command did not exit before the timeout")
+			return
+		}
+		if exitErr, ok := errors.AsType[*exec.ExitError](err); ok {
+			exitCode = exitErr.ExitCode()
+		} else if err != nil {
+			assert.Check(t, err)
+			return
+		} else if cmd.ProcessState != nil {
+			exitCode = cmd.ProcessState.ExitCode()
+		}
+		assert.Check(t, cmp.Equal(exitCode, wantExitCode))
 	})
 
 	return c
