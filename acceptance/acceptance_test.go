@@ -34,6 +34,7 @@ import (
 	"testing"
 	"text/template"
 
+	"gopkg.in/yaml.v3"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/golden"
 
@@ -143,4 +144,22 @@ func goldenTemplate(t *testing.T, actual, templateFile string, data any) {
 	assert.NilError(t, err)
 
 	assert.Check(t, golden.String(actual, goldenFile))
+}
+
+// writeConfigFile writes a CLI config file at path, creating its directory.
+func writeConfigFile(t *testing.T, path, body string) {
+	t.Helper()
+	assert.NilError(t, os.MkdirAll(filepath.Dir(path), 0o700))
+	assert.NilError(t, os.WriteFile(path, []byte(body), 0o600))
+}
+
+// readConfigFile decodes the raw YAML rather than using config.Load, so a
+// CIRCLE_TOKEN in the test process can't mask a token that was never written.
+func readConfigFile(t *testing.T, path string) map[string]any {
+	t.Helper()
+	data, err := os.ReadFile(path) //#nosec:G304 // test-owned temp path
+	assert.NilError(t, err)
+	var out map[string]any
+	assert.NilError(t, yaml.Unmarshal(data, &out))
+	return out
 }

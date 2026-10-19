@@ -1,0 +1,2 @@
+✓ Saved host to probe.yml
+✓ Saved token to probe.yml

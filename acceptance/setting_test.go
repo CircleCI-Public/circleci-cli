@@ -546,3 +546,63 @@ func waitForInvocations(t *testing.T, fs *fakesegment.Service, want int) {
 		return poll.Success()
 	})
 }
+
+// TestSetting_ConfigFlag checks that every setting write lands in the -c file
+// (issue #1901). The relative -c path keeps the reported path stable for the goldens.
+func TestSetting_ConfigFlag(t *testing.T) {
+	env := testenv.New(t)
+	dir := t.TempDir()
+	probe := filepath.Join(dir, "probe.yml")
+	defaultPath := filepath.Join(env.ConfigDir(), "circleci", "config.yml")
+
+	run := func(t *testing.T, args ...string) binary.CLIResult {
+		t.Helper()
+		result := binary.RunCLI(t, binary.RunOpts{
+			Binary:  binaryPath,
+			Args:    append([]string{"-c", "probe.yml"}, args...),
+			Env:     env.Environ(),
+			WorkDir: dir,
+		})
+		assert.Check(t, cmp.Equal(result.ExitCode, 0))
+		assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+		assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+		return result
+	}
+
+	assert.Assert(t, t.Run("seed default", func(t *testing.T) {
+		writeConfigFile(t, defaultPath, "token: default-token\n")
+	}))
+
+	for _, tc := range []struct {
+		key, value string
+		field      string
+		want       any
+	}{
+		{key: "token", value: "probe-token", field: "token", want: "probe-token"},
+		{key: "host", value: "https://example.invalid", field: "host", want: "https://example.invalid"},
+		{key: "theme", value: "dracula", field: "theme", want: "dracula"},
+		{key: "telemetry", value: "off", field: "telemetry", want: false},
+		{key: "update-check", value: "off", field: "update_check", want: false},
+	} {
+		assert.Assert(t, t.Run("set "+tc.key, func(t *testing.T) {
+			run(t, "setting", "set", tc.key, tc.value)
+			assert.Check(t, cmp.DeepEqual(readConfigFile(t, probe)[tc.field], tc.want))
+		}))
+	}
+
+	t.Run("list", func(t *testing.T) {
+		run(t, "setting", "list")
+	})
+
+	assert.Assert(t, t.Run("unset token", func(t *testing.T) {
+		run(t, "setting", "unset", "token")
+		_, ok := readConfigFile(t, probe)["token"]
+		assert.Check(t, !ok, "token should be removed from the -c file")
+	}))
+
+	t.Run("default untouched", func(t *testing.T) {
+		assert.Check(t, cmp.DeepEqual(readConfigFile(t, defaultPath), map[string]any{
+			"token": "default-token",
+		}))
+	})
+}
