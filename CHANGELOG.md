@@ -6,6 +6,16 @@ is added by its release PR (see [RELEASE.md](RELEASE.md)) and becomes its GitHub
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.8.0] - 2026-10-20
+
+### What's Changed
+* Show the arguments of a function's default command by @stiyyagura0901 in https://github.com/CircleCI-Public/circleci-cli/pull/1924
+* Add run approve to approve an approval job on hold by @gcirclest in https://github.com/CircleCI-Public/circleci-cli/pull/1930
+* Bump Go to 1.27.3 by @meeech in https://github.com/CircleCI-Public/circleci-cli/pull/1932
+
+
+**Full Changelog**: https://github.com/CircleCI-Public/circleci-cli/compare/v1.7.0...v1.8.0
+
 ## [1.7.0] - 2026-10-16
 
 ### What's Changed
