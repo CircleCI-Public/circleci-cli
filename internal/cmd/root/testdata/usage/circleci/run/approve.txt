@@ -1,0 +1,10 @@
+Usage:  circleci run approve <run-number-or-id> [flags]
+
+Flags:
+  -f, --force            skip confirmation prompt
+  -h, --help             help for approve
+      --job string       name or UUID of the approval job to approve
+      --jq string        Process values from the response using jq syntax
+      --json             Output as JSON
+      --project string   Project slug (e.g. gh/org/repo); used when approving by number
+  

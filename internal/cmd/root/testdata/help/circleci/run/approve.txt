@@ -1,0 +1,39 @@
+Approve an approval job that is on hold
+
+## Usage
+
+`circleci run approve <run-number-or-id> [flags]`
+
+## Arguments
+
+`<run-number-or-id>` is a run UUID, or a run number from `circleci run list`
+looked up in the git remote's project (or `--project`).
+
+## Flags
+
+| Flag               | Description                                                                       |
+| ------------------ | --------------------------------------------------------------------------------- |
+| `-f, --force`      | skip confirmation prompt                                                          |
+| `--job string`     | name or UUID of the approval job to approve                                       |
+| `--jq string`      | Process values from the response using jq syntax (see `circleci help formatting`) |
+| `--json`           | Output as JSON                                                                    |
+| `--project string` | Project slug (e.g. gh/org/repo); used when approving by number                    |
+
+Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `circleci --help`.
+
+## Examples
+
+- Approve the approval job on hold in run 75 (with confirmation): 
+  `circleci run approve 75`
+- Approve a specific approval job by name, without confirmation: 
+  `circleci run approve 75 --job hold-deploy --force`
+- Approve the hold on the latest run on main, by run UUID: 
+  `circleci run list --branch main --json --jq '.[0].id' | xargs circleci run approve --force`
+
+## Details
+
+Approve an approval job on hold, so the jobs that require it start. With
+several on hold, name one with --job or pick it from a list in a terminal.
+
+JSON fields: run_id, workflow_id, workflow_name, job_id, job_name
+

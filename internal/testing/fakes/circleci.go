@@ -81,6 +81,7 @@ type CircleCI struct {
 	rerunNewIDs             map[string]string         // workflow id → id of the workflow its rerun creates
 	rerunFromFailed         map[string]bool           // workflow id → is_from_failed as the request actually set it
 	cancelResponses         map[string]int            // workflow id → HTTP status to return
+	approveResponses        map[string]int            // "workflowID/jobID" → HTTP status to return
 	pipelineCancelResponses map[string]int            // pipeline id → HTTP status to return
 
 	// Job (v3) state.
@@ -286,6 +287,7 @@ func NewCircleCI(t *testing.T, tokens ...string) *CircleCI {
 		rerunNewIDs:                       map[string]string{},
 		rerunFromFailed:                   map[string]bool{},
 		cancelResponses:                   map[string]int{},
+		approveResponses:                  map[string]int{},
 		pipelineCancelResponses:           map[string]int{},
 		jobsV3:                            map[string]JobV3{},
 		workflowJobsV3:                    map[string][]JobV3{},
@@ -375,6 +377,7 @@ func NewCircleCI(t *testing.T, tokens ...string) *CircleCI {
 	r.Post("/api/v2/pipeline/{id}/cancel", f.handleCancelPipeline)
 	r.Post("/api/v3/workflows/{id}/rerun", f.handleRerunWorkflow)
 	r.Post("/api/v3/workflows/{id}/cancel", f.handleCancelWorkflow)
+	r.Post("/api/v2/workflow/{id}/approve/{approvalRequestID}", f.handleApproveJob)
 	r.Get("/api/v2/project/{vcs}/{org}/{repo}/pipeline", f.handleListProjectPipelines)
 	r.Get("/api/v2/project/{vcs}/{org}/{repo}/pipeline/{number}", f.handleGetPipelineByNumber)
 	r.Get("/api/v2/project/{vcs}/{org}/{repo}/{jobNumber}/artifacts", f.handleGetJobArtifacts)
@@ -646,6 +649,16 @@ func (f *CircleCI) SetCancelResponse(workflowID string, status int) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.cancelResponses[workflowID] = status
+}
+
+// SetApproveResponse sets the HTTP status code returned for
+// POST /api/v2/workflow/<workflowID>/approve/<jobID>. Use http.StatusAccepted
+// (202) for success; an unset pair answers 404, as the real API does for an
+// approval request it doesn't know.
+func (f *CircleCI) SetApproveResponse(workflowID, jobID string, status int) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.approveResponses[workflowID+"/"+jobID] = status
 }
 
 // SetDLCPurgeStatus sets the HTTP status returned for DELETE /private/output/project/{id}/dlc.
@@ -1776,6 +1789,21 @@ func (f *CircleCI) handleCancelWorkflow(w http.ResponseWriter, r *http.Request) 
 	}
 	render.Status(r, status)
 	render.JSON(w, r, map[string]any{"data": map[string]any{"id": id}})
+}
+
+func (f *CircleCI) handleApproveJob(w http.ResponseWriter, r *http.Request) {
+	key := chi.URLParam(r, "id") + "/" + chi.URLParam(r, "approvalRequestID")
+	f.mu.RLock()
+	status, ok := f.approveResponses[key]
+	f.mu.RUnlock()
+
+	if !ok {
+		render.Status(r, http.StatusNotFound)
+		render.JSON(w, r, map[string]any{"message": "Not found."})
+		return
+	}
+	render.Status(r, status)
+	render.JSON(w, r, map[string]any{"message": "Accepted."})
 }
 
 // --- Runner helpers ---

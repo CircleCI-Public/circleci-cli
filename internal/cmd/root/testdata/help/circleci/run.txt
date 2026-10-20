@@ -1,4 +1,4 @@
-Trigger, watch and cancel pipeline runs
+Trigger, watch, approve and cancel pipeline runs
 
 ## Usage
 
@@ -14,6 +14,7 @@ Trigger, watch and cancel pipeline runs
 
 | Command   | Description                                         |
 | --------- | --------------------------------------------------- |
+| `approve` | Approve an approval job that is on hold             |
 | `cancel`  | Cancel a run                                        |
 | `get`     | Get a run's status                                  |
 | `open`    | Open the current project's runs page in the browser |
