@@ -6,6 +6,16 @@ is added by its release PR (see [RELEASE.md](RELEASE.md)) and becomes its GitHub
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.9.0] - 2026-10-20
+
+### What's Changed
+* Bump github.com/klauspost/compress from 1.18.6 to 1.18.7 in /tools by @dependabot[bot] in https://github.com/CircleCI-Public/circleci-cli/pull/1933
+* Bump github.com/shirou/gopsutil/v4 in / by @dependabot[bot] in https://github.com/CircleCI-Public/circleci-cli/pull/1915
+* Bump golangci-lint to v2.15.0 by @pete-woods in https://github.com/CircleCI-Public/circleci-cli/pull/1935
+
+
+**Full Changelog**: https://github.com/CircleCI-Public/circleci-cli/compare/v1.8.0...v1.9.0
+
 ## [1.8.0] - 2026-10-20
 
 ### What's Changed
