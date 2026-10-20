@@ -168,7 +168,22 @@ func (c *Client) CancelWorkflow(ctx context.Context, id uuid.UUID) error {
 	return err
 }
 
+// ApproveJob approves an approval job that is on hold, letting the jobs that
+// require it start. The V3 API has no approve endpoint, so this uses
+// POST /api/v2/workflow/{id}/approve/{approval_request_id}. An approval job's
+// approval_request_id is its job id, so the V3 job id is passed as it is.
+func (c *Client) ApproveJob(ctx context.Context, workflowID, jobID uuid.UUID) error {
+	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodPost, "/api/v2/workflow/%s/approve/%s",
+		httpcl.RouteParams(workflowID, jobID),
+	))
+	return err
+}
+
 // --- V3 workflow jobs ---
+
+// JobTypeApproval is the job type of an approval job: a manual gate in a
+// workflow that holds the jobs requiring it until someone approves it.
+const JobTypeApproval = "approval"
 
 type workflowJobAttributesWire struct {
 	Name           string     `json:"name"`

@@ -26,17 +26,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strconv"
 
 	"github.com/MakeNowJust/heredoc"
-	"github.com/google/uuid"
 	"github.com/spf13/cobra"
 
 	clierrors "github.com/CircleCI-Public/circleci-cli/clikit/errors"
 	"github.com/CircleCI-Public/circleci-cli/clikit/iostream"
 	"github.com/CircleCI-Public/circleci-cli/internal/apiclient"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmdutil"
-	"github.com/CircleCI-Public/circleci-cli/internal/gitremote"
 	runpkg "github.com/CircleCI-Public/circleci-cli/internal/run"
 )
 
@@ -94,30 +91,9 @@ func newCancelCmd() *cobra.Command {
 }
 
 func runCancel(ctx context.Context, client *apiclient.Client, arg, projectSlug string, force bool) error {
-	var runID uuid.UUID
-	displayName := arg
-
-	if looksLikeNumber(arg) {
-		number, _ := strconv.ParseInt(arg, 10, 64)
-		if projectSlug == "" {
-			info, err := gitremote.Detect()
-			if err != nil {
-				return cmdutil.GitDetectErr(err, "Or specify the project: circleci run cancel "+arg+" --project gh/org/repo")
-			}
-			projectSlug = info.Slug
-		}
-		r, err := client.GetPipelineByNumber(ctx, projectSlug, number)
-		if err != nil {
-			return apiErr(err, fmt.Sprintf("%s #%s", projectSlug, arg))
-		}
-		runID = r.ID
-		displayName = fmt.Sprintf("#%d", r.Number)
-	} else {
-		id, err := uuid.Parse(arg)
-		if err != nil {
-			return apiErr(err, arg)
-		}
-		runID = id
+	runID, displayName, err := resolveRunRef(ctx, client, "cancel", arg, projectSlug)
+	if err != nil {
+		return err
 	}
 
 	if err := cmdutil.ConfirmOrForce(ctx, iostream.Get(ctx), force,
