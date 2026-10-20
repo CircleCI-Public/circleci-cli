@@ -677,13 +677,45 @@ JSON fields: id, state, number, created_at, triggered — or triggered, message 
 
 ### `circleci run <command>`
 
-Trigger, watch and cancel pipeline runs
+Trigger, watch, approve and cancel pipeline runs
 
 Work with CircleCI runs.
 
 A run is one execution of a pipeline, created each time a trigger
 fires. It carries the VCS context for that firing and groups the
 workflows it produced; each workflow in turn contains jobs.
+
+#### `circleci run approve <run-number-or-id> [flags]`
+
+Approve an approval job that is on hold
+
+Approve an approval job on hold, so the jobs that require it start. With
+several on hold, name one with --job or pick it from a list in a terminal.
+
+JSON fields: run_id, workflow_id, workflow_name, job_id, job_name
+
+| Flag               | Description                                                                       |
+| ------------------ | --------------------------------------------------------------------------------- |
+| `-f, --force`      | skip confirmation prompt                                                          |
+| `--job string`     | name or UUID of the approval job to approve                                       |
+| `--jq string`      | Process values from the response using jq syntax (see `circleci help formatting`) |
+| `--json`           | Output as JSON                                                                    |
+| `--project string` | Project slug (e.g. gh/org/repo); used when approving by number                    |
+
+
+**Arguments:**
+
+`<run-number-or-id>` is a run UUID, or a run number from `circleci run list`
+looked up in the git remote's project (or `--project`).
+
+**Examples:**
+
+- Approve the approval job on hold in run 75 (with confirmation): 
+  `circleci run approve 75`
+- Approve a specific approval job by name, without confirmation: 
+  `circleci run approve 75 --job hold-deploy --force`
+- Approve the hold on the latest run on main, by run UUID: 
+  `circleci run list --branch main --json --jq '.[0].id' | xargs circleci run approve --force`
 
 #### `circleci run cancel <run-number-or-id> [flags]`
 
@@ -5146,10 +5178,11 @@ Each feature is independently enabled, configure them per suite in .circleci/tes
 
 List selected test atoms on stdout
 
-| Flag                                           | Description                                                         |
-| ---------------------------------------------- | ------------------------------------------------------------------- |
-| `--analyze-tests all\|impacted\|none\|default` | Which tests to analyze for generating impact data (default default) |
-| `--run-tests all\|impacted\|none\|default`     | Which tests to select and run (default default)                     |
+| Flag                                           | Description                                                          |
+| ---------------------------------------------- | -------------------------------------------------------------------- |
+| `--analyze-tests all\|impacted\|none\|default` | Which tests to analyze for generating impact data (default default)  |
+| `--run-tests all\|impacted\|none\|default`     | Which tests to select and run (default default)                      |
+| `-t, --test-atom-pattern REGEXP`               | Only consider discovered test atoms matching this regular expression |
 
 
 **Arguments:**
@@ -5160,10 +5193,11 @@ List selected test atoms on stdout
 
 Run a testsuite defined in .circleci/test-suites.yml
 
-| Flag                                           | Description                                                         |
-| ---------------------------------------------- | ------------------------------------------------------------------- |
-| `--analyze-tests all\|impacted\|none\|default` | Which tests to analyze for generating impact data (default default) |
-| `--run-tests all\|impacted\|none\|default`     | Which tests to select and run (default default)                     |
+| Flag                                           | Description                                                          |
+| ---------------------------------------------- | -------------------------------------------------------------------- |
+| `--analyze-tests all\|impacted\|none\|default` | Which tests to analyze for generating impact data (default default)  |
+| `--run-tests all\|impacted\|none\|default`     | Which tests to select and run (default default)                      |
+| `-t, --test-atom-pattern REGEXP`               | Only consider discovered test atoms matching this regular expression |
 
 
 **Arguments:**
