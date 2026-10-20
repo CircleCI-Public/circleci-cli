@@ -1,0 +1,4 @@
+error: The CircleCI Slack app is not installed for this project's organization.
+
+Suggestions:
+  • Install it from the organization settings: https://app.circleci.com/settings/organization

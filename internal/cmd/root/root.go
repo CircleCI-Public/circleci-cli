@@ -54,6 +54,7 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/internal/cmd/migrate"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmd/my"
 	cmdnamespace "github.com/CircleCI-Public/circleci-cli/internal/cmd/namespace"
+	"github.com/CircleCI-Public/circleci-cli/internal/cmd/notification"
 	cmdonboard "github.com/CircleCI-Public/circleci-cli/internal/cmd/onboard"
 	cmdorb "github.com/CircleCI-Public/circleci-cli/internal/cmd/orb"
 	cmdorg "github.com/CircleCI-Public/circleci-cli/internal/cmd/org"
@@ -250,6 +251,7 @@ func NewRootCmd(version string) *cobra.Command {
 	cmd.AddCommand(cmdnamespace.NewNamespaceCmd())
 	cmd.AddCommand(cmdonboard.NewOnboardCmd())
 	cmd.AddCommand(cmdorb.NewOrbCmd())
+	cmd.AddCommand(notification.NewNotificationCmd())
 	cmd.AddCommand(cmdorg.NewOrgCmd())
 	cmd.AddCommand(cmdpolicy.NewPolicyCmd())
 	cmd.AddCommand(cmdrun.NewRunCmd())

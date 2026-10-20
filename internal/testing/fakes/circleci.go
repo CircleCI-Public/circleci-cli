@@ -134,6 +134,13 @@ type CircleCI struct {
 	createProjectStatus int                    // HTTP status for that POST (0 → 201 Created)
 	createOrgResp       any                    // preset response for POST /organization
 
+	slackWorkspaces    map[string]SlackWorkspace
+	channelConfigs     map[string]ChannelConfigV3
+	channelConfigSeq   int
+	notificationPrefs  map[string][]NotificationPreferenceV3
+	slackWelcomePosts  []string
+	notificationDenied map[string]bool
+
 	// Context state.
 	contexts                   map[string]Context              // context id → context
 	contextsByOrg              map[string][]Context            // org UUID → ordered contexts
@@ -356,6 +363,10 @@ func NewCircleCI(t *testing.T, tokens ...string) *CircleCI {
 		orgs:                              map[string]Org{},
 		orgIDsBySlug:                      map[string]string{},
 		orgSettings:                       map[string]any{},
+		slackWorkspaces:                   map[string]SlackWorkspace{},
+		channelConfigs:                    map[string]ChannelConfigV3{},
+		notificationPrefs:                 map[string][]NotificationPreferenceV3{},
+		notificationDenied:                map[string]bool{},
 	}
 
 	r := newRouter()
@@ -467,6 +478,12 @@ func NewCircleCI(t *testing.T, tokens ...string) *CircleCI {
 	r.Get("/api/v3/projects/{id}/settings", f.handleGetProjectSettingsV3)
 	r.Post("/api/v3/projects/{id}/update-settings", f.handleUpdateProjectSettingsV3)
 	r.Post("/api/v3/projects/{id}/rollback", f.handleRollbackProject)
+	r.Get("/api/v3/notification/channel-configs", f.handleListChannelConfigsV3)
+	r.Post("/api/v3/notification/channel-configs", f.handleCreateChannelConfigV3)
+	r.Post("/api/v3/notification/channel-configs/{id}/update", f.handleUpdateChannelConfigV3)
+	r.Delete("/api/v3/notification/channel-configs/{id}", f.handleDeleteChannelConfigV3)
+	r.Get("/api/v3/notification/preferences", f.handleListNotificationPreferencesV3)
+	r.Get("/api/v3/notification/integrations", f.handleListNotificationIntegrationsV3)
 	// Run (v3) routes.
 	r.Get("/api/v3/runs", f.handleListMyRunsV3)
 	r.Get("/api/v3/runs/{id}", f.handleGetRunV3)

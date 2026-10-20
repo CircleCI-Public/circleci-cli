@@ -1,0 +1,6 @@
+Usage:  circleci notification slack <command> [flags]
+
+Available commands:
+  delete
+  get
+  set

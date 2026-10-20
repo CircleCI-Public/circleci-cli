@@ -19,6 +19,7 @@ Available commands:
   migrate
   my
   namespace
+  notification
   onboard
   orb
   org

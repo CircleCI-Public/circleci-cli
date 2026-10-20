@@ -1,0 +1,2 @@
+✓ Connected gh/myorg/alpha to Slack channel G0000SECRET
+  A welcome message was posted to the channel.

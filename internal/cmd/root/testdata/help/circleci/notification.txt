@@ -1,0 +1,21 @@
+Configure where CircleCI sends notifications
+
+## Usage
+
+`circleci notification <command> [flags]`
+
+## Subcommands
+
+| Command | Description                                       |
+| ------- | ------------------------------------------------- |
+| `slack` | Send a project's notifications to a Slack channel |
+
+## Flags
+
+Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `circleci --help`.
+
+## Details
+
+Configure the channels CircleCI sends notifications to.
+These commands are not available on CircleCI Server.
+
