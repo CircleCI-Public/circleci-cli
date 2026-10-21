@@ -1,1 +1,4 @@
-unsupported shell "/bin/fish" — set SHELL to bash or zsh
+error: unsupported shell "/bin/fish" — set SHELL to bash or zsh
+
+Suggestions:
+  • If this looks like a CircleCI problem, report it: circleci feedback "<what you ran and what went wrong>"
