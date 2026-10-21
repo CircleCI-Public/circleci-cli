@@ -6,3 +6,7 @@
 
 deploy failed
 
+## next steps
+
+- If "build" failed transiently (network timeout, lost executor), rerun its failed jobs: circleci workflow rerun b0000000-0000-4000-8000-0000000000f1 --from-failed
+- Push the fix and watch it: git push && circleci run watch --sha "$(git rev-parse HEAD)"
