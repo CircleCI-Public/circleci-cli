@@ -2399,6 +2399,103 @@ JSON fields: id, name
 - Confirm the new ID after rename: 
   `circleci namespace rename oldname newname --json --jq '.id'`
 
+### `circleci notification <command>`
+
+Configure where CircleCI sends notifications
+
+Configure the channels CircleCI sends notifications to.
+These commands are not available on CircleCI Server.
+
+#### `circleci notification slack <command>`
+
+Send a project's notifications to a Slack channel
+
+The CircleCI Slack app must already be installed for the organization.
+
+##### `circleci notification slack delete [flags]`
+
+Remove a project's Slack channel
+
+Remove the Slack channel from a project. Its Slack notifications stop until a
+channel is set again with 'circleci notification slack set --channel'.
+
+| Flag               | Description                                             |
+| ------------------ | ------------------------------------------------------- |
+| `-n, --dry-run`    | show what would be removed without removing it          |
+| `-f, --force`      | skip confirmation prompt                                |
+| `--project string` | project slug (e.g. gh/org/repo); defaults to git remote |
+
+
+**Aliases:**
+
+
+`circleci notification slack rm`
+
+**Examples:**
+
+- Remove the current project's Slack channel (with confirmation): 
+  `circleci notification slack delete`
+- Preview what would be removed: 
+  `circleci notification slack delete --dry-run`
+- Remove it from a specific project without confirmation: 
+  `circleci notification slack delete --project gh/myorg/myrepo --force`
+
+##### `circleci notification slack get [flags]`
+
+Show a project's Slack channel and Slack preferences
+
+Show the Slack channel a project's notifications go to, whether they are on,
+and which notifications are sent to Slack.
+
+JSON fields: channel_id, channel_name, enabled, disable_reason,
+preferences[] (group, name, enabled)
+
+| Flag               | Description                                                                       |
+| ------------------ | --------------------------------------------------------------------------------- |
+| `--jq string`      | Process values from the response using jq syntax (see `circleci help formatting`) |
+| `--json`           | Output as JSON                                                                    |
+| `--project string` | project slug (e.g. gh/org/repo); defaults to git remote                           |
+
+
+**Examples:**
+
+- Show the current project's Slack channel: 
+  `circleci notification slack get`
+- Show it for a specific project: 
+  `circleci notification slack get --project gh/myorg/myrepo`
+- Print only the channel ID: 
+  `circleci notification slack get --json --jq .channel_id`
+
+##### `circleci notification slack set (--channel <name|ID> | --enable | --disable) [flags]`
+
+Set, enable or disable a project's Slack channel
+
+Setting or re-enabling a channel posts a welcome message to it, which is how
+CircleCI checks it can post there. Disabling keeps the channel configured.
+
+JSON fields: channel_id, channel_name, enabled, disable_reason
+
+| Flag               | Description                                                                       |
+| ------------------ | --------------------------------------------------------------------------------- |
+| `--channel string` | Slack channel name (e.g. #ci-alerts) or ID to send notifications to               |
+| `--disable`        | pause Slack notifications, keeping the configured channel                         |
+| `--enable`         | resume Slack notifications for the configured channel                             |
+| `--jq string`      | Process values from the response using jq syntax (see `circleci help formatting`) |
+| `--json`           | Output as JSON                                                                    |
+| `--project string` | project slug (e.g. gh/org/repo); defaults to git remote                           |
+
+
+**Examples:**
+
+- Send the current project's notifications to #ci-alerts: 
+  `circleci notification slack set --channel '#ci-alerts'`
+- Use a channel ID (required for private channels): 
+  `circleci notification slack set --channel C0123ABCD --project gh/myorg/myrepo`
+- Pause Slack notifications, keeping the channel: 
+  `circleci notification slack set --disable`
+- Resume them and print the result as JSON: 
+  `circleci notification slack set --enable --json`
+
 ### `circleci orb <command>`
 
 Create, publish and inspect orbs (reusable config)
