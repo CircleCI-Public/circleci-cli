@@ -16,6 +16,7 @@ Trigger, watch, approve and cancel pipeline runs
 | --------- | --------------------------------------------------- |
 | `approve` | Approve an approval job that is on hold             |
 | `cancel`  | Cancel a run                                        |
+| `compare` | Compare two runs' running time and credits          |
 | `get`     | Get a run's status                                  |
 | `open`    | Open the current project's runs page in the browser |
 | `trigger` | Trigger a new run                                   |

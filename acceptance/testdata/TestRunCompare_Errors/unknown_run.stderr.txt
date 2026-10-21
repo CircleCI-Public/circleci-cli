@@ -1,0 +1,7 @@
+Fetching running time and credits for both runs...
+error: No run found for "33333333-0000-4000-8000-000000000003".
+API: {"message":"not found"}
+
+
+Suggestions:
+  • Check the run UUID or branch name and try again

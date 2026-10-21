@@ -59,6 +59,7 @@ func NewRunCmd() *cobra.Command {
 	cmdutil.AddGroup(cmd, "Targeted commands",
 		newApproveCmd(),
 		newCancelCmd(),
+		newCompareCmd(),
 		newOpenCmd(),
 		newGetCmd(),
 		newTriggerCmd(),
