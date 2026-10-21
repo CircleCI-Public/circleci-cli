@@ -1,0 +1,5 @@
+error: Slack could not find the channel, or the CircleCI app is not in it.
+
+Suggestions:
+  • Private channels must be given by ID, e.g. --channel C0123ABCD
+  • Run /invite @circleci in the channel, then try again

@@ -1,0 +1,22 @@
+Send a project's notifications to a Slack channel
+
+## Usage
+
+`circleci notification slack <command> [flags]`
+
+## Available Commands
+
+| Command  | Description                                          |
+| -------- | ---------------------------------------------------- |
+| `delete` | Remove a project's Slack channel                     |
+| `get`    | Show a project's Slack channel and Slack preferences |
+| `set`    | Set, enable or disable a project's Slack channel     |
+
+## Flags
+
+Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `circleci --help`.
+
+## Details
+
+The CircleCI Slack app must already be installed for the organization.
+

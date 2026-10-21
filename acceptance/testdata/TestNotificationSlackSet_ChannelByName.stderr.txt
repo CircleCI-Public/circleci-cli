@@ -1,0 +1,2 @@
+✓ Connected gh/myorg/alpha to Slack channel #ci-alerts (C0000ALERTS)
+  A welcome message was posted to the channel.

@@ -1,0 +1,4 @@
+Usage:  circleci notification <command> [flags]
+
+Available commands:
+  slack

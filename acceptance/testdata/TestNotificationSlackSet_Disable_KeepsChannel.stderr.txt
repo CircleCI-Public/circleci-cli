@@ -1,0 +1,1 @@
+✓ Disabled Slack notifications for gh/myorg/alpha; #ci-alerts (C0000ALERTS) stays configured
