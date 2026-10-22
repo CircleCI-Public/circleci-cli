@@ -286,12 +286,12 @@ Output passes through unchanged on a terminal and is rendered to plain text
 when redirected (ANSI stripped, progress redraws collapsed). --strip-ansi
 forces either behaviour.
 
-| Flag              | Description                                                                                    |
-| ----------------- | ---------------------------------------------------------------------------------------------- |
-| `--condensed`     | Fetch error-relevant lines only, filtered server-side (experimental)                           |
-| `--execution int` | Parallel execution index to read output from                                                   |
-| `--step-num int`  | Step number whose output to fetch (required)                                                   |
-| `--strip-ansi`    | Force (or with =false, disable) ANSI stripping; defaults to stripping only when not a terminal |
+| Flag              | Required | Description                                                                                    |
+| ----------------- | -------- | ---------------------------------------------------------------------------------------------- |
+| `--condensed`     |          | Fetch error-relevant lines only, filtered server-side (experimental)                           |
+| `--execution int` |          | Parallel execution index to read output from                                                   |
+| `--step-num int`  | Yes      | Step number whose output to fetch                                                              |
+| `--strip-ansi`    |          | Force (or with =false, disable) ANSI stripping; defaults to stripping only when not a terminal |
 
 
 **Arguments:**
@@ -414,22 +414,22 @@ repository to check out. Add a trigger next with `project trigger create`.
 
 JSON fields: id, name, description, created_at, config_source.provider, config_source.file_path, config_source.repo.external_id, config_source.repo.full_name, checkout_source.provider, checkout_source.repo.external_id, checkout_source.repo.full_name
 
-| Flag                               | Description                                                                       |
-| ---------------------------------- | --------------------------------------------------------------------------------- |
-| `--checkout-provider string`       | Checkout source provider (one of: github_app, github_server, origin)              |
-| `--checkout-repo-full-name string` | Checkout source repo owner/name (required for origin)                             |
-| `--checkout-repo-id string`        | Checkout source repo external ID                                                  |
-| `--config-file string`             | Config file path (e.g. .circleci/config.yml)                                      |
-| `--config-file-type string`        | Config file type, omit for standard CircleCI YAML (one of: github-actions)        |
-| `--config-provider string`         | Config source provider (one of: github_app, github_server, circleci, origin)      |
-| `--config-repo-full-name string`   | Config source repo owner/name (required for origin)                               |
-| `--config-repo-id string`          | Config source repo external ID (required for github_app, github_server, origin)   |
-| `--description string`             | Pipeline definition description                                                   |
-| `--jq string`                      | Process values from the response using jq syntax (see `circleci help formatting`) |
-| `--json`                           | Output as JSON                                                                    |
-| `--name string`                    | Pipeline definition name (required)                                               |
-| `--project string`                 | Project slug (e.g. gh/org/repo); defaults to git remote                           |
-| `--project-id string`              | Project UUID (overrides --project)                                                |
+| Flag                               | Required | Description                                                                       |
+| ---------------------------------- | -------- | --------------------------------------------------------------------------------- |
+| `--checkout-provider string`       |          | Checkout source provider (one of: github_app, github_server, origin)              |
+| `--checkout-repo-full-name string` |          | Checkout source repo owner/name (required for origin)                             |
+| `--checkout-repo-id string`        |          | Checkout source repo external ID                                                  |
+| `--config-file string`             |          | Config file path (e.g. .circleci/config.yml)                                      |
+| `--config-file-type string`        |          | Config file type, omit for standard CircleCI YAML (one of: github-actions)        |
+| `--config-provider string`         |          | Config source provider (one of: github_app, github_server, circleci, origin)      |
+| `--config-repo-full-name string`   |          | Config source repo owner/name (required for origin)                               |
+| `--config-repo-id string`          |          | Config source repo external ID (required for github_app, github_server, origin)   |
+| `--description string`             |          | Pipeline definition description                                                   |
+| `--jq string`                      |          | Process values from the response using jq syntax (see `circleci help formatting`) |
+| `--json`                           |          | Output as JSON                                                                    |
+| `--name string`                    | Yes      | Pipeline definition name                                                          |
+| `--project string`                 |          | Project slug (e.g. gh/org/repo); defaults to git remote                           |
+| `--project-id string`              |          | Project UUID (overrides --project)                                                |
 
 
 **Examples:**
@@ -1416,11 +1416,11 @@ Remove a restriction from a CircleCI context.
 This action is irreversible. Once removed, the context will be
 accessible to any project or group that was previously blocked.
 
-| Flag                      | Description                                                               |
-| ------------------------- | ------------------------------------------------------------------------- |
-| `-f, --force`             | Skip confirmation prompt                                                  |
-| `--org string`            | Organization slug (e.g. gh/myorg) or UUID; used when resolving name to ID |
-| `--restriction-id string` | UUID of the restriction to delete                                         |
+| Flag                      | Required | Description                                                               |
+| ------------------------- | -------- | ------------------------------------------------------------------------- |
+| `-f, --force`             |          | Skip confirmation prompt                                                  |
+| `--org string`            |          | Organization slug (e.g. gh/myorg) or UUID; used when resolving name to ID |
+| `--restriction-id string` | Yes      | UUID of the restriction to delete                                         |
 
 
 **Arguments:**
@@ -1794,20 +1794,20 @@ the version currently deployed; omit it to use the latest deployed one.
 
 JSON fields: id, rollback_type, project_id, component_id, environment_id
 
-| Flag                    | Description                                                                       |
-| ----------------------- | --------------------------------------------------------------------------------- |
-| `--checkout-ref string` | Git ref the rollback pipeline checks out                                          |
-| `--component string`    | Deploy component name or ID (required)                                            |
-| `--config-ref string`   | Git ref the rollback pipeline's config is read from                               |
-| `--environment string`  | Deploy environment name or ID (required)                                          |
-| `-f, --force`           | skip confirmation prompt                                                          |
-| `--from string`         | Version being replaced; defaults to the latest deployed                           |
-| `--jq string`           | Process values from the response using jq syntax (see `circleci help formatting`) |
-| `--json`                | Output as JSON                                                                    |
-| `--namespace string`    | Namespace scoping the component (default "default")                               |
-| `--param stringArray`   | Rollback pipeline parameter as key=value (repeatable)                             |
-| `--project string`      | Project slug (e.g. gh/org/repo); defaults to git remote                           |
-| `--reason string`       | Why the rollback was requested; recorded in the audit log                         |
+| Flag                    | Required | Description                                                                       |
+| ----------------------- | -------- | --------------------------------------------------------------------------------- |
+| `--checkout-ref string` |          | Git ref the rollback pipeline checks out                                          |
+| `--component string`    | Yes      | Deploy component name or ID                                                       |
+| `--config-ref string`   |          | Git ref the rollback pipeline's config is read from                               |
+| `--environment string`  | Yes      | Deploy environment name or ID                                                     |
+| `-f, --force`           |          | skip confirmation prompt                                                          |
+| `--from string`         |          | Version being replaced; defaults to the latest deployed                           |
+| `--jq string`           |          | Process values from the response using jq syntax (see `circleci help formatting`) |
+| `--json`                |          | Output as JSON                                                                    |
+| `--namespace string`    |          | Namespace scoping the component (default "default")                               |
+| `--param stringArray`   |          | Rollback pipeline parameter as key=value (repeatable)                             |
+| `--project string`      |          | Project slug (e.g. gh/org/repo); defaults to git remote                           |
+| `--reason string`       |          | Why the rollback was requested; recorded in the audit log                         |
 
 
 **Examples:**
@@ -2118,11 +2118,11 @@ namespace are world-readable.
 
 JSON fields: id, name
 
-| Flag           | Description                                                                       |
-| -------------- | --------------------------------------------------------------------------------- |
-| `--jq string`  | Process values from the response using jq syntax (see `circleci help formatting`) |
-| `--json`       | Output as JSON                                                                    |
-| `--org string` | Organization slug (e.g. gh/myorg) or UUID to claim the namespace for (required)   |
+| Flag           | Required | Description                                                                       |
+| -------------- | -------- | --------------------------------------------------------------------------------- |
+| `--jq string`  |          | Process values from the response using jq syntax (see `circleci help formatting`) |
+| `--json`       |          | Output as JSON                                                                    |
+| `--org string` | Yes      | Organization slug (e.g. gh/myorg) or UUID to claim the namespace for              |
 
 
 **Arguments:**
@@ -3016,16 +3016,16 @@ The decision status is one of PASS, SOFT_FAIL, HARD_FAIL or ERROR.
 
 JSON fields: status, enabled_rules, hard_failures, soft_failures, violations, metadata
 
-| Flag                      | Description                                                                       |
-| ------------------------- | --------------------------------------------------------------------------------- |
-| `--input string`          | Path to input file (e.g. .circleci/config.yml) (required)                         |
-| `--jq string`             | Process values from the response using jq syntax (see `circleci help formatting`) |
-| `--json`                  | Output as JSON                                                                    |
-| `--meta string`           | Decision metadata as a JSON string                                                |
-| `--metafile string`       | Path to decision metadata file (YAML or JSON)                                     |
-| `--org string`            | Organization slug (e.g. gh/myorg) or UUID (required)                              |
-| `--policy-context string` | Policy context (default "config")                                                 |
-| `--strict`                | Exit non-zero for HARD_FAIL or ERROR decisions                                    |
+| Flag                      | Required | Description                                                                       |
+| ------------------------- | -------- | --------------------------------------------------------------------------------- |
+| `--input string`          | Yes      | Path to input file (e.g. .circleci/config.yml)                                    |
+| `--jq string`             |          | Process values from the response using jq syntax (see `circleci help formatting`) |
+| `--json`                  |          | Output as JSON                                                                    |
+| `--meta string`           |          | Decision metadata as a JSON string                                                |
+| `--metafile string`       |          | Path to decision metadata file (YAML or JSON)                                     |
+| `--org string`            | Yes      | Organization slug (e.g. gh/myorg) or UUID                                         |
+| `--policy-context string` |          | Policy context (default "config")                                                 |
+| `--strict`                |          | Exit non-zero for HARD_FAIL or ERROR decisions                                    |
 
 
 **Examples:**
@@ -3048,12 +3048,12 @@ bundle without making any changes.
 
 JSON fields: created, deleted, updated (policy names)
 
-| Flag                      | Description                                                                       |
-| ------------------------- | --------------------------------------------------------------------------------- |
-| `--jq string`             | Process values from the response using jq syntax (see `circleci help formatting`) |
-| `--json`                  | Output as JSON                                                                    |
-| `--org string`            | Organization slug (e.g. gh/myorg) or UUID (required)                              |
-| `--policy-context string` | Policy context (default "config")                                                 |
+| Flag                      | Required | Description                                                                       |
+| ------------------------- | -------- | --------------------------------------------------------------------------------- |
+| `--jq string`             |          | Process values from the response using jq syntax (see `circleci help formatting`) |
+| `--json`                  |          | Output as JSON                                                                    |
+| `--org string`            | Yes      | Organization slug (e.g. gh/myorg) or UUID                                         |
+| `--policy-context string` |          | Policy context (default "config")                                                 |
 
 
 **Arguments:**
@@ -3085,18 +3085,18 @@ policies and its compiled form nested under "_compiled_".
 
 Output is whatever the query evaluates to, so it has no fixed schema.
 
-| Flag                           | Description                                                                                  |
-| ------------------------------ | -------------------------------------------------------------------------------------------- |
-| `--context string`             | Policy context (config compilation only runs when this is "config") (default "config")       |
-| `--input string`               | Path to input file (e.g. .circleci/config.yml) (required)                                    |
-| `--jq string`                  | Process values from the response using jq syntax (see `circleci help formatting`)            |
-| `--json`                       | Output as JSON                                                                               |
-| `--meta string`                | Decision metadata as a JSON string                                                           |
-| `--metafile string`            | Path to decision metadata file (YAML or JSON)                                                |
-| `--no-compile`                 | Evaluate the raw config without compiling it first                                           |
-| `--org string`                 | Organization slug (e.g. gh/myorg) or UUID for private orb resolution; defaults to git remote |
-| `--pipeline-parameters string` | Pipeline parameters as a YAML map or path to a YAML file                                     |
-| `--query string`               | The OPA query to evaluate (default "data")                                                   |
+| Flag                           | Required | Description                                                                                  |
+| ------------------------------ | -------- | -------------------------------------------------------------------------------------------- |
+| `--context string`             |          | Policy context (config compilation only runs when this is "config") (default "config")       |
+| `--input string`               | Yes      | Path to input file (e.g. .circleci/config.yml)                                               |
+| `--jq string`                  |          | Process values from the response using jq syntax (see `circleci help formatting`)            |
+| `--json`                       |          | Output as JSON                                                                               |
+| `--meta string`                |          | Decision metadata as a JSON string                                                           |
+| `--metafile string`            |          | Path to decision metadata file (YAML or JSON)                                                |
+| `--no-compile`                 |          | Evaluate the raw config without compiling it first                                           |
+| `--org string`                 |          | Organization slug (e.g. gh/myorg) or UUID for private orb resolution; defaults to git remote |
+| `--pipeline-parameters string` |          | Pipeline parameters as a YAML map or path to a YAML file                                     |
+| `--query string`               |          | The OPA query to evaluate (default "data")                                                   |
 
 
 **Arguments:**
@@ -3126,12 +3126,12 @@ Output is always JSON (the bundle is structured data).
 
 JSON fields: policies (map of name → Rego source)
 
-| Flag                      | Description                                                                       |
-| ------------------------- | --------------------------------------------------------------------------------- |
-| `--jq string`             | Process values from the response using jq syntax (see `circleci help formatting`) |
-| `--json`                  | Output as JSON                                                                    |
-| `--org string`            | Organization slug (e.g. gh/myorg) or UUID (required)                              |
-| `--policy-context string` | Policy context (default "config")                                                 |
+| Flag                      | Required | Description                                                                       |
+| ------------------------- | -------- | --------------------------------------------------------------------------------- |
+| `--jq string`             |          | Process values from the response using jq syntax (see `circleci help formatting`) |
+| `--json`                  |          | Output as JSON                                                                    |
+| `--org string`            | Yes      | Organization slug (e.g. gh/myorg) or UUID                                         |
+| `--policy-context string` |          | Policy context (default "config")                                                 |
 
 
 **Arguments:**
@@ -3163,19 +3163,19 @@ Use --out to write results to a file.
 
 JSON fields: id, status, created_at, org_id, project_id, branch, build_number, policies, decision, metadata
 
-| Flag                      | Description                                                                       |
-| ------------------------- | --------------------------------------------------------------------------------- |
-| `--after string`          | Return logs created after this time (RFC3339 or YYYY-MM-DD)                       |
-| `--before string`         | Return logs created before this time (RFC3339 or YYYY-MM-DD)                      |
-| `--branch string`         | Filter by branch name                                                             |
-| `--jq string`             | Process values from the response using jq syntax (see `circleci help formatting`) |
-| `--json`                  | Output as JSON                                                                    |
-| `--org string`            | Organization slug (e.g. gh/myorg) or UUID (required)                              |
-| `--out string`            | Write output to this file instead of stdout                                       |
-| `--policy-bundle`         | Retrieve the policy bundle snapshot for the given decision ID                     |
-| `--policy-context string` | Policy context (default "config")                                                 |
-| `--project-id string`     | Filter by project ID                                                              |
-| `--status string`         | Filter by decision status (PASS, SOFT_FAIL, HARD_FAIL, ERROR)                     |
+| Flag                      | Required | Description                                                                       |
+| ------------------------- | -------- | --------------------------------------------------------------------------------- |
+| `--after string`          |          | Return logs created after this time (RFC3339 or YYYY-MM-DD)                       |
+| `--before string`         |          | Return logs created before this time (RFC3339 or YYYY-MM-DD)                      |
+| `--branch string`         |          | Filter by branch name                                                             |
+| `--jq string`             |          | Process values from the response using jq syntax (see `circleci help formatting`) |
+| `--json`                  |          | Output as JSON                                                                    |
+| `--org string`            | Yes      | Organization slug (e.g. gh/myorg) or UUID                                         |
+| `--out string`            |          | Write output to this file instead of stdout                                       |
+| `--policy-bundle`         |          | Retrieve the policy bundle snapshot for the given decision ID                     |
+| `--policy-context string` |          | Policy context (default "config")                                                 |
+| `--project-id string`     |          | Filter by project ID                                                              |
+| `--status string`         |          | Filter by decision status (PASS, SOFT_FAIL, HARD_FAIL, ERROR)                     |
 
 
 **Arguments:**
@@ -3205,13 +3205,13 @@ A diff is shown and confirmed before anything is applied.
 
 JSON fields: created, deleted, updated (policy names)
 
-| Flag                      | Description                                                                       |
-| ------------------------- | --------------------------------------------------------------------------------- |
-| `--jq string`             | Process values from the response using jq syntax (see `circleci help formatting`) |
-| `--json`                  | Output as JSON                                                                    |
-| `--no-prompt`             | Skip confirmation prompt                                                          |
-| `--org string`            | Organization slug (e.g. gh/myorg) or UUID (required)                              |
-| `--policy-context string` | Policy context (default "config")                                                 |
+| Flag                      | Required | Description                                                                       |
+| ------------------------- | -------- | --------------------------------------------------------------------------------- |
+| `--jq string`             |          | Process values from the response using jq syntax (see `circleci help formatting`) |
+| `--json`                  |          | Output as JSON                                                                    |
+| `--no-prompt`             |          | Skip confirmation prompt                                                          |
+| `--org string`            | Yes      | Organization slug (e.g. gh/myorg) or UUID                                         |
+| `--policy-context string` |          | Policy context (default "config")                                                 |
 
 
 **Arguments:**
@@ -3248,12 +3248,12 @@ Retrieve the current policy enforcement settings for an organization.
 
 JSON fields: enabled
 
-| Flag                      | Description                                                                       |
-| ------------------------- | --------------------------------------------------------------------------------- |
-| `--jq string`             | Process values from the response using jq syntax (see `circleci help formatting`) |
-| `--json`                  | Output as JSON                                                                    |
-| `--org string`            | Organization slug (e.g. gh/myorg) or UUID (required)                              |
-| `--policy-context string` | Policy context (default "config")                                                 |
+| Flag                      | Required | Description                                                                       |
+| ------------------------- | -------- | --------------------------------------------------------------------------------- |
+| `--jq string`             |          | Process values from the response using jq syntax (see `circleci help formatting`) |
+| `--json`                  |          | Output as JSON                                                                    |
+| `--org string`            | Yes      | Organization slug (e.g. gh/myorg) or UUID                                         |
+| `--policy-context string` |          | Policy context (default "config")                                                 |
 
 
 **Examples:**
@@ -3276,13 +3276,13 @@ before each run. Configs that produce a HARD_FAIL decision are blocked.
 
 JSON fields: enabled
 
-| Flag                      | Description                                                                       |
-| ------------------------- | --------------------------------------------------------------------------------- |
-| `--enabled`               | Enable policy enforcement                                                         |
-| `--jq string`             | Process values from the response using jq syntax (see `circleci help formatting`) |
-| `--json`                  | Output as JSON                                                                    |
-| `--org string`            | Organization slug (e.g. gh/myorg) or UUID (required)                              |
-| `--policy-context string` | Policy context (default "config")                                                 |
+| Flag                      | Required | Description                                                                       |
+| ------------------------- | -------- | --------------------------------------------------------------------------------- |
+| `--enabled`               | Yes      | Enable policy enforcement                                                         |
+| `--jq string`             |          | Process values from the response using jq syntax (see `circleci help formatting`) |
+| `--json`                  |          | Output as JSON                                                                    |
+| `--org string`            | Yes      | Organization slug (e.g. gh/myorg) or UUID                                         |
+| `--policy-context string` |          | Policy context (default "config")                                                 |
 
 
 **Examples:**
@@ -3798,19 +3798,19 @@ provider and event preset means.
 
 JSON fields: id, created_at, event_name, event_preset, config_ref, checkout_ref, disabled
 
-| Flag                              | Description                                                                                                                                                                                                                                                                                                                                             |
-| --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `--checkout-ref string`           | Git ref for checking out code (only needed when checkout repo differs from event source repo)                                                                                                                                                                                                                                                           |
-| `--config-ref string`             | Git ref for fetching config (only needed when config repo differs from event source repo)                                                                                                                                                                                                                                                               |
-| `--event-preset string`           | Event preset for filtering trigger events (one of: all-pushes, only-tags, default-branch-pushes, only-build-prs, only-open-prs, only-labeled-prs, only-merged-prs, only-ready-for-review-prs, only-branch-delete, only-build-pushes-to-non-draft-prs, only-merged-or-closed-prs, pr-comment-equals-run-ci, non-draft-pr-opened, pushes-to-merge-queues) |
-| `--jq string`                     | Process values from the response using jq syntax (see `circleci help formatting`)                                                                                                                                                                                                                                                                       |
-| `--json`                          | Output as JSON                                                                                                                                                                                                                                                                                                                                          |
-| `--pipeline-definition-id string` | Pipeline definition ID (required)                                                                                                                                                                                                                                                                                                                       |
-| `--project string`                | Project slug (e.g. gh/org/repo); defaults to git remote                                                                                                                                                                                                                                                                                                 |
-| `--project-id string`             | Project UUID (overrides --project)                                                                                                                                                                                                                                                                                                                      |
-| `--provider string`               | Event source provider (one of: github_app, github_server, github_oauth, origin, webhook, schedule) (default "github_app")                                                                                                                                                                                                                               |
-| `--repo-full-name string`         | Repository owner/name (required for origin)                                                                                                                                                                                                                                                                                                             |
-| `--repo-id string`                | Repository external ID (required for github_app, github_server, github_oauth, origin)                                                                                                                                                                                                                                                                   |
+| Flag                              | Required | Description                                                                                                                                                                                                                                                                                                                                             |
+| --------------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--checkout-ref string`           |          | Git ref for checking out code (only needed when checkout repo differs from event source repo)                                                                                                                                                                                                                                                           |
+| `--config-ref string`             |          | Git ref for fetching config (only needed when config repo differs from event source repo)                                                                                                                                                                                                                                                               |
+| `--event-preset string`           |          | Event preset for filtering trigger events (one of: all-pushes, only-tags, default-branch-pushes, only-build-prs, only-open-prs, only-labeled-prs, only-merged-prs, only-ready-for-review-prs, only-branch-delete, only-build-pushes-to-non-draft-prs, only-merged-or-closed-prs, pr-comment-equals-run-ci, non-draft-pr-opened, pushes-to-merge-queues) |
+| `--jq string`                     |          | Process values from the response using jq syntax (see `circleci help formatting`)                                                                                                                                                                                                                                                                       |
+| `--json`                          |          | Output as JSON                                                                                                                                                                                                                                                                                                                                          |
+| `--pipeline-definition-id string` | Yes      | Pipeline definition ID                                                                                                                                                                                                                                                                                                                                  |
+| `--project string`                |          | Project slug (e.g. gh/org/repo); defaults to git remote                                                                                                                                                                                                                                                                                                 |
+| `--project-id string`             |          | Project UUID (overrides --project)                                                                                                                                                                                                                                                                                                                      |
+| `--provider string`               |          | Event source provider (one of: github_app, github_server, github_oauth, origin, webhook, schedule) (default "github_app")                                                                                                                                                                                                                               |
+| `--repo-full-name string`         |          | Repository owner/name (required for origin)                                                                                                                                                                                                                                                                                                             |
+| `--repo-id string`                |          | Repository external ID (required for github_app, github_server, github_oauth, origin)                                                                                                                                                                                                                                                                   |
 
 
 **Examples:**
@@ -3834,13 +3834,13 @@ be passed as a flag.
 
 JSON fields: id, created_at, event_name, event_preset, config_ref, checkout_ref, disabled, event_source.provider, event_source.repo.external_id, event_source.repo.full_name
 
-| Flag                              | Description                                                                       |
-| --------------------------------- | --------------------------------------------------------------------------------- |
-| `--jq string`                     | Process values from the response using jq syntax (see `circleci help formatting`) |
-| `--json`                          | Output as JSON                                                                    |
-| `--pipeline-definition-id string` | Pipeline definition ID (required)                                                 |
-| `--project string`                | Project slug (e.g. gh/org/repo); defaults to git remote                           |
-| `--project-id string`             | Project UUID (overrides --project)                                                |
+| Flag                              | Required | Description                                                                       |
+| --------------------------------- | -------- | --------------------------------------------------------------------------------- |
+| `--jq string`                     |          | Process values from the response using jq syntax (see `circleci help formatting`) |
+| `--json`                          |          | Output as JSON                                                                    |
+| `--pipeline-definition-id string` | Yes      | Pipeline definition ID                                                            |
+| `--project string`                |          | Project slug (e.g. gh/org/repo); defaults to git remote                           |
+| `--project-id string`             |          | Project UUID (overrides --project)                                                |
 
 
 **Aliases:**
