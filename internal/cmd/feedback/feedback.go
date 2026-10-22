@@ -70,7 +70,7 @@ func NewFeedbackCmd() *cobra.Command {
 		Long: heredoc.Doc(`
 			Report an unexpected error, a missing capability or confusing output to
 			CircleCI. Say what you tried, what you ran and what happened; no secrets.
-			Reports include your CircleCI user, the AI agent, and if it came via MCP.
+			Reports include your CircleCI user, CLI version, AI agent and MCP use.
 
 			JSON fields: id
 		`),
@@ -153,7 +153,7 @@ func validate(message, tool string) error {
 	return nil
 }
 
-// newReport derives source and agent_type, which are not flags.
+// newReport derives source, agent_type and client_version, which are not flags.
 func newReport(ctx context.Context, message, tool string) apiclient.FeedbackReport {
 	source := apiclient.FeedbackSourceCLI
 	if agent.IsMCP() {
@@ -168,10 +168,11 @@ func newReport(ctx context.Context, message, tool string) apiclient.FeedbackRepo
 	}
 
 	return apiclient.FeedbackReport{
-		Message:   message,
-		ToolName:  tool,
-		Source:    source,
-		AgentType: agentType,
+		Message:       message,
+		ToolName:      tool,
+		Source:        source,
+		AgentType:     agentType,
+		ClientVersion: cmdutil.GetVersion(ctx),
 	}
 }
 

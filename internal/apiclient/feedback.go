@@ -41,10 +41,11 @@ const (
 // FeedbackReport is the body of POST /api/v3/tool/send-feedback. The endpoint
 // rejects unknown members, so nothing outside this shape may be sent.
 type FeedbackReport struct {
-	Message   string `json:"message"`
-	ToolName  string `json:"tool_name,omitempty"`
-	Source    string `json:"source,omitempty"`
-	AgentType string `json:"agent_type,omitempty"`
+	Message       string `json:"message"`
+	ToolName      string `json:"tool_name,omitempty"`
+	Source        string `json:"source,omitempty"`
+	AgentType     string `json:"agent_type,omitempty"`
+	ClientVersion string `json:"client_version,omitempty"`
 }
 
 // SendFeedback sends a feedback report to CircleCI and returns the ID of the

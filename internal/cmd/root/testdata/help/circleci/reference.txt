@@ -4684,7 +4684,7 @@ Send feedback about the CLI to CircleCI
 
 Report an unexpected error, a missing capability or confusing output to
 CircleCI. Say what you tried, what you ran and what happened; no secrets.
-Reports include your CircleCI user, the AI agent, and if it came via MCP.
+Reports include your CircleCI user, CLI version, AI agent and MCP use.
 
 JSON fields: id
 

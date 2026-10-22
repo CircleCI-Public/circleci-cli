@@ -74,7 +74,7 @@ func TestFeedback(t *testing.T) {
 				"Authorization": {"Bearer test-token"},
 				"User-Agent":    {httpcl.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
 			},
-			Body: new(`{"message":"` + feedbackMessage + `","tool_name":"run get","source":"cli"}`),
+			Body: new(`{"message":"` + feedbackMessage + `","tool_name":"run get","source":"cli","client_version":"dev"}`),
 		}, ignoreCommonHeaders))
 	})
 }
@@ -122,9 +122,10 @@ func TestFeedback_UnderMCP(t *testing.T) {
 	var body map[string]any
 	assert.NilError(t, fake.LastRequest().Decode(&body))
 	assert.Check(t, cmp.DeepEqual(body, map[string]any{
-		"message":    feedbackMessage,
-		"source":     "cli_mcp",
-		"agent_type": "claude-code",
+		"message":        feedbackMessage,
+		"source":         "cli_mcp",
+		"agent_type":     "claude-code",
+		"client_version": "dev",
 	}))
 }
 
