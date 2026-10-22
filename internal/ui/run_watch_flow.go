@@ -88,8 +88,10 @@ type RunWatchJob struct {
 	Failed bool
 }
 
-// RunWatchWorkflow is one workflow row and the job rows nested under it.
+// RunWatchWorkflow is one workflow row and the job rows nested under it. ID is
+// not drawn.
 type RunWatchWorkflow struct {
+	ID       uuid.UUID
 	Name     string
 	Symbol   string
 	Status   string
@@ -146,6 +148,21 @@ func (s RunWatchState) FailedJobs() []RunWatchJob {
 		for _, j := range wf.Jobs {
 			if j.Failed {
 				failed = append(failed, j)
+			}
+		}
+	}
+	return failed
+}
+
+// FailedWorkflows returns every workflow with at least one failed job, in the
+// order they appear in the table.
+func (s RunWatchState) FailedWorkflows() []RunWatchWorkflow {
+	var failed []RunWatchWorkflow
+	for _, wf := range s.Workflows {
+		for _, j := range wf.Jobs {
+			if j.Failed {
+				failed = append(failed, wf)
+				break
 			}
 		}
 	}

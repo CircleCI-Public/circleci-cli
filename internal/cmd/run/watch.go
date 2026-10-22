@@ -403,6 +403,7 @@ func watchState(state runGetOutput) ui.RunWatchState {
 	}
 	for _, wf := range state.Workflows {
 		row := ui.RunWatchWorkflow{
+			ID:       wf.ID,
 			Name:     wf.Name,
 			Symbol:   apiclient.PhaseOutcomeSymbol(wf.Phase, wf.Outcome, wf.CurrentOutcome),
 			Status:   apiclient.PhaseOutcomeText(wf.Phase, wf.Outcome, wf.CurrentOutcome),
@@ -548,7 +549,8 @@ func watchFailFastResult(ctx context.Context, state ui.RunWatchState, runID uuid
 		iostream.SymbolFail(ctx), runID, strings.Join(names, ", "), ui.FormatElapsed(elapsed))
 	return clierrors.New("run.failed", "Run failed",
 		fmt.Sprintf("Run %s has %d failing job(s); exiting due to --failfast.", runID, len(names))).
-		WithSuggestions(failedJobLogSuggestions(state)...).
+		// No rerun suggestion: the workflow may still be running.
+		WithSuggestions(fixSuggestions(state, runID)...).
 		WithExitCode(clierrors.ExitGeneralError)
 }
 
@@ -577,7 +579,7 @@ func watchFinalResult(ctx context.Context, state ui.RunWatchState, runID uuid.UU
 		iostream.ErrPrintf(ctx, "%s Run %s failed (%s)\n",
 			iostream.SymbolFail(ctx), runID, ui.FormatElapsed(elapsed))
 		return clierrors.New("run.failed", "Run failed", runFailureMessage(runID, state)).
-			WithSuggestions(runFailureSuggestions(state)...).
+			WithSuggestions(runFailureSuggestions(state, runID)...).
 			WithExitCode(runFailureExitCode(state))
 	}
 }
@@ -620,11 +622,10 @@ func printWatchWarnings(ctx context.Context, state ui.RunWatchState) {
 	}
 }
 
-// runFailureSuggestions is what to do next about a failed run: validate the
-// config behind a config error — which for a dynamic-config run is the config the
-// setup workflow generated, not the one in the repository — and then fetch the
-// logs of each failed job.
-func runFailureSuggestions(state ui.RunWatchState) []string {
+// runFailureSuggestions is what to do next about a failed run. For a config
+// error in a dynamic-config run, the config to validate is the one the setup
+// workflow generated, not the one in the repository.
+func runFailureSuggestions(state ui.RunWatchState, runID uuid.UUID) []string {
 	var suggestions []string
 	if hasConfigError(state) {
 		suggestions = append(suggestions,
@@ -632,7 +633,18 @@ func runFailureSuggestions(state ui.RunWatchState) []string {
 			"For dynamic config, validate the config the setup job generates, not .circleci/config.yml",
 		)
 	}
-	return append(suggestions, failedJobLogSuggestions(state)...)
+	suggestions = append(suggestions, fixSuggestions(state, runID)...)
+	return append(suggestions, rerunSuggestions(state, runID)...)
+}
+
+// fixSuggestions is what to run to fix a failed run: read its failed output,
+// then push a fix and watch the run it triggers.
+func fixSuggestions(state ui.RunWatchState, runID uuid.UUID) []string {
+	suggestions := []string{
+		fmt.Sprintf("Read the failed steps' output: circleci run get %s --failure-report", runID),
+	}
+	suggestions = append(suggestions, failedJobLogSuggestions(state, runID)...)
+	return append(suggestions, "To push a fix and watch the new run: "+pushAndWatchCommand)
 }
 
 // runFailureExitCode separates a run the platform would not accept from one that
@@ -658,21 +670,29 @@ func hasConfigError(state ui.RunWatchState) bool {
 	return false
 }
 
-// failedJobLogSuggestions builds one runnable suggestion per failed job. The
-// job UUID is already in the state we just rendered, so it is interpolated
-// into the command rather than left as a placeholder the user has to resolve.
-// A job that arrived without an ID falls back to the placeholder — a nil UUID
-// would produce a command that looks copy-pasteable but cannot work.
-func failedJobLogSuggestions(state ui.RunWatchState) []string {
-	failed := state.FailedJobs()
-	suggestions := make([]string, 0, len(failed))
-	for _, j := range failed {
+// failedJobLogSuggestions builds one runnable suggestion per failed job, up to
+// maxListedFailures in API order, and counts the rest. The job UUID is already
+// in the state we just rendered, so it is interpolated into the command rather
+// than left as a placeholder the user has to resolve. A job that arrived
+// without an ID falls back to the placeholder — a nil UUID would produce a
+// command that looks copy-pasteable but cannot work.
+func failedJobLogSuggestions(state ui.RunWatchState, runID uuid.UUID) []string {
+	return cappedLines(state.FailedJobs(), "failed job", "failed jobs", runID, func(j ui.RunWatchJob) string {
 		id := "<job-id>"
 		if j.ID != uuid.Nil {
 			id = j.ID.String()
 		}
-		suggestions = append(suggestions,
-			fmt.Sprintf("View logs for failed job %q: circleci job get %s", j.Name, id))
-	}
-	return suggestions
+		return fmt.Sprintf("Full output for failed job %q: circleci job output list %s", j.Name, id)
+	})
+}
+
+// rerunSuggestions offers a rerun of the failed jobs of each workflow that has
+// any, up to maxListedFailures in API order, and counts the rest. It is one
+// line per workflow because workflow rerun takes a single ID.
+func rerunSuggestions(state ui.RunWatchState, runID uuid.UUID) []string {
+	return cappedLines(state.FailedWorkflows(), "failed workflow", "failed workflows", runID, func(wf ui.RunWatchWorkflow) string {
+		return fmt.Sprintf(
+			"If %q failed transiently (network timeout, lost executor), rerun its failed jobs: %s",
+			wf.Name, rerunFromFailedCommand(wf.ID))
+	})
 }

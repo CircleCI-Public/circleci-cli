@@ -1,0 +1,10 @@
+Watching run f0000000-0000-4000-8000-00000000fa22 (main)
+
+[<elapsed>]  build=running
+✗ Run f0000000-0000-4000-8000-00000000fa22 has failing job(s): integration-test — exiting (<elapsed>)
+error: Run f0000000-0000-4000-8000-00000000fa22 has 1 failing job(s); exiting due to --failfast.
+
+Suggestions:
+  • Read the failed steps' output: circleci run get f0000000-0000-4000-8000-00000000fa22 --failure-report
+  • Full output for failed job "integration-test": circleci job output list d0000000-0000-4000-8000-00000000f001
+  • To push a fix and watch the new run: git push && circleci run watch --sha "$(git rev-parse HEAD)"
