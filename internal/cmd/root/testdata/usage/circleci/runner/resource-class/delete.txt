@@ -1,7 +1,7 @@
 Usage:  circleci runner resource-class delete <resource-class> [flags]
 
 Flags:
-  -f, --force       skip confirmation prompt
+  -f, --force       also delete its tokens (runners using them can no longer claim jobs); skip the prompt
   -h, --help        help for delete
       --jq string   Process values from the response using jq syntax
       --json        Output as JSON

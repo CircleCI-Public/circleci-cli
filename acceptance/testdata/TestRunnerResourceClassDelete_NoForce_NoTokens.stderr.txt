@@ -1,0 +1,10 @@
+{
+  "error": true,
+  "code": "runner.delete_requires_force",
+  "message": "Deleting resource class \"my-org/arm-runner\" needs confirmation, and there is no terminal to prompt in. Outside a terminal it needs --force, which also deletes its tokens.",
+  "suggestions": [
+    "Check for tokens first: circleci runner token list --resource-class my-org/arm-runner",
+    "To delete it and its tokens, so runners using them can no longer claim jobs: circleci runner resource-class delete my-org/arm-runner --force"
+  ],
+  "exit_code": 6
+}
