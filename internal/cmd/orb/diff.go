@@ -92,6 +92,8 @@ func newDiffCmd() *cobra.Command {
 
 	cmd.Flags().StringVar(&from, "from", "", "the first version (semver e.g. 1.0.0, or a dev label e.g. dev:my-branch)")
 	cmd.Flags().StringVar(&to, "to", "", "the second version, in the same form as --from")
+	_ = cmd.MarkFlagRequired("from")
+	_ = cmd.MarkFlagRequired("to")
 
 	return cmd
 }

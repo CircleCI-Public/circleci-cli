@@ -1,1 +1,4 @@
-error: Required flag --component was not set.
+error: Required flag(s) "component" not set.
+
+Suggestions:
+  • Run 'circleci deploy rollback --help' to see the flags and how they combine

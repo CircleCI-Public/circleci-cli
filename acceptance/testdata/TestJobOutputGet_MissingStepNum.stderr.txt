@@ -1,1 +1,4 @@
-error: Required flag --step-num was not set.
+error: Required flag(s) "step-num" not set.
+
+Suggestions:
+  • Run 'circleci job output get --help' to see the flags and how they combine

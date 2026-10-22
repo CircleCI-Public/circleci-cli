@@ -1128,13 +1128,13 @@ shell history and process listings.
 
 JSON fields: id, file_name
 
-| Flag                 | Description                                                                               |
-| -------------------- | ----------------------------------------------------------------------------------------- |
-| `--cert-file string` | Path to the .p12 certificate file                                                         |
-| `--jq string`        | Process values from the response using jq syntax (see `circleci help formatting`)         |
-| `--json`             | Output as JSON                                                                            |
-| `--org string`       | Organization slug (e.g. gh/myorg) or UUID; defaults to git remote                         |
-| `--password string`  | Password for the .p12 file. Pass - to read from stdin. Prompted if omitted in a terminal. |
+| Flag                 | Required | Description                                                                               |
+| -------------------- | -------- | ----------------------------------------------------------------------------------------- |
+| `--cert-file string` | Yes      | Path to the .p12 certificate file                                                         |
+| `--jq string`        |          | Process values from the response using jq syntax (see `circleci help formatting`)         |
+| `--json`             |          | Output as JSON                                                                            |
+| `--org string`       |          | Organization slug (e.g. gh/myorg) or UUID; defaults to git remote                         |
+| `--password string`  |          | Password for the .p12 file. Pass - to read from stdin. Prompted if omitted in a terminal. |
 
 
 **Examples:**
@@ -2406,10 +2406,10 @@ The --from and --to versions can be semver (e.g. 1.0.0) or dev labels
 
 Exit code is 0 regardless of whether the versions differ.
 
-| Flag            | Description                                                              |
-| --------------- | ------------------------------------------------------------------------ |
-| `--from string` | the first version (semver e.g. 1.0.0, or a dev label e.g. dev:my-branch) |
-| `--to string`   | the second version, in the same form as --from                           |
+| Flag            | Required | Description                                                              |
+| --------------- | -------- | ------------------------------------------------------------------------ |
+| `--from string` | Yes      | the first version (semver e.g. 1.0.0, or a dev label e.g. dev:my-branch) |
+| `--to string`   | Yes      | the second version, in the same form as --from                           |
 
 
 **Arguments:**
@@ -4336,14 +4336,14 @@ add additional profiles.
 
 JSON fields: id, name, cert_id
 
-| Flag                    | Description                                                                       |
-| ----------------------- | --------------------------------------------------------------------------------- |
-| `--cert-id string`      | ID of an uploaded certificate (see: circleci certificate list)                    |
-| `--jq string`           | Process values from the response using jq syntax (see `circleci help formatting`) |
-| `--json`                | Output as JSON                                                                    |
-| `--name string`         | Name for the signing config (referenced in pipeline config)                       |
-| `--org string`          | Organization slug (e.g. gh/myorg) or UUID; defaults to git remote                 |
-| `--profile stringArray` | Path to a provisioning profile file (repeatable)                                  |
+| Flag                    | Required | Description                                                                       |
+| ----------------------- | -------- | --------------------------------------------------------------------------------- |
+| `--cert-id string`      | Yes      | ID of an uploaded certificate (see: circleci certificate list)                    |
+| `--jq string`           |          | Process values from the response using jq syntax (see `circleci help formatting`) |
+| `--json`                |          | Output as JSON                                                                    |
+| `--name string`         | Yes      | Name for the signing config (referenced in pipeline config)                       |
+| `--org string`          |          | Organization slug (e.g. gh/myorg) or UUID; defaults to git remote                 |
+| `--profile stringArray` | Yes      | Path to a provisioning profile file (repeatable)                                  |
 
 
 **Examples:**
@@ -4444,9 +4444,9 @@ The file at --profile is read and base64-encoded locally, then sent
 to CircleCI. The config's other profiles and certificate are left
 untouched.
 
-| Flag               | Description                         |
-| ------------------ | ----------------------------------- |
-| `--profile string` | Path to a provisioning profile file |
+| Flag               | Required | Description                         |
+| ------------------ | -------- | ----------------------------------- |
+| `--profile string` | Yes      | Path to a provisioning profile file |
 
 
 **Arguments:**

@@ -180,6 +180,7 @@ func newUploadCmd() *cobra.Command {
 
 	cmdutil.AddOrgFlag(cmd, &org, cmdutil.OrgFlag{DefaultsToGitRemote: true})
 	cmd.Flags().StringVar(&certPath, "cert-file", "", "Path to the .p12 certificate file")
+	_ = cmd.MarkFlagRequired("cert-file")
 	cmd.Flags().StringVar(&password, "password", "", "Password for the .p12 file. Pass - to read from stdin. Prompted if omitted in a terminal.")
 	cmdutil.AddJSONFlag(cmd, &jsonOut)
 	cmdutil.AddJQFlag(cmd)

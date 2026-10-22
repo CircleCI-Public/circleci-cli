@@ -84,9 +84,6 @@ func newOutputGetCmd() *cobra.Command {
 			if cliErr := cmdutil.RequireArgs(args, "job-id"); cliErr != nil {
 				return cliErr
 			}
-			if !cmd.Flags().Changed("step-num") {
-				return cmdutil.RequireFlag("step-num")
-			}
 			jobID, err := uuid.Parse(args[0])
 			if err != nil {
 				return clierrors.New("args.invalid_job_id", "Invalid job ID",
@@ -114,6 +111,7 @@ func newOutputGetCmd() *cobra.Command {
 
 	cmd.Flags().IntVar(&execution, "execution", 0, "Parallel execution index to read output from")
 	cmd.Flags().IntVar(&stepNum, "step-num", 0, "Step number whose output to fetch (required)")
+	_ = cmd.MarkFlagRequired("step-num")
 	cmd.Flags().BoolVar(&stripANSI, "strip-ansi", false, "Force (or with =false, disable) ANSI stripping; defaults to stripping only when not a terminal")
 	cmd.Flags().BoolVar(&condensed, "condensed", false, "Fetch error-relevant lines only, filtered server-side (experimental)")
 
