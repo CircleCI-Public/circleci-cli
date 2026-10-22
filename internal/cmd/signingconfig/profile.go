@@ -137,6 +137,7 @@ func newProfileAddCmd() *cobra.Command {
 	}
 
 	cmd.Flags().StringVar(&profilePath, "profile", "", "Path to a provisioning profile file")
+	_ = cmd.MarkFlagRequired("profile")
 
 	return cmd
 }

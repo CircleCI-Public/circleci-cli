@@ -117,6 +117,8 @@ func newRollbackCmd() *cobra.Command {
 	cmd.Flags().StringVar(&opts.projectSlug, "project", "", "Project slug (e.g. gh/org/repo); defaults to git remote")
 	cmd.Flags().StringVar(&opts.componentRef, "component", "", "Deploy component name or ID (required)")
 	cmd.Flags().StringVar(&opts.envRef, "environment", "", "Deploy environment name or ID (required)")
+	_ = cmd.MarkFlagRequired("component")
+	_ = cmd.MarkFlagRequired("environment")
 	cmd.Flags().StringVar(&opts.fromVersion, "from", "", "Version being replaced; defaults to the latest deployed")
 	cmd.Flags().StringVar(&opts.namespace, "namespace", "", `Namespace scoping the component (default "default")`)
 	cmd.Flags().StringVar(&opts.reason, "reason", "", "Why the rollback was requested; recorded in the audit log")

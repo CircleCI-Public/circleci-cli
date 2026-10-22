@@ -1,1 +1,4 @@
-error: Required flag --profile was not set.
+error: Required flag(s) "profile" not set.
+
+Suggestions:
+  • Run 'circleci signing-config profile add --help' to see the flags and how they combine

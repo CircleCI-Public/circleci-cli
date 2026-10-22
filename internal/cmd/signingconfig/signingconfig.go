@@ -210,6 +210,9 @@ func newCreateCmd() *cobra.Command {
 	cmd.Flags().StringVar(&name, "name", "", "Name for the signing config (referenced in pipeline config)")
 	cmd.Flags().StringVar(&certID, "cert-id", "", "ID of an uploaded certificate (see: circleci certificate list)")
 	cmd.Flags().StringArrayVar(&profilePath, "profile", nil, "Path to a provisioning profile file (repeatable)")
+	_ = cmd.MarkFlagRequired("name")
+	_ = cmd.MarkFlagRequired("cert-id")
+	_ = cmd.MarkFlagRequired("profile")
 	cmdutil.AddJSONFlag(cmd, &jsonOut)
 	cmdutil.AddJQFlag(cmd)
 
