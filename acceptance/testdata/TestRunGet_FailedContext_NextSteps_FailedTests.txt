@@ -1,0 +1,19 @@
+## workflow: build
+
+### job: run-tests
+
+#### step 101: run tests [exit: 1]
+
+run-tests failed
+
+### job: lint
+
+#### step 101: run tests [exit: 1]
+
+lint failed
+
+## next steps
+
+- Failed tests in job "run-tests": circleci testresult list d0000000-0000-4000-8000-0000000000f1
+- If "build" failed transiently (network timeout, lost executor), rerun its failed jobs: circleci workflow rerun b0000000-0000-4000-8000-0000000000f1 --from-failed
+- Push the fix and watch it: git push && circleci run watch --sha "$(git rev-parse HEAD)"

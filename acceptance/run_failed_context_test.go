@@ -23,6 +23,9 @@
 package acceptance_test
 
 import (
+	"fmt"
+	"net/http"
+	"strings"
 	"testing"
 	"time"
 
@@ -297,4 +300,128 @@ func TestRunGet_FailedContext_WorkflowsNotFound(t *testing.T) {
 	assert.Check(t, cmp.Equal(result.ExitCode, 0))
 	assert.Check(t, cmp.Equal(result.Stdout, ""))
 	assert.Check(t, cmp.Equal(result.Stderr, ""))
+}
+
+// addFailedStepJob registers a single-execution job with one failed step and its
+// condensed output, the shape the next-steps tests need many of.
+func addFailedStepJob(fake *fakes.CircleCI, jobID, name, workflowID string) {
+	now := time.Date(2020, 1, 1, 12, 0, 0, 0, time.UTC).Format(v3TimeFormat)
+	fake.AddJobV3(fakes.JobV3{
+		ID: jobID, Name: name, Type: "build", Phase: "ended", Outcome: "failed",
+		StartedAt: now, EndedAt: now, WorkflowID: workflowID, ProjectID: runTestProjectID,
+		Executions: [][]fakes.JobStep{{
+			{Name: "run tests", Type: "run", Num: 101, Phase: "ended", Outcome: "failed", ExitCode: new(1), StartedAt: now, EndedAt: now},
+		}},
+	})
+	fake.AddJobStdoutCondensed(jobID, 0, 101, []byte(name+" failed\n"))
+}
+
+// testsRequests counts the requests the report made to the job tests endpoint.
+func testsRequests(fake *fakes.CircleCI) int {
+	n := 0
+	for _, req := range fake.AllRequests() {
+		if strings.HasPrefix(req.URL.Path, "/api/v3/jobs/") && strings.HasSuffix(req.URL.Path, "/tests") {
+			n++
+		}
+	}
+	return n
+}
+
+// TestRunGet_FailedContext_NextSteps_FailedTests points at testresult list only
+// for the failed job whose tests include a failure, and reads the tests of each
+// failed job once.
+func TestRunGet_FailedContext_NextSteps_FailedTests(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	fake.AddRunV3(fcRunID, runTestProjectID, fakeRunV3(fcRunID, runTestProjectID, "ended", "failed", "main", "abc1234def5678"))
+	fake.AddRunWorkflowsV3(fcRunID, fakeWorkflowV3(fcWfID, "build", fcRunID, runTestProjectID, "ended", "failed"))
+	fake.AddWorkflowJobsV3(fcWfID,
+		fakeJobV3(fcJob1ID, "run-tests", fcWfID, runTestProjectID),
+		fakeJobV3(fcJob2ID, "lint", fcWfID, runTestProjectID),
+	)
+	addFailedStepJob(fake, fcJob1ID, "run-tests", fcWfID)
+	addFailedStepJob(fake, fcJob2ID, "lint", fcWfID)
+	fake.AddJobTests(fcJob1ID,
+		fakes.TestResult{Classname: "pkg", Name: "TestOK", Result: "success"},
+		fakes.TestResult{Classname: "pkg", Name: "TestBroken", Result: "failure", Message: "want 1, got 2"},
+	)
+
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"run", "get", fcRunID, "--failure-report"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 0))
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, cmp.Equal(result.Stderr, ""))
+	assert.Check(t, cmp.Equal(testsRequests(fake), 2), "one tests read per failed job")
+}
+
+// TestRunGet_FailedContext_NextSteps_TestsEndpointErrors drops the testresult
+// hint when the tests endpoint fails, and the report still succeeds.
+func TestRunGet_FailedContext_NextSteps_TestsEndpointErrors(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	fake.AddRunV3(fcRunID, runTestProjectID, fakeRunV3(fcRunID, runTestProjectID, "ended", "failed", "main", "abc1234def5678"))
+	fake.AddRunWorkflowsV3(fcRunID, fakeWorkflowV3(fcWfID, "build", fcRunID, runTestProjectID, "ended", "failed"))
+	fake.AddWorkflowJobsV3(fcWfID, fakeJobV3(fcJob1ID, "run-tests", fcWfID, runTestProjectID))
+	addFailedStepJob(fake, fcJob1ID, "run-tests", fcWfID)
+	fake.AddJobTests(fcJob1ID, fakes.TestResult{Name: "TestBroken", Result: "failure"})
+	fake.SetJobTestsResponse(fcJob1ID, http.StatusInternalServerError)
+
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"run", "get", fcRunID, "--failure-report"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 0))
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, cmp.Equal(result.Stderr, ""))
+}
+
+// TestRunGet_FailedContext_NextSteps_Caps lists three failed-tests and rerun
+// lines and counts the rest, while the report body still covers every job.
+func TestRunGet_FailedContext_NextSteps_Caps(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	fake.AddRunV3(fcRunID, runTestProjectID, fakeRunV3(fcRunID, runTestProjectID, "ended", "failed", "main", "abc1234def5678"))
+
+	const failedJobs = 5
+	workflows := make([]fakes.WorkflowV3, 0, failedJobs)
+	for i := range failedJobs {
+		wfID := fmt.Sprintf("b0000000-0000-4000-8000-0000000000c%d", i)
+		jobID := fmt.Sprintf("d0000000-0000-4000-8000-0000000000c%d", i)
+		wfName := fmt.Sprintf("wf-%d", i)
+		jobName := fmt.Sprintf("job-%d", i)
+		workflows = append(workflows, fakeWorkflowV3(wfID, wfName, fcRunID, runTestProjectID, "ended", "failed"))
+		fake.AddWorkflowJobsV3(wfID, fakeJobV3(jobID, jobName, wfID, runTestProjectID))
+		addFailedStepJob(fake, jobID, jobName, wfID)
+		fake.AddJobTests(jobID, fakes.TestResult{Name: "TestBroken", Result: "failure"})
+	}
+	fake.AddRunWorkflowsV3(fcRunID, workflows...)
+
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"run", "get", fcRunID, "--failure-report"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 0))
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, cmp.Equal(result.Stderr, ""))
+	assert.Check(t, cmp.Equal(testsRequests(fake), failedJobs), "one tests read per failed job, past the cap too")
 }

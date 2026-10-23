@@ -28,15 +28,34 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
+
+	"github.com/google/uuid"
+	"golang.org/x/sync/errgroup"
 
 	"github.com/CircleCI-Public/circleci-cli/clikit/iostream"
 	"github.com/CircleCI-Public/circleci-cli/internal/apiclient"
 	"github.com/CircleCI-Public/circleci-cli/internal/httpcl"
 )
 
+// maxTestFetches bounds how many failed jobs' test results are read at once.
+const maxTestFetches = 8
+
+// testReadBudget caps the time spent reading failed jobs' test results, for all
+// of them together, so the hint never slows the report by more than this. A var
+// so tests can shorten it.
+var testReadBudget = 10 * time.Second
+
+// reportJob is a job the failure report printed failed steps for.
+type reportJob struct {
+	name          string
+	id            uuid.UUID
+	hasFailedTest bool
+}
+
 // runFailureReport prints condensed output for every failed step in the run,
-// organised as workflow → job → execution → step headers. It is the output path
-// for --failure-report and never enters the TUI.
+// organised as workflow → job → execution → step headers, followed by next
+// steps. It is the output path for --failure-report and never enters the TUI.
 //
 // Output is written to stdout so it can be piped directly into an agent's
 // context window. Empty output (no failed steps, or run not in a failed state)
@@ -77,6 +96,8 @@ func runFailureReport(ctx context.Context, client *apiclient.Client, r *apiclien
 		out.WriteString("\n")
 	}
 
+	var failedWorkflows []apiclient.WorkflowV3
+	var failedJobs []reportJob
 	for _, wf := range workflows {
 		wfWritten := false
 
@@ -119,7 +140,9 @@ func runFailureReport(ctx context.Context, client *apiclient.Client, r *apiclien
 			if !wfWritten {
 				fmt.Fprintf(&out, "## workflow: %s\n\n", wf.Name)
 				wfWritten = true
+				failedWorkflows = append(failedWorkflows, wf)
 			}
+			failedJobs = append(failedJobs, reportJob{name: j.Name, id: j.ID})
 
 			totalExecs := len(jobDetail.Executions)
 			failedCount := len(failed)
@@ -164,8 +187,80 @@ func runFailureReport(ctx context.Context, client *apiclient.Client, r *apiclien
 		}
 	}
 
+	writeNextSteps(ctx, client, &out, r, failedWorkflows, failedJobs)
+
 	if out.Len() > 0 {
 		iostream.Print(ctx, out.String())
 	}
 	return nil
+}
+
+// writeNextSteps closes a report that found failures (run errors or failed
+// steps) with what to do about them. A report without any stays as it is, so
+// a run with nothing wrong still prints nothing.
+func writeNextSteps(ctx context.Context, client *apiclient.Client, out *strings.Builder,
+	r *apiclient.RunV3, failedWorkflows []apiclient.WorkflowV3, failedJobs []reportJob) {
+	if len(r.Errors) == 0 && len(failedJobs) == 0 {
+		return
+	}
+	markFailedTests(ctx, client, failedJobs)
+	out.WriteString(failureReportNextSteps(r, failedWorkflows, failedJobs))
+}
+
+// markFailedTests sets hasFailedTest on each job whose test results include a
+// failure. The reads run concurrently under testReadBudget. A read that errors
+// or runs out of time leaves the job unmarked, which only drops its hint: the
+// report itself never fails because of it.
+func markFailedTests(ctx context.Context, client *apiclient.Client, jobs []reportJob) {
+	ctx, cancel := context.WithTimeout(ctx, testReadBudget)
+	defer cancel()
+
+	var g errgroup.Group
+	g.SetLimit(maxTestFetches)
+	for i := range jobs {
+		g.Go(func() error {
+			_ = client.StreamJobTests(ctx, jobs[i].id, func(tr apiclient.TestResult) {
+				if tr.Result == "failure" {
+					jobs[i].hasFailedTest = true
+				}
+			})
+			return nil
+		})
+	}
+	_ = g.Wait()
+}
+
+// failureReportNextSteps is the report's closing section: the commands to run
+// about the failures above. Config errors get a validate line, failed jobs with
+// failed tests a testresult line, failed workflows a transient-rerun line, and
+// every report ends with how to push the fix and watch it.
+func failureReportNextSteps(r *apiclient.RunV3, failedWorkflows []apiclient.WorkflowV3, failedJobs []reportJob) string {
+	var lines []string
+	for _, e := range r.Errors {
+		if e.Type == "config" {
+			lines = append(lines, "Validate the config locally: circleci config validate .circleci/config.yml")
+			break
+		}
+	}
+	var testJobs []reportJob
+	for _, j := range failedJobs {
+		if j.hasFailedTest {
+			testJobs = append(testJobs, j)
+		}
+	}
+	lines = append(lines, cappedLines(testJobs, "job with failed tests", "jobs with failed tests", r.ID, func(j reportJob) string {
+		return fmt.Sprintf("Failed tests in job %q: circleci testresult list %s", j.name, j.id)
+	})...)
+	lines = append(lines, cappedLines(failedWorkflows, "failed workflow", "failed workflows", r.ID, func(wf apiclient.WorkflowV3) string {
+		return fmt.Sprintf("If %q failed transiently (network timeout, lost executor), rerun its failed jobs: %s",
+			wf.Name, rerunFromFailedCommand(wf.ID))
+	})...)
+	lines = append(lines, "Push the fix and watch it: "+pushAndWatchCommand)
+
+	var b strings.Builder
+	b.WriteString("## next steps\n\n")
+	for _, l := range lines {
+		fmt.Fprintf(&b, "- %s\n", l)
+	}
+	return b.String()
 }

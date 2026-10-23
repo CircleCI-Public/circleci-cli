@@ -93,6 +93,7 @@ type CircleCI struct {
 	jobStderr          map[string][]byte        // "jobID/index/stepNum" → plain text stderr
 	jobStdoutCondensed map[string][]byte        // "jobID/index/stepNum" → raw condensed text
 	jobTests           map[string][]TestResult  // job UUID → test result objects (served as JSONL)
+	jobTestsResponses  map[string]int           // job UUID → HTTP status to return instead of the tests
 	jobResourceUsage   map[string]ResourceUsage // job UUID → sampled CPU/memory usage
 
 	// Run (v3) state.
@@ -309,6 +310,7 @@ func NewCircleCI(t *testing.T, tokens ...string) *CircleCI {
 		jobStderr:                         map[string][]byte{},
 		jobStdoutCondensed:                map[string][]byte{},
 		jobTests:                          map[string][]TestResult{},
+		jobTestsResponses:                 map[string]int{},
 		jobResourceUsage:                  map[string]ResourceUsage{},
 		runsV3:                            map[string]RunV3{},
 		runsV3ByProject:                   map[string][]RunV3{},
@@ -1281,6 +1283,14 @@ func (f *CircleCI) AddJobTests(id string, tests ...TestResult) {
 	f.jobTests[id] = tests
 }
 
+// SetJobTestsResponse makes GET /api/v3/jobs/<id>/tests return the given HTTP
+// status with no body, in place of any registered tests.
+func (f *CircleCI) SetJobTestsResponse(id string, status int) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.jobTestsResponses[id] = status
+}
+
 // handleGetJobTests serves a job's test metadata as JSONL — one JSON object per
 // line — mirroring the real endpoint. A job with no registered tests returns an
 // empty 200 body.
@@ -1288,7 +1298,13 @@ func (f *CircleCI) handleGetJobTests(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	f.mu.RLock()
 	tests := f.jobTests[id]
+	status, overridden := f.jobTestsResponses[id]
 	f.mu.RUnlock()
+
+	if overridden {
+		w.WriteHeader(status)
+		return
+	}
 
 	w.Header().Set("Content-Type", "application/x-ndjson")
 	w.WriteHeader(http.StatusOK)
