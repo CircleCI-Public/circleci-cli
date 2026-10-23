@@ -1,0 +1,4 @@
+error: No orb version found for "nonexistent/orb@1.0.0".
+
+Suggestions:
+  • Check the version string and try again

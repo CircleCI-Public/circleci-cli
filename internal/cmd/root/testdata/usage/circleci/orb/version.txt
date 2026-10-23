@@ -1,0 +1,7 @@
+Usage:  circleci orb version <namespace>/<orb>[@<version>]/<version-id> [flags]
+
+Flags:
+  -h, --help        help for version
+      --jq string   Process values from the response using jq syntax
+      --json        Output as JSON
+  
