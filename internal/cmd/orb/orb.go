@@ -43,8 +43,6 @@ func NewOrbCmd() *cobra.Command {
 		GroupID: "management",
 		Short:   "Create, publish and inspect orbs (reusable config)",
 		Long: heredoc.Doc(`
-			Manage orbs in the orb registry.
-
 			Orbs are reusable packages of CircleCI configuration, published to a
 			namespace and either shared publicly or kept private. Manage the namespace
 			itself with 'circleci namespace'.
@@ -71,6 +69,7 @@ func NewOrbCmd() *cobra.Command {
 		newGetCmd(),
 		newPublishCmd(),
 		newSourceCmd(),
+		newVersionCmd(),
 		newUnlistCmd(),
 		newDiffCmd(),
 		newAddToCategoryCmd(),

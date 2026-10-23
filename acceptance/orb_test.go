@@ -55,6 +55,10 @@ const testOrbNsID = "orbns001-0000-4000-8000-000000000001"
 
 // testOrbUUID is a valid UUID (all hex) used where uuid.Parse must succeed.
 const testOrbUUID = "a1b2c3d4-0000-4000-8000-000000000001"
+
+// testOrbVersionUUID is a valid UUID, so 'orb version' looks it up by ID rather
+// than treating it as a reference.
+const testOrbVersionUUID = "a1b2c3d4-0000-4000-8000-0000000000f1"
 const testOrbName = "myorg/my-orb"
 const testOrbNsName = "myorg"
 const testOrbShortName = "my-orb"
@@ -442,6 +446,100 @@ func TestOrbSource_DefaultVersion(t *testing.T) {
 	assert.Check(t, cmp.Equal(result.ExitCode, 0))
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
 	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+}
+
+// --- orb version ---
+
+func TestOrbVersion(t *testing.T) {
+	fake, env := setupOrbFake(t)
+	fake.AddOrbPackage(testOrbID, testOrbNsID, testOrbNsName, testOrbShortName, false, true)
+	fake.AddOrbVersion(testOrbVersionID, testOrbID, testOrbName, testOrbVersion, testOrbSource, "")
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"orb", "version", testOrbName + "@" + testOrbVersion},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 0))
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+}
+
+func TestOrbVersion_DefaultVersion(t *testing.T) {
+	fake, env := setupOrbFake(t)
+	fake.AddOrbPackage(testOrbID, testOrbNsID, testOrbNsName, testOrbShortName, false, true)
+	fake.AddOrbVersion(testOrbVersionID, testOrbID, testOrbName, testOrbVersion, testOrbSource, "")
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"orb", "version", testOrbName, "--json"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+
+	var out map[string]any
+	assert.NilError(t, json.Unmarshal([]byte(result.Stdout), &out))
+	assert.Check(t, cmp.Equal(out["id"], testOrbVersionID))
+	assert.Check(t, cmp.Equal(out["version"], testOrbVersion))
+}
+
+func TestOrbVersion_ByID(t *testing.T) {
+	fake, env := setupOrbFake(t)
+	fake.AddOrbPackage(testOrbID, testOrbNsID, testOrbNsName, testOrbShortName, false, true)
+	fake.AddOrbVersion(testOrbVersionUUID, testOrbID, testOrbName, testOrbVersion, testOrbSource, "")
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"orb", "version", testOrbVersionUUID, "--json"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+
+	var out map[string]any
+	assert.NilError(t, json.Unmarshal([]byte(result.Stdout), &out))
+	assert.Check(t, cmp.DeepEqual(out, map[string]any{
+		"id":         testOrbVersionUUID,
+		"version":    testOrbVersion,
+		"orb_id":     testOrbID,
+		"orb_name":   testOrbName,
+		"created_at": "2026-01-15T10:30:00.000Z",
+	}))
+}
+
+func TestOrbVersion_NotFound(t *testing.T) {
+	t.Run("by reference", func(t *testing.T) {
+		_, env := setupOrbFake(t)
+
+		result := binary.RunCLI(t, binary.RunOpts{
+			Binary:  binaryPath,
+			Args:    []string{"orb", "version", "nonexistent/orb@1.0.0"},
+			Env:     env.Environ(),
+			WorkDir: t.TempDir(),
+		})
+
+		assert.Check(t, cmp.Equal(result.ExitCode, 5))
+		assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+	})
+
+	t.Run("by ID", func(t *testing.T) {
+		_, env := setupOrbFake(t)
+
+		result := binary.RunCLI(t, binary.RunOpts{
+			Binary:  binaryPath,
+			Args:    []string{"orb", "version", testOrbVersionUUID},
+			Env:     env.Environ(),
+			WorkDir: t.TempDir(),
+		})
+
+		assert.Check(t, cmp.Equal(result.ExitCode, 5))
+		assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+	})
 }
 
 // --- orb get ---
