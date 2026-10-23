@@ -87,6 +87,8 @@ type CircleCI struct {
 	// Job (v3) state.
 	jobsV3             map[string]JobV3         // job UUID → job detail entity
 	workflowJobsV3     map[string][]JobV3       // workflow id → job list entities
+	workflowJobsStatus map[string]int           // workflow id → HTTP status for its job list
+	runSearchStatus    map[string]int           // branch → HTTP status for run searches pinning it
 	jobStdout          map[string][]byte        // "jobID/index/stepNum" → plain text stdout
 	jobStderr          map[string][]byte        // "jobID/index/stepNum" → plain text stderr
 	jobStdoutCondensed map[string][]byte        // "jobID/index/stepNum" → raw condensed text
@@ -297,6 +299,8 @@ func NewCircleCI(t *testing.T, tokens ...string) *CircleCI {
 		rerunNewIDs:                       map[string]string{},
 		rerunFromFailed:                   map[string]bool{},
 		cancelResponses:                   map[string]int{},
+		workflowJobsStatus:                map[string]int{},
+		runSearchStatus:                   map[string]int{},
 		approveResponses:                  map[string]int{},
 		pipelineCancelResponses:           map[string]int{},
 		jobsV3:                            map[string]JobV3{},
@@ -861,6 +865,22 @@ type JobStep struct {
 	EndedAt   string
 }
 
+// SetWorkflowJobsV3Status makes GET /api/v3/jobs?filter[workflow_id]=<id>
+// answer with status instead of the workflow's jobs.
+func (f *CircleCI) SetWorkflowJobsV3Status(workflowID string, status int) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.workflowJobsStatus[workflowID] = status
+}
+
+// SetRunSearchStatus makes POST /api/v3/runs/search answer with status for a
+// search whose filter pins branch.
+func (f *CircleCI) SetRunSearchStatus(branch string, status int) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.runSearchStatus[branch] = status
+}
+
 // AddWorkflowJobsV3 registers the jobs a workflow lists.
 func (f *CircleCI) AddWorkflowJobsV3(workflowID string, jobs ...JobV3) {
 	f.mu.Lock()
@@ -1374,6 +1394,12 @@ func (f *CircleCI) handleListWorkflowJobsV3(w http.ResponseWriter, r *http.Reque
 	}
 
 	f.mu.RLock()
+	if status, ok := f.workflowJobsStatus[workflowID]; ok {
+		f.mu.RUnlock()
+		render.Status(r, status)
+		render.JSON(w, r, map[string]any{"message": http.StatusText(status)})
+		return
+	}
 	jobs := []any{}
 	for _, j := range f.workflowJobsV3[workflowID] {
 		jobs = append(jobs, jobV3Entity(j))
@@ -1673,6 +1699,12 @@ func (f *CircleCI) handleSearchRunsV3(w http.ResponseWriter, r *http.Request) {
 	status := runStatusFilterExpr(body.Filter)
 
 	f.mu.RLock()
+	if code, ok := f.runSearchStatus[branch]; ok && branch != "" {
+		f.mu.RUnlock()
+		render.Status(r, code)
+		render.JSON(w, r, map[string]any{"message": http.StatusText(code)})
+		return
+	}
 	var all []any
 	for _, pid := range body.Scope.ProjectIDs {
 		for _, run := range f.runsV3ByProject[pid] {

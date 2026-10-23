@@ -1,0 +1,5 @@
+error: Cleanup would delete cci/preflight/4b1f8e2a-6c1d-4f7e-9a3b-2d5c8e1f0a4b from origin; nothing was deleted.
+
+Suggestions:
+  • See what would be deleted: circleci preflight cleanup --dry-run
+  • Pass --force (-f) to skip this prompt in non-interactive mode
