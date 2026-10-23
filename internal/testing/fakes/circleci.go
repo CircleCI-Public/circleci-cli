@@ -5174,6 +5174,14 @@ func orbVersionEntity(v OrbVersion, includeSource bool) map[string]any {
 	}
 }
 
+// orbVersionEntityUnnamed is orbVersionEntity as the real API serves it from the
+// get and list endpoints: the orb reference carries the ID but not the name.
+func orbVersionEntityUnnamed(v OrbVersion, includeSource bool) map[string]any {
+	e := orbVersionEntity(v, includeSource)
+	e["references"] = map[string]any{"orb_package": map[string]any{"id": v.OrbID}}
+	return e
+}
+
 // orbCategoryEntity renders a stored OrbCategory.
 func orbCategoryEntity(c OrbCategory) map[string]any {
 	return map[string]any{"id": c.ID, "attributes": map[string]any{"name": c.Name}}
@@ -5479,7 +5487,7 @@ func (f *CircleCI) handleOrbListVersions(w http.ResponseWriter, r *http.Request)
 		if channel == "dev" && !isDev {
 			continue
 		}
-		items = append(items, orbVersionEntity(v, true)) // the list serves source
+		items = append(items, orbVersionEntityUnnamed(v, true)) // the list serves source
 	}
 	render.JSON(w, r, map[string]any{
 		"data": items,
@@ -5539,7 +5547,7 @@ func (f *CircleCI) handleOrbGetVersion(w http.ResponseWriter, r *http.Request) {
 		render.JSON(w, r, map[string]any{"message": "not found"})
 		return
 	}
-	render.JSON(w, r, map[string]any{"data": orbVersionEntity(v, false)})
+	render.JSON(w, r, map[string]any{"data": orbVersionEntityUnnamed(v, false)})
 }
 
 func (f *CircleCI) handleOrbGetVersionSource(w http.ResponseWriter, r *http.Request) {
@@ -5635,7 +5643,7 @@ func (f *CircleCI) handleOrbListVersionsByRefInternal(w http.ResponseWriter, r *
 
 	data := []any{}
 	if ok && vOK {
-		data = append(data, orbVersionEntity(v, true)) // the list serves source
+		data = append(data, orbVersionEntityUnnamed(v, true)) // the list serves source
 	}
 	render.JSON(w, r, map[string]any{
 		"data": data,
