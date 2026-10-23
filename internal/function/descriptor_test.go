@@ -107,6 +107,65 @@ func TestFlags(t *testing.T) {
 	}
 }
 
+func TestCommands(t *testing.T) {
+	content := map[string]any{
+		"default": "install",
+		"flags":   []any{map[string]any{"name": "verbose", "type": "bool"}},
+		"commands": map[string]any{
+			"uninstall": map[string]any{
+				"description": "Remove the toolchain.",
+				"flags":       []any{map[string]any{"name": "purge", "type": "bool", "default": false}},
+			},
+			"install": map[string]any{
+				"description": "Install the toolchain.",
+				"default":     "jdk",
+				"flags":       []any{map[string]any{"name": "distribution", "type": "string"}},
+				"commands": map[string]any{
+					"jdk": map[string]any{
+						"flags": []any{map[string]any{"name": "java-version", "type": "slice"}},
+					},
+				},
+			},
+			"doctor": map[string]any{},
+		},
+	}
+
+	t.Run("Top-level commands are listed by name with the arguments a step naming one accepts", func(t *testing.T) {
+		assert.Check(t, cmp.DeepEqual(function.Commands(content), []function.Command{
+			{Name: "doctor", Flags: []function.Flag{}},
+			{
+				Name:        "install",
+				Description: "Install the toolchain.",
+				Flags: []function.Flag{
+					{Name: "distribution", Type: "string"},
+					{Name: "java-version", Type: "slice"},
+				},
+			},
+			{
+				Name:        "uninstall",
+				Description: "Remove the toolchain.",
+				Flags:       []function.Flag{{Name: "purge", Type: "bool", Default: "false"}},
+			},
+		}))
+	})
+
+	t.Run("The default command is named", func(t *testing.T) {
+		assert.Check(t, cmp.Equal(function.DefaultCommand(content), "install"))
+	})
+
+	for what, content := range map[string]map[string]any{
+		"nil content":          nil,
+		"no commands key":      {"name": "setup-go"},
+		"commands is a list":   {"commands": []any{"install"}},
+		"command is not a map": {"commands": map[string]any{"install": "nope"}},
+	} {
+		t.Run(what, func(t *testing.T) {
+			assert.Check(t, cmp.DeepEqual(function.Commands(content), []function.Command{}))
+			assert.Check(t, cmp.Equal(function.DefaultCommand(content), ""))
+		})
+	}
+}
+
 // A function with no flags to show publishes a bare step, which has no key to
 // rename.
 func TestExampleStepBare(t *testing.T) {

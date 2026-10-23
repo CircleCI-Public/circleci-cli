@@ -1,0 +1,108 @@
+# github.com/circleci-functions/setup-browser-tools
+
+Install browsers and browser-testing tools.
+
+Example:
+  circleci run github.com/circleci-functions/setup-browser-tools@<version> -- install-chrome --version latest
+
+**Version:** v0.2.0
+**Latest:** v0.2.0
+
+## Commands
+
+### setup-browser-tools/install-browser-tools
+
+Install a default set of browsers and drivers: Chrome, ChromeDriver, Firefox and geckodriver.
+
+| Argument                       | Type   | Default        | Description                                                               |
+| ------------------------------ | ------ | -------------- | ------------------------------------------------------------------------- |
+| chrome                         | bool   | true           | Install Google Chrome.                                                    |
+| chromedriver                   | bool   | true           | Install ChromeDriver.                                                     |
+| firefox                        | bool   | true           | Install Mozilla Firefox.                                                  |
+| geckodriver                    | bool   | true           | Install geckodriver.                                                      |
+| chrome-for-testing             | bool   | false          | Install Chrome for Testing.                                               |
+| chrome-for-testing-driver      | bool   | false          | Install the Chrome for Testing ChromeDriver alongside Chrome for Testing. |
+| edge                           | bool   | false          | Install Microsoft Edge.                                                   |
+| edge-driver                    | bool   | false          | Install Edge WebDriver.                                                   |
+| chrome-version                 | string | latest         | Version of Chrome to install.                                             |
+| replace-existing-chrome        | bool   | false          | Replace an existing Chrome installation when it is a different version.   |
+| chromedriver-install-dir       | string | /usr/local/bin | Directory to install ChromeDriver into.                                   |
+| chrome-for-testing-version     | string | latest         | Version of Chrome for Testing to install.                                 |
+| chrome-for-testing-install-dir | string | /usr/local/bin | Directory to symlink Chrome for Testing and its driver into.              |
+| firefox-version                | string | latest         | Version of Firefox to install.                                            |
+| firefox-install-dir            | string | /usr/local/bin | Directory to install Firefox into.                                        |
+| geckodriver-version            | string | latest         | Release tag of geckodriver to install.                                    |
+| geckodriver-install-dir        | string | /usr/local/bin | Directory to install geckodriver into.                                    |
+| edge-version                   | string | latest         | Version of Edge to install.                                               |
+| edge-driver-install-dir        | string | /usr/local/bin | Directory to install Edge WebDriver into.                                 |
+
+### setup-browser-tools/install-chrome
+
+Install Google Chrome.
+
+| Argument         | Type   | Default | Description                                                                                                                    |
+| ---------------- | ------ | ------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| version          | string | latest  | Version of Chrome to install, e.g. 147.0.7727.55. Defaults to the latest stable release.                                       |
+| channel          | string | stable  | Release channel to install.                                                                                                    |
+| replace-existing | bool   | false   | Replace an existing Chrome installation when it is a different version.                                                        |
+| use-cache        | bool   | false   | Restore and save Chrome via the job cache. Increases cost and rarely speeds things up; use only when downloads are unreliable. |
+| cache-key        | string | v1      | Cache key prefix, for invalidating cached entries.                                                                             |
+
+### setup-browser-tools/install-chrome-for-testing
+
+Install Chrome for Testing, and optionally its matching ChromeDriver.
+
+| Argument     | Type   | Default        | Description                                                                      |
+| ------------ | ------ | -------------- | -------------------------------------------------------------------------------- |
+| version      | string | latest         | Version of Chrome for Testing to install. Defaults to the latest stable release. |
+| install-dir  | string | /usr/local/bin | Directory to symlink Chrome for Testing and its driver into.                     |
+| chromedriver | bool   | true           | Also install the matching Chrome for Testing ChromeDriver.                       |
+
+### setup-browser-tools/install-chromedriver
+
+Install ChromeDriver, matching the installed Chrome.
+
+| Argument    | Type   | Default        | Description                                                                                        |
+| ----------- | ------ | -------------- | -------------------------------------------------------------------------------------------------- |
+| install-dir | string | /usr/local/bin | Directory to install ChromeDriver into. Not honoured on Alpine, where the package manager chooses. |
+
+### setup-browser-tools/install-edge
+
+Install Microsoft Edge.
+
+| Argument | Type   | Default | Description                                                                                   |
+| -------- | ------ | ------- | --------------------------------------------------------------------------------------------- |
+| version  | string | latest  | Version of Edge to install. Only honoured on Debian/Ubuntu; macOS always installs the latest. |
+
+### setup-browser-tools/install-edge-driver
+
+Install Edge WebDriver, matching the installed Edge.
+
+| Argument    | Type   | Default        | Description                               |
+| ----------- | ------ | -------------- | ----------------------------------------- |
+| install-dir | string | /usr/local/bin | Directory to install Edge WebDriver into. |
+
+### setup-browser-tools/install-firefox
+
+Install Mozilla Firefox.
+
+| Argument    | Type   | Default        | Description                                                                                       |
+| ----------- | ------ | -------------- | ------------------------------------------------------------------------------------------------- |
+| version     | string | latest         | Version of Firefox to install, e.g. 149.0.2 or 140.9.1esr. Defaults to the latest stable release. |
+| install-dir | string | /usr/local/bin | Directory to install Firefox into. A symlink is also created in /usr/local/bin.                   |
+| use-cache   | bool   | false          | Restore and save the Firefox installer via the job cache. Ignored when --version is latest.       |
+| cache-key   | string | v1             | Cache key prefix, for invalidating cached entries.                                                |
+
+### setup-browser-tools/install-geckodriver
+
+Install geckodriver, Mozilla's WebDriver proxy for Firefox.
+
+| Argument    | Type   | Default        | Description                                                                          |
+| ----------- | ------ | -------------- | ------------------------------------------------------------------------------------ |
+| version     | string | latest         | Release tag of geckodriver to install, e.g. v0.36.0. Defaults to the latest release. |
+| install-dir | string | /usr/local/bin | Directory to install geckodriver into.                                               |
+
+## Published versions
+| Version |
+| ------- |
+| v0.2.0  |

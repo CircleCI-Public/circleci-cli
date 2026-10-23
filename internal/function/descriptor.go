@@ -24,6 +24,8 @@ package function
 
 import (
 	"bytes"
+	"maps"
+	"slices"
 	"strconv"
 
 	"gopkg.in/yaml.v3"
@@ -50,12 +52,51 @@ func Flags(content map[string]any) []Flag {
 	return flags
 }
 
+// Command is one of a function's commands, which a step names after the alias
+// as <alias>/<name>.
+type Command struct {
+	Name        string `json:"name"`
+	Description string `json:"description,omitempty"`
+	Flags       []Flag `json:"flags"`
+}
+
+// DefaultCommand returns the name of the command a bare step runs, or "" if
+// the function names none.
+func DefaultCommand(content map[string]any) string {
+	name, _ := content["default"].(string)
+	return name
+}
+
+// Commands lists a function's top-level commands, sorted by name, each with
+// the arguments a step naming it accepts. Only the top level is listed because
+// a step can name only one command; that command's own default chain is
+// followed for its arguments, as it is for a bare step.
+func Commands(content map[string]any) []Command {
+	raw, _ := content["commands"].(map[string]any)
+	commands := make([]Command, 0, len(raw))
+	for _, name := range slices.Sorted(maps.Keys(raw)) {
+		node, ok := raw[name].(map[string]any)
+		if !ok || name == "" {
+			continue
+		}
+		flags := Flags(node)
+		if flags == nil {
+			flags = []Flag{}
+		}
+		commands = append(commands, Command{
+			Name:        name,
+			Description: str(node, "description"),
+			Flags:       flags,
+		})
+	}
+	return commands
+}
+
 // defaultCommand returns the command a node runs when invoked without one, or
 // nil if it names none.
 func defaultCommand(node map[string]any) map[string]any {
-	name, _ := node["default"].(string)
 	commands, _ := node["commands"].(map[string]any)
-	cmd, _ := commands[name].(map[string]any)
+	cmd, _ := commands[DefaultCommand(node)].(map[string]any)
 	return cmd
 }
 
