@@ -66,7 +66,7 @@ func newUpdateCmd() *cobra.Command {
 			$ circleci function update setup-go
 
 			# Pin an exact version
-			$ circleci function update setup-go --version v0.5.1-684fd5b
+			$ circleci function update setup-go --version v0.6.0
 
 			# Preview the change without writing it
 			$ circleci function update setup-go --dry-run

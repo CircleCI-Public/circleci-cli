@@ -1,0 +1,10 @@
+Usage:  circleci function update <alias> [flags]
+
+Flags:
+  -c, --config string    Path to the pipeline config file (default ".circleci/config.yml")
+  -n, --dry-run          show the change without writing it
+  -h, --help             help for update
+      --jq string        Process values from the response using jq syntax
+      --json             Output as JSON
+      --version string   version to pin (default: the latest release)
+  

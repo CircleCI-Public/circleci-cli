@@ -51,7 +51,6 @@ func NewFunctionCmd() *cobra.Command {
 			# Declare one in .circleci/config.yml
 			$ circleci function add setup-go
 		`),
-		Hidden:             true,
 		RunE:               cmdutil.GroupRunE,
 		FParseErrWhitelist: cobra.FParseErrWhitelist{UnknownFlags: true},
 	}

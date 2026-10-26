@@ -180,6 +180,149 @@ JSON fields (--json): valid (bool), compiled_yaml (string, when valid), errors (
 - Validate and output as JSON: 
   `circleci config validate --json`
 
+### `circleci function <command>`
+
+Discover and declare CircleCI functions
+
+Discover published CircleCI functions and declare them in your config.
+
+A function is a versioned binary invoked as a step.
+
+**Examples:**
+
+- List published functions: 
+  `circleci function list`
+- Show a function's versions and arguments: 
+  `circleci function get setup-go`
+- Declare one in .circleci/config.yml: 
+  `circleci function add setup-go`
+
+#### `circleci function add <name> [flags]`
+
+Declare a function in the pipeline config
+
+Resolve a function's latest version and declare it in the
+`functions` block of the pipeline config.
+
+A default alias that clashes with an orb or command gets `-fn` appended.
+
+JSON fields: alias, function, version, config, step.
+
+| Flag                  | Description                                                                       |
+| --------------------- | --------------------------------------------------------------------------------- |
+| `--as string`         | alias a step invokes it by (default: the function's name)                         |
+| `-c, --config string` | Path to the pipeline config file (default ".circleci/config.yml")                 |
+| `-n, --dry-run`       | show the change without writing it                                                |
+| `--jq string`         | Process values from the response using jq syntax (see `circleci help formatting`) |
+| `--json`              | Output as JSON                                                                    |
+| `--version string`    | version to pin (default: the latest release)                                      |
+
+
+**Examples:**
+
+- Declare a function at its latest version: 
+  `circleci function add setup-go`
+- Declare a specific version under a chosen alias: 
+  `circleci function add setup-go --version v0.6.0 --as go`
+- Preview the change without writing it: 
+  `circleci function add setup-go --dry-run`
+
+#### `circleci function get <name> [flags]`
+
+Show a function's versions and arguments
+
+Show a function's published versions and the arguments one accepts.
+
+A bare name resolves against `github.com/circleci-functions`.
+
+JSON fields: id, name, description, version, latest_version,
+versions, flags, example.
+
+| Flag               | Description                                                                       |
+| ------------------ | --------------------------------------------------------------------------------- |
+| `--jq string`      | Process values from the response using jq syntax (see `circleci help formatting`) |
+| `--json`           | Output as JSON                                                                    |
+| `--version string` | version to show (default: the latest release)                                     |
+
+
+**Aliases:**
+
+
+`circleci function show`
+
+**Examples:**
+
+- Show a function at its latest version: 
+  `circleci function get setup-go`
+- Show a specific version, or a function published elsewhere: 
+  `circleci function get github.com/myorg/my-fn --version v1.0.0`
+- List the arguments it accepts: 
+  `circleci function get setup-go --json --jq '.flags[].name'`
+
+#### `circleci function list [flags]`
+
+List published CircleCI functions
+
+Builds, such as pseudo-versions (v0.5.2-0.20261007152818-72ffa3f7a023) and
+commit-suffixed versions (v0.5.4-2ad832a), appear only with --include-pseudo.
+
+JSON fields: id, name, description, latest_version, versions.
+With --pinned: alias, function, version.
+
+| Flag                  | Description                                                                       |
+| --------------------- | --------------------------------------------------------------------------------- |
+| `-c, --config string` | Path to the pipeline config file (default ".circleci/config.yml")                 |
+| `--include-pseudo`    | include builds in each function's versions                                        |
+| `--jq string`         | Process values from the response using jq syntax (see `circleci help formatting`) |
+| `--json`              | Output as JSON                                                                    |
+| `--pinned`            | list the functions declared in the local config                                   |
+
+
+**Aliases:**
+
+
+`circleci function ls`
+
+**Examples:**
+
+- List published functions: 
+  `circleci function list`
+- Include builds in each function's versions: 
+  `circleci function list --include-pseudo --json --jq '.[].versions'`
+- List what this repository declares: 
+  `circleci function list --pinned`
+- Get just the names: 
+  `circleci function list --json --jq '.[].name'`
+
+#### `circleci function update <alias> [flags]`
+
+Change the version a declared function is pinned to
+
+Re-pin a declared function to its latest release.
+
+The argument is the alias the function is declared under, which
+`function list --pinned` reports.
+
+JSON fields: alias, function, previous_version, version, config.
+
+| Flag                  | Description                                                                       |
+| --------------------- | --------------------------------------------------------------------------------- |
+| `-c, --config string` | Path to the pipeline config file (default ".circleci/config.yml")                 |
+| `-n, --dry-run`       | show the change without writing it                                                |
+| `--jq string`         | Process values from the response using jq syntax (see `circleci help formatting`) |
+| `--json`              | Output as JSON                                                                    |
+| `--version string`    | version to pin (default: the latest release)                                      |
+
+
+**Examples:**
+
+- Move a pin to the latest release: 
+  `circleci function update setup-go`
+- Pin an exact version: 
+  `circleci function update setup-go --version v0.6.0`
+- Preview the change without writing it: 
+  `circleci function update setup-go --dry-run`
+
 ### `circleci job <command>`
 
 Inspect a job's details, output and artifacts
