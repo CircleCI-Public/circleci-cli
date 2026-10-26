@@ -32,10 +32,10 @@ Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `ci
 
 ## Details
 
-Create a new authentication token for a runner resource class.
+Create a runner token for a resource class. The token value is shown only once.
 
-The token value is shown only once and cannot be retrieved afterwards.
-Store it securely. If lost, delete this token and create a new one.
+CLI 0.1.x (check with `circleci version`) printed a circleci-runner-config.yaml
+document. This command prints text or JSON instead. There is no replacement yet.
 
 JSON fields: id, resource_class, resource_class_id, nickname, created_at, token
 

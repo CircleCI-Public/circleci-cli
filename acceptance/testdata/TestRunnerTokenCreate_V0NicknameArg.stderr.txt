@@ -1,0 +1,4 @@
+error: The nickname is now the --nickname flag, not a second argument. This version also does not print a circleci-runner-config.yaml document as CLI 0.1.x did. There is no replacement yet.
+
+Suggestions:
+  • Pass the nickname as a flag: circleci runner token create my-org/linux-runner --nickname "my-server"
