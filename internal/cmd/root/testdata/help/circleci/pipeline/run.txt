@@ -9,6 +9,7 @@ Trigger a new pipeline run
 | Flag                     | Description                                                                       |
 | ------------------------ | --------------------------------------------------------------------------------- |
 | `-b, --branch string`    | Branch for config fetch and checkout (mutually exclusive with --tag)              |
+| `--definition string`    | Pipeline definition name to run (mutually exclusive with --definition-id)         |
 | `--definition-id string` | Pipeline definition UUID to run (prompted interactively if omitted)               |
 | `--jq string`            | Process values from the response using jq syntax (see `circleci help formatting`) |
 | `--json`                 | Output as JSON                                                                    |
@@ -22,8 +23,8 @@ Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `ci
 
 - Trigger a pipeline interactively — pick definition and branch from menus: 
   `circleci pipeline run --project gh/myorg/myrepo`
-- Trigger a specific definition on a branch non-interactively: 
-  `circleci pipeline run --project gh/myorg/myrepo --definition-id 2338d0ae-5541-4bbf-88a2-55e9f7281f80 --branch main`
+- Trigger a definition, selected by name, on a branch non-interactively: 
+  `circleci pipeline run --project gh/myorg/myrepo --definition main-pipeline --branch main`
 - Trigger on a tag with parameters: 
   `circleci pipeline run --project gh/myorg/myrepo --definition-id 2338d0ae-5541-4bbf-88a2-55e9f7281f80 --tag v1.2.3 --param deploy_env=staging`
 - Output as JSON for scripting: 
@@ -31,11 +32,8 @@ Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `ci
 
 ## Details
 
-Trigger a new pipeline run using the recommended CircleCI v2 API.
-
-In a terminal, a missing --definition-id or --branch/--tag is prompted for; in
-non-interactive mode both are optional. --branch and --tag are mutually
-exclusive and each sets both the config-fetch and checkout revision.
+Trigger a pipeline run. In a terminal a missing definition or --branch/--tag
+is prompted for; in non-interactive mode both are optional.
 
 A skipped pipeline (e.g. a [ci skip] commit message) exits 0 and prints why.
 

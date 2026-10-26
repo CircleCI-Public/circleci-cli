@@ -25,6 +25,7 @@ package pipeline
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/MakeNowJust/heredoc"
@@ -41,6 +42,7 @@ func newRunCmd() *cobra.Command {
 	var (
 		projectSlug  string
 		definitionID string
+		definition   string
 		branch       string
 		tag          string
 		params       []string
@@ -52,11 +54,8 @@ func newRunCmd() *cobra.Command {
 		GroupID: "ci",
 		Short:   "Trigger a new pipeline run",
 		Long: heredoc.Doc(`
-			Trigger a new pipeline run using the recommended CircleCI v2 API.
-
-			In a terminal, a missing --definition-id or --branch/--tag is prompted for; in
-			non-interactive mode both are optional. --branch and --tag are mutually
-			exclusive and each sets both the config-fetch and checkout revision.
+			Trigger a pipeline run. In a terminal a missing definition or --branch/--tag
+			is prompted for; in non-interactive mode both are optional.
 
 			A skipped pipeline (e.g. a [ci skip] commit message) exits 0 and prints why.
 
@@ -66,10 +65,9 @@ func newRunCmd() *cobra.Command {
 			# Trigger a pipeline interactively — pick definition and branch from menus
 			$ circleci pipeline run --project gh/myorg/myrepo
 
-			# Trigger a specific definition on a branch non-interactively
+			# Trigger a definition, selected by name, on a branch non-interactively
 			$ circleci pipeline run --project gh/myorg/myrepo \
-			    --definition-id 2338d0ae-5541-4bbf-88a2-55e9f7281f80 \
-			    --branch main
+			    --definition main-pipeline --branch main
 
 			# Trigger on a tag with parameters
 			$ circleci pipeline run --project gh/myorg/myrepo \
@@ -89,11 +87,12 @@ func newRunCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return runRun(ctx, client, projectSlug, definitionID, branch, tag, params, jsonOut)
+			return runRun(ctx, client, projectSlug, definitionID, definition, branch, tag, params, jsonOut)
 		},
 	}
 
 	cmd.Flags().StringVar(&projectSlug, "project", "", "Project slug (e.g. gh/org/repo); defaults to git remote")
+	cmd.Flags().StringVar(&definition, "definition", "", "Pipeline definition name to run (mutually exclusive with --definition-id)")
 	cmd.Flags().StringVar(&definitionID, "definition-id", "", "Pipeline definition UUID to run (prompted interactively if omitted)")
 	cmd.Flags().StringVarP(&branch, "branch", "b", "", "Branch for config fetch and checkout (mutually exclusive with --tag)")
 	cmd.Flags().StringVarP(&tag, "tag", "t", "", "Tag for config fetch and checkout (mutually exclusive with --branch)")
@@ -114,10 +113,27 @@ type runOutput struct {
 	Message   string `json:"message,omitempty"`
 }
 
-func runRun(ctx context.Context, client *apiclient.Client, projectSlug, definitionID, branch, tag string, rawParams []string, jsonOut bool) error {
+func runRun(ctx context.Context, client *apiclient.Client, projectSlug, definitionID, definition, branch, tag string, rawParams []string, jsonOut bool) error {
 	if branch != "" && tag != "" {
 		return clierrors.New("pipeline.run.invalid_args", "Invalid arguments",
 			"--branch and --tag are mutually exclusive").
+			WithExitCode(clierrors.ExitBadArguments)
+	}
+
+	// Checked by value, not with MarkFlagsMutuallyExclusive: cobra counts an
+	// explicitly empty flag as set, which would reject MCP calls that fill every
+	// flag with "".
+	if definition != "" && definitionID != "" {
+		return clierrors.New("pipeline.run.invalid_args", "Invalid arguments",
+			"--definition and --definition-id are mutually exclusive").
+			WithExitCode(clierrors.ExitBadArguments)
+	}
+
+	// Parse parameters before any API call so a malformed --param fails fast.
+	parameters, err := cmdutil.ParseParams(rawParams)
+	if err != nil {
+		return clierrors.New("pipeline.run.invalid_param", "Invalid parameter",
+			err.Error()).
 			WithExitCode(clierrors.ExitBadArguments)
 	}
 
@@ -137,25 +153,34 @@ func runRun(ctx context.Context, client *apiclient.Client, projectSlug, definiti
 
 	// Fetch project info once; reused for both definition and branch prompts.
 	var projInfo *apiclient.ProjectInfo
-	if iostream.IsInteractive(ctx) {
-		projInfo, _ = client.GetProjectInfo(ctx, slug) // best-effort; nil skips prompts
-	}
-
-	definitionID, err = resolveDefinitionID(ctx, client, projInfo, definitionID)
-	if err != nil {
-		return err
+	if definition != "" {
+		// A name needs the project's UUID to list its definitions, so a failure
+		// here is an error rather than a skipped prompt.
+		projInfo, err = client.GetProjectInfo(ctx, slug)
+		if err != nil {
+			return cmdutil.APIErr(err, slug,
+				"pipeline.run_failed",
+				"Failed to look up project %q.",
+				"Check that the project slug is correct and you have access to it",
+				"Run 'circleci project list' to see followed projects")
+		}
+		definitionID, err = resolveDefinitionName(ctx, client, projInfo.ID, definition)
+		if err != nil {
+			return err
+		}
+	} else {
+		if iostream.IsInteractive(ctx) {
+			projInfo, _ = client.GetProjectInfo(ctx, slug) // best-effort; nil skips prompts
+		}
+		definitionID, err = resolveDefinitionID(ctx, client, projInfo, definitionID)
+		if err != nil {
+			return err
+		}
 	}
 
 	branch, err = resolveBranch(ctx, projInfo, currentGitBranch, branch, tag)
 	if err != nil {
 		return err
-	}
-
-	parameters, err := cmdutil.ParseParams(rawParams)
-	if err != nil {
-		return clierrors.New("pipeline.run.invalid_param", "Invalid parameter",
-			err.Error()).
-			WithExitCode(clierrors.ExitBadArguments)
 	}
 
 	input := apiclient.TriggerPipelineRunInput{
@@ -203,6 +228,65 @@ func runRun(ctx context.Context, client *apiclient.Client, projectSlug, definiti
 	}
 	iostream.Println(ctx, msg)
 	return nil
+}
+
+// resolveDefinitionName returns the ID of the project's pipeline definition
+// called name. An exact match wins; failing that, names are compared ignoring
+// case and surrounding whitespace. A name that matches no definition, or more
+// than one, fails with the available definitions listed.
+func resolveDefinitionName(ctx context.Context, client *apiclient.Client, projectID, name string) (string, error) {
+	defs, err := client.ListPipelineDefinitions(ctx, projectID)
+	if err != nil {
+		return "", cmdutil.APIErr(err, projectID,
+			"pipeline_definition.list_failed",
+			"Failed to list pipeline definitions for project %q.",
+			"Check that you have access to the project",
+			"Run 'circleci pipeline list' to see its definitions")
+	}
+
+	var matches []apiclient.PipelineDefinition
+	for _, d := range defs {
+		if d.Name == name {
+			matches = append(matches, d)
+		}
+	}
+	if len(matches) == 0 {
+		want := strings.TrimSpace(name)
+		for _, d := range defs {
+			if strings.EqualFold(strings.TrimSpace(d.Name), want) {
+				matches = append(matches, d)
+			}
+		}
+	}
+	if len(matches) == 1 {
+		return matches[0].ID, nil
+	}
+
+	if len(matches) > 1 {
+		return "", clierrors.New("pipeline.run.ambiguous_definition", "Ambiguous pipeline definition",
+			fmt.Sprintf("%d pipeline definitions are named %q:\n%s", len(matches), name, definitionList(matches))).
+			WithSuggestions("Pass --definition-id <uuid> to pick one").
+			WithExitCode(clierrors.ExitBadArguments)
+	}
+
+	e := clierrors.New("pipeline.run.definition_not_found", "Pipeline definition not found",
+		fmt.Sprintf("No pipeline definition is named %q.", name)).
+		WithExitCode(clierrors.ExitNotFound)
+	if len(defs) == 0 {
+		e.Message = "This project has no pipeline definitions."
+		return "", e.WithSuggestions("Create one with 'circleci pipeline create'")
+	}
+	e.Message += "\nAvailable definitions:\n" + definitionList(defs)
+	return "", e.WithSuggestions("Pass one of these names to --definition")
+}
+
+// definitionList renders one "name  (id)" line per definition.
+func definitionList(defs []apiclient.PipelineDefinition) string {
+	lines := make([]string, len(defs))
+	for i, d := range defs {
+		lines[i] = fmt.Sprintf("  %s  (%s)", d.Name, d.ID)
+	}
+	return strings.Join(lines, "\n")
 }
 
 // resolveDefinitionID returns definitionID as-is if provided. In interactive
