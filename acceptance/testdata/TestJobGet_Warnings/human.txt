@@ -1,0 +1,19 @@
+# Job
+- ID: `8e50c384-0083-43d0-bc8f-93f0db589d6b`
+- Name: run-unit-tests
+- Type: build
+- URL: http://app.circleci.test/workflow/c266c3a7-0dad-459a-aa7b-dd13e005b9a0/job/8e50c384-0083-43d0-bc8f-93f0db589d6b
+- Status: ✅ succeeded
+- Started: 2026-05-19 20:29:13 UTC
+- Stopped: 2026-05-19 20:29:22 UTC
+- Duration: 8.6s
+- Workflow: `c266c3a7-0dad-459a-aa7b-dd13e005b9a0`
+- Run: `682142f3-f35d-4c94-adf7-d855321716e4`
+
+## Warnings
+- This job is using a deprecated image 'xcode:16.2.0', please update to a newer image
+
+## Steps
+| # | Name                | Status       | Duration | Exit Code | Command |
+| - | ------------------- | ------------ | -------- | --------- | ------- |
+| 0 | Spin up environment | ✅ succeeded | 1.3s     | -         | -       |
