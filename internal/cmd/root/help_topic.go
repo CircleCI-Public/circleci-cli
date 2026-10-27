@@ -187,7 +187,8 @@ var helpTopics = []helpTopic{
 		short: "Event source providers and event presets for project triggers",
 		long: heredoc.Docf(`
 			A trigger connects an event source to a pipeline definition, so that matching events
-			automatically start a pipeline run. Create one with %[1]scircleci project trigger create%[1]s.
+			automatically start a pipeline run. Create one with %[1]scircleci project trigger create%[1]s,
+			change it with %[1]supdate%[1]s (including %[1]s--disable%[1]s to pause it) and remove it with %[1]sdelete%[1]s.
 
 			## Providers
 

@@ -1,0 +1,4 @@
+error: No trigger found with ID "no-such-trigger".
+
+Suggestions:
+  • Run 'circleci project trigger list --pipeline-definition-id <id>' to see trigger IDs

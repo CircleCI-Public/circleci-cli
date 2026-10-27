@@ -9,7 +9,9 @@ Manage project triggers
 | Command  | Description                             |
 | -------- | --------------------------------------- |
 | `create` | Create a new project trigger            |
+| `delete` | Delete a project trigger                |
 | `list`   | List triggers for a pipeline definition |
+| `update` | Update a project trigger                |
 
 ## Flags
 
@@ -17,7 +19,7 @@ Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `ci
 
 ## Details
 
-List and create triggers for a CircleCI project.
+List, create, update and delete triggers for a CircleCI project.
 
 Triggers watch a GitHub repository for events and automatically run
 a pipeline definition when matching events occur. Only projects

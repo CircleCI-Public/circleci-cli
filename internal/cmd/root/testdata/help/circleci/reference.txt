@@ -3861,7 +3861,7 @@ setting's description and current value.
 
 Manage project triggers
 
-List and create triggers for a CircleCI project.
+List, create, update and delete triggers for a CircleCI project.
 
 Triggers watch a GitHub repository for events and automatically run
 a pipeline definition when matching events occur. Only projects
@@ -3902,6 +3902,34 @@ JSON fields: id, created_at, event_name, event_preset, config_ref, checkout_ref,
 - Create a trigger with event filtering and output as JSON: 
   `circleci project trigger create --pipeline-definition-id a1b2c3d4-... --repo-id 123456789 --event-preset all-pushes --json`
 
+##### `circleci project trigger delete <trigger-id> [flags]`
+
+Delete a project trigger
+
+Delete a trigger. Events from its event source stop starting pipelines.
+To pause a trigger without losing it, use 'trigger update --disable'.
+
+| Flag                  | Description                                                                |
+| --------------------- | -------------------------------------------------------------------------- |
+| `-f, --force`         | skip confirmation prompt                                                   |
+| `--project string`    | project slug (e.g. gh/org/repo); only needed for a project's OAuth trigger |
+| `--project-id string` | project UUID (overrides --project)                                         |
+
+
+**Aliases:**
+
+
+`circleci project trigger rm`
+
+**Examples:**
+
+- Delete a trigger (with confirmation): 
+  `circleci project trigger delete a1b2c3d4-...`
+- Delete without confirmation, for scripts: 
+  `circleci project trigger delete a1b2c3d4-... --force`
+- Pause it instead of deleting it: 
+  `circleci project trigger update a1b2c3d4-... --disable`
+
 ##### `circleci project trigger list [flags]`
 
 List triggers for a pipeline definition
@@ -3936,6 +3964,39 @@ JSON fields: id, created_at, event_name, event_preset, config_ref, checkout_ref,
   `circleci project trigger list --project gh/myorg/myrepo --pipeline-definition-id a1b2c3d4-...`
 - Output as JSON for scripting: 
   `circleci project trigger list --pipeline-definition-id a1b2c3d4-... --json`
+
+##### `circleci project trigger update <trigger-id> [flags]`
+
+Update a project trigger
+
+Change an existing trigger. Only the flags you pass are changed. The event
+source (provider and repository) is fixed when the trigger is created; to
+change it, delete the trigger and create a new one. Run `circleci help triggers`
+for what each event preset means.
+
+JSON fields: id, created_at, event_name, event_preset, config_ref, checkout_ref, disabled
+
+| Flag                    | Description                                                                                                                                                                                                                                                                                                                                             |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--checkout-ref string` | git ref for checking out code (only when the checkout repo differs from the event source repo)                                                                                                                                                                                                                                                          |
+| `--config-ref string`   | git ref for fetching config (only when the config repo differs from the event source repo)                                                                                                                                                                                                                                                              |
+| `--disable`             | pause the trigger without deleting it                                                                                                                                                                                                                                                                                                                   |
+| `--enable`              | resume the trigger so matching events start pipelines                                                                                                                                                                                                                                                                                                   |
+| `--event-preset string` | event preset for filtering trigger events (one of: all-pushes, only-tags, default-branch-pushes, only-build-prs, only-open-prs, only-labeled-prs, only-merged-prs, only-ready-for-review-prs, only-branch-delete, only-build-pushes-to-non-draft-prs, only-merged-or-closed-prs, pr-comment-equals-run-ci, non-draft-pr-opened, pushes-to-merge-queues) |
+| `--jq string`           | Process values from the response using jq syntax (see `circleci help formatting`)                                                                                                                                                                                                                                                                       |
+| `--json`                | Output as JSON                                                                                                                                                                                                                                                                                                                                          |
+| `--project string`      | project slug (e.g. gh/org/repo); only needed for a project's OAuth trigger                                                                                                                                                                                                                                                                              |
+| `--project-id string`   | project UUID (overrides --project)                                                                                                                                                                                                                                                                                                                      |
+
+
+**Examples:**
+
+- Pause a trigger without deleting it: 
+  `circleci project trigger update a1b2c3d4-... --disable`
+- Resume it: 
+  `circleci project trigger update a1b2c3d4-... --enable`
+- Only build tag pushes, and output the result as JSON: 
+  `circleci project trigger update a1b2c3d4-... --event-preset only-tags --json`
 
 ### `circleci runner <command>`
 

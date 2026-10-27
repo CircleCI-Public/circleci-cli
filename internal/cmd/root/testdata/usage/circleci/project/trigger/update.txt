@@ -1,0 +1,14 @@
+Usage:  circleci project trigger update <trigger-id> [flags]
+
+Flags:
+      --checkout-ref string   git ref for checking out code (only when the checkout repo differs from the event source repo)
+      --config-ref string     git ref for fetching config (only when the config repo differs from the event source repo)
+      --disable               pause the trigger without deleting it
+      --enable                resume the trigger so matching events start pipelines
+      --event-preset string   event preset for filtering trigger events (one of: all-pushes, only-tags, default-branch-pushes, only-build-prs, only-open-prs, only-labeled-prs, only-merged-prs, only-ready-for-review-prs, only-branch-delete, only-build-pushes-to-non-draft-prs, only-merged-or-closed-prs, pr-comment-equals-run-ci, non-draft-pr-opened, pushes-to-merge-queues)
+  -h, --help                  help for update
+      --jq string             Process values from the response using jq syntax
+      --json                  Output as JSON
+      --project string        project slug (e.g. gh/org/repo); only needed for a project's OAuth trigger
+      --project-id string     project UUID (overrides --project)
+  

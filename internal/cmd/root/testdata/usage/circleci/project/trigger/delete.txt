@@ -1,0 +1,8 @@
+Usage:  circleci project trigger delete <trigger-id> [flags]
+
+Flags:
+  -f, --force               skip confirmation prompt
+  -h, --help                help for delete
+      --project string      project slug (e.g. gh/org/repo); only needed for a project's OAuth trigger
+      --project-id string   project UUID (overrides --project)
+  
