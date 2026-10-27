@@ -1002,6 +1002,238 @@ func TestProjectTriggerCreate_OriginMissingRepoFullName(t *testing.T) {
 	assert.Check(t, strings.Contains(result.Stderr, "--repo-full-name"))
 }
 
+// --- project trigger update ---
+
+func TestProjectTriggerUpdate(t *testing.T) {
+	fake, env := setupTriggerFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"project", "trigger", "update", triggerID, "--disable", "--event-preset", "only-tags"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 0), "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+
+	t.Run("check request", func(t *testing.T) {
+		assert.Check(t, cmp.DeepEqual(fake.LastRequest(), &httprecorder.Request{
+			Method: http.MethodPost,
+			URL:    url.URL{Path: "/api/v3/triggers/" + triggerID + "/update"},
+			Header: http.Header{
+				"Authorization": {"Bearer test-token"},
+				"User-Agent":    {httpcl.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
+			},
+			Body: new(`{"is_disabled":true,"event":{"filter":{"preset":"only-tags"}}}`),
+		}, ignoreCommonHeaders))
+	})
+}
+
+func TestProjectTriggerUpdate_Enable(t *testing.T) {
+	fake, env := setupTriggerFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"project", "trigger", "update", triggerID, "--enable"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 0), "stderr: %s", result.Stderr)
+	req := fake.LastRequest()
+	assert.Assert(t, req != nil)
+	assert.Check(t, cmp.Equal(*req.Body, `{"is_disabled":false}`))
+}
+
+// A project's OAuth trigger has no stored row, so the lookup has to be scoped to
+// the project for the API to resolve it.
+func TestProjectTriggerUpdate_ScopedToProject(t *testing.T) {
+	fake, env := setupTriggerFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"project", "trigger", "update", triggerID, "--project", "gh/myorg/alpha", "--disable"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 0), "stderr: %s", result.Stderr)
+	req := fake.LastRequest()
+	assert.Assert(t, req != nil)
+	assert.Check(t, cmp.Equal(req.URL.Path, "/api/v3/triggers/"+triggerID+"/update"))
+	assert.Check(t, cmp.Equal(req.URL.RawQuery, "filter%5Bproject_id%5D="+triggerProjectID))
+}
+
+func TestProjectTriggerUpdate_JSON(t *testing.T) {
+	_, env := setupTriggerFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"project", "trigger", "update", triggerID, "--disable", "--json"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 0), "stderr: %s", result.Stderr)
+
+	var out map[string]any
+	assert.NilError(t, json.Unmarshal([]byte(result.Stdout), &out))
+	assert.Check(t, cmp.DeepEqual(out, map[string]any{
+		"id":           triggerID,
+		"created_at":   "2026-01-01T00:00:00Z",
+		"event_preset": "all-pushes",
+		"disabled":     false,
+	}))
+}
+
+func TestProjectTriggerUpdate_NothingToUpdate(t *testing.T) {
+	_, env := setupTriggerFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"project", "trigger", "update", triggerID},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 2))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+}
+
+func TestProjectTriggerUpdate_InvalidEventPreset(t *testing.T) {
+	_, env := setupTriggerFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"project", "trigger", "update", triggerID, "--event-preset", "bogus"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 2))
+	assert.Check(t, cmp.Contains(result.Stderr, `"bogus" is not a valid event preset`))
+}
+
+func TestProjectTriggerUpdate_EnableAndDisable(t *testing.T) {
+	_, env := setupTriggerFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"project", "trigger", "update", triggerID, "--enable", "--disable"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 2))
+	assert.Check(t, cmp.Contains(result.Stderr, "none of the others can be"))
+}
+
+func TestProjectTriggerUpdate_MissingID(t *testing.T) {
+	_, env := setupTriggerFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"project", "trigger", "update", "--disable"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 2))
+	assert.Check(t, cmp.Contains(result.Stderr, "<trigger-id>"))
+}
+
+func TestProjectTriggerUpdate_NotFound(t *testing.T) {
+	_, env := setupTriggerFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"project", "trigger", "update", "no-such-trigger", "--disable"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 5)) // ExitNotFound
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+}
+
+// --- project trigger delete ---
+
+func TestProjectTriggerDelete(t *testing.T) {
+	fake, env := setupTriggerFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"project", "trigger", "delete", triggerID, "--force"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 0), "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+
+	t.Run("check request", func(t *testing.T) {
+		assert.Check(t, cmp.DeepEqual(fake.LastRequest(), &httprecorder.Request{
+			Method: http.MethodDelete,
+			URL:    url.URL{Path: "/api/v3/triggers/" + triggerID},
+			Header: http.Header{
+				"Authorization": {"Bearer test-token"},
+				"User-Agent":    {httpcl.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
+			},
+			Body: new(""),
+		}, ignoreCommonHeaders))
+	})
+}
+
+func TestProjectTriggerDelete_ScopedToProject(t *testing.T) {
+	fake, env := setupTriggerFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"project", "trigger", "delete", triggerID, "--project-id", triggerProjectID, "--force"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 0), "stderr: %s", result.Stderr)
+	req := fake.LastRequest()
+	assert.Assert(t, req != nil)
+	assert.Check(t, cmp.Equal(req.Method, http.MethodDelete))
+	assert.Check(t, cmp.Equal(req.URL.RawQuery, "filter%5Bproject_id%5D="+triggerProjectID))
+}
+
+func TestProjectTriggerDelete_RequiresForce(t *testing.T) {
+	fake, env := setupTriggerFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"project", "trigger", "delete", triggerID},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 6)) // ExitCancelled
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+	assert.Check(t, fake.LastRequest() == nil || fake.LastRequest().Method != http.MethodDelete,
+		"nothing may be deleted without --force")
+}
+
+func TestProjectTriggerDelete_NotFound(t *testing.T) {
+	_, env := setupTriggerFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"project", "trigger", "delete", "no-such-trigger", "--force"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 5)) // ExitNotFound
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+}
+
 func TestProjectTriggerCreate_ProjectNotFound(t *testing.T) {
 	_, env := setupTriggerFake(t)
 

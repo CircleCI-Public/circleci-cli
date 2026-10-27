@@ -237,6 +237,73 @@ func (c *Client) CreateTrigger(ctx context.Context, input CreateTriggerInput) (*
 	return &trig, nil
 }
 
+// UpdateTriggerInput contains the fields that can change on an existing trigger.
+// A nil field is left as it is.
+type UpdateTriggerInput struct {
+	// ProjectID scopes the lookup. It is only required to reach a project's
+	// synthetic OAuth trigger, which has no stored row of its own.
+	ProjectID string
+
+	Disabled    *bool
+	EventPreset *string
+	ConfigRef   *string
+	CheckoutRef *string
+}
+
+// triggerUpdateBody is the document POST /api/v3/triggers/{id}/update accepts. Unlike
+// create it is flat — no data/attributes envelope — and carries only the members
+// being changed.
+type triggerUpdateBody struct {
+	IsDisabled *bool               `json:"is_disabled,omitempty"`
+	Event      *triggerUpdateEvent `json:"event,omitempty"`
+	Config     *triggerRefAttrs    `json:"config,omitempty"`
+	Checkout   *triggerRefAttrs    `json:"checkout,omitempty"`
+}
+
+// triggerUpdateEvent carries the event filter. The event source itself is fixed
+// when the trigger is created.
+type triggerUpdateEvent struct {
+	Filter *triggerFilterAttrs `json:"filter,omitempty"`
+}
+
+// UpdateTrigger changes a trigger via POST /api/v3/triggers/{id}/update and returns
+// the trigger as it now stands.
+func (c *Client) UpdateTrigger(ctx context.Context, id string, input UpdateTriggerInput) (*Trigger, error) {
+	body := triggerUpdateBody{IsDisabled: input.Disabled}
+	if input.EventPreset != nil {
+		body.Event = &triggerUpdateEvent{Filter: &triggerFilterAttrs{Preset: *input.EventPreset}}
+	}
+	if input.ConfigRef != nil {
+		body.Config = &triggerRefAttrs{Ref: *input.ConfigRef}
+	}
+	if input.CheckoutRef != nil {
+		body.Checkout = &triggerRefAttrs{Ref: *input.CheckoutRef}
+	}
+
+	var resp v3Entity[triggerEntity]
+	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodPost, "/api/v3/triggers/%s/update",
+		httpcl.RouteParams(id),
+		filterParam("project_id", input.ProjectID),
+		httpcl.Body(body),
+		httpcl.JSONDecoder(&resp),
+	))
+	if err != nil {
+		return nil, err
+	}
+	trig := resp.Data.toTrigger()
+	return &trig, nil
+}
+
+// DeleteTrigger deletes a trigger via DELETE /api/v3/triggers/{id}. projectID is
+// optional; it is only required to reach a project's synthetic OAuth trigger.
+func (c *Client) DeleteTrigger(ctx context.Context, id, projectID string) error {
+	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodDelete, "/api/v3/triggers/%s",
+		httpcl.RouteParams(id),
+		filterParam("project_id", projectID),
+	))
+	return err
+}
+
 // eventTypeForProvider maps a provider onto the event union's discriminator.
 func eventTypeForProvider(provider string) string {
 	switch provider {

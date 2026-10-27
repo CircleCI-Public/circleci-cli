@@ -2,4 +2,6 @@ Usage:  circleci project trigger <command> [flags]
 
 Available commands:
   create
+  delete
   list
+  update

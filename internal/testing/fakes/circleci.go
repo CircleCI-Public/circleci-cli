@@ -72,6 +72,7 @@ type CircleCI struct {
 	createPipelineDefinitionResponses map[string]any          // projectID → v3 pipeline entity
 	createTriggerResponses            map[string]any          // "projectID/pipelineID" → v3 trigger entity
 	listTriggerResponses              map[string][]any        // "projectID/pipelineID" → list of v3 trigger entities
+	triggersByID                      map[string]any          // trigger id → v3 trigger entity, for update/delete
 
 	// GitHub App state.
 	providerConnections     map[string][]string       // orgID → connected providers
@@ -294,6 +295,7 @@ func NewCircleCI(t *testing.T, tokens ...string) *CircleCI {
 		createPipelineDefinitionResponses: map[string]any{},
 		createTriggerResponses:            map[string]any{},
 		listTriggerResponses:              map[string][]any{},
+		triggersByID:                      map[string]any{},
 		providerConnections:               map[string][]string{},
 		providerRepos:                     map[string][]ProviderRepo{},
 		rerunResponses:                    map[string]int{},
@@ -433,6 +435,8 @@ func NewCircleCI(t *testing.T, tokens ...string) *CircleCI {
 	r.Post("/api/v3/pipelines", f.handleCreatePipelineDefinition)
 	r.Get("/api/v3/triggers", f.handleListTriggers)
 	r.Post("/api/v3/triggers", f.handleCreateTrigger)
+	r.Post("/api/v3/triggers/{id}/update", f.handleUpdateTrigger)
+	r.Delete("/api/v3/triggers/{id}", f.handleDeleteTrigger)
 	// GitHub App routes.
 	r.Get("/api/v3/provider/connections", f.handleListProviderConnections)
 	r.Post("/api/v3/provider/connections/setup", f.handleSetupProviderConnection)
@@ -2974,12 +2978,18 @@ func (f *CircleCI) SetCreatePipelineDefinitionResponse(projectID string, resp an
 }
 
 // AddTrigger registers a trigger entity returned by GET /api/v3/triggers when
-// filtered by this project and pipeline.
+// filtered by this project and pipeline. An entity with a string "id" can also be
+// updated or deleted by that id.
 func (f *CircleCI) AddTrigger(projectID, pipelineDefinitionID string, trigger any) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	key := projectID + "/" + pipelineDefinitionID
 	f.listTriggerResponses[key] = append(f.listTriggerResponses[key], trigger)
+	if e, ok := trigger.(map[string]any); ok {
+		if id, ok := e["id"].(string); ok {
+			f.triggersByID[id] = trigger
+		}
+	}
 }
 
 // SetCreateTriggerResponse registers the entity returned when POST
@@ -3717,6 +3727,36 @@ func (f *CircleCI) handleCreateTrigger(w http.ResponseWriter, r *http.Request) {
 	}
 	render.Status(r, http.StatusCreated)
 	render.JSON(w, r, map[string]any{"data": resp})
+}
+
+// handleUpdateTrigger answers POST /api/v3/triggers/{id}/update with the registered
+// entity unchanged; tests assert on the recorded request body instead.
+func (f *CircleCI) handleUpdateTrigger(w http.ResponseWriter, r *http.Request) {
+	f.mu.RLock()
+	resp, ok := f.triggersByID[chi.URLParam(r, "id")]
+	f.mu.RUnlock()
+
+	if !ok {
+		renderV3Error(w, r, http.StatusNotFound, "trigger not found")
+		return
+	}
+	render.JSON(w, r, map[string]any{"data": resp})
+}
+
+// handleDeleteTrigger answers DELETE /api/v3/triggers/{id}, removing the trigger
+// so a repeat delete is a 404.
+func (f *CircleCI) handleDeleteTrigger(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	f.mu.Lock()
+	_, ok := f.triggersByID[id]
+	delete(f.triggersByID, id)
+	f.mu.Unlock()
+
+	if !ok {
+		renderV3Error(w, r, http.StatusNotFound, "trigger not found")
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
 // renderV3CursorCollection writes items as a cursor-paginated v3 collection.

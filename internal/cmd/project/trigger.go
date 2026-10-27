@@ -88,7 +88,7 @@ func newTriggerCmd() *cobra.Command {
 		Use:   "trigger <command>",
 		Short: "Manage project triggers",
 		Long: heredoc.Doc(`
-			List and create triggers for a CircleCI project.
+			List, create, update and delete triggers for a CircleCI project.
 
 			Triggers watch a GitHub repository for events and automatically run
 			a pipeline definition when matching events occur. Only projects
@@ -98,6 +98,8 @@ func newTriggerCmd() *cobra.Command {
 
 	cmd.AddCommand(newTriggerListCmd())
 	cmd.AddCommand(newTriggerCreateCmd())
+	cmd.AddCommand(newTriggerUpdateCmd())
+	cmd.AddCommand(newTriggerDeleteCmd())
 
 	return cmd
 }
@@ -123,6 +125,17 @@ func resolveProjectID(ctx context.Context, client *apiclient.Client, projectSlug
 			"Use 'circleci project list' to see followed projects")
 	}
 	return proj.ID.String(), nil
+}
+
+// resolveOptionalProjectID resolves --project or --project-id when one was given
+// and returns "" otherwise. Unlike resolveProjectID it never falls back to the git
+// remote: a trigger addressed by its ID needs no project, and the lookup is only
+// scoped to one to reach a project's synthetic OAuth trigger.
+func resolveOptionalProjectID(ctx context.Context, client *apiclient.Client, projectSlug, projectID string) (string, error) {
+	if projectSlug == "" && projectID == "" {
+		return "", nil
+	}
+	return resolveProjectID(ctx, client, projectSlug, projectID)
 }
 
 // selectPipelineDefinition fetches the list of pipeline definitions for the project
@@ -516,6 +529,214 @@ func runTriggerCreate(
 	}
 
 	iostream.Printf(ctx, "Trigger created (ID: %s)\n", out.ID)
+	return nil
+}
+
+// --- trigger update ---
+
+func newTriggerUpdateCmd() *cobra.Command {
+	var (
+		projectSlug string
+		projectID   string
+		enable      bool
+		disable     bool
+		eventPreset string
+		configRef   string
+		checkoutRef string
+		jsonOut     bool
+	)
+
+	cmd := &cobra.Command{
+		Use:   "update <trigger-id>",
+		Short: "Update a project trigger",
+		Long: heredoc.Docf(`
+			Change an existing trigger. Only the flags you pass are changed. The event
+			source (provider and repository) is fixed when the trigger is created; to
+			change it, delete the trigger and create a new one. Run %[1]scircleci help triggers%[1]s
+			for what each event preset means.
+
+			JSON fields: id, created_at, event_name, event_preset, config_ref, checkout_ref, disabled
+		`, "`"),
+		Example: heredoc.Doc(`
+			# Pause a trigger without deleting it
+			$ circleci project trigger update a1b2c3d4-... --disable
+
+			# Resume it
+			$ circleci project trigger update a1b2c3d4-... --enable
+
+			# Only build tag pushes, and output the result as JSON
+			$ circleci project trigger update a1b2c3d4-... --event-preset only-tags --json
+		`),
+		Args: cobra.MaximumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := cmdutil.RequireArgs(args, "trigger-id"); err != nil {
+				return err
+			}
+			input := apiclient.UpdateTriggerInput{}
+			flags := cmd.Flags()
+			if flags.Changed("enable") || flags.Changed("disable") {
+				input.Disabled = &disable
+			}
+			if flags.Changed("event-preset") {
+				input.EventPreset = &eventPreset
+			}
+			if flags.Changed("config-ref") {
+				input.ConfigRef = &configRef
+			}
+			if flags.Changed("checkout-ref") {
+				input.CheckoutRef = &checkoutRef
+			}
+			if err := validateTriggerUpdate(input); err != nil {
+				return err
+			}
+
+			ctx := cmd.Context()
+			client, err := cmdutil.LoadClient(ctx)
+			if err != nil {
+				return err
+			}
+			return runTriggerUpdate(ctx, client, args[0], projectSlug, projectID, input, jsonOut)
+		},
+	}
+
+	cmd.Flags().StringVar(&projectSlug, "project", "", "project slug (e.g. gh/org/repo); only needed for a project's OAuth trigger")
+	cmd.Flags().StringVar(&projectID, "project-id", "", "project UUID (overrides --project)")
+	cmd.Flags().BoolVar(&enable, "enable", false, "resume the trigger so matching events start pipelines")
+	cmd.Flags().BoolVar(&disable, "disable", false, "pause the trigger without deleting it")
+	cmd.Flags().StringVar(&eventPreset, "event-preset", "", fmt.Sprintf("event preset for filtering trigger events (one of: %s)", strings.Join(validEventPresets, ", ")))
+	cmd.Flags().StringVar(&configRef, "config-ref", "", "git ref for fetching config (only when the config repo differs from the event source repo)")
+	cmd.Flags().StringVar(&checkoutRef, "checkout-ref", "", "git ref for checking out code (only when the checkout repo differs from the event source repo)")
+	cmd.MarkFlagsMutuallyExclusive("enable", "disable")
+	cmdutil.AddJSONFlag(cmd, &jsonOut)
+	cmdutil.AddJQFlag(cmd)
+
+	return cmd
+}
+
+// validateTriggerUpdate rejects an update that changes nothing, or that names an
+// unknown event preset, before any request is made.
+func validateTriggerUpdate(input apiclient.UpdateTriggerInput) error {
+	if input.Disabled == nil && input.EventPreset == nil && input.ConfigRef == nil && input.CheckoutRef == nil {
+		return clierrors.New("args.nothing_to_update", "Nothing to update",
+			"No changes were requested.").
+			WithSuggestions("Pass at least one of --enable, --disable, --event-preset, --config-ref or --checkout-ref").
+			WithExitCode(clierrors.ExitBadArguments)
+	}
+	if input.EventPreset != nil && *input.EventPreset != "" {
+		if err := validateEventPreset(*input.EventPreset); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func runTriggerUpdate(ctx context.Context, client *apiclient.Client, triggerID, projectSlug, projectID string, input apiclient.UpdateTriggerInput, jsonOut bool) error {
+	var err error
+	input.ProjectID, err = resolveOptionalProjectID(ctx, client, projectSlug, projectID)
+	if err != nil {
+		return err
+	}
+
+	resp, err := client.UpdateTrigger(ctx, triggerID, input)
+	if err != nil {
+		return cmdutil.APIErr(err, triggerID, "trigger.not_found", "No trigger found with ID %q.",
+			"Run 'circleci project trigger list --pipeline-definition-id <id>' to see trigger IDs")
+	}
+
+	out := triggerCreateOutput{
+		ID:          resp.ID,
+		CreatedAt:   resp.CreatedAt.Format("2006-01-02T15:04:05Z"),
+		EventName:   resp.EventName,
+		EventPreset: resp.EventPreset,
+		ConfigRef:   resp.ConfigRef,
+		CheckoutRef: resp.CheckoutRef,
+		Disabled:    resp.Disabled,
+	}
+
+	if jsonOut {
+		return cmdutil.WriteJSON(iostream.Out(ctx), out)
+	}
+
+	iostream.Printf(ctx, "%s Updated trigger %s\n", iostream.SymbolOK(ctx), out.ID)
+	return nil
+}
+
+// --- trigger delete ---
+
+func newTriggerDeleteCmd() *cobra.Command {
+	var (
+		projectSlug string
+		projectID   string
+		force       bool
+	)
+
+	cmd := &cobra.Command{
+		Use:     "delete <trigger-id>",
+		Aliases: []string{"rm"},
+		Short:   "Delete a project trigger",
+		Annotations: map[string]string{
+			"destructiveHint": "true",
+		},
+		Long: heredoc.Doc(`
+			Delete a trigger. Events from its event source stop starting pipelines.
+			To pause a trigger without losing it, use 'trigger update --disable'.
+		`),
+		Example: heredoc.Doc(`
+			# Delete a trigger (with confirmation)
+			$ circleci project trigger delete a1b2c3d4-...
+
+			# Delete without confirmation, for scripts
+			$ circleci project trigger delete a1b2c3d4-... --force
+
+			# Pause it instead of deleting it
+			$ circleci project trigger update a1b2c3d4-... --disable
+		`),
+		Args: cobra.MaximumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := cmdutil.RequireArgs(args, "trigger-id"); err != nil {
+				return err
+			}
+			ctx := cmd.Context()
+			client, err := cmdutil.LoadClient(ctx)
+			if err != nil {
+				return err
+			}
+			return runTriggerDelete(ctx, client, args[0], projectSlug, projectID, force)
+		},
+	}
+
+	cmd.Flags().StringVar(&projectSlug, "project", "", "project slug (e.g. gh/org/repo); only needed for a project's OAuth trigger")
+	cmd.Flags().StringVar(&projectID, "project-id", "", "project UUID (overrides --project)")
+	cmd.Flags().BoolVarP(&force, "force", "f", false, "skip confirmation prompt")
+
+	return cmd
+}
+
+func runTriggerDelete(ctx context.Context, client *apiclient.Client, triggerID, projectSlug, projectID string, force bool) error {
+	// Resolve before confirming so a bad project fails before the user is asked.
+	resolvedProjectID, err := resolveOptionalProjectID(ctx, client, projectSlug, projectID)
+	if err != nil {
+		return err
+	}
+
+	if err := cmdutil.ConfirmOrForce(ctx, iostream.Get(ctx), force,
+		fmt.Sprintf("Delete trigger %s? Events from its event source will stop starting pipelines.", triggerID),
+		clierrors.New("trigger.delete_aborted", "Deletion aborted",
+			"Trigger deletion was not confirmed.").
+			WithExitCode(clierrors.ExitCancelled),
+		clierrors.New("trigger.delete_requires_force", "Deletion requires --force",
+			fmt.Sprintf("Deleting trigger %s stops its events from starting pipelines.", triggerID)).
+			WithExitCode(clierrors.ExitCancelled),
+	); err != nil {
+		return err
+	}
+
+	if err := client.DeleteTrigger(ctx, triggerID, resolvedProjectID); err != nil {
+		return cmdutil.APIErr(err, triggerID, "trigger.not_found", "No trigger found with ID %q.",
+			"Run 'circleci project trigger list --pipeline-definition-id <id>' to see trigger IDs")
+	}
+
+	iostream.Printf(ctx, "%s Deleted trigger %s\n", iostream.SymbolOK(ctx), triggerID)
 	return nil
 }
 

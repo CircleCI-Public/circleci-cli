@@ -1,0 +1,32 @@
+Delete a project trigger
+
+## Usage
+
+`circleci project trigger delete <trigger-id> [flags]`
+
+Aliases: `circleci project trigger rm`
+
+## Flags
+
+| Flag                  | Description                                                                |
+| --------------------- | -------------------------------------------------------------------------- |
+| `-f, --force`         | skip confirmation prompt                                                   |
+| `--project string`    | project slug (e.g. gh/org/repo); only needed for a project's OAuth trigger |
+| `--project-id string` | project UUID (overrides --project)                                         |
+
+Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `circleci --help`.
+
+## Examples
+
+- Delete a trigger (with confirmation): 
+  `circleci project trigger delete a1b2c3d4-...`
+- Delete without confirmation, for scripts: 
+  `circleci project trigger delete a1b2c3d4-... --force`
+- Pause it instead of deleting it: 
+  `circleci project trigger update a1b2c3d4-... --disable`
+
+## Details
+
+Delete a trigger. Events from its event source stop starting pipelines.
+To pause a trigger without losing it, use 'trigger update --disable'.
+
