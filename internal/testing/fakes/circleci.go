@@ -854,6 +854,14 @@ type JobV3 struct {
 	PipelineID string
 	UserID     string
 	Executions [][]JobStep // parallel_executions, one inner slice of steps per execution
+	Warnings   []JobWarning
+}
+
+// JobWarning is a non-fatal warning attached to a JobV3, e.g. an image
+// deprecation notice.
+type JobWarning struct {
+	Type    string
+	Message string
 }
 
 // JobStep is a single step within a JobV3 execution. ExitCode is a pointer so a
@@ -917,6 +925,13 @@ func jobV3Entity(j JobV3) map[string]any {
 			execs = append(execs, map[string]any{"steps": rendered})
 		}
 		attrs["parallel_executions"] = execs
+	}
+	if len(j.Warnings) > 0 {
+		warns := make([]any, 0, len(j.Warnings))
+		for _, w := range j.Warnings {
+			warns = append(warns, map[string]any{"type": w.Type, "message": w.Message})
+		}
+		attrs["warnings"] = warns
 	}
 	refs := map[string]any{}
 	for key, id := range map[string]string{
