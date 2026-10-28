@@ -43,9 +43,10 @@ import (
 
 // Length limits enforced by POST /api/v3/tool/send-feedback, in characters.
 const (
-	maxMessageLen   = 2000
-	maxToolNameLen  = 200
-	maxAgentTypeLen = 100
+	maxMessageLen      = 2000
+	maxToolNameLen     = 200
+	maxAgentTypeLen    = 100
+	maxFunctionNameLen = 200
 )
 
 type feedbackOutput struct {
@@ -54,8 +55,10 @@ type feedbackOutput struct {
 
 func NewFeedbackCmd() *cobra.Command {
 	var (
-		tool    string
-		jsonOut bool
+		tool       string
+		reportType string
+		function   string
+		jsonOut    bool
 	)
 
 	cmd := &cobra.Command{
@@ -68,9 +71,9 @@ func NewFeedbackCmd() *cobra.Command {
 			`, "`", maxMessageLen),
 		},
 		Long: heredoc.Doc(`
-			Report an unexpected error, a missing capability or confusing output to
-			CircleCI. Say what you tried, what you ran and what happened; no secrets.
-			Reports include your CircleCI user, the AI agent, and if it came via MCP.
+			Report an error, missing capability or confusing output; say what you ran and saw.
+			No secrets. Reports include your CircleCI user, the AI agent, and if it came via MCP.
+			For a Function, pass --type (missing_function or function_gap) and --function.
 
 			JSON fields: id
 		`),
@@ -80,6 +83,9 @@ func NewFeedbackCmd() *cobra.Command {
 
 			# Report confusing output from a command
 			$ circleci feedback "run get shows no jobs for a run that has three" --tool "run get"
+
+			# Report a missing Function
+			$ circleci feedback "no Function for Vercel deploys, wrote npx vercel deploy by hand" --type missing_function --function setup-vercel
 
 			# Capture just the report ID
 			$ circleci feedback "context list printed nothing for an org with contexts" --json --jq '.id'
@@ -97,7 +103,7 @@ func NewFeedbackCmd() *cobra.Command {
 					WithSuggestions(`Quote the whole message: circleci feedback "<message>"`).
 					WithExitCode(clierrors.ExitBadArguments)
 			}
-			if err := validate(args[0], tool); err != nil {
+			if err := validate(args[0], tool, reportType, function); err != nil {
 				return err
 			}
 			ctx := cmd.Context()
@@ -105,11 +111,13 @@ func NewFeedbackCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return runFeedback(ctx, client, newReport(ctx, args[0], tool), jsonOut)
+			return runFeedback(ctx, client, newReport(ctx, args[0], tool, reportType, function), jsonOut)
 		},
 	}
 
 	cmd.Flags().StringVar(&tool, "tool", "", `CLI command or MCP tool the feedback is about (e.g. "run get")`)
+	cmd.Flags().StringVar(&reportType, "type", "", "Kind of report: missing_function (no Function does what you needed) or function_gap (a Function falls short)")
+	cmd.Flags().StringVar(&function, "function", "", `Function the report is about, or the name you looked for (e.g. "setup-vercel")`)
 	cmdutil.AddJSONFlag(cmd, &jsonOut)
 	cmdutil.AddJQFlag(cmd)
 
@@ -131,7 +139,7 @@ func runFeedback(ctx context.Context, client *apiclient.Client, report apiclient
 }
 
 // validate mirrors the endpoint's limits, so a report the API would reject is never sent.
-func validate(message, tool string) error {
+func validate(message, tool, reportType, function string) error {
 	if strings.TrimSpace(message) == "" {
 		return clierrors.New("feedback.message_blank", "Empty feedback message",
 			"The feedback message is empty.").
@@ -150,11 +158,36 @@ func validate(message, tool string) error {
 			WithSuggestions(`Pass only the command or tool name, e.g. --tool "run get"`).
 			WithExitCode(clierrors.ExitBadArguments)
 	}
+	if reportType != "" && reportType != apiclient.FeedbackTypeMissingFunction && reportType != apiclient.FeedbackTypeFunctionGap {
+		return clierrors.New("feedback.type_invalid", "Invalid report type",
+			fmt.Sprintf("--type must be %s or %s (got: %q).",
+				apiclient.FeedbackTypeMissingFunction, apiclient.FeedbackTypeFunctionGap, reportType)).
+			WithSuggestions("Use missing_function when no Function does what you needed, function_gap when one falls short").
+			WithExitCode(clierrors.ExitBadArguments)
+	}
+	if reportType != "" && function == "" {
+		return clierrors.New("feedback.function_required", "Function name required",
+			"--type requires --function.").
+			WithSuggestions("Name the Function, or the name you looked for, e.g. --function setup-vercel").
+			WithExitCode(clierrors.ExitBadArguments)
+	}
+	if reportType == "" && function != "" {
+		return clierrors.New("feedback.type_required", "Report type required",
+			"--function requires --type.").
+			WithSuggestions("Add --type missing_function or --type function_gap").
+			WithExitCode(clierrors.ExitBadArguments)
+	}
+	if n := utf8.RuneCountInString(function); n > maxFunctionNameLen {
+		return clierrors.New("feedback.function_too_long", "Function name too long",
+			fmt.Sprintf("--function must be at most %d characters (got: %d).", maxFunctionNameLen, n)).
+			WithSuggestions("Pass only the Function name, e.g. --function setup-vercel").
+			WithExitCode(clierrors.ExitBadArguments)
+	}
 	return nil
 }
 
 // newReport derives source and agent_type, which are not flags.
-func newReport(ctx context.Context, message, tool string) apiclient.FeedbackReport {
+func newReport(ctx context.Context, message, tool, reportType, function string) apiclient.FeedbackReport {
 	source := apiclient.FeedbackSourceCLI
 	if agent.IsMCP() {
 		source = apiclient.FeedbackSourceCLIMCP
@@ -168,10 +201,12 @@ func newReport(ctx context.Context, message, tool string) apiclient.FeedbackRepo
 	}
 
 	return apiclient.FeedbackReport{
-		Message:   message,
-		ToolName:  tool,
-		Source:    source,
-		AgentType: agentType,
+		Message:      message,
+		ToolName:     tool,
+		Source:       source,
+		AgentType:    agentType,
+		Type:         reportType,
+		FunctionName: function,
 	}
 }
 

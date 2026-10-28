@@ -1,0 +1,4 @@
+error: --function requires --type.
+
+Suggestions:
+  • Add --type missing_function or --type function_gap

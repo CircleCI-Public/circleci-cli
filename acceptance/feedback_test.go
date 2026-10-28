@@ -79,6 +79,30 @@ func TestFeedback(t *testing.T) {
 	})
 }
 
+func TestFeedback_Function(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	env := feedbackEnv(t, fake)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"feedback", feedbackMessage, "--type", "missing_function", "--function", "setup-vercel"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+
+	var body map[string]any
+	err := fake.LastRequest().Decode(&body)
+	assert.NilError(t, err)
+	assert.Check(t, cmp.DeepEqual(body, map[string]any{
+		"message":       feedbackMessage,
+		"source":        "cli",
+		"type":          "missing_function",
+		"function_name": "setup-vercel",
+	}))
+}
+
 func TestFeedback_JSON(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
 	env := feedbackEnv(t, fake)
@@ -145,6 +169,22 @@ func TestFeedback_Validation(t *testing.T) {
 		{
 			name: "tool too long",
 			args: []string{"feedback", feedbackMessage, "--tool", strings.Repeat("x", 201)},
+		},
+		{
+			name: "unknown type",
+			args: []string{"feedback", feedbackMessage, "--type", "bug", "--function", "setup-vercel"},
+		},
+		{
+			name: "type without function",
+			args: []string{"feedback", feedbackMessage, "--type", "function_gap"},
+		},
+		{
+			name: "function without type",
+			args: []string{"feedback", feedbackMessage, "--function", "setup-vercel"},
+		},
+		{
+			name: "function too long",
+			args: []string{"feedback", feedbackMessage, "--type", "function_gap", "--function", strings.Repeat("é", 201)},
 		},
 		{
 			name: "unquoted message",

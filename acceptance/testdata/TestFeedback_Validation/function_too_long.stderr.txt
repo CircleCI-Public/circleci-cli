@@ -1,0 +1,4 @@
+error: --function must be at most 200 characters (got: 201).
+
+Suggestions:
+  • Pass only the Function name, e.g. --function setup-vercel
