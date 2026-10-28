@@ -1,0 +1,7 @@
+error: Failed to look up project "gh/myorg/typo".
+API: {"message":"not found"}
+
+
+Suggestions:
+  • Check that the project slug is correct and you have access to it
+  • Run 'circleci project list' to see followed projects

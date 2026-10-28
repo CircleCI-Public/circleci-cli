@@ -34,6 +34,7 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/internal/httpcl"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/assert/cmp"
+	"gotest.tools/v3/golden"
 
 	"github.com/CircleCI-Public/circleci-cli/internal/testing/binary"
 	testenv "github.com/CircleCI-Public/circleci-cli/internal/testing/env"
@@ -766,6 +767,197 @@ func TestPipelineRun_WithDefinitionID(t *testing.T) {
 			Body: new(`{"definition_id":"` + pipelineDefID + `"}`),
 		}, ignoreCommonHeaders))
 	})
+}
+
+func TestPipelineRun_WithDefinitionName(t *testing.T) {
+	fake, env := setupPipelineRunInteractiveFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary: binaryPath,
+		Args: []string{
+			"pipeline", "run",
+			"--project", "gh/myorg/myrepo",
+			"--definition", "Nightly",
+		},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 0), "stderr: %s", result.Stderr)
+	assert.Check(t, cmp.Contains(result.Stdout, pipelineRunID))
+
+	t.Run("check request", func(t *testing.T) {
+		assert.Check(t, cmp.DeepEqual(fake.LastRequest(), &httprecorder.Request{
+			Method: http.MethodPost,
+			URL:    url.URL{Path: "/api/v2/project/gh/myorg/myrepo/pipeline/run"},
+			Header: http.Header{
+				"Authorization": {"Bearer test-token"},
+				"User-Agent":    {httpcl.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
+			},
+			Body: new(`{"definition_id":"pdef-uuid-0002"}`),
+		}, ignoreCommonHeaders))
+	})
+}
+
+func TestPipelineRun_DefinitionNameNotFound(t *testing.T) {
+	_, env := setupPipelineRunInteractiveFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary: binaryPath,
+		Args: []string{
+			"pipeline", "run",
+			"--project", "gh/myorg/myrepo",
+			"--definition", "weekly",
+		},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 5))
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+}
+
+func TestPipelineRun_DefinitionNameNoDefinitions(t *testing.T) {
+	fake, env := setupPipelineRunInteractiveFake(t)
+	fake.AddProjectInfo("gh/myorg/empty", fakes.ProjectInfo{
+		ID:   "a0000000-0000-4000-8000-0000000b0002",
+		Slug: "gh/myorg/empty",
+		Name: "empty",
+	})
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary: binaryPath,
+		Args: []string{
+			"pipeline", "run",
+			"--project", "gh/myorg/empty",
+			"--definition", "nightly",
+		},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 5))
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+}
+
+func TestPipelineRun_DefinitionNameExactMatchWins(t *testing.T) {
+	fake, env := setupPipelineRunInteractiveFake(t)
+	fake.AddPipelineDefinition(pipelineProjectID, fakePipelineDefPayload(
+		"pdef-uuid-0003", "NIGHTLY", "github_app", pipelineRepoID, ".circleci/config.yml", "github_app", pipelineRepoID))
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary: binaryPath,
+		Args: []string{
+			"pipeline", "run",
+			"--project", "gh/myorg/myrepo",
+			"--definition", "NIGHTLY",
+		},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 0), "stderr: %s", result.Stderr)
+	assert.Check(t, cmp.Contains(*fake.LastRequest().Body, `"definition_id":"pdef-uuid-0003"`))
+}
+
+func TestPipelineRun_DefinitionProjectNotFound(t *testing.T) {
+	_, env := setupPipelineRunInteractiveFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary: binaryPath,
+		Args: []string{
+			"pipeline", "run",
+			"--project", "gh/myorg/typo",
+			"--definition", "nightly",
+		},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 5))
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+}
+
+func TestPipelineRun_DefinitionBadParam(t *testing.T) {
+	_, env := setupPipelineRunInteractiveFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary: binaryPath,
+		Args: []string{
+			"pipeline", "run",
+			"--project", "gh/myorg/typo",
+			"--definition", "nightly",
+			"--param", "notakeyvalue",
+		},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	// The bad param is reported before the unknown project is looked up.
+	assert.Check(t, cmp.Equal(result.ExitCode, 2))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+}
+
+func TestPipelineRun_DefinitionEmptyDefinitionID(t *testing.T) {
+	_, env := setupPipelineRunInteractiveFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary: binaryPath,
+		Args: []string{
+			"pipeline", "run",
+			"--project", "gh/myorg/myrepo",
+			"--definition", "nightly",
+			"--definition-id", "",
+		},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 0), "stderr: %s", result.Stderr)
+}
+
+func TestPipelineRun_DefinitionNameAmbiguous(t *testing.T) {
+	fake, env := setupPipelineRunInteractiveFake(t)
+	fake.AddPipelineDefinition(pipelineProjectID, fakePipelineDefPayload(
+		"pdef-uuid-0003", "NIGHTLY", "github_app", pipelineRepoID, ".circleci/config.yml", "github_app", pipelineRepoID))
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary: binaryPath,
+		Args: []string{
+			"pipeline", "run",
+			"--project", "gh/myorg/myrepo",
+			"--definition", "Nightly",
+		},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 2))
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+}
+
+func TestPipelineRun_DefinitionAndDefinitionIDExclusive(t *testing.T) {
+	_, env := setupPipelineRunInteractiveFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary: binaryPath,
+		Args: []string{
+			"pipeline", "run",
+			"--project", "gh/myorg/myrepo",
+			"--definition", "nightly",
+			"--definition-id", pipelineDefID,
+		},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 2))
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 }
 
 func TestPipelineRun_WithParams(t *testing.T) {

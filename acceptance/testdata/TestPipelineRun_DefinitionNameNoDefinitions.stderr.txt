@@ -1,0 +1,4 @@
+error: This project has no pipeline definitions.
+
+Suggestions:
+  • Create one with 'circleci pipeline create'

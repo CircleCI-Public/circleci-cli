@@ -1,0 +1,6 @@
+error: 2 pipeline definitions are named "Nightly":
+  nightly  (pdef-uuid-0002)
+  NIGHTLY  (pdef-uuid-0003)
+
+Suggestions:
+  • Pass --definition-id <uuid> to pick one

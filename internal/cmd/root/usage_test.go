@@ -84,7 +84,6 @@ var overBudget = map[string]int{
 	"circleci/orb/init":               42,
 	"circleci/orb/list":               48,
 	"circleci/pipeline/create":        42,
-	"circleci/pipeline/run":           42,
 	"circleci/policy":                 42,
 	"circleci/policy/eval":            50,
 	"circleci/policy/logs":            52,
