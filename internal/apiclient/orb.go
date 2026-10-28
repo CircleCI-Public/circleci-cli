@@ -467,7 +467,8 @@ func (c *Client) GetOrbVersionByRef(ctx context.Context, ref string) (*OrbVersio
 	return env.Data[0].toOrbVersion(), nil
 }
 
-// GetOrbVersionByID gets a single orb version by UUID (includes source YAML).
+// GetOrbVersionByID gets a single orb version by UUID. The source YAML is not
+// requested; fetch it separately with GetOrbSource.
 func (c *Client) GetOrbVersionByID(ctx context.Context, id string) (*OrbVersion, error) {
 	var env v3Entity[orbVersionWire]
 	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodGet, "/api/v3/orb/versions/%s",

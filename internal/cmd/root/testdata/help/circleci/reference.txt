@@ -2412,8 +2412,6 @@ JSON fields: channel_id, channel_name, enabled, disable_reason
 
 Create, publish and inspect orbs (reusable config)
 
-Manage orbs in the orb registry.
-
 Orbs are reusable packages of CircleCI configuration, published to a
 namespace and either shared publicly or kept private. Manage the namespace
 itself with 'circleci namespace'.
@@ -2899,6 +2897,38 @@ Exit code 7 if the orb is invalid.
   `cat orb.yml | circleci orb validate -`
 - Validate with a specific org for private deps: 
   `circleci orb validate orb.yml --org gh/acme`
+
+#### `circleci orb version <namespace>/<orb>[@<version>] | <version-id> [flags]`
+
+Get details of a single orb version
+
+Get the ID, version number, publish time and owning orb of a single
+orb version. Use 'circleci orb source' for the version's YAML.
+
+JSON fields: id, version, orb_id, orb_name, created_at
+
+| Flag          | Description                                                                       |
+| ------------- | --------------------------------------------------------------------------------- |
+| `--jq string` | Process values from the response using jq syntax (see `circleci help formatting`) |
+| `--json`      | Output as JSON                                                                    |
+
+
+**Arguments:**
+
+An orb version can be specified by reference or ID:
+- By reference, for example, `namespace/orb-name@1.2.3`. Without `@<version>`, the latest published version is shown
+- By ID, the orb version ID (UUID), for example, `849e7902-802f-4082-8a70-da77dcd084e3`
+
+**Examples:**
+
+- Get a specific version by reference: 
+  `circleci orb version myorg/my-orb@1.2.3`
+- Get the latest published version: 
+  `circleci orb version myorg/my-orb`
+- Get a version by its ID: 
+  `circleci orb version 849e7902-802f-4082-8a70-da77dcd084e3`
+- Print only the version ID, for use in API calls: 
+  `circleci orb version myorg/my-orb@1.2.3 --json --jq .id`
 
 ### `circleci org <command>`
 

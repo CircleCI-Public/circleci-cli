@@ -27,14 +27,13 @@ Create, publish and inspect orbs (reusable config)
 | `remove-from-category` | Remove an orb from a registry category       |
 | `source`               | Print the YAML source of an orb version      |
 | `unlist`               | Hide or restore an orb in the registry       |
+| `version`              | Get details of a single orb version          |
 
 ## Flags
 
 Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `circleci --help`.
 
 ## Details
-
-Manage orbs in the orb registry.
 
 Orbs are reusable packages of CircleCI configuration, published to a
 namespace and either shared publicly or kept private. Manage the namespace
