@@ -6,6 +6,23 @@ is added by its release PR (see [RELEASE.md](RELEASE.md)) and becomes its GitHub
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.12.0] - 2026-10-28
+
+### What's Changed
+* Point run watch failures at the failure report and next steps (AEX-42) by @joel-thompson in https://github.com/CircleCI-Public/circleci-cli/pull/1937
+* Add circleci preflight to run uncommitted changes through CI by @gcirclest in https://github.com/CircleCI-Public/circleci-cli/pull/1889
+* End the failure report with next steps by @joel-thompson in https://github.com/CircleCI-Public/circleci-cli/pull/1941
+* Add project trigger update and delete by @gcirclest in https://github.com/CircleCI-Public/circleci-cli/pull/1951
+* Show job warnings in job get by @felixshiftellecon in https://github.com/CircleCI-Public/circleci-cli/pull/1953
+* Let feedback report a missing or short Function by @stiyyagura0901 in https://github.com/CircleCI-Public/circleci-cli/pull/1954
+* Select pipeline definition by name in pipeline run by @gcirclest in https://github.com/CircleCI-Public/circleci-cli/pull/1948
+* Add circleci orb version to get a single orb version by @gcirclest in https://github.com/CircleCI-Public/circleci-cli/pull/1946
+
+### New Contributors
+* @felixshiftellecon made their first contribution in https://github.com/CircleCI-Public/circleci-cli/pull/1953
+
+**Full Changelog**: https://github.com/CircleCI-Public/circleci-cli/compare/v1.11.0...v1.12.0
+
 ## [1.11.0] - 2026-10-21
 
 ### What's Changed
