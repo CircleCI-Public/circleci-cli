@@ -1541,6 +1541,8 @@ func TestRunnerTokenCreate(t *testing.T) {
 	assert.Check(t, cmp.Equal(result.ExitCode, 0))
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
 	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+	assert.Check(t, cmp.Contains(result.Stderr, "circleci-runner-config.yaml"),
+		"redirected text output must warn that it is not a runner config file")
 
 	t.Run("check requests", func(t *testing.T) {
 		reqs := fake.AllRequests()
@@ -1599,6 +1601,8 @@ func TestRunnerTokenCreate_JSON(t *testing.T) {
 	assert.Check(t, cmp.Equal(out["token"], "fake-runner-token-value"))
 
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".json"))
+	assert.Check(t, !strings.Contains(result.Stderr, "circleci-runner-config.yaml"),
+		"--json must not print the runner config notice")
 }
 
 func TestRunnerTokenCreate_JSON_Color(t *testing.T) {
@@ -1614,6 +1618,44 @@ func TestRunnerTokenCreate_JSON_Color(t *testing.T) {
 
 	assert.Equal(t, result.ExitCode, 0)
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".json"))
+}
+
+// The v0 CLI took the nickname as a second positional and printed a
+// circleci-runner-config.yaml document. A script still written that way must
+// fail before any request and say that both changed.
+func TestRunnerTokenCreate_V0NicknameArg(t *testing.T) {
+	fake, env := setupRunnerFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"runner", "token", "create", "my-org/linux-runner", "my-server"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, clierrors.ExitBadArguments))
+	assert.Check(t, cmp.Contains(result.Stderr, `--nickname "my-server"`))
+	assert.Check(t, cmp.Contains(result.Stderr, "circleci-runner-config.yaml"))
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+	assert.Check(t, cmp.Len(fake.AllRequests(), 0))
+}
+
+// Accepting two args for the CLI 0.1.x form must not raise the limit that
+// any other call is told about.
+func TestRunnerTokenCreate_TooManyArgs(t *testing.T) {
+	fake, env := setupRunnerFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"runner", "token", "create", "my-org/linux-runner", "my-server", "extra"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Check(t, result.ExitCode != 0)
+	assert.Check(t, cmp.Contains(result.Stderr, "accepts at most 1 arg(s), received 3"))
+	assert.Check(t, cmp.Len(fake.AllRequests(), 0))
 }
 
 // --- token delete ---
