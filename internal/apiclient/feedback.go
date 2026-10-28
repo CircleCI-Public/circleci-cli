@@ -38,13 +38,22 @@ const (
 	FeedbackSourceCLIMCP = "cli_mcp"
 )
 
+// Feedback report types: no Function does what was needed, or a Function falls
+// short.
+const (
+	FeedbackTypeMissingFunction = "missing_function"
+	FeedbackTypeFunctionGap     = "function_gap"
+)
+
 // FeedbackReport is the body of POST /api/v3/tool/send-feedback. The endpoint
 // rejects unknown members, so nothing outside this shape may be sent.
 type FeedbackReport struct {
-	Message   string `json:"message"`
-	ToolName  string `json:"tool_name,omitempty"`
-	Source    string `json:"source,omitempty"`
-	AgentType string `json:"agent_type,omitempty"`
+	Message      string `json:"message"`
+	ToolName     string `json:"tool_name,omitempty"`
+	Source       string `json:"source,omitempty"`
+	AgentType    string `json:"agent_type,omitempty"`
+	Type         string `json:"type,omitempty"`
+	FunctionName string `json:"function_name,omitempty"`
 }
 
 // SendFeedback sends a feedback report to CircleCI and returns the ID of the

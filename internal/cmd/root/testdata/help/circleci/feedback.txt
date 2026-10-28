@@ -10,11 +10,13 @@ Send feedback about the CLI to CircleCI
 
 ## Flags
 
-| Flag            | Description                                                                       |
-| --------------- | --------------------------------------------------------------------------------- |
-| `--jq string`   | Process values from the response using jq syntax (see `circleci help formatting`) |
-| `--json`        | Output as JSON                                                                    |
-| `--tool string` | CLI command or MCP tool the feedback is about (e.g. "run get")                    |
+| Flag                | Description                                                                                                  |
+| ------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `--function string` | Function the report is about, or the name you looked for (e.g. "setup-vercel")                               |
+| `--jq string`       | Process values from the response using jq syntax (see `circleci help formatting`)                            |
+| `--json`            | Output as JSON                                                                                               |
+| `--tool string`     | CLI command or MCP tool the feedback is about (e.g. "run get")                                               |
+| `--type string`     | Kind of report: missing_function (no Function does what you needed) or function_gap (a Function falls short) |
 
 Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `circleci --help`.
 
@@ -24,14 +26,16 @@ Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `ci
   `circleci feedback "I wanted to compare job timings between two runs but found no command for it"`
 - Report confusing output from a command: 
   `circleci feedback "run get shows no jobs for a run that has three" --tool "run get"`
+- Report a missing Function: 
+  `circleci feedback "no Function for Vercel deploys, wrote npx vercel deploy by hand" --type missing_function --function setup-vercel`
 - Capture just the report ID: 
   `circleci feedback "context list printed nothing for an org with contexts" --json --jq '.id'`
 
 ## Details
 
-Report an unexpected error, a missing capability or confusing output to
-CircleCI. Say what you tried, what you ran and what happened; no secrets.
-Reports include your CircleCI user, the AI agent, and if it came via MCP.
+Report an error, missing capability or confusing output; say what you ran and saw.
+No secrets. Reports include your CircleCI user, the AI agent, and if it came via MCP.
+For a Function, pass --type (missing_function or function_gap) and --function.
 
 JSON fields: id
 
