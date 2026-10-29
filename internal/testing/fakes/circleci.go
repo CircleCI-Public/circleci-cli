@@ -79,6 +79,7 @@ type CircleCI struct {
 	providerRepos           map[string][]ProviderRepo // orgID → repositories the connection can reach
 	connectionSetupResp     any                       // response body for POST /provider/connections/setup
 	rerunResponses          map[string]int            // workflow id → HTTP status to return
+	rerunErrors             map[string]v3ErrorReply   // workflow id → v3 error envelope to return instead of a rerun
 	rerunNewIDs             map[string]string         // workflow id → id of the workflow its rerun creates
 	rerunFromFailed         map[string]bool           // workflow id → is_from_failed as the request actually set it
 	cancelResponses         map[string]int            // workflow id → HTTP status to return
@@ -299,6 +300,7 @@ func NewCircleCI(t *testing.T, tokens ...string) *CircleCI {
 		providerConnections:               map[string][]string{},
 		providerRepos:                     map[string][]ProviderRepo{},
 		rerunResponses:                    map[string]int{},
+		rerunErrors:                       map[string]v3ErrorReply{},
 		rerunNewIDs:                       map[string]string{},
 		rerunFromFailed:                   map[string]bool{},
 		cancelResponses:                   map[string]int{},
@@ -673,6 +675,23 @@ func (f *CircleCI) SetRerunResponse(workflowID string, status int) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.rerunResponses[workflowID] = status
+}
+
+// v3ErrorReply is a canned v3 error envelope a fake endpoint answers with.
+type v3ErrorReply struct {
+	status int
+	detail string
+}
+
+// SetRerunError makes POST /api/v3/workflows/<id>/rerun refuse with status and
+// a v3 error envelope whose detail is detail, the way the real endpoint reports a
+// rerun it will not perform (400 "Rerun requests are disabled" when an org has
+// reruns switched off, 403 "Rerun limit reached"). It takes precedence over
+// SetRerunResponse.
+func (f *CircleCI) SetRerunError(workflowID string, status int, detail string) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.rerunErrors[workflowID] = v3ErrorReply{status: status, detail: detail}
 }
 
 // SetCancelResponse sets the HTTP status code returned for POST /api/v3/workflows/<id>/cancel.
@@ -1837,8 +1856,13 @@ func (f *CircleCI) handleRerunWorkflow(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	f.mu.RLock()
 	status, ok := f.rerunResponses[id]
+	reply, refused := f.rerunErrors[id]
 	f.mu.RUnlock()
 
+	if refused {
+		renderV3Error(w, r, reply.status, reply.detail)
+		return
+	}
 	if !ok {
 		render.Status(r, http.StatusNotFound)
 		render.JSON(w, r, map[string]any{"message": "not found"})
