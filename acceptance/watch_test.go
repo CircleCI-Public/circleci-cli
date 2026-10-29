@@ -28,6 +28,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"regexp"
 	"runtime"
 	"strings"
 	"testing"
@@ -35,6 +36,7 @@ import (
 
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/assert/cmp"
+	"gotest.tools/v3/golden"
 	"gotest.tools/v3/skip"
 
 	"github.com/CircleCI-Public/circleci-cli/internal/testing/binary"
@@ -80,6 +82,16 @@ func setupWatchFake(t *testing.T, runID, wfID, wfStatus string) (*fakes.CircleCI
 	env.Token = testToken
 	env.CircleCIURL = fake.URL()
 	return fake, env
+}
+
+// watchElapsedPattern matches the elapsed time run watch prints, "[1m2s]" on a
+// progress line and "(0s)" on the summary line.
+var watchElapsedPattern = regexp.MustCompile(`([\[(])(\d+h)?(\d+m)?\d+s([\])])`)
+
+// normalizeWatchElapsed replaces the elapsed times in run watch output with a
+// placeholder, so a slow test machine does not change the golden.
+func normalizeWatchElapsed(s string) string {
+	return watchElapsedPattern.ReplaceAllString(s, "${1}<elapsed>${4}")
 }
 
 // --- watch by number ---
@@ -193,12 +205,18 @@ func TestRunWatch_Failed_SuggestsJobLogs(t *testing.T) {
 	})
 
 	assert.Equal(t, result.ExitCode, 1, "stderr: %s", result.Stderr)
-	assert.Check(t, cmp.Contains(result.Stderr, `"integration-test"`), "stderr: %s", result.Stderr)
-	// The suggestion carries the failed job's real UUID, not a placeholder, so
-	// it can be pasted straight into a shell.
 	assert.Check(t, cmp.Contains(result.Stderr,
-		"circleci job get d0000000-0000-4000-8000-00000000f001"), "stderr: %s", result.Stderr)
+		"circleci run get "+runID+" --failure-report"), "stderr: %s", result.Stderr)
+	// The suggestions carry the failed job's and workflow's real UUIDs, not
+	// placeholders, so they can be pasted straight into a shell.
+	assert.Check(t, cmp.Contains(result.Stderr,
+		"circleci job output list d0000000-0000-4000-8000-00000000f001"), "stderr: %s", result.Stderr)
+	assert.Check(t, cmp.Contains(result.Stderr,
+		"circleci workflow rerun "+wfID+" --from-failed"), "stderr: %s", result.Stderr)
 	assert.Check(t, !strings.Contains(result.Stderr, "<job-id>"), "stderr: %s", result.Stderr)
+	assert.Check(t, !strings.Contains(result.Stderr, "<workflow-id>"), "stderr: %s", result.Stderr)
+	assert.Check(t, cmp.Equal(result.Stdout, ""))
+	assert.Check(t, golden.String(normalizeWatchElapsed(result.Stderr), t.Name()+".stderr.txt"))
 }
 
 // --- cancelled run → exit 6 ---
@@ -335,7 +353,14 @@ func TestRunWatch_FailFast(t *testing.T) {
 	assert.Check(t, cmp.Contains(result.Stderr, "failing job"), "stderr: %s", result.Stderr)
 	assert.Check(t, cmp.Contains(result.Stderr, "integration-test"), "stderr: %s", result.Stderr)
 	assert.Check(t, cmp.Contains(result.Stderr,
-		"circleci job get d0000000-0000-4000-8000-00000000f001"), "stderr: %s", result.Stderr)
+		"circleci run get "+runID+" --failure-report"), "stderr: %s", result.Stderr)
+	assert.Check(t, cmp.Contains(result.Stderr,
+		"circleci job output list d0000000-0000-4000-8000-00000000f001"), "stderr: %s", result.Stderr)
+	// The workflow may still be running, and --failfast is for stopping to fix,
+	// so there is no rerun suggestion.
+	assert.Check(t, !strings.Contains(result.Stderr, "workflow rerun"), "stderr: %s", result.Stderr)
+	assert.Check(t, cmp.Equal(result.Stdout, ""))
+	assert.Check(t, golden.String(normalizeWatchElapsed(result.Stderr), t.Name()+".stderr.txt"))
 }
 
 // --- dynamic config: the setup workflow succeeds, the continued config is rejected ---

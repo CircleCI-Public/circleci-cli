@@ -27,6 +27,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"gotest.tools/v3/assert"
@@ -146,6 +147,8 @@ func TestFunctionList_JSON(t *testing.T) {
 	// --json carries the whole description; only the table is summarized.
 	assert.Check(t, cmp.Contains(out[0]["description"].(string), "Example:"))
 	assert.Check(t, cmp.DeepEqual(out[0]["versions"], []any{setupGoLatest, "v0.9.0"}))
+	hasHint := strings.Contains(result.Stdout, "circleci feedback")
+	assert.Check(t, !hasHint, "--json must not carry the feedback hint")
 }
 
 func TestFunctionList_Pseudo(t *testing.T) {

@@ -78,6 +78,7 @@ type jobAttributesWire struct {
 	StartedAt          time.Time               `json:"started_at"`
 	EndedAt            *time.Time              `json:"ended_at"`
 	ParallelExecutions []parallelExecutionWire `json:"parallel_executions"`
+	Warnings           []runWarningWire        `json:"warnings,omitempty"`
 }
 
 type parallelExecutionWire struct {
@@ -132,6 +133,16 @@ type JobV3 struct {
 	ProjectID  uuid.UUID        `json:"project_id"`
 	PipelineID uuid.UUID        `json:"pipeline_id"`
 	WorkflowID uuid.UUID        `json:"workflow_id"`
+	Warnings   []JobWarning     `json:"warnings,omitempty"`
+}
+
+// JobWarning holds a non-fatal warning the V3 API attaches to a job, such as
+// the image deprecation notice the web app shows as a banner on the job page.
+type JobWarning struct {
+	Type        string `json:"type"`
+	Message     string `json:"message"`
+	Description string `json:"description,omitempty"`
+	URL         string `json:"url,omitempty"`
 }
 
 // Status derives a display status from phase and outcome.
@@ -189,6 +200,14 @@ func (w jobWire) toJobV3() *JobV3 {
 		ProjectID:  w.References.Project.ID,
 		PipelineID: w.References.Pipeline.ID,
 		WorkflowID: w.References.Workflow.ID,
+	}
+	for _, w := range a.Warnings {
+		j.Warnings = append(j.Warnings, JobWarning{
+			Type:        w.Type,
+			Message:     w.Message,
+			Description: w.Description,
+			URL:         w.url(),
+		})
 	}
 	for i, pe := range a.ParallelExecutions {
 		exec := JobV3Execution{Index: i}

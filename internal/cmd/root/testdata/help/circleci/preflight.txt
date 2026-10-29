@@ -1,0 +1,29 @@
+Run uncommitted changes through CI before you commit
+
+## Usage
+
+`circleci preflight <command> [flags]`
+
+## Available Commands
+
+| Command   | Description                                                   |
+| --------- | ------------------------------------------------------------- |
+| `cleanup` | Delete preflight branches left on the remote                  |
+| `run`     | Push the working tree to a temporary branch and watch its run |
+
+## Flags
+
+Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `circleci --help`.
+
+## Details
+
+Run your working tree through CircleCI without committing it.
+
+A preflight snapshots the working tree — staged, unstaged and untracked
+changes, minus ignored files — into one commit on a throwaway branch
+under `cci/preflight/`, diffed against the default branch, pushes it,
+and lets the project's push trigger start a run. Your HEAD, index and
+working tree are never touched.
+Jobs can detect a preflight from the branch name, e.g.
+`[[ $CIRCLE_BRANCH == cci/preflight/* ]]`.
+

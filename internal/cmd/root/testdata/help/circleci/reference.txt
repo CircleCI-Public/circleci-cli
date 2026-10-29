@@ -230,7 +230,7 @@ Display the status and steps of a CircleCI job.
 Job IDs are shown in the output of 'circleci workflow get' and
 'circleci run get --json'.
 
-JSON fields: id, name, type, status, started_at, stopped_at, project_id, pipeline_id, workflow_id, executions[].index/steps[].name/type/status/duration/exit_code
+JSON fields: id, name, type, status, started_at, stopped_at, project_id, pipeline_id, workflow_id, warnings[].type/message/description/url, executions[].index/steps[].name/type/status/duration/exit_code
 
 | Flag          | Description                                                                       |
 | ------------- | --------------------------------------------------------------------------------- |
@@ -477,11 +477,8 @@ JSON fields: id, name, description, created_at, config_source.provider, config_s
 
 Trigger a new pipeline run
 
-Trigger a new pipeline run using the recommended CircleCI v2 API.
-
-In a terminal, a missing --definition-id or --branch/--tag is prompted for; in
-non-interactive mode both are optional. --branch and --tag are mutually
-exclusive and each sets both the config-fetch and checkout revision.
+Trigger a pipeline run. In a terminal a missing definition or --branch/--tag
+is prompted for; in non-interactive mode both are optional.
 
 A skipped pipeline (e.g. a [ci skip] commit message) exits 0 and prints why.
 
@@ -490,6 +487,7 @@ JSON fields: id, state, number, created_at, triggered — or triggered, message 
 | Flag                     | Description                                                                       |
 | ------------------------ | --------------------------------------------------------------------------------- |
 | `-b, --branch string`    | Branch for config fetch and checkout (mutually exclusive with --tag)              |
+| `--definition string`    | Pipeline definition name to run (mutually exclusive with --definition-id)         |
 | `--definition-id string` | Pipeline definition UUID to run (prompted interactively if omitted)               |
 | `--jq string`            | Process values from the response using jq syntax (see `circleci help formatting`) |
 | `--json`                 | Output as JSON                                                                    |
@@ -502,22 +500,134 @@ JSON fields: id, state, number, created_at, triggered — or triggered, message 
 
 - Trigger a pipeline interactively — pick definition and branch from menus: 
   `circleci pipeline run --project gh/myorg/myrepo`
-- Trigger a specific definition on a branch non-interactively: 
-  `circleci pipeline run --project gh/myorg/myrepo --definition-id 2338d0ae-5541-4bbf-88a2-55e9f7281f80 --branch main`
+- Trigger a definition, selected by name, on a branch non-interactively: 
+  `circleci pipeline run --project gh/myorg/myrepo --definition main-pipeline --branch main`
 - Trigger on a tag with parameters: 
   `circleci pipeline run --project gh/myorg/myrepo --definition-id 2338d0ae-5541-4bbf-88a2-55e9f7281f80 --tag v1.2.3 --param deploy_env=staging`
 - Output as JSON for scripting: 
   `circleci pipeline run --project gh/myorg/myrepo --definition-id 2338d0ae-5541-4bbf-88a2-55e9f7281f80 --branch main --json`
 
+### `circleci preflight <command>`
+
+Run uncommitted changes through CI before you commit
+
+Run your working tree through CircleCI without committing it.
+
+A preflight snapshots the working tree — staged, unstaged and untracked
+changes, minus ignored files — into one commit on a throwaway branch
+under `cci/preflight/`, diffed against the default branch, pushes it,
+and lets the project's push trigger start a run. Your HEAD, index and
+working tree are never touched.
+Jobs can detect a preflight from the branch name, e.g.
+`[[ $CIRCLE_BRANCH == cci/preflight/* ]]`.
+
+#### `circleci preflight cleanup [flags]`
+
+Delete preflight branches left on the remote
+
+Delete the `cci/preflight/*` branches that preflights left behind — after
+--no-watch or --no-cleanup, or when a preflight was killed. A branch is
+skipped while its run is still going, or when it was pushed minutes ago and
+its run has not started: a preflight may still be watching or waiting.
+Asks before deleting; pass --force when not at a terminal.
+
+JSON fields: preflight_id, branch, commit, run_id, status (deleted,
+would_delete, skipped_running, skipped_starting, delete_failed,
+lookup_failed), error
+
+| Flag                | Description                                             |
+| ------------------- | ------------------------------------------------------- |
+| `-n, --dry-run`     | show what would be deleted without deleting             |
+| `-f, --force`       | skip confirmation prompt                                |
+| `--id string`       | only clean up the preflight with this ID                |
+| `--include-running` | also delete branches whose run has not ended            |
+| `--json`            | Output as JSON                                          |
+| `--project string`  | project slug (e.g. gh/org/repo); defaults to git remote |
+| `--remote string`   | git remote to delete branches from (default "origin")   |
+
+
+**Examples:**
+
+- Delete every finished preflight branch, after confirming: 
+  `circleci preflight cleanup`
+- Show what would be deleted: 
+  `circleci preflight cleanup --dry-run`
+- Delete one preflight's branch without confirming, even if its run is still going: 
+  `circleci preflight cleanup --id 4b1f8e2a-6c1d-4f7e-9a3b-2d5c8e1f0a4b --include-running --force`
+
+#### `circleci preflight run [flags]`
+
+Push the working tree to a temporary branch and watch its run
+
+Push the working tree to a `cci/preflight/<id>` branch and watch the run it starts,
+reporting each failed job's steps and tests as it fails. See `circleci help preflight-guide`.
+
+--json streams one event per line, by type: branch_pushed (preflight_id, branch,
+commit, base, changes), run_started (run_id, url), job_failed (job.id/name/workflow/url/
+failed_steps[]/failed_tests[]), run_summary (run_id, outcome, failed_jobs[], ...)
+
+| Flag                  | Description                                                        |
+| --------------------- | ------------------------------------------------------------------ |
+| `--interval duration` | how often to poll the run (default 5s)                             |
+| `--json`              | Output as JSON                                                     |
+| `--no-cleanup`        | keep the branch, and the run going, when the preflight stops       |
+| `--no-failfast`       | wait for the whole run instead of stopping at the first failed job |
+| `--no-watch`          | return once the run starts, keeping the branch                     |
+| `--project string`    | project slug (e.g. gh/org/repo); defaults to git remote            |
+| `--remote string`     | git remote to push the branch to (default "origin")                |
+| `--timeout duration`  | maximum time to watch the run (default 30m0s)                      |
+
+
+**Examples:**
+
+- Run local changes through CI, stopping at the first failure: 
+  `circleci preflight run`
+- Stream events for a coding agent: 
+  `circleci preflight run --json`
+- Push and return once the run starts; clean up later: 
+  `circleci preflight run --no-watch`
+
 ### `circleci run <command>`
 
-Trigger, watch and cancel pipeline runs
+Trigger, watch, approve and cancel pipeline runs
 
 Work with CircleCI runs.
 
 A run is one execution of a pipeline, created each time a trigger
 fires. It carries the VCS context for that firing and groups the
 workflows it produced; each workflow in turn contains jobs.
+
+#### `circleci run approve <run-number-or-id> [flags]`
+
+Approve an approval job that is on hold
+
+Approve an approval job on hold, so the jobs that require it start. With
+several on hold, name one with --job or pick it from a list in a terminal.
+
+JSON fields: run_id, workflow_id, workflow_name, job_id, job_name
+
+| Flag               | Description                                                                       |
+| ------------------ | --------------------------------------------------------------------------------- |
+| `-f, --force`      | skip confirmation prompt                                                          |
+| `--job string`     | name or UUID of the approval job to approve                                       |
+| `--jq string`      | Process values from the response using jq syntax (see `circleci help formatting`) |
+| `--json`           | Output as JSON                                                                    |
+| `--project string` | Project slug (e.g. gh/org/repo); used when approving by number                    |
+
+
+**Arguments:**
+
+`<run-number-or-id>` is a run UUID, or a run number from `circleci run list`
+looked up in the git remote's project (or `--project`).
+
+**Examples:**
+
+- Approve the approval job on hold in run 75 (with confirmation): 
+  `circleci run approve 75`
+- Approve a specific approval job by name, without confirmation: 
+  `circleci run approve 75 --job hold-deploy --force`
+- Approve the hold on the latest run on main, by run UUID: 
+  `circleci run list --branch main --json --jq '.[0].id' | xargs circleci run approve --force`
 
 #### `circleci run cancel <run-number-or-id> [flags]`
 
@@ -2201,11 +2311,106 @@ JSON fields: id, name
 - Confirm the new ID after rename: 
   `circleci namespace rename oldname newname --json --jq '.id'`
 
+### `circleci notification <command>`
+
+Configure where CircleCI sends notifications
+
+Configure the channels CircleCI sends notifications to.
+These commands are not available on CircleCI Server.
+
+#### `circleci notification slack <command>`
+
+Send a project's notifications to a Slack channel
+
+The CircleCI Slack app must already be installed for the organization.
+
+##### `circleci notification slack delete [flags]`
+
+Remove a project's Slack channel
+
+Remove the Slack channel from a project. Its Slack notifications stop until a
+channel is set again with 'circleci notification slack set --channel'.
+
+| Flag               | Description                                             |
+| ------------------ | ------------------------------------------------------- |
+| `-n, --dry-run`    | show what would be removed without removing it          |
+| `-f, --force`      | skip confirmation prompt                                |
+| `--project string` | project slug (e.g. gh/org/repo); defaults to git remote |
+
+
+**Aliases:**
+
+
+`circleci notification slack rm`
+
+**Examples:**
+
+- Remove the current project's Slack channel (with confirmation): 
+  `circleci notification slack delete`
+- Preview what would be removed: 
+  `circleci notification slack delete --dry-run`
+- Remove it from a specific project without confirmation: 
+  `circleci notification slack delete --project gh/myorg/myrepo --force`
+
+##### `circleci notification slack get [flags]`
+
+Show a project's Slack channel and Slack preferences
+
+Show the Slack channel a project's notifications go to, whether they are on,
+and which notifications are sent to Slack.
+
+JSON fields: channel_id, channel_name, enabled, disable_reason,
+preferences[] (group, name, enabled)
+
+| Flag               | Description                                                                       |
+| ------------------ | --------------------------------------------------------------------------------- |
+| `--jq string`      | Process values from the response using jq syntax (see `circleci help formatting`) |
+| `--json`           | Output as JSON                                                                    |
+| `--project string` | project slug (e.g. gh/org/repo); defaults to git remote                           |
+
+
+**Examples:**
+
+- Show the current project's Slack channel: 
+  `circleci notification slack get`
+- Show it for a specific project: 
+  `circleci notification slack get --project gh/myorg/myrepo`
+- Print only the channel ID: 
+  `circleci notification slack get --json --jq .channel_id`
+
+##### `circleci notification slack set (--channel <name|ID> | --enable | --disable) [flags]`
+
+Set, enable or disable a project's Slack channel
+
+Setting or re-enabling a channel posts a welcome message to it, which is how
+CircleCI checks it can post there. Disabling keeps the channel configured.
+
+JSON fields: channel_id, channel_name, enabled, disable_reason
+
+| Flag               | Description                                                                       |
+| ------------------ | --------------------------------------------------------------------------------- |
+| `--channel string` | Slack channel name (e.g. #ci-alerts) or ID to send notifications to               |
+| `--disable`        | pause Slack notifications, keeping the configured channel                         |
+| `--enable`         | resume Slack notifications for the configured channel                             |
+| `--jq string`      | Process values from the response using jq syntax (see `circleci help formatting`) |
+| `--json`           | Output as JSON                                                                    |
+| `--project string` | project slug (e.g. gh/org/repo); defaults to git remote                           |
+
+
+**Examples:**
+
+- Send the current project's notifications to #ci-alerts: 
+  `circleci notification slack set --channel '#ci-alerts'`
+- Use a channel ID (required for private channels): 
+  `circleci notification slack set --channel C0123ABCD --project gh/myorg/myrepo`
+- Pause Slack notifications, keeping the channel: 
+  `circleci notification slack set --disable`
+- Resume them and print the result as JSON: 
+  `circleci notification slack set --enable --json`
+
 ### `circleci orb <command>`
 
 Create, publish and inspect orbs (reusable config)
-
-Manage orbs in the orb registry.
 
 Orbs are reusable packages of CircleCI configuration, published to a
 namespace and either shared publicly or kept private. Manage the namespace
@@ -2692,6 +2897,38 @@ Exit code 7 if the orb is invalid.
   `cat orb.yml | circleci orb validate -`
 - Validate with a specific org for private deps: 
   `circleci orb validate orb.yml --org gh/acme`
+
+#### `circleci orb version <namespace>/<orb>[@<version>] | <version-id> [flags]`
+
+Get details of a single orb version
+
+Get the ID, version number, publish time and owning orb of a single
+orb version. Use 'circleci orb source' for the version's YAML.
+
+JSON fields: id, version, orb_id, orb_name, created_at
+
+| Flag          | Description                                                                       |
+| ------------- | --------------------------------------------------------------------------------- |
+| `--jq string` | Process values from the response using jq syntax (see `circleci help formatting`) |
+| `--json`      | Output as JSON                                                                    |
+
+
+**Arguments:**
+
+An orb version can be specified by reference or ID:
+- By reference, for example, `namespace/orb-name@1.2.3`. Without `@<version>`, the latest published version is shown
+- By ID, the orb version ID (UUID), for example, `849e7902-802f-4082-8a70-da77dcd084e3`
+
+**Examples:**
+
+- Get a specific version by reference: 
+  `circleci orb version myorg/my-orb@1.2.3`
+- Get the latest published version: 
+  `circleci orb version myorg/my-orb`
+- Get a version by its ID: 
+  `circleci orb version 849e7902-802f-4082-8a70-da77dcd084e3`
+- Print only the version ID, for use in API calls: 
+  `circleci orb version myorg/my-orb@1.2.3 --json --jq .id`
 
 ### `circleci org <command>`
 
@@ -3652,7 +3889,7 @@ setting's description and current value.
 
 Manage project triggers
 
-List and create triggers for a CircleCI project.
+List, create, update and delete triggers for a CircleCI project.
 
 Triggers watch a GitHub repository for events and automatically run
 a pipeline definition when matching events occur. Only projects
@@ -3693,6 +3930,34 @@ JSON fields: id, created_at, event_name, event_preset, config_ref, checkout_ref,
 - Create a trigger with event filtering and output as JSON: 
   `circleci project trigger create --pipeline-definition-id a1b2c3d4-... --repo-id 123456789 --event-preset all-pushes --json`
 
+##### `circleci project trigger delete <trigger-id> [flags]`
+
+Delete a project trigger
+
+Delete a trigger. Events from its event source stop starting pipelines.
+To pause a trigger without losing it, use 'trigger update --disable'.
+
+| Flag                  | Description                                                                |
+| --------------------- | -------------------------------------------------------------------------- |
+| `-f, --force`         | skip confirmation prompt                                                   |
+| `--project string`    | project slug (e.g. gh/org/repo); only needed for a project's OAuth trigger |
+| `--project-id string` | project UUID (overrides --project)                                         |
+
+
+**Aliases:**
+
+
+`circleci project trigger rm`
+
+**Examples:**
+
+- Delete a trigger (with confirmation): 
+  `circleci project trigger delete a1b2c3d4-...`
+- Delete without confirmation, for scripts: 
+  `circleci project trigger delete a1b2c3d4-... --force`
+- Pause it instead of deleting it: 
+  `circleci project trigger update a1b2c3d4-... --disable`
+
 ##### `circleci project trigger list [flags]`
 
 List triggers for a pipeline definition
@@ -3727,6 +3992,39 @@ JSON fields: id, created_at, event_name, event_preset, config_ref, checkout_ref,
   `circleci project trigger list --project gh/myorg/myrepo --pipeline-definition-id a1b2c3d4-...`
 - Output as JSON for scripting: 
   `circleci project trigger list --pipeline-definition-id a1b2c3d4-... --json`
+
+##### `circleci project trigger update <trigger-id> [flags]`
+
+Update a project trigger
+
+Change an existing trigger. Only the flags you pass are changed. The event
+source (provider and repository) is fixed when the trigger is created; to
+change it, delete the trigger and create a new one. Run `circleci help triggers`
+for what each event preset means.
+
+JSON fields: id, created_at, event_name, event_preset, config_ref, checkout_ref, disabled
+
+| Flag                    | Description                                                                                                                                                                                                                                                                                                                                             |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--checkout-ref string` | git ref for checking out code (only when the checkout repo differs from the event source repo)                                                                                                                                                                                                                                                          |
+| `--config-ref string`   | git ref for fetching config (only when the config repo differs from the event source repo)                                                                                                                                                                                                                                                              |
+| `--disable`             | pause the trigger without deleting it                                                                                                                                                                                                                                                                                                                   |
+| `--enable`              | resume the trigger so matching events start pipelines                                                                                                                                                                                                                                                                                                   |
+| `--event-preset string` | event preset for filtering trigger events (one of: all-pushes, only-tags, default-branch-pushes, only-build-prs, only-open-prs, only-labeled-prs, only-merged-prs, only-ready-for-review-prs, only-branch-delete, only-build-pushes-to-non-draft-prs, only-merged-or-closed-prs, pr-comment-equals-run-ci, non-draft-pr-opened, pushes-to-merge-queues) |
+| `--jq string`           | Process values from the response using jq syntax (see `circleci help formatting`)                                                                                                                                                                                                                                                                       |
+| `--json`                | Output as JSON                                                                                                                                                                                                                                                                                                                                          |
+| `--project string`      | project slug (e.g. gh/org/repo); only needed for a project's OAuth trigger                                                                                                                                                                                                                                                                              |
+| `--project-id string`   | project UUID (overrides --project)                                                                                                                                                                                                                                                                                                                      |
+
+
+**Examples:**
+
+- Pause a trigger without deleting it: 
+  `circleci project trigger update a1b2c3d4-... --disable`
+- Resume it: 
+  `circleci project trigger update a1b2c3d4-... --enable`
+- Only build tag pushes, and output the result as JSON: 
+  `circleci project trigger update a1b2c3d4-... --event-preset only-tags --json`
 
 ### `circleci runner <command>`
 
@@ -4078,10 +4376,10 @@ Token values are only shown once at creation time and cannot be retrieved afterw
 
 Create a token for a resource class
 
-Create a new authentication token for a runner resource class.
+Create a runner token for a resource class. The token value is shown only once.
 
-The token value is shown only once and cannot be retrieved afterwards.
-Store it securely. If lost, delete this token and create a new one.
+CLI 0.1.x (check with `circleci version`) printed a circleci-runner-config.yaml
+document. This command prints text or JSON instead. There is no replacement yet.
 
 JSON fields: id, resource_class, resource_class_id, nickname, created_at, token
 
@@ -4547,6 +4845,40 @@ Other content in your shell profile is left untouched.
   `source ~/.zshrc`
 - Check whether completion is currently installed: 
   `grep -l "circleci shell completion" ~/.zshrc ~/.bashrc 2>/dev/null`
+
+### `circleci feedback <message> [flags]`
+
+Send feedback about the CLI to CircleCI
+
+Report an error, missing capability or confusing output; say what you ran and saw.
+No secrets. Reports include your CircleCI user, the AI agent, and if it came via MCP.
+For a Function, pass --type (missing_function or function_gap) and --function.
+
+JSON fields: id
+
+| Flag                | Description                                                                                                  |
+| ------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `--function string` | Function the report is about, or the name you looked for (e.g. "setup-vercel")                               |
+| `--jq string`       | Process values from the response using jq syntax (see `circleci help formatting`)                            |
+| `--json`            | Output as JSON                                                                                               |
+| `--tool string`     | CLI command or MCP tool the feedback is about (e.g. "run get")                                               |
+| `--type string`     | Kind of report: missing_function (no Function does what you needed) or function_gap (a Function falls short) |
+
+
+**Arguments:**
+
+`<message>` is the feedback itself, up to 2000 characters.
+
+**Examples:**
+
+- Report a missing capability: 
+  `circleci feedback "I wanted to compare job timings between two runs but found no command for it"`
+- Report confusing output from a command: 
+  `circleci feedback "run get shows no jobs for a run that has three" --tool "run get"`
+- Report a missing Function: 
+  `circleci feedback "no Function for Vercel deploys, wrote npx vercel deploy by hand" --type missing_function --function setup-vercel`
+- Capture just the report ID: 
+  `circleci feedback "context list printed nothing for an org with contexts" --json --jq '.id'`
 
 ### `circleci mcp`
 

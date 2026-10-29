@@ -1,0 +1,11 @@
+Watching run f0000000-0000-4000-8000-00000000fa11 (main)
+
+[<elapsed>]  build=failed
+✗ Run f0000000-0000-4000-8000-00000000fa11 failed (<elapsed>)
+error: Run f0000000-0000-4000-8000-00000000fa11 failed.
+
+Suggestions:
+  • Read the failed steps' output: circleci run get f0000000-0000-4000-8000-00000000fa11 --failure-report
+  • Full output for failed job "integration-test": circleci job output list d0000000-0000-4000-8000-00000000f001
+  • To push a fix and watch the new run: git push && circleci run watch --sha "$(git rev-parse HEAD)"
+  • If "build" failed transiently (network timeout, lost executor), rerun its failed jobs: circleci workflow rerun b0000000-0000-4000-8000-0000000fa011 --from-failed

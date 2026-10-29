@@ -1,0 +1,1 @@
+✓ Removed Slack channel #ci-alerts (C0000ALERTS) from gh/myorg/alpha

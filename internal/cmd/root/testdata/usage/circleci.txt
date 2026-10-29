@@ -14,16 +14,19 @@ Available commands:
   env
   envvar
   extension
+  feedback
   job
   mcp
   migrate
   my
   namespace
+  notification
   onboard
   orb
   org
   pipeline
   policy
+  preflight
   project
   run
   runner

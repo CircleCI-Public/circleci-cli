@@ -1,0 +1,7 @@
+error: No pipeline definition is named "weekly".
+Available definitions:
+  main-pipeline  (pdef-uuid-0001)
+  nightly  (pdef-uuid-0002)
+
+Suggestions:
+  • Pass one of these names to --definition

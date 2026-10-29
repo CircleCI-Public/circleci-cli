@@ -56,7 +56,7 @@ const helpLineBudget = 40
 // maxOverBudget bounds the allow-list below so it cannot quietly grow. It is a
 // ratchet: lower it as entries are removed. Growing it is a deliberate act that
 // needs a reason in review.
-const maxOverBudget = 25
+const maxOverBudget = 24
 
 // unbudgeted commands are long-form by design. A reader reaching for them wants
 // the whole inventory, and truncating it degrades gracefully. `circleci help
@@ -80,11 +80,9 @@ var overBudget = map[string]int{
 	"circleci/context/secret/list":    42,
 	"circleci/job/output/get":         42,
 	"circleci/job/output/list":        43,
-	"circleci/orb":                    41,
 	"circleci/orb/init":               42,
 	"circleci/orb/list":               48,
 	"circleci/pipeline/create":        42,
-	"circleci/pipeline/run":           42,
 	"circleci/policy":                 42,
 	"circleci/policy/eval":            50,
 	"circleci/policy/logs":            52,

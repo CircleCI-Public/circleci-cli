@@ -6,6 +6,64 @@ is added by its release PR (see [RELEASE.md](RELEASE.md)) and becomes its GitHub
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.12.0] - 2026-10-28
+
+### What's Changed
+* Point run watch failures at the failure report and next steps (AEX-42) by @joel-thompson in https://github.com/CircleCI-Public/circleci-cli/pull/1937
+* Add circleci preflight to run uncommitted changes through CI by @gcirclest in https://github.com/CircleCI-Public/circleci-cli/pull/1889
+* End the failure report with next steps by @joel-thompson in https://github.com/CircleCI-Public/circleci-cli/pull/1941
+* Add project trigger update and delete by @gcirclest in https://github.com/CircleCI-Public/circleci-cli/pull/1951
+* Show job warnings in job get by @felixshiftellecon in https://github.com/CircleCI-Public/circleci-cli/pull/1953
+* Let feedback report a missing or short Function by @stiyyagura0901 in https://github.com/CircleCI-Public/circleci-cli/pull/1954
+* Select pipeline definition by name in pipeline run by @gcirclest in https://github.com/CircleCI-Public/circleci-cli/pull/1948
+* Add circleci orb version to get a single orb version by @gcirclest in https://github.com/CircleCI-Public/circleci-cli/pull/1946
+
+### New Contributors
+* @felixshiftellecon made their first contribution in https://github.com/CircleCI-Public/circleci-cli/pull/1953
+
+**Full Changelog**: https://github.com/CircleCI-Public/circleci-cli/compare/v1.11.0...v1.12.0
+
+## [1.11.0] - 2026-10-21
+
+### What's Changed
+* Add circleci notification slack commands by @DominikLa in https://github.com/CircleCI-Public/circleci-cli/pull/1916
+* Bump github.com/getkin/kin-openapi from 0.144.0 to 0.149.0 in /tools by @dependabot[bot] in https://github.com/CircleCI-Public/circleci-cli/pull/1928
+
+### New Contributors
+* @DominikLa made their first contribution in https://github.com/CircleCI-Public/circleci-cli/pull/1916
+
+**Full Changelog**: https://github.com/CircleCI-Public/circleci-cli/compare/v1.10.0...v1.11.0
+
+## [1.10.0] - 2026-10-21
+
+### What's Changed
+* Add circleci feedback for reporting CLI problems (AEX-48) by @joel-thompson in https://github.com/CircleCI-Public/circleci-cli/pull/1911
+
+### New Contributors
+* @joel-thompson made their first contribution in https://github.com/CircleCI-Public/circleci-cli/pull/1911
+
+**Full Changelog**: https://github.com/CircleCI-Public/circleci-cli/compare/v1.9.0...v1.10.0
+
+## [1.9.0] - 2026-10-20
+
+### What's Changed
+* Bump github.com/klauspost/compress from 1.18.6 to 1.18.7 in /tools by @dependabot[bot] in https://github.com/CircleCI-Public/circleci-cli/pull/1933
+* Bump github.com/shirou/gopsutil/v4 in / by @dependabot[bot] in https://github.com/CircleCI-Public/circleci-cli/pull/1915
+* Bump golangci-lint to v2.15.0 by @pete-woods in https://github.com/CircleCI-Public/circleci-cli/pull/1935
+
+
+**Full Changelog**: https://github.com/CircleCI-Public/circleci-cli/compare/v1.8.0...v1.9.0
+
+## [1.8.0] - 2026-10-20
+
+### What's Changed
+* Show the arguments of a function's default command by @stiyyagura0901 in https://github.com/CircleCI-Public/circleci-cli/pull/1924
+* Add run approve to approve an approval job on hold by @gcirclest in https://github.com/CircleCI-Public/circleci-cli/pull/1930
+* Bump Go to 1.27.3 by @meeech in https://github.com/CircleCI-Public/circleci-cli/pull/1932
+
+
+**Full Changelog**: https://github.com/CircleCI-Public/circleci-cli/compare/v1.7.0...v1.8.0
+
 ## [1.7.0] - 2026-10-16
 
 ### What's Changed

@@ -1,0 +1,4 @@
+error: --type must be missing_function or function_gap (got: "bug").
+
+Suggestions:
+  • Use missing_function when no Function does what you needed, function_gap when one falls short

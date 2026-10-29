@@ -1,0 +1,4 @@
+error: Deleting trigger trig-uuid-abcd stops its events from starting pipelines.
+
+Suggestions:
+  • Pass --force (-f) to skip this prompt in non-interactive mode

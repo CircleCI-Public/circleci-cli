@@ -1,0 +1,10 @@
+Usage:  circleci feedback <message> [flags]
+
+Flags:
+      --function string   Function the report is about, or the name you looked for (e.g. "setup-vercel")
+  -h, --help              help for feedback
+      --jq string         Process values from the response using jq syntax
+      --json              Output as JSON
+      --tool string       CLI command or MCP tool the feedback is about (e.g. "run get")
+      --type string       Kind of report: missing_function (no Function does what you needed) or function_gap (a Function falls short)
+  

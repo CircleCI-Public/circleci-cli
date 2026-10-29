@@ -1,0 +1,4 @@
+error: --type requires --function.
+
+Suggestions:
+  • Name the Function, or the name you looked for, e.g. --function setup-vercel

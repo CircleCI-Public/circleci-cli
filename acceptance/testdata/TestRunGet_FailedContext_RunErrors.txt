@@ -3,3 +3,7 @@
 - config: Error calling workflow: 'deploy'
 Cannot find a definition for job named release
 
+## next steps
+
+- Validate the config locally: circleci config validate .circleci/config.yml
+- Push the fix and watch it: git push && circleci run watch --sha "$(git rev-parse HEAD)"

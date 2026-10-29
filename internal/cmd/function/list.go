@@ -144,7 +144,8 @@ func runList(ctx context.Context, client *apiclient.Client, includePseudo, jsonO
 	for _, e := range entries {
 		table.Row(e.Name, e.LatestVersion, summarize(e.Description))
 	}
-	iostream.PrintMarkdown(ctx, "# Published functions\n"+table.Render())
+	iostream.PrintMarkdown(ctx, "# Published functions\n"+table.Render()+
+		"\nMissing a Function, or one falls short? `circleci feedback --type missing_function --function <name> \"<what you needed>\"`\n")
 	return nil
 }
 

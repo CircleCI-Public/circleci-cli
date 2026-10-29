@@ -49,16 +49,19 @@ import (
 	cmdenv "github.com/CircleCI-Public/circleci-cli/internal/cmd/env"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmd/envvar"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmd/extension"
+	"github.com/CircleCI-Public/circleci-cli/internal/cmd/feedback"
 	cmdfunction "github.com/CircleCI-Public/circleci-cli/internal/cmd/function"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmd/job"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmd/migrate"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmd/my"
 	cmdnamespace "github.com/CircleCI-Public/circleci-cli/internal/cmd/namespace"
+	"github.com/CircleCI-Public/circleci-cli/internal/cmd/notification"
 	cmdonboard "github.com/CircleCI-Public/circleci-cli/internal/cmd/onboard"
 	cmdorb "github.com/CircleCI-Public/circleci-cli/internal/cmd/orb"
 	cmdorg "github.com/CircleCI-Public/circleci-cli/internal/cmd/org"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmd/pipeline"
 	cmdpolicy "github.com/CircleCI-Public/circleci-cli/internal/cmd/policy"
+	cmdpreflight "github.com/CircleCI-Public/circleci-cli/internal/cmd/preflight"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmd/project"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmd/receivetelemetry"
 	cmdrun "github.com/CircleCI-Public/circleci-cli/internal/cmd/run"
@@ -250,14 +253,17 @@ func NewRootCmd(version string) *cobra.Command {
 	cmd.AddCommand(cmdnamespace.NewNamespaceCmd())
 	cmd.AddCommand(cmdonboard.NewOnboardCmd())
 	cmd.AddCommand(cmdorb.NewOrbCmd())
+	cmd.AddCommand(notification.NewNotificationCmd())
 	cmd.AddCommand(cmdorg.NewOrgCmd())
 	cmd.AddCommand(cmdpolicy.NewPolicyCmd())
+	cmd.AddCommand(cmdpreflight.NewPreflightCmd())
 	cmd.AddCommand(cmdrun.NewRunCmd())
 	cmd.AddCommand(cmdversion.NewVersionCmd(version))
 	cmd.AddCommand(completion.NewCompletionCmd())
 	cmd.AddCommand(deploy.NewDeployCmd())
 	cmd.AddCommand(cmdenv.NewEnvCmd())
 	cmd.AddCommand(envvar.NewEnvVarCmd())
+	cmd.AddCommand(feedback.NewFeedbackCmd())
 	cmd.AddCommand(cmdfunction.NewFunctionCmd())
 	cmd.AddCommand(job.NewJobCmd())
 	cmd.AddCommand(my.NewMyCmd())
@@ -394,6 +400,7 @@ func NewRootCmd(version string) *cobra.Command {
 	})
 
 	cmdutil.RecordTelemetryForSubcommands(cmd)
+	cmdutil.MarkUnhandledErrorsForSubcommands(cmd)
 
 	if referenceCmd != nil {
 		referenceCmd.Long = stringifyReference(cmd)

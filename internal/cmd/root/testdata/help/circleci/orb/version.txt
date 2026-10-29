@@ -1,0 +1,39 @@
+Get details of a single orb version
+
+## Usage
+
+`circleci orb version <namespace>/<orb>[@<version>] | <version-id> [flags]`
+
+## Arguments
+
+An orb version can be specified by reference or ID:
+- By reference, for example, `namespace/orb-name@1.2.3`. Without `@<version>`, the latest published version is shown
+- By ID, the orb version ID (UUID), for example, `849e7902-802f-4082-8a70-da77dcd084e3`
+
+## Flags
+
+| Flag          | Description                                                                       |
+| ------------- | --------------------------------------------------------------------------------- |
+| `--jq string` | Process values from the response using jq syntax (see `circleci help formatting`) |
+| `--json`      | Output as JSON                                                                    |
+
+Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `circleci --help`.
+
+## Examples
+
+- Get a specific version by reference: 
+  `circleci orb version myorg/my-orb@1.2.3`
+- Get the latest published version: 
+  `circleci orb version myorg/my-orb`
+- Get a version by its ID: 
+  `circleci orb version 849e7902-802f-4082-8a70-da77dcd084e3`
+- Print only the version ID, for use in API calls: 
+  `circleci orb version myorg/my-orb@1.2.3 --json --jq .id`
+
+## Details
+
+Get the ID, version number, publish time and owning orb of a single
+orb version. Use 'circleci orb source' for the version's YAML.
+
+JSON fields: id, version, orb_id, orb_name, created_at
+

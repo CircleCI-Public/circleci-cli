@@ -43,6 +43,7 @@ func watchStateWith(workflows ...ui.RunWatchWorkflow) ui.RunWatchState {
 // names a job the user can actually fetch: the UUID is interpolated from the
 // state already in memory, so no lookup step is left to the reader.
 func TestFailedJobLogSuggestions(t *testing.T) {
+	runID := uuid.MustParse("f0000000-0000-4000-8000-00000000fa11")
 	jobID := uuid.MustParse("d0000000-0000-4000-8000-00000000f001")
 	otherID := uuid.MustParse("d0000000-0000-4000-8000-00000000f003")
 
@@ -55,8 +56,8 @@ func TestFailedJobLogSuggestions(t *testing.T) {
 			},
 		})
 
-		assert.Check(t, is.DeepEqual(failedJobLogSuggestions(state), []string{
-			`View logs for failed job "test-service": circleci job get ` + jobID.String(),
+		assert.Check(t, is.DeepEqual(failedJobLogSuggestions(state, runID), []string{
+			`Full output for failed job "test-service": circleci job output list ` + jobID.String(),
 		}))
 	})
 
@@ -66,9 +67,26 @@ func TestFailedJobLogSuggestions(t *testing.T) {
 			ui.RunWatchWorkflow{Name: "deploy", Jobs: []ui.RunWatchJob{{ID: otherID, Name: "publish", Failed: true}}},
 		)
 
-		assert.Check(t, is.DeepEqual(failedJobLogSuggestions(state), []string{
-			`View logs for failed job "test-service": circleci job get ` + jobID.String(),
-			`View logs for failed job "publish": circleci job get ` + otherID.String(),
+		assert.Check(t, is.DeepEqual(failedJobLogSuggestions(state, runID), []string{
+			`Full output for failed job "test-service": circleci job output list ` + jobID.String(),
+			`Full output for failed job "publish": circleci job output list ` + otherID.String(),
+		}))
+	})
+
+	t.Run("lists the first three failed jobs and counts the rest", func(t *testing.T) {
+		state := watchStateWith(ui.RunWatchWorkflow{Name: "build", Jobs: []ui.RunWatchJob{
+			{ID: uuid.MustParse("d0000000-0000-4000-8000-00000000000a"), Name: "a", Failed: true},
+			{ID: uuid.MustParse("d0000000-0000-4000-8000-00000000000b"), Name: "b", Failed: true},
+			{ID: uuid.MustParse("d0000000-0000-4000-8000-00000000000c"), Name: "c", Failed: true},
+			{ID: uuid.MustParse("d0000000-0000-4000-8000-00000000000d"), Name: "d", Failed: true},
+			{ID: uuid.MustParse("d0000000-0000-4000-8000-00000000000e"), Name: "e", Failed: true},
+		}})
+
+		assert.Check(t, is.DeepEqual(failedJobLogSuggestions(state, runID), []string{
+			`Full output for failed job "a": circleci job output list d0000000-0000-4000-8000-00000000000a`,
+			`Full output for failed job "b": circleci job output list d0000000-0000-4000-8000-00000000000b`,
+			`Full output for failed job "c": circleci job output list d0000000-0000-4000-8000-00000000000c`,
+			"2 more failed jobs; see all with: circleci run get " + runID.String(),
 		}))
 	})
 
@@ -78,8 +96,8 @@ func TestFailedJobLogSuggestions(t *testing.T) {
 			Jobs: []ui.RunWatchJob{{Name: "test-service", Failed: true}},
 		})
 
-		assert.Check(t, is.DeepEqual(failedJobLogSuggestions(state), []string{
-			`View logs for failed job "test-service": circleci job get <job-id>`,
+		assert.Check(t, is.DeepEqual(failedJobLogSuggestions(state, runID), []string{
+			`Full output for failed job "test-service": circleci job output list <job-id>`,
 		}))
 	})
 
@@ -89,7 +107,100 @@ func TestFailedJobLogSuggestions(t *testing.T) {
 			Jobs: []ui.RunWatchJob{{ID: jobID, Name: "test-service"}},
 		})
 
-		assert.Check(t, is.Len(failedJobLogSuggestions(state), 0))
+		assert.Check(t, is.Len(failedJobLogSuggestions(state, runID), 0))
+	})
+}
+
+// TestRerunSuggestions verifies a failed run offers a rerun of each workflow
+// with a failed job, named and with its own ID, since workflow rerun takes one.
+func TestRerunSuggestions(t *testing.T) {
+	runID := uuid.MustParse("f0000000-0000-4000-8000-00000000fa11")
+	wfID := uuid.MustParse("b0000000-0000-4000-8000-0000000fa011")
+	failedJob := ui.RunWatchJob{Name: "test", Failed: true}
+
+	t.Run("one line per workflow with a failed job", func(t *testing.T) {
+		state := watchStateWith(
+			ui.RunWatchWorkflow{ID: wfID, Name: "build", Jobs: []ui.RunWatchJob{failedJob}},
+			ui.RunWatchWorkflow{ID: wfID, Name: "docs", Jobs: []ui.RunWatchJob{{Name: "publish"}}},
+		)
+
+		assert.Check(t, is.DeepEqual(rerunSuggestions(state, runID), []string{
+			`If "build" failed transiently (network timeout, lost executor), rerun its failed jobs: ` +
+				"circleci workflow rerun " + wfID.String() + " --from-failed",
+		}))
+	})
+
+	t.Run("lists the first three failed workflows and counts the rest", func(t *testing.T) {
+		failedWorkflow := func(id, name string) ui.RunWatchWorkflow {
+			return ui.RunWatchWorkflow{ID: uuid.MustParse(id), Name: name, Jobs: []ui.RunWatchJob{failedJob}}
+		}
+		state := watchStateWith(
+			failedWorkflow("b0000000-0000-4000-8000-00000000000a", "a"),
+			failedWorkflow("b0000000-0000-4000-8000-00000000000b", "b"),
+			failedWorkflow("b0000000-0000-4000-8000-00000000000c", "c"),
+			failedWorkflow("b0000000-0000-4000-8000-00000000000d", "d"),
+		)
+
+		assert.Check(t, is.DeepEqual(rerunSuggestions(state, runID), []string{
+			`If "a" failed transiently (network timeout, lost executor), rerun its failed jobs: ` +
+				"circleci workflow rerun b0000000-0000-4000-8000-00000000000a --from-failed",
+			`If "b" failed transiently (network timeout, lost executor), rerun its failed jobs: ` +
+				"circleci workflow rerun b0000000-0000-4000-8000-00000000000b --from-failed",
+			`If "c" failed transiently (network timeout, lost executor), rerun its failed jobs: ` +
+				"circleci workflow rerun b0000000-0000-4000-8000-00000000000c --from-failed",
+			"1 more failed workflow; see all with: circleci run get " + runID.String(),
+		}))
+	})
+
+	t.Run("falls back to the placeholder for a workflow with no id", func(t *testing.T) {
+		state := watchStateWith(ui.RunWatchWorkflow{Name: "build", Jobs: []ui.RunWatchJob{failedJob}})
+
+		got := rerunSuggestions(state, runID)
+
+		assert.Assert(t, is.Len(got, 1))
+		assert.Check(t, is.Contains(got[0], "circleci workflow rerun <workflow-id> --from-failed"))
+	})
+}
+
+// TestFailureSuggestions covers the full list each failure path attaches to its
+// error.
+func TestFailureSuggestions(t *testing.T) {
+	runID := uuid.MustParse("f0000000-0000-4000-8000-00000000fa11")
+	wfID := uuid.MustParse("b0000000-0000-4000-8000-0000000fa011")
+	jobID := uuid.MustParse("d0000000-0000-4000-8000-00000000f001")
+	state := watchStateWith(ui.RunWatchWorkflow{
+		ID: wfID, Name: "build",
+		Jobs: []ui.RunWatchJob{{ID: jobID, Name: "test", Failed: true}},
+	})
+
+	report := "Read the failed steps' output: circleci run get " + runID.String() + " --failure-report"
+	jobOutput := `Full output for failed job "test": circleci job output list ` + jobID.String()
+	pushAndWatch := `To push a fix and watch the new run: git push && circleci run watch --sha "$(git rev-parse HEAD)"`
+	rerun := `If "build" failed transiently (network timeout, lost executor), rerun its failed jobs: ` +
+		"circleci workflow rerun " + wfID.String() + " --from-failed"
+
+	t.Run("a finished run ends with the rerun", func(t *testing.T) {
+		assert.Check(t, is.DeepEqual(runFailureSuggestions(state, runID), []string{
+			report, jobOutput, pushAndWatch, rerun,
+		}))
+	})
+
+	t.Run("--failfast has no rerun", func(t *testing.T) {
+		assert.Check(t, is.DeepEqual(fixSuggestions(state, runID), []string{
+			report, jobOutput, pushAndWatch,
+		}))
+	})
+
+	t.Run("a config error comes first", func(t *testing.T) {
+		withConfigError := state
+		withConfigError.Errors = []ui.RunWatchError{{Type: "config", Message: "bad config"}}
+
+		got := runFailureSuggestions(withConfigError, runID)
+
+		assert.Assert(t, is.Len(got, 6))
+		assert.Check(t, is.Contains(got[0], "circleci config validate"))
+		assert.Check(t, is.Contains(got[1], "For dynamic config"))
+		assert.Check(t, is.DeepEqual(got[2:], []string{report, jobOutput, pushAndWatch, rerun}))
 	})
 }
 
@@ -99,15 +210,17 @@ func TestFailedJobLogSuggestions(t *testing.T) {
 // ended — not when its workflows have.
 func TestWatchState(t *testing.T) {
 	jobID := uuid.MustParse("d0000000-0000-4000-8000-00000000f001")
+	wfID := uuid.MustParse("b0000000-0000-4000-8000-0000000fa011")
 
 	t.Run("maps phases to glyphs and words", func(t *testing.T) {
 		state := watchState(runGetOutput{Workflows: []workflowOutput{{
-			Name: "build", Phase: "ended", Outcome: "succeeded", Duration: "1m2s",
+			ID: wfID, Name: "build", Phase: "ended", Outcome: "succeeded", Duration: "1m2s",
 			Jobs: []jobOutput{{ID: jobID, Name: "test", Phase: "started", Type: "build"}},
 		}}})
 
 		assert.Assert(t, is.Len(state.Workflows, 1))
 		wf := state.Workflows[0]
+		assert.Check(t, is.Equal(wf.ID, wfID))
 		assert.Check(t, is.Equal(wf.Symbol, "✓"))
 		assert.Check(t, is.Equal(wf.Status, "succeeded"))
 		assert.Check(t, is.Equal(wf.Duration, "1m2s"))

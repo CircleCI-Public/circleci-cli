@@ -1,0 +1,2 @@
+✓ Enabled Slack notifications for gh/myorg/alpha in #ci-alerts (C0000ALERTS)
+  A welcome message was posted to the channel.

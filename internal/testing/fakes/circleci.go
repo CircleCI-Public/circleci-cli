@@ -72,6 +72,7 @@ type CircleCI struct {
 	createPipelineDefinitionResponses map[string]any          // projectID → v3 pipeline entity
 	createTriggerResponses            map[string]any          // "projectID/pipelineID" → v3 trigger entity
 	listTriggerResponses              map[string][]any        // "projectID/pipelineID" → list of v3 trigger entities
+	triggersByID                      map[string]any          // trigger id → v3 trigger entity, for update/delete
 
 	// GitHub App state.
 	providerConnections     map[string][]string       // orgID → connected providers
@@ -81,15 +82,19 @@ type CircleCI struct {
 	rerunNewIDs             map[string]string         // workflow id → id of the workflow its rerun creates
 	rerunFromFailed         map[string]bool           // workflow id → is_from_failed as the request actually set it
 	cancelResponses         map[string]int            // workflow id → HTTP status to return
+	approveResponses        map[string]int            // "workflowID/jobID" → HTTP status to return
 	pipelineCancelResponses map[string]int            // pipeline id → HTTP status to return
 
 	// Job (v3) state.
 	jobsV3             map[string]JobV3         // job UUID → job detail entity
 	workflowJobsV3     map[string][]JobV3       // workflow id → job list entities
+	workflowJobsStatus map[string]int           // workflow id → HTTP status for its job list
+	runSearchStatus    map[string]int           // branch → HTTP status for run searches pinning it
 	jobStdout          map[string][]byte        // "jobID/index/stepNum" → plain text stdout
 	jobStderr          map[string][]byte        // "jobID/index/stepNum" → plain text stderr
 	jobStdoutCondensed map[string][]byte        // "jobID/index/stepNum" → raw condensed text
 	jobTests           map[string][]TestResult  // job UUID → test result objects (served as JSONL)
+	jobTestsResponses  map[string]int           // job UUID → HTTP status to return instead of the tests
 	jobResourceUsage   map[string]ResourceUsage // job UUID → sampled CPU/memory usage
 
 	// Run (v3) state.
@@ -133,6 +138,13 @@ type CircleCI struct {
 	createProjectStatus int                    // HTTP status for that POST (0 → 201 Created)
 	createOrgResp       any                    // preset response for POST /organization
 
+	slackWorkspaces    map[string]SlackWorkspace
+	channelConfigs     map[string]ChannelConfigV3
+	channelConfigSeq   int
+	notificationPrefs  map[string][]NotificationPreferenceV3
+	slackWelcomePosts  []string
+	notificationDenied map[string]bool
+
 	// Context state.
 	contexts                   map[string]Context              // context id → context
 	contextsByOrg              map[string][]Context            // org UUID → ordered contexts
@@ -152,6 +164,9 @@ type CircleCI struct {
 	compVersions   []DeployComponentVersion  // filtered by component id and (optionally) environment_id
 	deploySettings map[string]DeploySettings // project id → settings entity
 	rollback       *RollbackResult           // response for POST /api/v3/projects/{id}/rollback (nil → 404)
+
+	// Feedback state.
+	feedbackReportError *feedbackReportError // error for POST /api/v3/tool/send-feedback (nil → 200)
 
 	// Policy state.
 	policyBundles   map[string]map[string]string // "ownerID/ctx" → bundle
@@ -280,12 +295,16 @@ func NewCircleCI(t *testing.T, tokens ...string) *CircleCI {
 		createPipelineDefinitionResponses: map[string]any{},
 		createTriggerResponses:            map[string]any{},
 		listTriggerResponses:              map[string][]any{},
+		triggersByID:                      map[string]any{},
 		providerConnections:               map[string][]string{},
 		providerRepos:                     map[string][]ProviderRepo{},
 		rerunResponses:                    map[string]int{},
 		rerunNewIDs:                       map[string]string{},
 		rerunFromFailed:                   map[string]bool{},
 		cancelResponses:                   map[string]int{},
+		workflowJobsStatus:                map[string]int{},
+		runSearchStatus:                   map[string]int{},
+		approveResponses:                  map[string]int{},
 		pipelineCancelResponses:           map[string]int{},
 		jobsV3:                            map[string]JobV3{},
 		workflowJobsV3:                    map[string][]JobV3{},
@@ -293,6 +312,7 @@ func NewCircleCI(t *testing.T, tokens ...string) *CircleCI {
 		jobStderr:                         map[string][]byte{},
 		jobStdoutCondensed:                map[string][]byte{},
 		jobTests:                          map[string][]TestResult{},
+		jobTestsResponses:                 map[string]int{},
 		jobResourceUsage:                  map[string]ResourceUsage{},
 		runsV3:                            map[string]RunV3{},
 		runsV3ByProject:                   map[string][]RunV3{},
@@ -354,6 +374,10 @@ func NewCircleCI(t *testing.T, tokens ...string) *CircleCI {
 		orgs:                              map[string]Org{},
 		orgIDsBySlug:                      map[string]string{},
 		orgSettings:                       map[string]any{},
+		slackWorkspaces:                   map[string]SlackWorkspace{},
+		channelConfigs:                    map[string]ChannelConfigV3{},
+		notificationPrefs:                 map[string][]NotificationPreferenceV3{},
+		notificationDenied:                map[string]bool{},
 	}
 
 	r := newRouter()
@@ -375,6 +399,7 @@ func NewCircleCI(t *testing.T, tokens ...string) *CircleCI {
 	r.Post("/api/v2/pipeline/{id}/cancel", f.handleCancelPipeline)
 	r.Post("/api/v3/workflows/{id}/rerun", f.handleRerunWorkflow)
 	r.Post("/api/v3/workflows/{id}/cancel", f.handleCancelWorkflow)
+	r.Post("/api/v2/workflow/{id}/approve/{approvalRequestID}", f.handleApproveJob)
 	r.Get("/api/v2/project/{vcs}/{org}/{repo}/pipeline", f.handleListProjectPipelines)
 	r.Get("/api/v2/project/{vcs}/{org}/{repo}/pipeline/{number}", f.handleGetPipelineByNumber)
 	r.Get("/api/v2/project/{vcs}/{org}/{repo}/{jobNumber}/artifacts", f.handleGetJobArtifacts)
@@ -410,6 +435,8 @@ func NewCircleCI(t *testing.T, tokens ...string) *CircleCI {
 	r.Post("/api/v3/pipelines", f.handleCreatePipelineDefinition)
 	r.Get("/api/v3/triggers", f.handleListTriggers)
 	r.Post("/api/v3/triggers", f.handleCreateTrigger)
+	r.Post("/api/v3/triggers/{id}/update", f.handleUpdateTrigger)
+	r.Delete("/api/v3/triggers/{id}", f.handleDeleteTrigger)
 	// GitHub App routes.
 	r.Get("/api/v3/provider/connections", f.handleListProviderConnections)
 	r.Post("/api/v3/provider/connections/setup", f.handleSetupProviderConnection)
@@ -446,6 +473,8 @@ func NewCircleCI(t *testing.T, tokens ...string) *CircleCI {
 	r.Get("/api/v3/orgs", f.handleListOrgs)
 	r.Get("/api/v3/orgs/{id}/settings", f.handleGetOrgSettingsV3)
 	r.Post("/api/v3/orgs/{id}/update-settings", f.handleUpdateOrgSettingsV3)
+	// Feedback (v3) routes.
+	r.Post("/api/v3/tool/send-feedback", f.handleSendFeedback)
 	// Job (v3) routes.
 	r.Get("/api/v3/jobs", f.handleListWorkflowJobsV3)
 	r.Get("/api/v3/jobs/{id}", f.handleGetJobV3)
@@ -464,6 +493,12 @@ func NewCircleCI(t *testing.T, tokens ...string) *CircleCI {
 	r.Get("/api/v3/projects/{id}/settings", f.handleGetProjectSettingsV3)
 	r.Post("/api/v3/projects/{id}/update-settings", f.handleUpdateProjectSettingsV3)
 	r.Post("/api/v3/projects/{id}/rollback", f.handleRollbackProject)
+	r.Get("/api/v3/notification/channel-configs", f.handleListChannelConfigsV3)
+	r.Post("/api/v3/notification/channel-configs", f.handleCreateChannelConfigV3)
+	r.Post("/api/v3/notification/channel-configs/{id}/update", f.handleUpdateChannelConfigV3)
+	r.Delete("/api/v3/notification/channel-configs/{id}", f.handleDeleteChannelConfigV3)
+	r.Get("/api/v3/notification/preferences", f.handleListNotificationPreferencesV3)
+	r.Get("/api/v3/notification/integrations", f.handleListNotificationIntegrationsV3)
 	// Run (v3) routes.
 	r.Get("/api/v3/runs", f.handleListMyRunsV3)
 	r.Get("/api/v3/runs/{id}", f.handleGetRunV3)
@@ -648,6 +683,16 @@ func (f *CircleCI) SetCancelResponse(workflowID string, status int) {
 	f.cancelResponses[workflowID] = status
 }
 
+// SetApproveResponse sets the HTTP status code returned for
+// POST /api/v2/workflow/<workflowID>/approve/<jobID>. Use http.StatusAccepted
+// (202) for success; an unset pair answers 404, as the real API does for an
+// approval request it doesn't know.
+func (f *CircleCI) SetApproveResponse(workflowID, jobID string, status int) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.approveResponses[workflowID+"/"+jobID] = status
+}
+
 // SetDLCPurgeStatus sets the HTTP status returned for DELETE /private/output/project/{id}/dlc.
 // Default is 204 (success). Use 410 to simulate the gone/deprecated response.
 func (f *CircleCI) SetDLCPurgeStatus(projectID string, status int) {
@@ -809,6 +854,14 @@ type JobV3 struct {
 	PipelineID string
 	UserID     string
 	Executions [][]JobStep // parallel_executions, one inner slice of steps per execution
+	Warnings   []JobWarning
+}
+
+// JobWarning is a non-fatal warning attached to a JobV3, e.g. an image
+// deprecation notice.
+type JobWarning struct {
+	Type    string
+	Message string
 }
 
 // JobStep is a single step within a JobV3 execution. ExitCode is a pointer so a
@@ -824,6 +877,22 @@ type JobStep struct {
 	Command   string
 	StartedAt string
 	EndedAt   string
+}
+
+// SetWorkflowJobsV3Status makes GET /api/v3/jobs?filter[workflow_id]=<id>
+// answer with status instead of the workflow's jobs.
+func (f *CircleCI) SetWorkflowJobsV3Status(workflowID string, status int) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.workflowJobsStatus[workflowID] = status
+}
+
+// SetRunSearchStatus makes POST /api/v3/runs/search answer with status for a
+// search whose filter pins branch.
+func (f *CircleCI) SetRunSearchStatus(branch string, status int) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.runSearchStatus[branch] = status
 }
 
 // AddWorkflowJobsV3 registers the jobs a workflow lists.
@@ -856,6 +925,13 @@ func jobV3Entity(j JobV3) map[string]any {
 			execs = append(execs, map[string]any{"steps": rendered})
 		}
 		attrs["parallel_executions"] = execs
+	}
+	if len(j.Warnings) > 0 {
+		warns := make([]any, 0, len(j.Warnings))
+		for _, w := range j.Warnings {
+			warns = append(warns, map[string]any{"type": w.Type, "message": w.Message})
+		}
+		attrs["warnings"] = warns
 	}
 	refs := map[string]any{}
 	for key, id := range map[string]string{
@@ -1226,6 +1302,14 @@ func (f *CircleCI) AddJobTests(id string, tests ...TestResult) {
 	f.jobTests[id] = tests
 }
 
+// SetJobTestsResponse makes GET /api/v3/jobs/<id>/tests return the given HTTP
+// status with no body, in place of any registered tests.
+func (f *CircleCI) SetJobTestsResponse(id string, status int) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.jobTestsResponses[id] = status
+}
+
 // handleGetJobTests serves a job's test metadata as JSONL — one JSON object per
 // line — mirroring the real endpoint. A job with no registered tests returns an
 // empty 200 body.
@@ -1233,7 +1317,13 @@ func (f *CircleCI) handleGetJobTests(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	f.mu.RLock()
 	tests := f.jobTests[id]
+	status, overridden := f.jobTestsResponses[id]
 	f.mu.RUnlock()
+
+	if overridden {
+		w.WriteHeader(status)
+		return
+	}
 
 	w.Header().Set("Content-Type", "application/x-ndjson")
 	w.WriteHeader(http.StatusOK)
@@ -1339,6 +1429,12 @@ func (f *CircleCI) handleListWorkflowJobsV3(w http.ResponseWriter, r *http.Reque
 	}
 
 	f.mu.RLock()
+	if status, ok := f.workflowJobsStatus[workflowID]; ok {
+		f.mu.RUnlock()
+		render.Status(r, status)
+		render.JSON(w, r, map[string]any{"message": http.StatusText(status)})
+		return
+	}
 	jobs := []any{}
 	for _, j := range f.workflowJobsV3[workflowID] {
 		jobs = append(jobs, jobV3Entity(j))
@@ -1638,6 +1734,12 @@ func (f *CircleCI) handleSearchRunsV3(w http.ResponseWriter, r *http.Request) {
 	status := runStatusFilterExpr(body.Filter)
 
 	f.mu.RLock()
+	if code, ok := f.runSearchStatus[branch]; ok && branch != "" {
+		f.mu.RUnlock()
+		render.Status(r, code)
+		render.JSON(w, r, map[string]any{"message": http.StatusText(code)})
+		return
+	}
 	var all []any
 	for _, pid := range body.Scope.ProjectIDs {
 		for _, run := range f.runsV3ByProject[pid] {
@@ -1776,6 +1878,21 @@ func (f *CircleCI) handleCancelWorkflow(w http.ResponseWriter, r *http.Request) 
 	}
 	render.Status(r, status)
 	render.JSON(w, r, map[string]any{"data": map[string]any{"id": id}})
+}
+
+func (f *CircleCI) handleApproveJob(w http.ResponseWriter, r *http.Request) {
+	key := chi.URLParam(r, "id") + "/" + chi.URLParam(r, "approvalRequestID")
+	f.mu.RLock()
+	status, ok := f.approveResponses[key]
+	f.mu.RUnlock()
+
+	if !ok {
+		render.Status(r, http.StatusNotFound)
+		render.JSON(w, r, map[string]any{"message": "Not found."})
+		return
+	}
+	render.Status(r, status)
+	render.JSON(w, r, map[string]any{"message": "Accepted."})
 }
 
 // --- Runner helpers ---
@@ -2876,12 +2993,18 @@ func (f *CircleCI) SetCreatePipelineDefinitionResponse(projectID string, resp an
 }
 
 // AddTrigger registers a trigger entity returned by GET /api/v3/triggers when
-// filtered by this project and pipeline.
+// filtered by this project and pipeline. An entity with a string "id" can also be
+// updated or deleted by that id.
 func (f *CircleCI) AddTrigger(projectID, pipelineDefinitionID string, trigger any) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	key := projectID + "/" + pipelineDefinitionID
 	f.listTriggerResponses[key] = append(f.listTriggerResponses[key], trigger)
+	if e, ok := trigger.(map[string]any); ok {
+		if id, ok := e["id"].(string); ok {
+			f.triggersByID[id] = trigger
+		}
+	}
 }
 
 // SetCreateTriggerResponse registers the entity returned when POST
@@ -3621,6 +3744,36 @@ func (f *CircleCI) handleCreateTrigger(w http.ResponseWriter, r *http.Request) {
 	render.JSON(w, r, map[string]any{"data": resp})
 }
 
+// handleUpdateTrigger answers POST /api/v3/triggers/{id}/update with the registered
+// entity unchanged; tests assert on the recorded request body instead.
+func (f *CircleCI) handleUpdateTrigger(w http.ResponseWriter, r *http.Request) {
+	f.mu.RLock()
+	resp, ok := f.triggersByID[chi.URLParam(r, "id")]
+	f.mu.RUnlock()
+
+	if !ok {
+		renderV3Error(w, r, http.StatusNotFound, "trigger not found")
+		return
+	}
+	render.JSON(w, r, map[string]any{"data": resp})
+}
+
+// handleDeleteTrigger answers DELETE /api/v3/triggers/{id}, removing the trigger
+// so a repeat delete is a 404.
+func (f *CircleCI) handleDeleteTrigger(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	f.mu.Lock()
+	_, ok := f.triggersByID[id]
+	delete(f.triggersByID, id)
+	f.mu.Unlock()
+
+	if !ok {
+		renderV3Error(w, r, http.StatusNotFound, "trigger not found")
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
 // renderV3CursorCollection writes items as a cursor-paginated v3 collection.
 // Everything fits on one page, so page.next is always null.
 func renderV3CursorCollection(w http.ResponseWriter, r *http.Request, items []any) {
@@ -4156,6 +4309,45 @@ func (f *CircleCI) SetRollback(result RollbackResult) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	f.rollback = &result
+}
+
+// FeedbackReportID is the ID POST /api/v3/tool/send-feedback reports for every
+// stored report, so output that echoes it stays stable.
+const FeedbackReportID = "5b1d7c3e-0000-4000-8000-00000000fb01"
+
+// feedbackReportError is a v3 error POST /api/v3/tool/send-feedback answers with
+// instead of storing the report.
+type feedbackReportError struct {
+	Status int
+	Title  string
+	Detail string
+}
+
+// SetFeedbackReportError makes POST /api/v3/tool/send-feedback answer every request
+// with status and a v3 error envelope. Until it is called the route answers 200.
+func (f *CircleCI) SetFeedbackReportError(status int, title, detail string) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.feedbackReportError = &feedbackReportError{Status: status, Title: title, Detail: detail}
+}
+
+// handleSendFeedback accepts any body: the request is asserted through the
+// request recorder.
+func (f *CircleCI) handleSendFeedback(w http.ResponseWriter, r *http.Request) {
+	f.mu.RLock()
+	fbErr := f.feedbackReportError
+	f.mu.RUnlock()
+
+	if fbErr != nil {
+		render.Status(r, fbErr.Status)
+		render.JSON(w, r, map[string]any{"error": map[string]any{
+			"title":  fbErr.Title,
+			"detail": fbErr.Detail,
+		}})
+		return
+	}
+
+	render.JSON(w, r, map[string]any{"data": map[string]any{"id": FeedbackReportID}})
 }
 
 func (f *CircleCI) handleRollbackProject(w http.ResponseWriter, r *http.Request) {
@@ -4982,6 +5174,14 @@ func orbVersionEntity(v OrbVersion, includeSource bool) map[string]any {
 	}
 }
 
+// orbVersionEntityUnnamed is orbVersionEntity as the real API serves it from the
+// get and list endpoints: the orb reference carries the ID but not the name.
+func orbVersionEntityUnnamed(v OrbVersion, includeSource bool) map[string]any {
+	e := orbVersionEntity(v, includeSource)
+	e["references"] = map[string]any{"orb_package": map[string]any{"id": v.OrbID}}
+	return e
+}
+
 // orbCategoryEntity renders a stored OrbCategory.
 func orbCategoryEntity(c OrbCategory) map[string]any {
 	return map[string]any{"id": c.ID, "attributes": map[string]any{"name": c.Name}}
@@ -5287,7 +5487,7 @@ func (f *CircleCI) handleOrbListVersions(w http.ResponseWriter, r *http.Request)
 		if channel == "dev" && !isDev {
 			continue
 		}
-		items = append(items, orbVersionEntity(v, true)) // the list serves source
+		items = append(items, orbVersionEntityUnnamed(v, true)) // the list serves source
 	}
 	render.JSON(w, r, map[string]any{
 		"data": items,
@@ -5347,7 +5547,7 @@ func (f *CircleCI) handleOrbGetVersion(w http.ResponseWriter, r *http.Request) {
 		render.JSON(w, r, map[string]any{"message": "not found"})
 		return
 	}
-	render.JSON(w, r, map[string]any{"data": orbVersionEntity(v, false)})
+	render.JSON(w, r, map[string]any{"data": orbVersionEntityUnnamed(v, false)})
 }
 
 func (f *CircleCI) handleOrbGetVersionSource(w http.ResponseWriter, r *http.Request) {
@@ -5443,7 +5643,7 @@ func (f *CircleCI) handleOrbListVersionsByRefInternal(w http.ResponseWriter, r *
 
 	data := []any{}
 	if ok && vOK {
-		data = append(data, orbVersionEntity(v, true)) // the list serves source
+		data = append(data, orbVersionEntityUnnamed(v, true)) // the list serves source
 	}
 	render.JSON(w, r, map[string]any{
 		"data": data,

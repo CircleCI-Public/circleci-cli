@@ -1,0 +1,32 @@
+Remove a project's Slack channel
+
+## Usage
+
+`circleci notification slack delete [flags]`
+
+Aliases: `circleci notification slack rm`
+
+## Flags
+
+| Flag               | Description                                             |
+| ------------------ | ------------------------------------------------------- |
+| `-n, --dry-run`    | show what would be removed without removing it          |
+| `-f, --force`      | skip confirmation prompt                                |
+| `--project string` | project slug (e.g. gh/org/repo); defaults to git remote |
+
+Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `circleci --help`.
+
+## Examples
+
+- Remove the current project's Slack channel (with confirmation): 
+  `circleci notification slack delete`
+- Preview what would be removed: 
+  `circleci notification slack delete --dry-run`
+- Remove it from a specific project without confirmation: 
+  `circleci notification slack delete --project gh/myorg/myrepo --force`
+
+## Details
+
+Remove the Slack channel from a project. Its Slack notifications stop until a
+channel is set again with 'circleci notification slack set --channel'.
+

@@ -1,0 +1,13 @@
+Usage:  circleci preflight run [flags]
+
+Flags:
+  -h, --help                help for run
+      --interval duration   how often to poll the run (default 5s)
+      --json                Output as JSON
+      --no-cleanup          keep the branch, and the run going, when the preflight stops
+      --no-failfast         wait for the whole run instead of stopping at the first failed job
+      --no-watch            return once the run starts, keeping the branch
+      --project string      project slug (e.g. gh/org/repo); defaults to git remote
+      --remote string       git remote to push the branch to (default "origin")
+      --timeout duration    maximum time to watch the run (default 30m0s)
+  

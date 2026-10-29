@@ -258,14 +258,14 @@ func newTokenCreateCmd() *cobra.Command {
 				in the form %[1]snamespace/name%[1]s (for example, %[1]smy-org/my-runner%[1]s) or as its ID.
 			`, "`"),
 		},
-		Long: heredoc.Doc(`
-			Create a new authentication token for a runner resource class.
+		Long: heredoc.Docf(`
+			Create a runner token for a resource class. The token value is shown only once.
 
-			The token value is shown only once and cannot be retrieved afterwards.
-			Store it securely. If lost, delete this token and create a new one.
+			CLI 0.1.x (check with %[1]scircleci version%[1]s) printed a circleci-runner-config.yaml
+			document. This command prints text or JSON instead. There is no replacement yet.
 
 			JSON fields: id, resource_class, resource_class_id, nickname, created_at, token
-		`),
+		`, "`"),
 		Example: heredoc.Doc(`
 			# Create a token for a resource class
 			$ circleci runner token create my-org/my-runner
@@ -279,10 +279,19 @@ func newTokenCreateCmd() *cobra.Command {
 			# Output as JSON (includes the token value)
 			$ circleci runner token create my-org/my-runner --json
 		`),
-		Args: cobra.MaximumNArgs(1),
+		Args: func(cmd *cobra.Command, args []string) error {
+			// Two args are the CLI 0.1.x form, which RunE rejects with an explanation.
+			if len(args) == 2 {
+				return nil
+			}
+			return cobra.MaximumNArgs(1)(cmd, args)
+		},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if cliErr := cmdutil.RequireArgs(args, "resource-class"); cliErr != nil {
 				return cliErr
+			}
+			if len(args) == 2 {
+				return v0NicknameArgErr(args[0], args[1])
 			}
 			ctx := cmd.Context()
 			client, err := cmdutil.LoadClient(ctx)
@@ -344,7 +353,30 @@ func runTokenCreate(ctx context.Context, client *apiclient.Client, resourceClass
 	iostream.Printf(ctx, "ID:        %s\n", out.ID)
 	iostream.Printf(ctx, "Created:   %s\n", out.CreatedAt)
 	iostream.Printf(ctx, "\nToken (save this — it will not be shown again):\n%s\n", out.Token)
+
+	// A script written for CLI 0.1.x may still redirect this output into its
+	// runner config file. Warn only when stdout is not a terminal: a person at a
+	// terminal can see that the output is not YAML.
+	if !iostream.IsTerminal(ctx) {
+		iostream.ErrPrintf(ctx, "%s %s\n", iostream.SymbolWarn(ctx), tokenCreateYAMLNotice)
+	}
 	return nil
+}
+
+const tokenCreateYAMLNotice = "This output is not a circleci-runner-config.yaml document. " +
+	"CLI 0.1.x printed one, but this version does not. There is no replacement yet."
+
+// v0NicknameArgErr reports the CLI 0.1.x form `token create <resource-class>
+// <nickname>`. That version printed a circleci-runner-config.yaml document, so a
+// script that still uses this form most likely writes the output to that file.
+func v0NicknameArgErr(resourceClass, nickname string) *clierrors.CLIError {
+	return clierrors.New("runner.token_create_nickname_arg", "Nickname is now a flag",
+		"The nickname is now the --nickname flag, not a second argument. "+
+			"This version also does not print a circleci-runner-config.yaml document as CLI 0.1.x did. "+
+			"There is no replacement yet.").
+		WithSuggestions(fmt.Sprintf("Pass the nickname as a flag: circleci runner token create %s --nickname %q",
+			resourceClass, nickname)).
+		WithExitCode(clierrors.ExitBadArguments)
 }
 
 // --- token delete ---

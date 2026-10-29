@@ -1,6 +1,7 @@
 # Triggers
 A trigger connects an event source to a pipeline definition, so that matching events
-automatically start a pipeline run. Create one with `circleci project trigger create`.
+automatically start a pipeline run. Create one with `circleci project trigger create`,
+change it with `update` (including `--disable` to pause it) and remove it with `delete`.
 
 ## Providers
 

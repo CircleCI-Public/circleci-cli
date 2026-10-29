@@ -23,13 +23,19 @@
 package run
 
 import (
+	"context"
+	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/MakeNowJust/heredoc"
+	"github.com/google/uuid"
 	"github.com/spf13/cobra"
 
 	clierrors "github.com/CircleCI-Public/circleci-cli/clikit/errors"
+	"github.com/CircleCI-Public/circleci-cli/internal/apiclient"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmdutil"
+	"github.com/CircleCI-Public/circleci-cli/internal/gitremote"
 )
 
 // NewRunCmd returns the "circleci run" command group.
@@ -37,7 +43,7 @@ func NewRunCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "run <command>",
 		GroupID: "ci",
-		Short:   "Trigger, watch and cancel pipeline runs",
+		Short:   "Trigger, watch, approve and cancel pipeline runs",
 		Long: heredoc.Doc(`
 			Work with CircleCI runs.
 
@@ -51,6 +57,7 @@ func NewRunCmd() *cobra.Command {
 		newListCmd(),
 	)
 	cmdutil.AddGroup(cmd, "Targeted commands",
+		newApproveCmd(),
 		newCancelCmd(),
 		newOpenCmd(),
 		newGetCmd(),
@@ -65,6 +72,35 @@ func apiErr(err error, subject string) *clierrors.CLIError {
 	return cmdutil.APIErr(err, subject,
 		"run.not_found", "No run found for %q.",
 		"Check the run UUID or branch name and try again")
+}
+
+// resolveRunRef turns a <run-number-or-id> argument into a run UUID and the
+// name to show for it: "#<number>" for a run number, the UUID as given
+// otherwise. A run number is looked up in projectSlug, or in the project of the
+// git remote when projectSlug is empty. verb is the subcommand, used in the
+// suggestion shown when the git remote can't be detected.
+func resolveRunRef(ctx context.Context, client *apiclient.Client, verb, arg, projectSlug string) (uuid.UUID, string, error) {
+	if !looksLikeNumber(arg) {
+		id, err := uuid.Parse(arg)
+		if err != nil {
+			return uuid.Nil, "", apiErr(err, arg)
+		}
+		return id, arg, nil
+	}
+
+	number, _ := strconv.ParseInt(arg, 10, 64)
+	if projectSlug == "" {
+		info, err := gitremote.Detect()
+		if err != nil {
+			return uuid.Nil, "", cmdutil.GitDetectErr(err, "Or specify the project: circleci run "+verb+" "+arg+" --project gh/org/repo")
+		}
+		projectSlug = info.Slug
+	}
+	r, err := client.GetPipelineByNumber(ctx, projectSlug, number)
+	if err != nil {
+		return uuid.Nil, "", apiErr(err, fmt.Sprintf("%s #%s", projectSlug, arg))
+	}
+	return r.ID, fmt.Sprintf("#%d", r.Number), nil
 }
 
 // looksLikeNumber returns true if s is a plain positive integer (run number),

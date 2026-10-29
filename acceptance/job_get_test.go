@@ -136,3 +136,63 @@ func TestJobGet_MissingArg(t *testing.T) {
 	assert.Equal(t, result.ExitCode, 2, "stderr: %s", result.Stderr) // ExitBadArguments
 	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 }
+
+func setupJobGetWarningFake(t *testing.T) (*fakes.CircleCI, *testenv.TestEnv) {
+	t.Helper()
+	fake := fakes.NewCircleCI(t)
+
+	fake.AddJobV3(fakes.JobV3{
+		ID:         testJobID,
+		Name:       "run-unit-tests",
+		Type:       "build",
+		Phase:      "ended",
+		Outcome:    "succeeded",
+		StartedAt:  "2026-05-19T20:29:13.938Z",
+		EndedAt:    "2026-05-19T20:29:22.564Z",
+		ProjectID:  testProjectID,
+		PipelineID: "682142f3-f35d-4c94-adf7-d855321716e4",
+		WorkflowID: "c266c3a7-0dad-459a-aa7b-dd13e005b9a0",
+		Warnings: []fakes.JobWarning{
+			{Type: "image-deprecation-warning", Message: "This job is using a deprecated image 'xcode:16.2.0', please update to a newer image"},
+		},
+		Executions: [][]fakes.JobStep{
+			{
+				{Name: "Spin up environment", Type: "spinup_environment", Num: 0, Phase: "ended", Outcome: "succeeded", StartedAt: "2026-05-19T20:29:13.521Z", EndedAt: "2026-05-19T20:29:14.871Z"},
+			},
+		},
+	})
+
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+
+	return fake, env
+}
+
+func TestJobGet_Warnings(t *testing.T) {
+	fake, env := setupJobGetWarningFake(t)
+
+	t.Run("human", func(t *testing.T) {
+		result := binary.RunCLI(t, binary.RunOpts{
+			Binary:  binaryPath,
+			Args:    []string{"job", "get", testJobID},
+			Env:     env.Environ(),
+			WorkDir: t.TempDir(),
+		})
+
+		assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+		assert.Check(t, golden.String(normalizeAppHost(result.Stdout, fake.URL()), t.Name()+".txt"))
+	})
+
+	t.Run("json", func(t *testing.T) {
+		result := binary.RunCLI(t, binary.RunOpts{
+			Binary:  binaryPath,
+			Args:    []string{"job", "get", testJobID, "--json"},
+			Env:     env.Environ(),
+			WorkDir: t.TempDir(),
+		})
+
+		assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+		assert.Check(t, golden.String(result.Stdout, t.Name()+".json"))
+	})
+}

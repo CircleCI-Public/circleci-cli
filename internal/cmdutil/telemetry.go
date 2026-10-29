@@ -225,5 +225,9 @@ func classifyError(err error) (exitCode int, errorCode string) {
 	if cliErr, ok := errors.AsType[*clierrors.CLIError](err); ok {
 		return cliErr.ExitCode, cliErr.Code
 	}
-	return clierrors.ExitGeneralError, "unclassified"
+	return clierrors.ExitGeneralError, unclassifiedErrorCode
 }
+
+// unclassifiedErrorCode is the error code of an error that escaped the
+// structured error type.
+const unclassifiedErrorCode = "unclassified"

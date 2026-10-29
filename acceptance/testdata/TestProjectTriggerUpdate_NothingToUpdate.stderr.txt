@@ -1,0 +1,4 @@
+error: No changes were requested.
+
+Suggestions:
+  • Pass at least one of --enable, --disable, --event-preset, --config-ref or --checkout-ref
