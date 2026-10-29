@@ -24,6 +24,7 @@ package workflow
 
 import (
 	"context"
+	"strings"
 
 	"github.com/MakeNowJust/heredoc"
 	"github.com/spf13/cobra"
@@ -98,7 +99,7 @@ type rerunJSONOutput struct {
 func runRerun(ctx context.Context, client *apiclient.Client, id string, fromFailed, jsonOut bool) error {
 	newID, err := client.RerunWorkflow(ctx, id, fromFailed)
 	if err != nil {
-		return apiErr(err, id)
+		return rerunErr(err, id)
 	}
 
 	if jsonOut {
@@ -118,4 +119,21 @@ func runRerun(ctx context.Context, client *apiclient.Client, id string, fromFail
 		iostream.Printf(ctx, "Rerunning %s from scratch as workflow %s\n", id, newID)
 	}
 	return nil
+}
+
+// rerunsDisabledDetail is the reason the API gives when an organization has
+// reruns switched off.
+const rerunsDisabledDetail = "Rerun requests are disabled"
+
+// rerunErr maps an API error from the rerun endpoint. A rerun the API refuses
+// because the organization has reruns switched off gets a pointer to where that
+// is controlled; everything else is the common API error mapping.
+func rerunErr(err error, id string) error {
+	cliErr := apiErr(err, id)
+	if apiErr, ok := apiclient.ParseError(err); ok && strings.Contains(apiErr.Detail, rerunsDisabledDetail) {
+		return cliErr.WithSuggestions(
+			"Reruns are switched off for this organization. An org admin can turn them back on under Organization Settings > Advanced.",
+		)
+	}
+	return cliErr
 }
