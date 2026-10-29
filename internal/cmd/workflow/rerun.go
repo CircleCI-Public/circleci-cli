@@ -222,7 +222,7 @@ func runRerun(ctx context.Context, client *apiclient.Client, id string, opts rer
 		Jobs:       jobIDs,
 	})
 	if err != nil {
-		return apiErr(err, id)
+		return rerunErr(err, id)
 	}
 
 	if jsonOut {
@@ -432,4 +432,37 @@ func jobNames(jobs []apiclient.WorkflowJobV3) string {
 		names[i] = j.Name
 	}
 	return strings.Join(names, ", ")
+}
+
+// Reasons the API gives when it refuses a rerun, matched as substrings of the
+// v3 error detail.
+const (
+	// rerunsDisabledDetail: the organization has reruns switched off.
+	rerunsDisabledDetail = "Rerun requests are disabled"
+	// workflowNotTerminalDetail: the workflow is still running, which includes
+	// a workflow whose only live jobs are approvals waiting on hold.
+	workflowNotTerminalDetail = "Workflow must be in a terminal state"
+)
+
+// rerunErr maps an API error from the rerun endpoint. A refusal with a known
+// reason gets a suggestion for what to do about it; everything else is the
+// common API error mapping.
+func rerunErr(err error, id string) error {
+	cliErr := apiErr(err, id)
+	parsed, ok := apiclient.ParseError(err)
+	if !ok {
+		return cliErr
+	}
+	switch {
+	case strings.Contains(parsed.Detail, rerunsDisabledDetail):
+		return cliErr.WithSuggestions(
+			"Reruns are switched off for this organization. An org admin can turn them back on under Organization Settings > Advanced.",
+		)
+	case strings.Contains(parsed.Detail, workflowNotTerminalDetail):
+		return cliErr.WithSuggestions(
+			"The workflow is still running, so it cannot be rerun yet. Jobs waiting on approval keep a workflow running: approve or cancel them, then rerun.",
+			"To stop the whole workflow first: circleci workflow cancel "+id,
+		)
+	}
+	return cliErr
 }
