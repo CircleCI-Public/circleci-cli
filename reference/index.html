@@ -988,11 +988,12 @@ with an empty string.</p><p><strong>Examples:</strong></p><ul><li>Substitute a s
 <code>export TOKEN=abc123</code></li><li><code>echo '{"token": "$TOKEN"}' | circleci env subst</code></li><li>Substitute into a config file before uploading:
 <code>circleci env subst &lt; .circleci/config.template.yml > .circleci/config.yml</code></li></ul><h3 id=circleci-version-flags><a class=heading-anchor href=#circleci-version-flags><code>circleci version [flags]</code><span class=heading-anchor-icon aria-hidden=true>#</span></a></h3><p>Print version information</p><p>Print the version and commit hash this binary was built from. With <code>--json</code> it
 also reports the newest release, asking CircleCI at most once a day. Turn that off
-with <code>circleci setting set update-check off</code>.</p><p>JSON fields: version (release tag, or &ldquo;dev&rdquo; for unreleased builds), commit (full git
-hash), modified (true when built from a dirty working tree), latest (newest release),
-outdated (true when latest is newer), upgrade_command (the command that upgrades this
-install). latest and outdated are null when unknown (a dev build, update checks off,
-or offline), and upgrade_command is null when the install method is unknown.</p><table><thead><tr><th>Flag</th><th>Description</th></tr></thead><tbody><tr><td><code>--json</code></td><td>output as JSON (fields: version, commit, modified, latest, outdated, upgrade_command)</td></tr></tbody></table><p><strong>Examples:</strong></p><ul><li>Print version and commit hash:
+with <code>circleci setting set update-check off</code>.</p><p>JSON fields: version (release tag; git describe output such as 1.2.3-4-gabc1234 for a
+source build; &ldquo;dev&rdquo; when unstamped), commit (full git hash), modified (true when built
+from a dirty working tree), latest (newest release), outdated (true when latest is
+newer), upgrade_command (the command that upgrades this install). latest and outdated
+are null when unknown (a &ldquo;dev&rdquo; build, update checks off, or offline), and
+upgrade_command is null when the install method is unknown.</p><table><thead><tr><th>Flag</th><th>Description</th></tr></thead><tbody><tr><td><code>--json</code></td><td>output as JSON (fields: version, commit, modified, latest, outdated, upgrade_command)</td></tr></tbody></table><p><strong>Examples:</strong></p><ul><li>Print version and commit hash:
 <code>circleci version</code></li><li>Print as JSON:
 <code>circleci version --json</code></li><li>Extract just the commit hash:
 <code>circleci version --json | jq -r .commit</code></li><li>Check whether a newer release is available:
