@@ -211,6 +211,47 @@ func TestFunctionGet(t *testing.T) {
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
 }
 
+// TestFunctionGetColorRendering drives the command through a PTY, where color is
+// on and glamour renders the markdown. It guards PIE-292: without escaping a
+// <placeholder> was dropped as an HTML tag and the underscores in snake_case
+// text were eaten by emphasis, so NODE_HOME_<arch> rendered as "NODE_HOME".
+func TestFunctionGetColorRendering(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	const name = "github.com/circleci-functions/setup-node"
+	const version = "v1.0.0"
+	fake.AddFunction(name, "", version)
+	fake.AddFunctionVersion(name, version, map[string]any{
+		"name":        "setup-node",
+		"version":     version,
+		"description": "Writes the NODE_HOME_<arch> variable.",
+		"flags": []any{
+			map[string]any{
+				"name": "node-version", "type": "string", "default": "lts/*",
+				"description": "A release, or my_default_spec.",
+			},
+		},
+	})
+
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+
+	console := binary.RunCLIInteractive(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"function", "get", "setup-node"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	// A token with no emphasis renders as one styled run, so it survives in the
+	// PTY stream intact. NODE_HOME_<arch> exercises the description paragraph
+	// (placeholder + underscores); my_default_spec exercises a table cell.
+	for _, want := range []string{"NODE_HOME_<arch>", "my_default_spec"} {
+		_, err := console.ExpectString(want)
+		assert.Check(t, err, "expected %q in rendered output", want)
+	}
+}
+
 func TestFunctionGet_JSON(t *testing.T) {
 	env := setupFunctionFake(t)
 

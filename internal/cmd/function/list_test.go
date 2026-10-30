@@ -60,7 +60,45 @@ func TestSummarize(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Check(t, cmp.Equal(summarize(tt.given), tt.want))
+			// escape=false: the no-color path, where summarize's own job (first
+			// line, pipe, truncation) is all that runs. Escaping is covered by
+			// TestEscapeMarkdown.
+			assert.Check(t, cmp.Equal(summarize(tt.given, false), tt.want))
+		})
+	}
+}
+
+func TestEscapeMarkdown(t *testing.T) {
+	tests := []struct {
+		name  string
+		given string
+		want  string
+	}{
+		{
+			name:  "placeholder kept rather than read as an HTML tag",
+			given: "Run with <name>.",
+			want:  `Run with \<name\>.`,
+		},
+		{
+			name:  "snake_case not italicized",
+			given: "Set my_var_name or *.go",
+			want:  `Set my\_var\_name or \*.go`,
+		},
+		{
+			name:  "links, code spans and backslashes escaped so they print literally",
+			given: "[a](b) `code` C:\\dir",
+			want:  "\\[a\\](b) \\`code\\` C:\\\\dir",
+		},
+		{
+			name:  "plain text unchanged",
+			given: "Install a Go toolchain (1.22).",
+			want:  "Install a Go toolchain (1.22).",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Check(t, cmp.Equal(escapeMarkdown(tt.given), tt.want))
 		})
 	}
 }
