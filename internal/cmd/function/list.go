@@ -62,10 +62,8 @@ func newListCmd() *cobra.Command {
 		Aliases: []string{"ls"},
 		Short:   "List published CircleCI functions",
 		Long: heredoc.Doc(`
-			List every published CircleCI function and its versions.
-
 			Builds, such as pseudo-versions (v0.5.2-0.20261007152818-72ffa3f7a023) and
-			commit-suffixed versions (v0.5.4-2ad832a), are left out unless --include-pseudo is set.
+			commit-suffixed versions (v0.5.4-2ad832a), appear only with --include-pseudo.
 
 			JSON fields: id, name, description, latest_version, versions.
 			With --pinned: alias, function, version.
@@ -98,10 +96,11 @@ func newListCmd() *cobra.Command {
 	}
 
 	cmd.Flags().BoolVar(&pinned, "pinned", false, "list the functions declared in the local config")
-	cmd.Flags().BoolVar(&includePseudo, "include-pseudo", false, "include builds (pseudo-versions and commit-suffixed versions) in each function's versions")
+	cmd.Flags().BoolVar(&includePseudo, "include-pseudo", false, "include builds in each function's versions")
 	cmdutil.AddPipelineConfigFlag(cmd, &configFile)
 	cmdutil.AddJSONFlag(cmd, &jsonOut)
 	cmdutil.AddJQFlag(cmd)
+	cmd.MarkFlagsMutuallyExclusive("pinned", "include-pseudo")
 
 	return cmd
 }

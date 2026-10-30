@@ -351,6 +351,12 @@ func TestFunctionListPinned(t *testing.T) {
 		assert.Check(t, cmp.Equal(result.ExitCode, 0))
 		assert.Check(t, cmp.Contains(result.Stderr, "No functions declared"))
 	})
+
+	t.Run("Builds cannot be included in local declarations", func(t *testing.T) {
+		dir := writeFnConfig(t, "version: 2.1\n")
+		result := runFunctionIn(t, env, dir, "list", "--pinned", "--include-pseudo")
+		assert.Check(t, cmp.Equal(result.ExitCode, 2))
+	})
 }
 
 func readFnConfig(t *testing.T, dir string) string {

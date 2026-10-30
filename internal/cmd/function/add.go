@@ -75,7 +75,7 @@ func newAddCmd() *cobra.Command {
 			$ circleci function add setup-go
 
 			# Declare a specific version under a chosen alias
-			$ circleci function add setup-go --version v0.5.1-684fd5b --as go
+			$ circleci function add setup-go --version v0.6.0 --as go
 
 			# Preview the change without writing it
 			$ circleci function add setup-go --dry-run

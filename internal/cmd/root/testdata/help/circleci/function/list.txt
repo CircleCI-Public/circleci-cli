@@ -1,0 +1,39 @@
+List published CircleCI functions
+
+## Usage
+
+`circleci function list [flags]`
+
+Aliases: `circleci function ls`
+
+## Flags
+
+| Flag                  | Description                                                                       |
+| --------------------- | --------------------------------------------------------------------------------- |
+| `-c, --config string` | Path to the pipeline config file (default ".circleci/config.yml")                 |
+| `--include-pseudo`    | include builds in each function's versions                                        |
+| `--jq string`         | Process values from the response using jq syntax (see `circleci help formatting`) |
+| `--json`              | Output as JSON                                                                    |
+| `--pinned`            | list the functions declared in the local config                                   |
+
+Global flags: `--debug`, `--no-color`, `-q, --quiet` — see `circleci --help`.
+
+## Examples
+
+- List published functions: 
+  `circleci function list`
+- Include builds in each function's versions: 
+  `circleci function list --include-pseudo --json --jq '.[].versions'`
+- List what this repository declares: 
+  `circleci function list --pinned`
+- Get just the names: 
+  `circleci function list --json --jq '.[].name'`
+
+## Details
+
+Builds, such as pseudo-versions (v0.5.2-0.20261007152818-72ffa3f7a023) and
+commit-suffixed versions (v0.5.4-2ad832a), appear only with --include-pseudo.
+
+JSON fields: id, name, description, latest_version, versions.
+With --pinned: alias, function, version.
+

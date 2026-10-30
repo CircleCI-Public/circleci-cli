@@ -1,0 +1,10 @@
+Usage:  circleci function list [flags]
+
+Flags:
+  -c, --config string    Path to the pipeline config file (default ".circleci/config.yml")
+  -h, --help             help for list
+      --include-pseudo   include builds in each function's versions
+      --jq string        Process values from the response using jq syntax
+      --json             Output as JSON
+      --pinned           list the functions declared in the local config
+  
