@@ -1,4 +1,6 @@
 args [exit 123]
 token 
 url https://circleci.com
+device_id 0b6e2f9c-5d0e-4c43-9d8a-6f1c2b3a4d5e
+user_id 7a1d3c5e-9b2f-4e6a-8c0d-1f3e5a7b9c2d
 exit with error 123

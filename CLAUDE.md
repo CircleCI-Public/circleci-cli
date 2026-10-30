@@ -340,7 +340,7 @@ through `iostream.Streams`.
 | Variable | Purpose |
 |---|---|
 | `CIRCLE_MCP` | Set to `1` on the `mcp start`/`mcp stream` server so `agent.Detect()` reports `mcp/<agent>` in every tool-call subprocess. Scoped to the server commands so `mcp <editor> enable` isn't misattributed |
-| `CIRCLE_TOKEN`, `CIRCLE_HOST`, `CIRCLE_TELEMETRY_ENABLED`, `CIRCLE_VCS_TYPE`, `CIRCLE_PROJECT_USERNAME`, `CIRCLE_PROJECT_REPONAME`, `CIRCLE_PROJECT_ID`, `CIRCLE_BRANCH`, `CIRCLE_DEFAULT_BRANCH` | Passed to extension subprocesses (`internal/extension/manifest.go`). Project/branch values are best-effort — absent outside a linked checkout |
+| `CIRCLE_TOKEN`, `CIRCLE_HOST`, `CIRCLE_TELEMETRY_ENABLED`, `CIRCLE_DEVICE_ID`, `CIRCLE_USER_ID`, `CIRCLE_VCS_TYPE`, `CIRCLE_PROJECT_USERNAME`, `CIRCLE_PROJECT_REPONAME`, `CIRCLE_PROJECT_ID`, `CIRCLE_BRANCH`, `CIRCLE_DEFAULT_BRANCH` | Passed to extension subprocesses (`internal/extension/manifest.go`). Project/branch values are best-effort — absent outside a linked checkout; `CIRCLE_USER_ID` is absent when logged out |
 | `__CIRCLE_TELEMETRY_WRITE_KEY`, `__CIRCLE_TELEMETRY_ENDPOINT` | Passed to the hidden `receive-telemetry` subprocess. Double-underscore = internal, never user-set |
 
 **Development and test overrides — not documented to users:**
