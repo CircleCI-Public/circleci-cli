@@ -47,12 +47,23 @@ tasks:
     desc: Build the circleci binary
     vars:
       DEST: '{{default "dist/circleci" .DEST}}'
-      COMMIT:
-        sh: git rev-parse --short HEAD 2>/dev/null || echo unknown
-      DIRTY:
-        sh: test -z "$(git status --porcelain 2>/dev/null)" || echo .dirty
-      VERSION: '1.0.0-dev+{{.COMMIT}}{{.DIRTY}}'
+      # git describe --long against the last CLI release tag, e.g.
+      # 1.12.0-5-gd4823563, which the update check reads as ahead of 1.12.0 and
+      # so never nags about it. --long keeps the -N-g<sha> part even on a tag, so
+      # a source build never passes for the release binary. --match skips the
+      # clikit/vX.Y.Z tag on the same commit and --exclude skips -pre tags.
+      # -dirty comes from git status, not describe --dirty, so untracked files
+      # count. Without a reachable tag (a shallow or --no-tags clone) the
+      # version is "dev", which skips the update check; the build warns.
+      VERSION:
+        sh: |
+          v=$(git describe --tags --long --match 'v[0-9]*' --exclude 'v*-*' 2>/dev/null) || { echo dev; exit 0; }
+          test -z "$(git status --porcelain 2>/dev/null)" || v="$v-dirty"
+          echo "${v#v}"
     cmds:
+      - cmd: >-
+          echo 'warning: no CLI release tag reachable, stamping version "dev" (update checks off). Run `git fetch --tags` to fix.' >&2
+        if: '[ "{{.VERSION}}" = dev ]'
       - go build -ldflags="-X main.version={{.VERSION}}" -o "{{.DEST}}" ./cmd/circleci
 
   release-check:

@@ -65,6 +65,11 @@ func TestIsNewer(t *testing.T) {
 		{"current prerelease of latest", "1.3.0", "1.3.0-rc.1", true},
 		{"built from source ahead of tag", "1.2.3", "1.2.3-14-gabcdef0", false},
 		{"built from source ahead of prerelease tag", "1.2.3", "1.2.4-14-gabcdef0", false},
+		{"built from source with uncommitted changes", "1.2.3", "1.2.3-14-gabcdef0-dirty", false},
+		{"built from source on tag", "1.2.3", "1.2.3-0-gabcdef0", false},
+		{"built from source on tag with uncommitted changes", "1.2.3", "1.2.3-0-gabcdef0-dirty", false},
+		{"built from source on tag behind latest", "1.2.4", "1.2.3-0-gabcdef0", true},
+		{"built from source behind latest", "1.3.0", "1.2.3-14-gabcdef0", true},
 		{"equal", "1.2.0", "1.2.0", false},
 		{"older", "1.2.0", "1.3.0", false},
 		{"unparseable current", "1.2.0", "not-a-version", false},
@@ -88,8 +93,20 @@ func TestSingleSourceAcrossChannels(t *testing.T) {
 func TestNormalizeBuildVersion(t *testing.T) {
 	assert.Check(t, cmp.Equal(normalizeBuildVersion("1.2.3-14-gabcdef0"), "1.2.4-pre.0"))
 	assert.Check(t, cmp.Equal(normalizeBuildVersion("v1.2.3-14-gabcdef0"), "1.2.4-pre.0"))
+	assert.Check(t, cmp.Equal(normalizeBuildVersion("1.2.3-14-gabcdef0-dirty"), "1.2.4-pre.0"))
+	assert.Check(t, cmp.Equal(normalizeBuildVersion("1.2.3-0-gabcdef0"), "1.2.3"))
+	assert.Check(t, cmp.Equal(normalizeBuildVersion("1.2.3-0-gabcdef0-dirty"), "1.2.3"))
+	assert.Check(t, cmp.Equal(normalizeBuildVersion("1.2.3-dirty"), "1.2.3-dirty"))
 	assert.Check(t, cmp.Equal(normalizeBuildVersion("1.2.3"), "1.2.3"))
 	assert.Check(t, cmp.Equal(normalizeBuildVersion("1.2.3-rc.1"), "1.2.3-rc.1"))
+}
+
+func TestIsSourceBuild(t *testing.T) {
+	assert.Check(t, IsSourceBuild("1.2.3-14-gabcdef0"))
+	assert.Check(t, IsSourceBuild("1.2.3-0-gabcdef0-dirty"))
+	assert.Check(t, !IsSourceBuild("1.2.3"))
+	assert.Check(t, !IsSourceBuild("1.2.3-rc.1"))
+	assert.Check(t, !IsSourceBuild("dev"))
 }
 
 func statePath(t *testing.T) string {

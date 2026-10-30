@@ -81,6 +81,16 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/internal/update"
 )
 
+// releaseBuildAgeDays returns the build's age in days for a released build. A
+// dev or source build's age says nothing about how far behind a release a user
+// is, so it reports none.
+func releaseBuildAgeDays(version string) (int, bool) {
+	if version == "" || version == "dev" || update.IsSourceBuild(version) {
+		return 0, false
+	}
+	return buildinfo.AgeDays(time.Now())
+}
+
 // NewRootCmd builds the root cobra command and wires all subcommands.
 func NewRootCmd(version string) *cobra.Command {
 	initConfig := func(cmd *cobra.Command) (func(), error) {
@@ -162,13 +172,12 @@ func NewRootCmd(version string) *cobra.Command {
 			"install_method": installmethod.Detect(),
 			"is_self_hosted": cfg.EffectiveHost() != "https://circleci.com",
 			"is_tty":         iostream.IsTerminal(ctx),
+			// Source builds carry a release-like git-describe version, so this
+			// is what separates them from real installs of that release.
+			"is_source_build": update.IsSourceBuild(version),
 		}
-		// A dev build's age says nothing about how far behind a release a user
-		// is, so only released builds report one.
-		if version != "" && version != "dev" {
-			if days, ok := buildinfo.AgeDays(time.Now()); ok {
-				traits["build_age_days"] = days
-			}
+		if days, ok := releaseBuildAgeDays(version); ok {
+			traits["build_age_days"] = days
 		}
 
 		tc, err := telemetry.NewSender(ctx, telemetry.Config{

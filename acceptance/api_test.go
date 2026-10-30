@@ -446,10 +446,11 @@ func TestAPI_Telemetry(t *testing.T) {
 							},
 							OS: analytics.OSInfo{Name: hostInfo.OS, Version: hostInfo.PlatformVersion},
 							Traits: map[string]any{
-								"agent":          "",
-								"install_method": "other", // the test binary is built into a temp dir
-								"is_self_hosted": true,    // fake server URL is not https://circleci.com
-								"is_tty":         false,
+								"agent":           "",
+								"install_method":  "other", // the test binary is built into a temp dir
+								"is_self_hosted":  true,    // fake server URL is not https://circleci.com
+								"is_source_build": false,
+								"is_tty":          false,
 							},
 						},
 						Integrations: analytics.NewIntegrations().Enable("Amplitude"),
