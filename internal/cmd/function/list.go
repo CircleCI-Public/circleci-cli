@@ -139,9 +139,12 @@ func runList(ctx context.Context, client *apiclient.Client, includePseudo, jsonO
 		return nil
 	}
 
+	// Only escape when glamour will render the markdown; the no-color path
+	// prints the raw string and must stay byte-identical to what was published.
+	escape := iostream.ColorEnabled(ctx)
 	table := mdtable.New("Name", "Latest", "Description")
 	for _, e := range entries {
-		table.Row(e.Name, e.LatestVersion, summarize(e.Description))
+		table.Row(maybeEscape(e.Name, escape), e.LatestVersion, summarize(e.Description, escape))
 	}
 	iostream.PrintMarkdown(ctx, "# Published functions\n"+table.Render()+
 		"\nMissing a Function, or one falls short? `circleci feedback --type missing_function --function <name> \"<what you needed>\"`\n")
@@ -152,14 +155,14 @@ func runList(ctx context.Context, client *apiclient.Client, includePseudo, jsonO
 // pipes escaped so they are not read as column separators, capped so a long
 // description cannot widen every other row. Published descriptions run to
 // several lines, including usage examples; --json carries the full text.
-func summarize(description string) string {
+func summarize(description string, escape bool) string {
 	first, _, _ := strings.Cut(description, "\n")
 	first = strings.TrimSpace(first)
 	if rs := []rune(first); len(rs) > descriptionMax {
 		first = strings.TrimSpace(string(rs[:descriptionMax])) + "…"
 	}
 	// Escape after truncating, so a cut can never split the escape sequence.
-	return tableCell(first)
+	return tableCell(first, escape)
 }
 
 func runListPinned(ctx context.Context, path string, jsonOut bool) error {
@@ -180,9 +183,10 @@ func runListPinned(ctx context.Context, path string, jsonOut bool) error {
 		return nil
 	}
 
+	escape := iostream.ColorEnabled(ctx)
 	table := mdtable.New("Alias", "Function", "Version")
 	for _, p := range pins {
-		table.Row(p.Alias, p.Function, p.Version)
+		table.Row(maybeEscape(p.Alias, escape), maybeEscape(p.Function, escape), p.Version)
 	}
 	iostream.PrintMarkdown(ctx, "# Pinned functions\n"+table.Render())
 	return nil
