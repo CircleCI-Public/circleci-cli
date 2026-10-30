@@ -29,6 +29,8 @@ import (
 	"os/exec"
 	"strings"
 
+	"github.com/google/uuid"
+
 	"github.com/CircleCI-Public/circleci-cli/clikit/iostream"
 	"github.com/CircleCI-Public/circleci-cli/internal/apiclient"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmdutil"
@@ -137,6 +139,12 @@ func buildEnv(ctx context.Context, client *apiclient.Client) []string {
 		{"CIRCLE_TOKEN", cfg.EffectiveToken()},
 		{"CIRCLE_HOST", cfg.EffectiveHost()},
 		{"CIRCLE_TELEMETRY_ENABLED", fmt.Sprintf("%t", cfg.IsTelemetry())},
+		{"CIRCLE_DEVICE_ID", cfg.DeviceID().String()},
+	}
+
+	// Unset when logged out, so extensions can tell an anonymous user apart.
+	if id := cfg.UserID(); id != uuid.Nil {
+		overlays = append(overlays, kv{"CIRCLE_USER_ID", id.String()})
 	}
 
 	// Best-effort: inject project metadata from git remote. Failures are

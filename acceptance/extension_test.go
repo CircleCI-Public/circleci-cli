@@ -289,11 +289,7 @@ func TestExtensionTokenFromConfig(t *testing.T) {
 
 	// Write the token to the config file. Do NOT set env.Token — the token
 	// must reach the extension via the CLI's config-loading path.
-	configDir := filepath.Join(env.HomeDir, ".config", "circleci")
-	err := os.MkdirAll(configDir, 0o755)
-	assert.NilError(t, err)
-	err = os.WriteFile(filepath.Join(configDir, "config.yml"), []byte("token: "+testToken+"\n"), 0o600)
-	assert.NilError(t, err)
+	writeCLIConfig(t, env, "token: "+testToken+"\n")
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
@@ -448,6 +444,7 @@ func TestExtensionRemove_InvalidName(t *testing.T) {
 func TestUnmanagedExtension(t *testing.T) {
 	env := testenv.New(t)
 	env.Token = testToken
+	writeCLIConfig(t, env, "user_id: "+testUserID+"\n")
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
@@ -465,11 +462,7 @@ func TestUnmanagedExtensionTokenFromConfig(t *testing.T) {
 
 	// Write the token to the config file. Do NOT set env.Token — the token
 	// must reach the extension via the CLI's config-loading path.
-	configDir := filepath.Join(env.HomeDir, ".config", "circleci")
-	err := os.MkdirAll(configDir, 0o755)
-	assert.NilError(t, err)
-	err = os.WriteFile(filepath.Join(configDir, "config.yml"), []byte("token: "+testToken+"\n"), 0o600)
-	assert.NilError(t, err)
+	writeCLIConfig(t, env, "token: "+testToken+"\n")
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
@@ -487,6 +480,7 @@ func TestUnmanagedExtensionTokenFromConfig(t *testing.T) {
 // propagated back to the caller unchanged.
 func TestUnmanagedExtensionExitCodePropagated(t *testing.T) {
 	env := testenv.New(t)
+	writeCLIConfig(t, env, "user_id: "+testUserID+"\n")
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
@@ -704,4 +698,21 @@ func installExtension(t *testing.T, registry *fakes.ExtensionRegistry, env *test
 		WorkDir: t.TempDir(),
 	})
 	assert.Assert(t, cmp.Equal(result.ExitCode, 0))
+
+	writeCLIConfig(t, env, "user_id: "+testUserID+"\n")
+}
+
+// Fixed telemetry IDs, so the values the extension prints are stable.
+const (
+	testDeviceID = "0b6e2f9c-5d0e-4c43-9d8a-6f1c2b3a4d5e"
+	testUserID   = "7a1d3c5e-9b2f-4e6a-8c0d-1f3e5a7b9c2d"
+)
+
+// writeCLIConfig replaces the CLI config with contents plus a fixed device ID.
+func writeCLIConfig(t *testing.T, env *testenv.TestEnv, contents string) {
+	t.Helper()
+	configDir := filepath.Join(env.HomeDir, ".config", "circleci")
+	assert.NilError(t, os.MkdirAll(configDir, 0o755))
+	contents = "device_id: " + testDeviceID + "\n" + contents
+	assert.NilError(t, os.WriteFile(filepath.Join(configDir, "config.yml"), []byte(contents), 0o600))
 }

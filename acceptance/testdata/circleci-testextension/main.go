@@ -34,6 +34,8 @@ func main() {
 	fmt.Println("args", args)
 	fmt.Println("token", os.Getenv("CIRCLE_TOKEN"))
 	fmt.Println("url", os.Getenv("CIRCLE_HOST"))
+	fmt.Println("device_id", os.Getenv("CIRCLE_DEVICE_ID"))
+	fmt.Println("user_id", os.Getenv("CIRCLE_USER_ID"))
 
 	if len(args) == 2 && args[0] == "exit" {
 		atoi, err := strconv.Atoi(args[1])
