@@ -70,7 +70,7 @@ func readBuildInfo(version string) versionInfo {
 }
 
 // checkLatest reports the newest release and whether this build is behind it.
-// Both are nil when that is unknown: a dev build, update checks turned off, or no
+// Both are nil when that is unknown: an unstamped "dev" build, update checks off, or no
 // release could be fetched (offline, or a host that does not publish releases).
 func checkLatest(ctx context.Context, version string) (latest *string, outdated *bool) {
 	current := update.EffectiveVersion(version)
@@ -105,11 +105,12 @@ func NewVersionCmd(version string) *cobra.Command {
 			also reports the newest release, asking CircleCI at most once a day. Turn that off
 			with %[1]scircleci setting set update-check off%[1]s.
 
-			JSON fields: version (release tag, or "dev" for unreleased builds), commit (full git
-			hash), modified (true when built from a dirty working tree), latest (newest release),
-			outdated (true when latest is newer), upgrade_command (the command that upgrades this
-			install). latest and outdated are null when unknown (a dev build, update checks off,
-			or offline), and upgrade_command is null when the install method is unknown.
+			JSON fields: version (release tag; git describe output such as 1.2.3-4-gabc1234 for a
+			source build; "dev" when unstamped), commit (full git hash), modified (true when built
+			from a dirty working tree), latest (newest release), outdated (true when latest is
+			newer), upgrade_command (the command that upgrades this install). latest and outdated
+			are null when unknown (a "dev" build, update checks off, or offline), and
+			upgrade_command is null when the install method is unknown.
 		`, "`"),
 		Example: heredoc.Doc(`
 			# Print version and commit hash

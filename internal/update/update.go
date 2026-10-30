@@ -255,18 +255,30 @@ func evaluate(release ReleaseInfo, currentVersion string) *ReleaseInfo {
 	return &r
 }
 
-// gitDescribeRE matches a git-describe version like "1.2.3-14-gabcdef0": a base
-// semver, the number of commits since that tag, and the abbreviated commit hash.
-var gitDescribeRE = regexp.MustCompile(`^v?(\d+)\.(\d+)\.(\d+)-(\d+)-g[0-9a-f]+$`)
+// gitDescribeRE matches a git-describe --long version like "1.2.3-14-gabcdef0":
+// a base semver, the number of commits since that tag, the abbreviated commit
+// hash, and an optional "-dirty" for uncommitted changes. task build stamps
+// every source build this way; release builds never take this shape.
+var gitDescribeRE = regexp.MustCompile(`^v?(\d+)\.(\d+)\.(\d+)-(\d+)-g[0-9a-f]+(?:-dirty)?$`)
+
+// IsSourceBuild reports whether version is a git-describe version stamped by
+// task build, as opposed to a release or an unstamped "dev" build.
+func IsSourceBuild(version string) bool {
+	return gitDescribeRE.MatchString(version)
+}
 
 // normalizeBuildVersion rewrites a git-describe version so a source build made
 // after a tag sorts above that tag but below the next patch: "1.2.3-14-gabc"
 // becomes "1.2.4-pre.0". This keeps builds that are already ahead of the last
-// tagged release from being nagged. Other version strings are returned as-is.
+// tagged release from being nagged. A build on the tag itself ("1.2.3-0-gabc")
+// compares equal to it. Other version strings are returned as-is.
 func normalizeBuildVersion(v string) string {
 	m := gitDescribeRE.FindStringSubmatch(v)
 	if m == nil {
 		return v
+	}
+	if m[4] == "0" {
+		return fmt.Sprintf("%s.%s.%s", m[1], m[2], m[3])
 	}
 	patch, err := strconv.Atoi(m[3])
 	if err != nil {

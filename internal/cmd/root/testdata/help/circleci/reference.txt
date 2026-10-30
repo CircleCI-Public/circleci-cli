@@ -5513,11 +5513,12 @@ Print the version and commit hash this binary was built from. With `--json` it
 also reports the newest release, asking CircleCI at most once a day. Turn that off
 with `circleci setting set update-check off`.
 
-JSON fields: version (release tag, or "dev" for unreleased builds), commit (full git
-hash), modified (true when built from a dirty working tree), latest (newest release),
-outdated (true when latest is newer), upgrade_command (the command that upgrades this
-install). latest and outdated are null when unknown (a dev build, update checks off,
-or offline), and upgrade_command is null when the install method is unknown.
+JSON fields: version (release tag; git describe output such as 1.2.3-4-gabc1234 for a
+source build; "dev" when unstamped), commit (full git hash), modified (true when built
+from a dirty working tree), latest (newest release), outdated (true when latest is
+newer), upgrade_command (the command that upgrades this install). latest and outdated
+are null when unknown (a "dev" build, update checks off, or offline), and
+upgrade_command is null when the install method is unknown.
 
 | Flag     | Description                                                                           |
 | -------- | ------------------------------------------------------------------------------------- |
