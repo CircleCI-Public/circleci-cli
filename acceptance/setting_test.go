@@ -26,6 +26,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/http/httptest"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -547,4 +548,50 @@ func waitForInvocations(t *testing.T, fs *fakesegment.Service, want int) {
 		}
 		return poll.Success()
 	})
+}
+
+// TestSettingHonoursConfigFlag reproduces #1901: the setting, unset and logout
+// commands reported the path given with -c and then wrote the default config
+// file instead, destroying whatever was stored there.
+func TestSettingHonoursConfigFlag(t *testing.T) {
+	env := testenv.New(t)
+	cfgPath := filepath.Join(t.TempDir(), "probe", "config.yml")
+	defaultPath := filepath.Join(env.ConfigDir(), "circleci", "config.yml")
+
+	run := func(args ...string) binary.CLIResult {
+		t.Helper()
+		result := binary.RunCLI(t, binary.RunOpts{
+			Binary:  binaryPath,
+			Args:    append([]string{"--insecure-storage", "-c", cfgPath}, args...),
+			Env:     env.Environ(),
+			WorkDir: t.TempDir(),
+		})
+		assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+		assert.Check(t, cmp.Contains(result.Stderr, cfgPath))
+		return result
+	}
+
+	run("setting", "set", "token", "my-token")
+	run("setting", "set", "host", "https://circleci.example.com")
+
+	body, err := os.ReadFile(cfgPath)
+	assert.NilError(t, err)
+	assert.Check(t, strings.Contains(string(body), "my-token"))
+	assert.Check(t, strings.Contains(string(body), "https://circleci.example.com"))
+
+	// The default file must still not exist: HOME and XDG_CONFIG_HOME point at
+	// this test's temp dir, so a write there is a write to the default path.
+	_, err = os.Stat(defaultPath)
+	assert.Assert(t, os.IsNotExist(err), "the default config file was written: %v", err)
+
+	// Unsetting and logging out go through the same path resolution.
+	run("setting", "unset", "token")
+	run("auth", "logout")
+
+	body, err = os.ReadFile(cfgPath)
+	assert.NilError(t, err)
+	assert.Check(t, !strings.Contains(string(body), "my-token"))
+
+	_, err = os.Stat(defaultPath)
+	assert.Assert(t, os.IsNotExist(err), "the default config file was written: %v", err)
 }
