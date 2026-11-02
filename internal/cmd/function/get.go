@@ -171,16 +171,20 @@ func runGet(ctx context.Context, client *apiclient.Client, arg, version string, 
 }
 
 func printFunction(ctx context.Context, e getEntry) {
-	md := fmt.Sprintf("# %s\n\n", e.Name)
+	// Only escape when glamour will render the markdown; the no-color path
+	// prints the raw string and must stay byte-identical to what was published.
+	escape := iostream.ColorEnabled(ctx)
+
+	md := fmt.Sprintf("# %s\n\n", maybeEscape(e.Name, escape))
 	if e.Description != "" {
-		md += e.Description + "\n\n"
+		md += maybeEscape(e.Description, escape) + "\n\n"
 	}
 	md += fmt.Sprintf("**Version:** %s\n**Latest:** %s\n", e.Version, e.LatestVersion)
 
 	if len(e.Flags) > 0 {
 		table := mdtable.New("Argument", "Type", "Default", "Description")
 		for _, f := range e.Flags {
-			table.Row(tableCell(f.Name), tableCell(f.Type), tableCell(f.Default), tableCell(f.Description))
+			table.Row(tableCell(f.Name, escape), tableCell(f.Type, escape), tableCell(f.Default, escape), tableCell(f.Description, escape))
 		}
 		md += "\n## Arguments\n" + table.Render()
 	}
