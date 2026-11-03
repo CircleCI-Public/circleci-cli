@@ -22,7 +22,11 @@
 
 package extension
 
-import "fmt"
+import (
+	"fmt"
+
+	clierrors "github.com/CircleCI-Public/circleci-cli/clikit/errors"
+)
 
 // ErrInvalidName is returned when the extension name contains invalid characters.
 type ErrInvalidName struct {
@@ -101,6 +105,21 @@ type ErrExited struct {
 
 func (e *ErrExited) Error() string {
 	return fmt.Sprintf("extension exited with code %d", e.Code)
+}
+
+// ExitStatus is the status the CLI exits with: the extension's own code, or a
+// general error when it has none to pass on — a negative Code means it was
+// killed by a signal.
+func (e *ErrExited) ExitStatus() int {
+	if e.Code > 0 {
+		return e.Code
+	}
+	return clierrors.ExitGeneralError
+}
+
+// ErrorCode is the code telemetry records for an extension that exited non-zero.
+func (e *ErrExited) ErrorCode() string {
+	return "extension.exited"
 }
 
 // ErrExtensionTooLarge is returned when the decompressed extension binary

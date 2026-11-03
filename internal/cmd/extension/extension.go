@@ -216,6 +216,11 @@ func runExtension(ctx context.Context, ext extension.Manifest, extArgs []string)
 	// any errors; extensions are expected to handle any missing vars.
 	client, _ := cmdutil.LoadClient(ctx)
 
+	// Only a subcommand the extension declared is recorded, never the raw args.
+	if sub := ext.Ref.SubcommandPath(extArgs); sub != "" {
+		cmdutil.SetTelemetryProp(ctx, "extension_subcommand", sub)
+	}
+
 	err := ext.Run(ctx, client, extArgs)
 	if err != nil {
 		if exitErr, ok := errors.AsType[*extension.ErrExited](err); ok {
