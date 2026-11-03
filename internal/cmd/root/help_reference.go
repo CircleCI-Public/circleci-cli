@@ -29,6 +29,9 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
+
+	"github.com/CircleCI-Public/circleci-cli/clikit/mdtable"
 
 	"github.com/CircleCI-Public/circleci-cli/internal/config"
 	"github.com/CircleCI-Public/circleci-cli/internal/extension"
@@ -92,7 +95,7 @@ func cmdRef(w io.Writer, cmd *cobra.Command, depth int) {
 
 	flags := cmd.Flags()
 	if flags.HasAvailableFlags() {
-		_, _ = fmt.Fprintf(w, "%s\n\n", mdTable("Flag", "Description", flagRows(flags)))
+		_, _ = fmt.Fprintf(w, "%s\n\n", flagTableWithRequired(flags))
 	}
 
 	// Render the arguments annotation as a bold label rather than a heading so
@@ -190,4 +193,42 @@ func docFlagRows(flags []extension.ReferenceFlag) [][2]string {
 		rows = append(rows, [2]string{"`" + name + "`", usage})
 	}
 	return rows
+}
+
+// requiredSuffix is the note some flags carry at the end of their usage string
+// to say they are required. The reference shows that in its own column instead.
+const requiredSuffix = "(required)"
+
+// flagTableWithRequired renders a flag set as a three-column Flag / Required /
+// Description table. A flag is required when it is marked with
+// cmd.MarkFlagRequired or its usage ends in "(required)"; the suffix is dropped
+// from the description so it is not stated twice. When no flag is required the
+// column would be empty, so the usual two-column table is rendered instead.
+func flagTableWithRequired(fs *pflag.FlagSet) string {
+	rows := flagRows(fs)
+	var required []bool
+	anyRequired := false
+	fs.VisitAll(func(f *pflag.Flag) {
+		if f.Hidden {
+			return
+		}
+		_, marked := f.Annotations[cobra.BashCompOneRequiredFlag]
+		req := marked || strings.Contains(f.Usage, requiredSuffix)
+		anyRequired = anyRequired || req
+		required = append(required, req)
+	})
+	if !anyRequired {
+		return mdTable("Flag", "Description", rows)
+	}
+
+	t := mdtable.New("Flag", "Required", "Description")
+	for i, r := range rows {
+		req := ""
+		if required[i] {
+			req = "Yes"
+		}
+		desc := strings.Replace(r[1], " "+requiredSuffix, "", 1)
+		t.Row(escapeTableCell(r[0]), req, escapeTableCell(desc))
+	}
+	return t.Render()
 }
