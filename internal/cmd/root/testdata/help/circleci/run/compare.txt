@@ -1,0 +1,37 @@
+Compare two runs' running time and credits
+
+## Usage
+
+`circleci run compare <old-run-id> <new-run-id> [flags]`
+
+## Arguments
+
+`<old-run-id>` and `<new-run-id>` are run UUIDs, as shown in
+`circleci run list --json`. Both runs must have ended.
+
+## Flags
+
+| Flag          | Description                                                                       |
+| ------------- | --------------------------------------------------------------------------------- |
+| `--jq string` | Process values from the response using jq syntax (see `circleci help formatting`) |
+| `--json`      | Output as JSON                                                                    |
+
+Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `circleci --help`.
+
+## Examples
+
+- Compare the run before a config change with the run after it: 
+  `circleci run compare 5034460f-c7c4-4c43-9457-de07e2029e7b 9a1d2c3e-4f5a-4b6c-8d7e-0f1a2b3c4d5e`
+- Just the credit difference: 
+  `circleci run compare <old-run-id> <new-run-id> --json --jq '.delta.credits'`
+- Compare main's latest run with your branch's latest run: 
+  `circleci run compare "$(circleci run list --branch main --json --jq '.[0].id')" "$(circleci run list --branch my-change --json --jq '.[0].id')"`
+
+## Details
+
+Compare a run of the old config with a run of the new one by total running
+time (first workflow created to last ended) and total credits. Credits
+arrive shortly after each job, so a just-ended run may read 0 for a while.
+
+JSON fields: old_run.id/project_id/running_seconds/credits, new_run.*, delta.running_seconds/running_pct/credits/credits_pct
+

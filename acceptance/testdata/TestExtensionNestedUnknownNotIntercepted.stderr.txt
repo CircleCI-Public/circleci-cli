@@ -5,6 +5,7 @@ Usage:  circleci run <command> [flags]
 Available commands:
   approve
   cancel
+  compare
   get
   list
   open
