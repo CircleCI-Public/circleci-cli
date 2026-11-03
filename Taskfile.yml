@@ -268,7 +268,8 @@ tasks:
       #
       #   static/llms.txt             — the short index llmstxt.org actually
       #                                 describes: getting started (install,
-      #                                 authenticate, MCP) plus links out. This
+      #                                 authenticate, MCP), installing the
+      #                                 agent skills, plus links out. This
       #                                 file used to be the full dump, which cost
       #                                 an agent ~50k tokens to answer "how do I
       #                                 install this?" — and then sent it to the
@@ -281,9 +282,13 @@ tasks:
       # Hugo copies static/ to the site root verbatim. Both .txt files open with
       # an H1 + blockquote summary per the llms.txt spec.
       - |
-        GS="$(mktemp)"
+        INTRO="$(mktemp)"
         REST="$(mktemp)"
-        go run ./cmd/circleci help getting-started > "$GS"
+        {
+          go run ./cmd/circleci help getting-started
+          echo
+          go run ./cmd/circleci help agents
+        } > "$INTRO"
         {
           go run ./cmd/circleci help environment
           echo
@@ -295,9 +300,9 @@ tasks:
         {
           echo '# CircleCI CLI'
           echo
-          echo '> Command-line interface to CircleCI for use in your terminal or scripts. This is the short index: install, authenticate, and links to the full reference.'
+          echo '> Command-line interface to CircleCI for use in your terminal or scripts. This is the short index: install, authenticate, install the agent skills, and links to the full reference.'
           echo
-          cat "$GS"
+          cat "$INTRO"
           echo
           echo '## Reference'
           echo
@@ -313,7 +318,7 @@ tasks:
           echo
           echo '> Command-line interface to CircleCI for use in your terminal or scripts. This is the full command reference, generated from the live command tree. The short index is at https://cli.circleci.com/llms.txt'
           echo
-          cat "$GS"
+          cat "$INTRO"
           echo
           cat "$REST"
         } > {{.SITE_DIR}}/static/llms-full.txt
@@ -323,12 +328,12 @@ tasks:
           echo 'title: CircleCI CLI Reference'
           echo '---'
           echo
-          cat "$GS"
+          cat "$INTRO"
           echo
           cat "$REST"
         } > {{.SITE_DIR}}/content/reference/_index.md
 
-        rm -f "$GS" "$REST"
+        rm -f "$INTRO" "$REST"
 
   docs:clean:
     desc: Remove the built docs site

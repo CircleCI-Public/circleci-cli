@@ -140,6 +140,44 @@ Run the following command to login to the CircleCI CLI:
 circleci auth login
 ```
 
+### AI agents (skills)
+CircleCI publishes [skills](https://github.com/CircleCI-Public/skills) that teach AI coding agents
+to use the CLI: validate config, watch a run, read failing logs and tests, and rerun jobs.
+`circleci help agents` prints the same steps.
+
+Claude Code:
+```shell
+claude plugin marketplace add CircleCI-Public/skills
+claude plugin install circleci@circleci-public-skills
+```
+
+Or inside a session:
+```text
+/plugin marketplace add CircleCI-Public/skills
+/plugin install circleci@circleci-public-skills
+```
+
+Codex:
+```shell
+codex plugin marketplace add CircleCI-Public/skills
+codex plugin add circleci@circleci-skills
+```
+
+Cursor and other agents, with the [skills](https://github.com/vercel-labs/skills) installer
+(Node 22.20 or later). `-a` names the agent. To install the CLI skill:
+```shell
+npx skills add CircleCI-Public/skills -a cursor --skill circleci-cli
+```
+
+`--skill` takes several names, and `--list` shows them all. Leaving `--skill` out installs every
+skill in the repository, the Chunk skills included, when an agent runs the command or `-y` is
+passed; in a terminal you pick from a list instead. Pass `-g` to install for your user rather
+than the current project.
+
+Without Node, copy a skill's folder from `plugins/circleci/skills/` in the skills repository to
+`~/.cursor/skills/<name>`, where `<name>` is the `name` in its `SKILL.md`, so `skills/cli`
+becomes `circleci-cli`.
+
 ### Model Context Protocol (MCP)
 The CLI supports the MCP protocol. To enable it, run:
 

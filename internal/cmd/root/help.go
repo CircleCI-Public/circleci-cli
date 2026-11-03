@@ -154,6 +154,7 @@ func rootHelp(command *cobra.Command, _ []string) {
 			longText = command.Short
 		}
 		section("", longText)
+		section("", agentsPointer)
 
 		commandSections(command)
 		section("Help Topics", topicsMarkdown(helpTopics))
