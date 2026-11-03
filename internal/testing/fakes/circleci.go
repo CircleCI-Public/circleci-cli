@@ -90,6 +90,7 @@ type CircleCI struct {
 
 	// Job (v3) state.
 	jobsV3             map[string]JobV3         // job UUID → job detail entity
+	jobsByNumber       map[string]JobByNumber   // "slug/number" → v2 job detail
 	workflowJobsV3     map[string][]JobV3       // workflow id → job list entities
 	workflowJobsStatus map[string]int           // workflow id → HTTP status for its job list
 	runSearchStatus    map[string]int           // branch → HTTP status for run searches pinning it
@@ -323,6 +324,7 @@ func NewCircleCI(t *testing.T, tokens ...string) *CircleCI {
 		approveResponses:                  map[string]int{},
 		pipelineCancelResponses:           map[string]int{},
 		jobsV3:                            map[string]JobV3{},
+		jobsByNumber:                      map[string]JobByNumber{},
 		workflowJobsV3:                    map[string][]JobV3{},
 		jobStdout:                         map[string][]byte{},
 		jobStderr:                         map[string][]byte{},
@@ -420,6 +422,7 @@ func NewCircleCI(t *testing.T, tokens ...string) *CircleCI {
 	r.Get("/api/v2/project/{vcs}/{org}/{repo}/pipeline", f.handleListProjectPipelines)
 	r.Get("/api/v2/project/{vcs}/{org}/{repo}/pipeline/{number}", f.handleGetPipelineByNumber)
 	r.Get("/api/v2/project/{vcs}/{org}/{repo}/{jobNumber}/artifacts", f.handleGetJobArtifacts)
+	r.Get("/api/v2/project/{vcs}/{org}/{repo}/job/{jobNumber}", f.handleGetJobByNumber)
 	r.Post("/api/v2/project/{vcs}/{org}/{repo}/pipeline", f.handleTriggerPipeline)
 	r.Post("/api/v2/project/{vcs}/{org}/{repo}/pipeline/run", f.handleTriggerPipelineRun)
 	// Project / env-var routes. These API calls do not URL-encode slashes in the
@@ -1294,6 +1297,41 @@ func (f *CircleCI) handleSearchTestFlakes(w http.ResponseWriter, r *http.Request
 		next = strconv.Itoa(end)
 	}
 	render.JSON(w, r, map[string]any{"data": data, "page": map[string]any{"next": next, "prev": nil}})
+}
+
+// JobByNumber is a v2 job detail served by
+// GET /api/v2/project/<slug>/job/<number>. The real endpoint carries no job
+// UUID, only the job's name, pipeline and latest workflow.
+type JobByNumber struct {
+	Name       string
+	Number     int64
+	WorkflowID string
+	PipelineID string
+}
+
+// AddJobByNumber registers a v2 job detail for a project slug and job number.
+func (f *CircleCI) AddJobByNumber(slug string, job JobByNumber) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.jobsByNumber[slug+"/"+strconv.FormatInt(job.Number, 10)] = job
+}
+
+func (f *CircleCI) handleGetJobByNumber(w http.ResponseWriter, r *http.Request) {
+	slug := chi.URLParam(r, "vcs") + "/" + chi.URLParam(r, "org") + "/" + chi.URLParam(r, "repo")
+	f.mu.RLock()
+	job, ok := f.jobsByNumber[slug+"/"+chi.URLParam(r, "jobNumber")]
+	f.mu.RUnlock()
+	if !ok {
+		render.Status(r, http.StatusNotFound)
+		render.JSON(w, r, map[string]any{"message": "Job not found"})
+		return
+	}
+	render.JSON(w, r, map[string]any{
+		"name":            job.Name,
+		"number":          job.Number,
+		"latest_workflow": map[string]any{"id": job.WorkflowID, "name": "workflow"},
+		"pipeline":        map[string]any{"id": job.PipelineID},
+	})
 }
 
 // handleGetJobArtifactsV3 answers 404 for a job with no registered artifacts,

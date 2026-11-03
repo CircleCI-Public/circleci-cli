@@ -111,8 +111,8 @@ func newResourceUsageGetCmd() *cobra.Command {
 		Short: "Chart a job's CPU and memory usage",
 		Annotations: map[string]string{
 			"help:arguments": heredoc.Docf(`
-				%[1]s<job-id>%[1]s is the UUID of the job whose usage to fetch. Job UUIDs are
-				shown in the output of %[1]scircleci workflow get%[1]s and %[1]scircleci job get%[1]s.
+				%[1]s<job-id>%[1]s is the UUID of the job whose usage to fetch, or the job's
+				URL copied from the CircleCI app. UUIDs are shown by %[1]scircleci job get%[1]s.
 			`, "`"),
 		},
 		Long: heredoc.Doc(`
@@ -141,17 +141,15 @@ func newResourceUsageGetCmd() *cobra.Command {
 			if cliErr := cmdutil.RequireArgs(args, "job-id"); cliErr != nil {
 				return cliErr
 			}
-			jobID, err := uuid.Parse(args[0])
-			if err != nil {
-				return clierrors.New("args.invalid_job_id", "Invalid job ID",
-					fmt.Sprintf("%q is not a valid job UUID.", args[0])).
-					WithExitCode(clierrors.ExitBadArguments)
-			}
 			if err := validateChartMode(chartMode); err != nil {
 				return err
 			}
 			ctx := cmd.Context()
 			client, err := cmdutil.LoadClient(ctx)
+			if err != nil {
+				return err
+			}
+			jobID, err := cmdutil.ResolveJobRef(ctx, client, args[0])
 			if err != nil {
 				return err
 			}
