@@ -79,19 +79,16 @@ func newGetCmd() *cobra.Command {
 		Short: "Get a run's status",
 		Annotations: map[string]string{
 			"help:arguments": heredoc.Docf(`
-				%[1]s<run-id>%[1]s is optional and is the UUID of the run to look up. When
-				omitted, the latest run is resolved from the project and branch
-				inferred from the current git repository's remote and checked-out
-				branch (override with %[1]s--project%[1]s and %[1]s--branch%[1]s). With
+				%[1]s<run-id>%[1]s is optional: a run UUID, a run number in the project, or a
+				CircleCI URL for a pipeline, workflow or job. When omitted, the latest run
+				is resolved from the project and branch inferred from the git remote and
+				checked-out branch (override with %[1]s--project%[1]s and %[1]s--branch%[1]s). With
 				%[1]s--project%[1]s set, the branch defaults to main unless %[1]s--branch%[1]s is given.
 			`, "`"),
 		},
 		Long: heredoc.Doc(`
-			Display the status of a CircleCI run and its workflows.
-
-			With no run UUID in an interactive terminal, a picker walks you through the
-			recent runs; --no-interactive, --json, or a non-interactive session skips it
-			and resolves the latest run directly.
+			Display the status of a CircleCI run and its workflows. With no run in an
+			interactive terminal, a picker walks you through the recent runs.
 
 			JSON fields: id, phase, outcome, current_outcome, branch, tag, revision, repository_url,
 			commit.subject/url/author_name/author_login, created_at, errors[].type/message,
@@ -104,6 +101,9 @@ func newGetCmd() *cobra.Command {
 
 			# Get a run by UUID
 			$ circleci run get 5034460f-c7c4-4c43-9457-de07e2029e7b
+
+			# Get a run from a URL copied from the CircleCI app
+			$ circleci run get https://app.circleci.com/pipelines/gh/org/repo/1234
 
 			# Output as JSON for scripting
 			$ circleci run get --json
@@ -226,14 +226,14 @@ func runGet(ctx context.Context, client *apiclient.Client, args []string, projec
 	var r *apiclient.RunV3
 
 	if len(args) == 1 {
-		id, err := uuid.Parse(args[0])
+		id, name, err := resolveRunRef(ctx, client, "get", args[0], projectSlug)
 		if err != nil {
 			return err
 		}
 
 		r, err = client.GetRunV3(ctx, id)
 		if err != nil {
-			return apiErr(err, id.String())
+			return apiErr(err, name)
 		}
 	} else {
 		effectiveBranch := branch

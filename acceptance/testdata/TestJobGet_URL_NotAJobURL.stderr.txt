@@ -1,0 +1,4 @@
+error: "https://app.circleci.com/pipelines/gh/testorg/testrepo/1234" is not a CircleCI job URL: the URL names a run or workflow, not a job.
+
+Suggestions:
+  • Pass a UUID, or copy the URL from the CircleCI app's pipeline, workflow or job page
