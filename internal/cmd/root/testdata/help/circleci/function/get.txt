@@ -32,5 +32,5 @@ Show a function's published versions and the arguments one accepts.
 A bare name resolves against `github.com/circleci-functions`.
 
 JSON fields: id, name, description, version, latest_version,
-versions, flags, example.
+versions, flags, outputs, example.
 

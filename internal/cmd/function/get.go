@@ -39,14 +39,15 @@ import (
 )
 
 type getEntry struct {
-	ID            uuid.UUID       `json:"id"`
-	Name          string          `json:"name"`
-	Description   string          `json:"description,omitempty"`
-	Version       string          `json:"version"`
-	LatestVersion string          `json:"latest_version"`
-	Versions      []string        `json:"versions"`
-	Flags         []function.Flag `json:"flags"`
-	Example       string          `json:"example,omitempty"`
+	ID            uuid.UUID         `json:"id"`
+	Name          string            `json:"name"`
+	Description   string            `json:"description,omitempty"`
+	Version       string            `json:"version"`
+	LatestVersion string            `json:"latest_version"`
+	Versions      []string          `json:"versions"`
+	Flags         []function.Flag   `json:"flags"`
+	Outputs       []function.Output `json:"outputs"`
+	Example       string            `json:"example,omitempty"`
 }
 
 func newGetCmd() *cobra.Command {
@@ -65,7 +66,7 @@ func newGetCmd() *cobra.Command {
 			A bare name resolves against %[1]sgithub.com/circleci-functions%[1]s.
 
 			JSON fields: id, name, description, version, latest_version,
-			versions, flags, example.
+			versions, flags, outputs, example.
 		`, "`"),
 		Example: heredoc.Doc(`
 			# Show a function at its latest version
@@ -148,6 +149,10 @@ func runGet(ctx context.Context, client *apiclient.Client, arg, version string, 
 	if flags == nil {
 		flags = []function.Flag{}
 	}
+	outputs := function.Outputs(descriptor.Content)
+	if outputs == nil {
+		outputs = []function.Output{}
+	}
 	// The config that runs this version, which the toolkit renders at release.
 	example, _ := descriptor.Content["example"].(string)
 
@@ -159,6 +164,7 @@ func runGet(ctx context.Context, client *apiclient.Client, arg, version string, 
 		LatestVersion: fn.LatestVersion,
 		Versions:      versions,
 		Flags:         flags,
+		Outputs:       outputs,
 		Example:       example,
 	}
 
@@ -189,6 +195,14 @@ func printFunction(ctx context.Context, e getEntry) {
 		md += "\n## Arguments\n" + table.Render()
 	}
 
+	if len(e.Outputs) > 0 {
+		table := mdtable.New("Output", "Type", "Secret", "Description")
+		for _, o := range e.Outputs {
+			table.Row(tableCell(o.Name, escape), tableCell(o.Type, escape), secretCell(o.Secret), tableCell(o.Description, escape))
+		}
+		md += "\n## Outputs\n" + table.Render()
+	}
+
 	if e.Example != "" {
 		md += "\n## Example\n\n```yaml\n" + strings.TrimRight(e.Example, "\n") + "\n```\n"
 	}
@@ -202,4 +216,11 @@ func printFunction(ctx context.Context, e getEntry) {
 	}
 
 	iostream.PrintMarkdown(ctx, md)
+}
+
+func secretCell(secret bool) string {
+	if secret {
+		return "yes"
+	}
+	return "no"
 }
