@@ -52,6 +52,10 @@ Run `circleci auth login` to authenticate with your CircleCI account. You can al
 
 Run `circleci run get` to view the runs for the current project in an interactive terminal UI (TUI).
 
+## AI agents
+
+Using an AI coding agent? Run `circleci help agents` to install CircleCI's skills.
+
 ## Model Context Protocol
 
 The CLI supports the MCP protocol. To enable it, run:
@@ -76,6 +80,64 @@ circleci mcp vscode enable
 
 Report bugs or search for existing feature requests in our
 [issue tracker](https://github.com/CircleCI-Public/circleci-cli/issues)
+
+# Agents
+CircleCI publishes skills that teach AI coding agents to use `circleci`: validate config,
+watch the run a push started, read failing logs and tests, rerun jobs and debug failed builds.
+Further skills cover config tuning, onboarding, deploys and Smarter Testing. The source is at
+<https://github.com/CircleCI-Public/skills>.
+
+## Claude Code
+
+```shell
+claude plugin marketplace add CircleCI-Public/skills
+claude plugin install circleci@circleci-public-skills
+```
+
+Or inside a session:
+
+```text
+/plugin marketplace add CircleCI-Public/skills
+/plugin install circleci@circleci-public-skills
+```
+
+## Codex
+
+```shell
+codex plugin marketplace add CircleCI-Public/skills
+codex plugin add circleci@circleci-skills
+```
+
+## Cursor and other agents
+
+The [skills](https://github.com/vercel-labs/skills) installer (Node 22.20 or later) supports
+Cursor and most other agents; `-a` names the agent. To install the CLI skill:
+
+```shell
+npx skills add CircleCI-Public/skills -a cursor --skill circleci-cli
+```
+
+`--skill` takes several names, and `--list` shows them all. Leaving `--skill` out installs
+every skill in the repository, the Chunk skills included, when an agent runs the command or
+`-y` is passed; in a terminal you pick from a list instead.
+
+Pass `-g` to install for your user rather than the current project. Without it, an agent
+gets the project, and a terminal asks which you want.
+
+Without Node, copy a skill's folder from `plugins/circleci/skills/` in the repository to
+`~/.cursor/skills/<name>`, where `<name>` is the `name` in its `SKILL.md`, so
+`skills/cli` becomes `circleci-cli`.
+
+## MCP
+
+`circleci` also runs as an MCP server. Run `circleci mcp claude enable` (Claude Desktop),
+`circleci mcp cursor enable` or `circleci mcp vscode enable`. `circleci help getting-started`
+shows the extra step for Claude Code.
+
+## Docs for models
+
+- <https://cli.circleci.com/llms.txt>: install, authenticate, and links to the rest
+- <https://cli.circleci.com/llms-full.txt>: every command, flag and JSON field
 
 # Environment
 `circleci` reads the following environment variables to configure authentication, output, and
