@@ -1,0 +1,4 @@
+error: Workflow c266c3a7-0dad-459a-aa7b-dd13e005b9a0 has 2 jobs named "yaml-lint"; the job number alone cannot tell them apart.
+
+Suggestions:
+  • Pick the job UUID from: circleci workflow get c266c3a7-0dad-459a-aa7b-dd13e005b9a0

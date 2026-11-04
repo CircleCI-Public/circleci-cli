@@ -6,10 +6,10 @@ Get a run's status
 
 ## Arguments
 
-`<run-id>` is optional and is the UUID of the run to look up. When
-omitted, the latest run is resolved from the project and branch
-inferred from the current git repository's remote and checked-out
-branch (override with `--project` and `--branch`). With
+`<run-id>` is optional: a run UUID, a run number in the project, or a
+CircleCI URL for a pipeline, workflow or job. When omitted, the latest run
+is resolved from the project and branch inferred from the git remote and
+checked-out branch (override with `--project` and `--branch`). With
 `--project` set, the branch defaults to main unless `--branch` is given.
 
 ## Flags
@@ -32,6 +32,8 @@ Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `ci
   `circleci run get`
 - Get a run by UUID: 
   `circleci run get 5034460f-c7c4-4c43-9457-de07e2029e7b`
+- Get a run from a URL copied from the CircleCI app: 
+  `circleci run get https://app.circleci.com/pipelines/gh/org/repo/1234`
 - Output as JSON for scripting: 
   `circleci run get --json`
 - Get only your runs: 
@@ -41,11 +43,8 @@ Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `ci
 
 ## Details
 
-Display the status of a CircleCI run and its workflows.
-
-With no run UUID in an interactive terminal, a picker walks you through the
-recent runs; --no-interactive, --json, or a non-interactive session skips it
-and resolves the latest run directly.
+Display the status of a CircleCI run and its workflows. With no run in an
+interactive terminal, a picker walks you through the recent runs.
 
 JSON fields: id, phase, outcome, current_outcome, branch, tag, revision, repository_url,
 commit.subject/url/author_name/author_login, created_at, errors[].type/message,

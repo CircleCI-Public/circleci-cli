@@ -383,8 +383,8 @@ JSON fields: id, name, type, status, started_at, stopped_at, project_id, pipelin
 
 **Arguments:**
 
-`<job-id>` is the UUID of the job to look up. Job UUIDs are shown in
-the output of `circleci workflow get` and `circleci run get --json`.
+`<job-id>` is the UUID of the job to look up, or the job's URL copied
+from the CircleCI app. UUIDs are shown by `circleci workflow get`.
 
 **Examples:**
 
@@ -439,8 +439,8 @@ forces either behaviour.
 
 **Arguments:**
 
-`<job-id>` is the UUID of the job whose step output to fetch. Job UUIDs
-are shown in the output of `circleci workflow get` and `circleci job get`.
+`<job-id>` is the UUID of the job whose step output to fetch, or the
+job's URL copied from the CircleCI app. UUIDs are shown by `circleci job get`.
 Use `--step-num` to select which step's output to read.
 
 **Examples:**
@@ -476,9 +476,9 @@ JSON fields: id, name, execution, steps[].num/name/type/phase/outcome/started_at
 
 **Arguments:**
 
-`<job-id>` is the UUID of the job whose steps and output to list. Job
-UUIDs are shown in the output of `circleci workflow get` and
-`circleci job get`.
+`<job-id>` is the UUID of the job whose steps and output to list, or
+the job's URL copied from the CircleCI app. UUIDs are shown by
+`circleci workflow get` and `circleci job get`.
 
 **Examples:**
 
@@ -522,8 +522,8 @@ JSON fields: id, resource_class.name/cpu_count/memory_limit_bytes, executions[].
 
 **Arguments:**
 
-`<job-id>` is the UUID of the job whose usage to fetch. Job UUIDs are
-shown in the output of `circleci workflow get` and `circleci job get`.
+`<job-id>` is the UUID of the job whose usage to fetch, or the job's
+URL copied from the CircleCI app. UUIDs are shown by `circleci job get`.
 
 **Examples:**
 
@@ -808,11 +808,8 @@ The project is inferred from the git remote unless overridden with `--project`.
 
 Get a run's status
 
-Display the status of a CircleCI run and its workflows.
-
-With no run UUID in an interactive terminal, a picker walks you through the
-recent runs; --no-interactive, --json, or a non-interactive session skips it
-and resolves the latest run directly.
+Display the status of a CircleCI run and its workflows. With no run in an
+interactive terminal, a picker walks you through the recent runs.
 
 JSON fields: id, phase, outcome, current_outcome, branch, tag, revision, repository_url,
 commit.subject/url/author_name/author_login, created_at, errors[].type/message,
@@ -832,10 +829,10 @@ jobs[].id/name/phase/outcome/current_outcome/type
 
 **Arguments:**
 
-`<run-id>` is optional and is the UUID of the run to look up. When
-omitted, the latest run is resolved from the project and branch
-inferred from the current git repository's remote and checked-out
-branch (override with `--project` and `--branch`). With
+`<run-id>` is optional: a run UUID, a run number in the project, or a
+CircleCI URL for a pipeline, workflow or job. When omitted, the latest run
+is resolved from the project and branch inferred from the git remote and
+checked-out branch (override with `--project` and `--branch`). With
 `--project` set, the branch defaults to main unless `--branch` is given.
 
 **Examples:**
@@ -844,6 +841,8 @@ branch (override with `--project` and `--branch`). With
   `circleci run get`
 - Get a run by UUID: 
   `circleci run get 5034460f-c7c4-4c43-9457-de07e2029e7b`
+- Get a run from a URL copied from the CircleCI app: 
+  `circleci run get https://app.circleci.com/pipelines/gh/org/repo/1234`
 - Output as JSON for scripting: 
   `circleci run get --json`
 - Get only your runs: 

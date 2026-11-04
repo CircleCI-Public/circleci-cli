@@ -458,3 +458,33 @@ func (c *Client) GetJobStderr(ctx context.Context, jobID uuid.UUID, execution, s
 
 	return output, nil
 }
+
+// JobByNumber is the v2 job detail looked up by project-scoped job number. The
+// v2 endpoint does not carry the job's UUID; it names the job's pipeline and
+// latest workflow, which is enough to find the UUID through the v3 workflow
+// jobs list (see cmdutil.ResolveJobRef).
+type JobByNumber struct {
+	Name           string `json:"name"`
+	Number         int64  `json:"number"`
+	LatestWorkflow struct {
+		ID   uuid.UUID `json:"id"`
+		Name string    `json:"name"`
+	} `json:"latest_workflow"`
+	Pipeline struct {
+		ID uuid.UUID `json:"id"`
+	} `json:"pipeline"`
+}
+
+// GetJobByNumber fetches a job by its project slug and job number from the v2
+// API.
+func (c *Client) GetJobByNumber(ctx context.Context, projectSlug string, number int64) (*JobByNumber, error) {
+	var j JobByNumber
+	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodGet, "/api/v2/project/%s/job/%d",
+		httpcl.RouteParams(projectSlug, number),
+		httpcl.JSONDecoder(&j),
+	))
+	if err != nil {
+		return nil, err
+	}
+	return &j, nil
+}

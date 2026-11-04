@@ -46,8 +46,8 @@ func newGetCmd() *cobra.Command {
 		Short: "Get job details",
 		Annotations: map[string]string{
 			"help:arguments": heredoc.Docf(`
-				%[1]s<job-id>%[1]s is the UUID of the job to look up. Job UUIDs are shown in
-				the output of %[1]scircleci workflow get%[1]s and %[1]scircleci run get --json%[1]s.
+				%[1]s<job-id>%[1]s is the UUID of the job to look up, or the job's URL copied
+				from the CircleCI app. UUIDs are shown by %[1]scircleci workflow get%[1]s.
 			`, "`"),
 		},
 		Long: heredoc.Doc(`
@@ -95,7 +95,7 @@ func Get(ctx context.Context, client *apiclient.Client, idStr string, jsonOut bo
 }
 
 func runGet(ctx context.Context, client *apiclient.Client, idStr string, jsonOut bool) error {
-	id, err := uuid.Parse(idStr)
+	id, err := cmdutil.ResolveJobRef(ctx, client, idStr)
 	if err != nil {
 		return err
 	}

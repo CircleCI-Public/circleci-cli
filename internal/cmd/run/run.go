@@ -24,6 +24,7 @@ package run
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -76,10 +77,21 @@ func apiErr(err error, subject string) *clierrors.CLIError {
 
 // resolveRunRef turns a <run-number-or-id> argument into a run UUID and the
 // name to show for it: "#<number>" for a run number, the UUID as given
-// otherwise. A run number is looked up in projectSlug, or in the project of the
+// otherwise. A CircleCI web URL for a pipeline, workflow or job resolves to
+// the run it belongs to. A run number is looked up in projectSlug, or in the project of the
 // git remote when projectSlug is empty. verb is the subcommand, used in the
 // suggestion shown when the git remote can't be detected.
 func resolveRunRef(ctx context.Context, client *apiclient.Client, verb, arg, projectSlug string) (uuid.UUID, string, error) {
+	if cmdutil.LooksLikeURL(arg) {
+		id, name, err := cmdutil.ResolveRunURL(ctx, client, arg)
+		if err != nil {
+			if cliErr, ok := errors.AsType[*clierrors.CLIError](err); ok {
+				return uuid.Nil, "", cliErr
+			}
+			return uuid.Nil, "", apiErr(err, arg)
+		}
+		return id, name, nil
+	}
 	if !looksLikeNumber(arg) {
 		id, err := uuid.Parse(arg)
 		if err != nil {

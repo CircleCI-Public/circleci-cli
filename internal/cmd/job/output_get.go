@@ -33,7 +33,6 @@ import (
 	"github.com/spf13/cobra"
 	"golang.org/x/sync/errgroup"
 
-	clierrors "github.com/CircleCI-Public/circleci-cli/clikit/errors"
 	"github.com/CircleCI-Public/circleci-cli/clikit/iostream"
 	"github.com/CircleCI-Public/circleci-cli/internal/apiclient"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmdutil"
@@ -53,8 +52,8 @@ func newOutputGetCmd() *cobra.Command {
 		Short: "Get the output of a job step",
 		Annotations: map[string]string{
 			"help:arguments": heredoc.Docf(`
-				%[1]s<job-id>%[1]s is the UUID of the job whose step output to fetch. Job UUIDs
-				are shown in the output of %[1]scircleci workflow get%[1]s and %[1]scircleci job get%[1]s.
+				%[1]s<job-id>%[1]s is the UUID of the job whose step output to fetch, or the
+				job's URL copied from the CircleCI app. UUIDs are shown by %[1]scircleci job get%[1]s.
 				Use %[1]s--step-num%[1]s to select which step's output to read.
 			`, "`"),
 		},
@@ -87,14 +86,12 @@ func newOutputGetCmd() *cobra.Command {
 			if !cmd.Flags().Changed("step-num") {
 				return cmdutil.RequireFlag("step-num")
 			}
-			jobID, err := uuid.Parse(args[0])
-			if err != nil {
-				return clierrors.New("args.invalid_job_id", "Invalid job ID",
-					fmt.Sprintf("%q is not a valid job UUID.", args[0])).
-					WithExitCode(clierrors.ExitBadArguments)
-			}
 			ctx := cmd.Context()
 			client, err := cmdutil.LoadClient(ctx)
+			if err != nil {
+				return err
+			}
+			jobID, err := cmdutil.ResolveJobRef(ctx, client, args[0])
 			if err != nil {
 				return err
 			}
