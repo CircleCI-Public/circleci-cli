@@ -68,8 +68,8 @@ func newListCmd() *cobra.Command {
 			`, "`"),
 		},
 		Long: heredoc.Doc(`
-			Show the test results recorded for a CircleCI job. Only failed tests are
-			shown unless --all or a result= filter selects otherwise.
+			Show a job's test results: failures only, unless --all or result= says
+			otherwise. For tests that flake across runs: ` + "`circleci testresult flaky`" + `.
 
 			JSON fields: classname, name, result, run_time, message — emitted as one
 			object per line (JSONL), so --jq runs once per record. See
