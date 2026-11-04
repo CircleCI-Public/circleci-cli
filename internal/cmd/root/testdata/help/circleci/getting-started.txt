@@ -48,6 +48,10 @@ Run `circleci auth login` to authenticate with your CircleCI account. You can al
 
 Run `circleci run get` to view the runs for the current project in an interactive terminal UI (TUI).
 
+## AI agents
+
+Using an AI coding agent? Run `circleci help agents` to install CircleCI's skills.
+
 ## Model Context Protocol
 
 The CLI supports the MCP protocol. To enable it, run:

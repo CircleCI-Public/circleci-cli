@@ -30,6 +30,7 @@ import (
 
 	"gopkg.in/yaml.v3"
 	"gotest.tools/v3/assert"
+	"gotest.tools/v3/assert/cmp"
 )
 
 // The install commands are published in two places for two different audiences:
@@ -99,4 +100,63 @@ func TestInstallCommandsMatchHelpTopic(t *testing.T) {
 func normalizeCommand(s string) string {
 	s = strings.ReplaceAll(s, "\\\n", " ")
 	return strings.Join(strings.Fields(s), " ")
+}
+
+// The agent skill install commands are also published twice: in the `agents`
+// help topic, which feeds `circleci help agents`, llms.txt and /reference, and
+// in the README's "AI agents (skills)" section. The README is hand-written
+// markdown, so this keeps the two sets of code blocks identical.
+func TestAgentSkillCommandsMatchReadme(t *testing.T) {
+	topic, err := os.ReadFile(filepath.Join("testdata", "help", "circleci", "agents.txt"))
+	assert.NilError(t, err)
+	readme, err := os.ReadFile(filepath.Join("..", "..", "..", "README.md"))
+	assert.NilError(t, err)
+
+	// .gitattributes pins LF only under testdata/, so a Windows checkout has a
+	// CRLF README.
+	section := markdownSection(strings.ReplaceAll(string(readme), "\r\n", "\n"), "### AI agents (skills)")
+	assert.Assert(t, section != "", "README.md has no \"### AI agents (skills)\" section")
+
+	want := codeBlockLines(string(topic))
+	assert.Assert(t, len(want) >= 7, "expected the agents topic to show at least seven commands, got %d", len(want))
+	assert.Check(t, cmp.DeepEqual(codeBlockLines(section), want),
+		"the code blocks in README.md's \"AI agents (skills)\" section differ from the agents help "+
+			"topic (internal/cmd/root/help_topic.go). Change both, then re-run `go test ./internal/cmd/root/ -update`.")
+}
+
+// markdownSection returns the lines from heading up to the next heading of
+// the same or a higher level, or "" when heading is absent.
+func markdownSection(md, heading string) string {
+	level := strings.Index(heading, " ")
+	lines := strings.Split(md, "\n")
+	for i, line := range lines {
+		if line != heading {
+			continue
+		}
+		end := len(lines)
+		for j := i + 1; j < len(lines); j++ {
+			if n := strings.Index(lines[j], " "); n > 0 && n <= level && strings.Trim(lines[j][:n], "#") == "" {
+				end = j
+				break
+			}
+		}
+		return strings.Join(lines[i:end], "\n")
+	}
+	return ""
+}
+
+// codeBlockLines returns the non-blank lines inside fenced code blocks, in order.
+func codeBlockLines(md string) []string {
+	var lines []string
+	inBlock := false
+	for _, line := range strings.Split(md, "\n") {
+		line = strings.TrimSpace(line)
+		switch {
+		case strings.HasPrefix(line, "```"):
+			inBlock = !inBlock
+		case inBlock && line != "":
+			lines = append(lines, line)
+		}
+	}
+	return lines
 }

@@ -90,6 +90,15 @@
               <span class="install-cmd-wrap"><span class="install-prompt">$ </span>circleci run get</span>
               {{ partial "copy-button.html" (dict "cmd" "circleci run get") }}
             </div>
+
+            <h2 class="hero-tip-title" id="hero-tip-agents">Use with AI agents</h2>
+            <div class="hero-tip-row">
+              <div class="hero-tip-bar">
+                <span class="install-cmd-wrap"><span class="install-prompt">$ </span>circleci help agents</span>
+                {{ partial "copy-button.html" (dict "cmd" "circleci help agents") }}
+              </div>
+              <span class="hero-tip-or">or see the <a href="reference/#agents">install steps</a> and the <a href="https://github.com/CircleCI-Public/skills">skills</a></span>
+            </div>
           </section>
 
           {{/* Every install command as plain text, from the same data file as the

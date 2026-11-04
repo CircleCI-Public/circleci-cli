@@ -2,6 +2,8 @@
 
 Work with CircleCI from the command line.
 
+Using an AI coding agent? Run `circleci help agents` to install CircleCI's skills.
+
 ## Usage
 
 `circleci [flags]`
@@ -71,6 +73,7 @@ Work with CircleCI from the command line.
 
 | Topic             | Description                                                   |
 | ----------------- | ------------------------------------------------------------- |
+| `agents`          | Use circleci with AI coding agents: skills and MCP            |
 | `environment`     | Environment variables that can be used with circleci          |
 | `formatting`      | Formatting options for JSON data exported from circleci       |
 | `getting-started` | Install, authenticate, and start using circleci               |

@@ -43,6 +43,12 @@ import (
 // rather than silently stop covering the topics.
 const HelpTopicAnnotation = "help:topic"
 
+// agentsPointer sends AI coding agents to the agents topic. Root help prints it
+// under the intro, inside the ~40 lines an agent captures, and getting-started
+// repeats it. It stays out of the root command's Long, which `help reference`
+// opens with, so the published reference carries it once.
+const agentsPointer = "Using an AI coding agent? Run `circleci help agents` to install CircleCI's skills."
+
 type helpTopic struct {
 	name    string
 	short   string
@@ -104,6 +110,10 @@ var helpTopics = []helpTopic{
 
 			Run %[1]scircleci run get%[1]s to view the runs for the current project in an interactive terminal UI (TUI).
 
+			## AI agents
+
+			%[2]s
+
 			## Model Context Protocol
 
 			The CLI supports the MCP protocol. To enable it, run:
@@ -128,6 +138,68 @@ var helpTopics = []helpTopic{
 
 			Report bugs or search for existing feature requests in our
 			[issue tracker](https://github.com/CircleCI-Public/circleci-cli/issues)
+		`, "`", agentsPointer),
+	},
+	{
+		name:  "agents",
+		short: "Use circleci with AI coding agents: skills and MCP",
+		long: heredoc.Docf(`
+			CircleCI publishes skills that teach AI coding agents to use %[1]scircleci%[1]s: validate config,
+			watch the run a push started, read failing logs and tests, rerun jobs and debug failed builds.
+			Further skills cover config tuning, onboarding, deploys and Smarter Testing. The source is at
+			<https://github.com/CircleCI-Public/skills>.
+
+			## Claude Code
+
+			%[1]s%[1]s%[1]sshell
+			claude plugin marketplace add CircleCI-Public/skills
+			claude plugin install circleci@circleci-public-skills
+			%[1]s%[1]s%[1]s
+
+			Or inside a session:
+
+			%[1]s%[1]s%[1]stext
+			/plugin marketplace add CircleCI-Public/skills
+			/plugin install circleci@circleci-public-skills
+			%[1]s%[1]s%[1]s
+
+			## Codex
+
+			%[1]s%[1]s%[1]sshell
+			codex plugin marketplace add CircleCI-Public/skills
+			codex plugin add circleci@circleci-skills
+			%[1]s%[1]s%[1]s
+
+			## Cursor and other agents
+
+			The [skills](https://github.com/vercel-labs/skills) installer (Node 22.20 or later) supports
+			Cursor and most other agents; %[1]s-a%[1]s names the agent. To install the CLI skill:
+
+			%[1]s%[1]s%[1]sshell
+			npx skills add CircleCI-Public/skills -a cursor --skill circleci-cli
+			%[1]s%[1]s%[1]s
+
+			%[1]s--skill%[1]s takes several names, and %[1]s--list%[1]s shows them all. Leaving %[1]s--skill%[1]s out installs
+			every skill in the repository, the Chunk skills included, when an agent runs the command or
+			%[1]s-y%[1]s is passed; in a terminal you pick from a list instead.
+
+			Pass %[1]s-g%[1]s to install for your user rather than the current project. Without it, an agent
+			gets the project, and a terminal asks which you want.
+
+			Without Node, copy a skill's folder from %[1]splugins/circleci/skills/%[1]s in the repository to
+			%[1]s~/.cursor/skills/<name>%[1]s, where %[1]s<name>%[1]s is the %[1]sname%[1]s in its %[1]sSKILL.md%[1]s, so
+			%[1]sskills/cli%[1]s becomes %[1]scircleci-cli%[1]s.
+
+			## MCP
+
+			%[1]scircleci%[1]s also runs as an MCP server. Run %[1]scircleci mcp claude enable%[1]s (Claude Desktop),
+			%[1]scircleci mcp cursor enable%[1]s or %[1]scircleci mcp vscode enable%[1]s. %[1]scircleci help getting-started%[1]s
+			shows the extra step for Claude Code.
+
+			## Docs for models
+
+			- <https://cli.circleci.com/llms.txt>: install, authenticate, and links to the rest
+			- <https://cli.circleci.com/llms-full.txt>: every command, flag and JSON field
 		`, "`"),
 	},
 	{
