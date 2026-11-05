@@ -73,7 +73,7 @@ func NewFeedbackCmd() *cobra.Command {
 		Long: heredoc.Doc(`
 			Report an error, missing capability or confusing output; say what you ran and saw.
 			No secrets. Reports include your CircleCI user, the AI agent, and if it came via MCP.
-			For a Function, pass --type (missing_function or function_gap) and --function.
+			--type is only for a CircleCI Function (a functions: step like setup-node); for an MCP tool or CLI command, use --tool.
 
 			JSON fields: id
 		`),
@@ -116,7 +116,7 @@ func NewFeedbackCmd() *cobra.Command {
 	}
 
 	cmd.Flags().StringVar(&tool, "tool", "", `CLI command or MCP tool the feedback is about (e.g. "run get")`)
-	cmd.Flags().StringVar(&reportType, "type", "", "Kind of report: missing_function (no Function does what you needed) or function_gap (a Function falls short)")
+	cmd.Flags().StringVar(&reportType, "type", "", "Only for a Function: missing_function (none does what you needed) or function_gap (one falls short)")
 	cmd.Flags().StringVar(&function, "function", "", `Function the report is about, or the name you looked for (e.g. "setup-vercel")`)
 	cmdutil.AddJSONFlag(cmd, &jsonOut)
 	cmdutil.AddJQFlag(cmd)
