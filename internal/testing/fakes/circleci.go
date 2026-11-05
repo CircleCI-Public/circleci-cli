@@ -64,6 +64,8 @@ type CircleCI struct {
 	projects                          map[string][]PipelineV2 // project slug → ordered pipelines
 	jobArtifacts                      map[string][]any        // "slug/jobNumber" → artifacts
 	jobArtifactsV3                    map[string][]Artifact   // job UUID → V3 artifacts
+	testFlakes                        map[string][]TestFlake  // project ID → v3 test-flake occurrences
+	testFlakesUnavailable             map[string]bool         // project ID → test-flakes/search answers 404
 	staticFiles                       map[string]string       // path → body content, for artifact downloads
 	triggerResponses                  map[string]any          // project slug → trigger response body
 	triggerPipelineRunResponses       map[string]any          // project slug → trigger run response body
@@ -287,6 +289,8 @@ func NewCircleCI(t *testing.T, tokens ...string) *CircleCI {
 		projects:                          map[string][]PipelineV2{},
 		jobArtifacts:                      map[string][]any{},
 		jobArtifactsV3:                    map[string][]Artifact{},
+		testFlakes:                        map[string][]TestFlake{},
+		testFlakesUnavailable:             map[string]bool{},
 		staticFiles:                       map[string]string{},
 		triggerResponses:                  map[string]any{},
 		triggerPipelineRunResponses:       map[string]any{},
@@ -503,6 +507,7 @@ func NewCircleCI(t *testing.T, tokens ...string) *CircleCI {
 	r.Get("/api/v3/runs", f.handleListMyRunsV3)
 	r.Get("/api/v3/runs/{id}", f.handleGetRunV3)
 	r.Post("/api/v3/runs/search", f.handleSearchRunsV3)
+	r.Post("/api/v3/test-flakes/search", f.handleSearchTestFlakes)
 	// Runner (v3) routes. GET /runner/agents lists agents under exactly one of
 	// filter[org_id]=, filter[resource_class]= or filter[namespace]=.
 	// List/create/delete for resource classes all live on
@@ -977,6 +982,38 @@ func (f *CircleCI) AddJobArtifacts(slug string, jobNumber int64, artifactItems .
 	f.jobArtifacts[key] = artifactItems
 }
 
+// TestFlake is one flake occurrence served by POST /api/v3/test-flakes/search:
+// a failed execution of a test that later passed in the same pipeline.
+// JobStartedAt is RFC 3339; the IDs are UUID strings.
+type TestFlake struct {
+	Name         string
+	Classname    string
+	File         string
+	JobName      string
+	WorkflowName string
+	JobStartedAt string
+	JobID        string
+	WorkflowID   string
+	RunID        string
+}
+
+// AddTestFlakes registers flake occurrences for a project ID. A project with
+// none registered gets an empty list, as the real endpoint returns for a
+// project nothing has flaked in.
+func (f *CircleCI) AddTestFlakes(projectID string, flakes ...TestFlake) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.testFlakes[projectID] = append(f.testFlakes[projectID], flakes...)
+}
+
+// SetTestFlakesUnavailable makes test-flakes/search answer 404 for projectID,
+// as a host without the experimental endpoint would.
+func (f *CircleCI) SetTestFlakesUnavailable(projectID string) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.testFlakesUnavailable[projectID] = true
+}
+
 // Artifact is a stored job artifact served by GET /api/v3/jobs/<id>/artifacts.
 // Execution is the parallel-run index (0-based) the artifact came from.
 type Artifact struct {
@@ -1145,6 +1182,82 @@ func (f *CircleCI) handleGetJobArtifacts(w http.ResponseWriter, r *http.Request)
 		items = []any{}
 	}
 	render.JSON(w, r, map[string]any{"items": items, "next_page_token": nil})
+}
+
+// handleSearchTestFlakes serves the occurrences registered for scope.project_id,
+// page[limit] at a time (default 20, max 20 as on the real endpoint), with the
+// next offset as the cursor so clients exercise pagination.
+func (f *CircleCI) handleSearchTestFlakes(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		Scope struct {
+			ProjectID string `json:"project_id"`
+		} `json:"scope"`
+		Page struct {
+			Cursor string `json:"cursor"`
+			Limit  int    `json:"limit"`
+		} `json:"page"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.Page.Limit > 20 {
+		render.Status(r, http.StatusBadRequest)
+		render.JSON(w, r, map[string]any{"error": map[string]any{"title": "Bad Request"}})
+		return
+	}
+	limit := body.Page.Limit
+	if limit <= 0 {
+		limit = 20
+	}
+	offset := 0
+	if body.Page.Cursor != "" {
+		n, err := strconv.Atoi(body.Page.Cursor)
+		if err != nil {
+			render.Status(r, http.StatusBadRequest)
+			render.JSON(w, r, map[string]any{"error": map[string]any{"title": "Bad Request"}})
+			return
+		}
+		offset = n
+	}
+
+	f.mu.RLock()
+	all := f.testFlakes[body.Scope.ProjectID]
+	unavailable := f.testFlakesUnavailable[body.Scope.ProjectID]
+	f.mu.RUnlock()
+	if unavailable {
+		render.Status(r, http.StatusNotFound)
+		render.JSON(w, r, map[string]any{"error": map[string]any{"title": "Not Found"}})
+		return
+	}
+
+	end := min(offset+limit, len(all))
+	data := []any{}
+	for _, tf := range all[min(offset, len(all)):end] {
+		data = append(data, map[string]any{
+			"attributes": map[string]any{
+				"name":           tf.Name,
+				"classname":      tf.Classname,
+				"file":           tf.File,
+				"test_atom":      "",
+				"duration_ms":    100,
+				"message":        "expected true, got false",
+				"execution":      0,
+				"rerun_attempt":  nil,
+				"job_name":       tf.JobName,
+				"workflow_name":  tf.WorkflowName,
+				"job_started_at": tf.JobStartedAt,
+				"job_ended_at":   tf.JobStartedAt,
+			},
+			"references": map[string]any{
+				"job":      map[string]any{"id": tf.JobID},
+				"workflow": map[string]any{"id": tf.WorkflowID},
+				"run":      map[string]any{"id": tf.RunID},
+				"project":  map[string]any{"id": body.Scope.ProjectID},
+			},
+		})
+	}
+	var next any
+	if end < len(all) {
+		next = strconv.Itoa(end)
+	}
+	render.JSON(w, r, map[string]any{"data": data, "page": map[string]any{"next": next, "prev": nil}})
 }
 
 func (f *CircleCI) handleGetJobArtifactsV3(w http.ResponseWriter, r *http.Request) {

@@ -115,6 +115,7 @@ func TestMCPTools_DestructiveHints(t *testing.T) {
 		"circleci_context_list",
 		"circleci_pipeline_list",
 		"circleci_workflow_list",
+		"circleci_testresult_flaky",
 	}
 	for _, name := range wantReadOnly {
 		t.Run(name+"_not_destructive", func(t *testing.T) {

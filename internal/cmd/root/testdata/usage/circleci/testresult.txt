@@ -1,5 +1,6 @@
 Usage:  circleci testresult <command> [flags]
 
 Available commands:
+  flaky
   get
   list

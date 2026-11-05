@@ -1,0 +1,5 @@
+# Flaky tests
+| Test              | Classname       | Times flaked | Job        | Last flaked          |
+| ----------------- | --------------- | ------------ | ---------- | -------------------- |
+| TestWatchTimeout  | internal/run    | 22           | test-linux | 2026-11-02 10:31 UTC |
+| TestApplyDefaults | internal/config | 2            | test-linux | 2026-10-30 12:00 UTC |

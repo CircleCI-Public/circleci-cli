@@ -19,7 +19,7 @@ Using an AI coding agent? Run `circleci help agents` to install CircleCI's skill
 | `pipeline`   | Manage the pipeline definitions a run executes       |
 | `preflight`  | Run uncommitted changes through CI before you commit |
 | `run`        | Trigger, watch, approve and cancel pipeline runs     |
-| `testresult` | Inspect test results for a job                       |
+| `testresult` | Inspect test results and flaky tests                 |
 | `workflow`   | Inspect, rerun and cancel workflows (job graphs)     |
 
 ## Management Commands

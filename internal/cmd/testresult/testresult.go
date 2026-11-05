@@ -36,9 +36,10 @@ func NewTestResultCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "testresult <command>",
 		GroupID: "ci",
-		Short:   "Inspect test results for a job",
+		Short:   "Inspect test results and flaky tests",
 		Long: heredoc.Doc(`
-			Work with the test metadata CircleCI collects for a job.
+			Work with the test metadata CircleCI collects for a job, and with the
+			tests that flake across a project's runs.
 
 			When a job stores test results (via the 'store_test_results' step),
 			CircleCI parses them into per-test records. Use these commands to
@@ -51,6 +52,7 @@ func NewTestResultCmd() *cobra.Command {
 
 	cmdutil.AddGroup(cmd, "General commands",
 		newListCmd(),
+		newFlakyCmd(),
 	)
 	cmdutil.AddGroup(cmd, "Targeted commands",
 		newGetCmd(),

@@ -1,0 +1,10 @@
+Usage:  circleci testresult flaky [flags]
+
+Flags:
+  -h, --help             help for flaky
+      --jq string        Process values from the response using jq syntax
+      --json             Output as JSON
+      --limit int        Maximum number of tests to show (0 = no limit)
+      --project string   Project slug (e.g. gh/org/repo); defaults to git remote
+      --sort string      Sort by times_flaked or last_flaked (descending), or name (default "times_flaked")
+  

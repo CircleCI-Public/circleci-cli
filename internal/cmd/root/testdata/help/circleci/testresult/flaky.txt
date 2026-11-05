@@ -1,0 +1,38 @@
+List flaky tests detected across a project's runs
+
+## Usage
+
+`circleci testresult flaky [flags]`
+
+## Flags
+
+| Flag               | Description                                                                        |
+| ------------------ | ---------------------------------------------------------------------------------- |
+| `--jq string`      | Process values from the response using jq syntax (see `circleci help formatting`)  |
+| `--json`           | Output as JSON                                                                     |
+| `--limit int`      | Maximum number of tests to show (0 = no limit)                                     |
+| `--project string` | Project slug (e.g. gh/org/repo); defaults to git remote                            |
+| `--sort string`    | Sort by times_flaked or last_flaked (descending), or name (default "times_flaked") |
+
+Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `circleci --help`.
+
+## Examples
+
+- Flaky tests for the project in the current directory: 
+  `circleci testresult flaky`
+- The five worst offenders in another project: 
+  `circleci testresult flaky --project gh/myorg/myrepo --limit 5`
+- Names of tests that flaked more than five times: 
+  `circleci testresult flaky --json --jq 'select(.times_flaked > 5) | .test_name'`
+
+## Details
+
+List the tests that failed and then passed within the same pipeline,
+one row per test, most-flaked first. One call answers "which tests are
+flaky?" — no need to walk runs and jobs. Job and workflow details are
+those of each test's most recent flake.
+
+JSON fields: test_name, classname, file, times_flaked, last_flaked_at,
+job_name, workflow_name, job_id, workflow_id, run_id — one object per
+line (JSONL).
+

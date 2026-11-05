@@ -1,0 +1,7 @@
+# Flaky tests
+| Test                 | Classname       | Times flaked | Job        | Last flaked          |
+| -------------------- | --------------- | ------------ | ---------- | -------------------- |
+| TestUploadRetries    | internal/httpcl | 1            | test-linux | 2026-11-03 08:45 UTC |
+| TestWatchTimeout     | internal/run    | 22           | test-linux | 2026-11-02 10:31 UTC |
+| TestLoginBrowserFlow | acceptance      | 2            | acceptance | 2026-11-01 18:02 UTC |
+| TestApplyDefaults    | internal/config | 2            | test-linux | 2026-10-30 12:00 UTC |

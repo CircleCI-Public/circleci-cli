@@ -1,4 +1,4 @@
-Inspect test results for a job
+Inspect test results and flaky tests
 
 ## Usage
 
@@ -6,9 +6,10 @@ Inspect test results for a job
 
 ## General Commands
 
-| Command | Description                 |
-| ------- | --------------------------- |
-| `list`  | List test results for a job |
+| Command | Description                                       |
+| ------- | ------------------------------------------------- |
+| `flaky` | List flaky tests detected across a project's runs |
+| `list`  | List test results for a job                       |
 
 ## Targeted Commands
 
@@ -22,7 +23,8 @@ Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `ci
 
 ## Details
 
-Work with the test metadata CircleCI collects for a job.
+Work with the test metadata CircleCI collects for a job, and with the
+tests that flake across a project's runs.
 
 When a job stores test results (via the 'store_test_results' step),
 CircleCI parses them into per-test records. Use these commands to
