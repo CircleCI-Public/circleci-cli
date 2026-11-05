@@ -1,0 +1,23 @@
+# github.com/circleci-functions/setup-docker
+
+Build and push images.
+
+**Version:** v0.2.0
+**Latest:** v0.2.0
+
+## Arguments
+| Argument | Type   | Default | Description |
+| -------- | ------ | ------- | ----------- |
+| tag      | string |         |             |
+
+## Outputs
+| Output     | Type   | Secret | Description                  |
+| ---------- | ------ | ------ | ---------------------------- |
+| digest     | string | yes    | Digest of the pushed image.  |
+| image-refs | list   | no     | Each image reference pushed. |
+| pushed     | bool   | no     |                              |
+
+## Published versions
+| Version |
+| ------- |
+| v0.2.0  |

@@ -37,6 +37,15 @@ type Flag struct {
 	Description string `json:"description,omitempty"`
 }
 
+// Output is a value a function sets for the steps after it to read, read out
+// of a published descriptor. Its type is string, bool, int or list.
+type Output struct {
+	Name        string `json:"name"`
+	Type        string `json:"type"`
+	Description string `json:"description,omitempty"`
+	Secret      bool   `json:"secret"`
+}
+
 // Flags reads the arguments a function accepts: its root flags, then those of
 // the command a bare invocation runs, which a function built with a default
 // subcommand publishes under commands.<default>. A descriptor is served exactly
@@ -48,6 +57,34 @@ func Flags(content map[string]any) []Flag {
 		flags = append(flags, nodeFlags(node)...)
 	}
 	return flags
+}
+
+// Outputs reads the outputs a function sets, which every command of the
+// function shares and a descriptor lists at its root. An entry without a name
+// or a type is not an output, and is left out.
+func Outputs(content map[string]any) []Output {
+	raw, _ := content["outputs"].([]any)
+
+	var outputs []Output
+	for _, entry := range raw {
+		m, ok := entry.(map[string]any)
+		if !ok {
+			continue
+		}
+		name, _ := m["name"].(string)
+		kind, _ := m["type"].(string)
+		if name == "" || kind == "" {
+			continue
+		}
+		secret, _ := m["secret"].(bool)
+		outputs = append(outputs, Output{
+			Name:        name,
+			Type:        kind,
+			Description: str(m, "description"),
+			Secret:      secret,
+		})
+	}
+	return outputs
 }
 
 // defaultCommand returns the command a node runs when invoked without one, or

@@ -211,6 +211,54 @@ func TestFunctionGet(t *testing.T) {
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
 }
 
+func TestFunctionGetOutputs(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	const name = "github.com/circleci-functions/setup-docker"
+	const version = "v0.2.0"
+	fake.AddFunction(name, "Build and push images.", version)
+	fake.AddFunctionVersion(name, version, map[string]any{
+		"name":    "setup-docker",
+		"version": version,
+		"flags": []any{
+			map[string]any{"name": "tag", "type": "string"},
+		},
+		"outputs": []any{
+			map[string]any{
+				"name": "digest", "type": "string", "secret": true,
+				"description": "Digest of the pushed image.",
+			},
+			map[string]any{"name": "image-refs", "type": "list", "description": "Each image reference pushed."},
+			map[string]any{"name": "pushed", "type": "bool"},
+			map[string]any{"name": "no-type"},
+		},
+	})
+
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+
+	t.Run("The outputs are listed after the arguments", func(t *testing.T) {
+		result := runFunction(t, env, "get", "setup-docker")
+		assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+		assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	})
+
+	t.Run("The outputs are in the JSON, with whether each is secret", func(t *testing.T) {
+		result := runFunction(t, env, "get", "setup-docker", "--json")
+		assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+
+		var out struct {
+			Outputs []map[string]any `json:"outputs"`
+		}
+		assert.NilError(t, json.Unmarshal([]byte(result.Stdout), &out))
+		assert.Check(t, cmp.DeepEqual(out.Outputs, []map[string]any{
+			{"name": "digest", "type": "string", "secret": true, "description": "Digest of the pushed image."},
+			{"name": "image-refs", "type": "list", "secret": false, "description": "Each image reference pushed."},
+			{"name": "pushed", "type": "bool", "secret": false},
+		}))
+	})
+}
+
 // TestFunctionGetColorRendering drives the command through a PTY, where color is
 // on and glamour renders the markdown. It guards PIE-292: without escaping a
 // <placeholder> was dropped as an HTML tag and the underscores in snake_case
@@ -281,6 +329,7 @@ func TestFunctionGet_JSON(t *testing.T) {
 					"description": "Use the job cache.\nTurn off for hermetic builds.",
 				},
 			},
+			"outputs": []any{},
 			"example": setupGoExample,
 		}))
 	})
@@ -299,6 +348,7 @@ func TestFunctionGet_JSON(t *testing.T) {
 			"latest_version": setupGoLatest,
 			"versions":       []any{setupGoLatest, "v0.9.0"},
 			"flags":          []any{},
+			"outputs":        []any{},
 		}))
 	})
 }
