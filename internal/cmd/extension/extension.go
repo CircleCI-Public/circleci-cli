@@ -57,6 +57,13 @@ const (
 	updateFetchTimeout = 3 * time.Second
 )
 
+var officialExtDocs = map[string]extension.Reference{
+	Testsuite: {
+		Use:  "testsuite",
+		Long: "Reduce test execution time while maintaining test confidence with CircleCI's Smarter Testing.",
+	},
+}
+
 // RegisterExtensions registers extensions in the following order:
 //   - Managed extensions found in the extensions directory.
 //   - Official uninstalled extensions.
@@ -74,8 +81,9 @@ func RegisterExtensions(rootCmd *cobra.Command) {
 	managedExts, err := store.FindAll()
 	cobra.CheckErr(err)
 
-	officialInstalled := map[string]bool{
-		Testsuite: false,
+	officialInstalled := map[string]bool{}
+	for k := range officialExtDocs {
+		officialInstalled[k] = false
 	}
 
 	for _, ext := range managedExts {
@@ -91,7 +99,7 @@ func RegisterExtensions(rootCmd *cobra.Command) {
 
 	for extName, installed := range officialInstalled {
 		if !installed {
-			rootCmd.AddCommand(newPromptCmd(extName))
+			rootCmd.AddCommand(newPromptCmd(extName, officialExtDocs[extName]))
 			assignedCommands[extName] = true
 		}
 	}
@@ -105,15 +113,17 @@ func RegisterExtensions(rootCmd *cobra.Command) {
 	}
 }
 
-func newPromptCmd(name string) *cobra.Command {
+func newPromptCmd(name string, ref extension.Reference) *cobra.Command {
 	return &cobra.Command{
 		Use:   name,
 		Short: "Extension (circleci-" + name + ")",
 		Long: heredoc.Doc(fmt.Sprintf(`
+			%s
+
 			The CircleCI %q extension is not installed by default.
 
 			Install it with 'circleci extension install %s'.
-		`, name, name)),
+		`, ref.Long, name, name)),
 		GroupID:            "extension",
 		DisableFlagParsing: true,
 		RunE: func(cmd *cobra.Command, args []string) error {

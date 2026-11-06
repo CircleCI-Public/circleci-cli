@@ -10,6 +10,8 @@ Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `ci
 
 ## Details
 
+Reduce test execution time while maintaining test confidence with CircleCI's Smarter Testing.
+
 The CircleCI "testsuite" extension is not installed by default.
 
 Install it with 'circleci extension install testsuite'.

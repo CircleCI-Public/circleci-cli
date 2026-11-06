@@ -5465,6 +5465,8 @@ CLI command.
 
 Extension (circleci-testsuite)
 
+Reduce test execution time while maintaining test confidence with CircleCI's Smarter Testing.
+
 The CircleCI "testsuite" extension is not installed by default.
 
 Install it with 'circleci extension install testsuite'.
