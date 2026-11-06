@@ -24,13 +24,16 @@
 package configcmd
 
 import (
+	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 
 	"github.com/go-git/go-git/v6"
 	"github.com/go-git/go-git/v6/plumbing"
+	"github.com/go-git/go-git/v6/plumbing/object"
 	"gopkg.in/yaml.v3"
 
 	"github.com/CircleCI-Public/circleci-cli/internal/gitremote"
@@ -251,4 +254,74 @@ func openGitRepo() (*git.Repository, error) {
 		return nil, err
 	}
 	return git.PlainOpenWithOptions(cwd, &git.PlainOpenOptions{DetectDotGit: true})
+}
+
+// The tip `config validate` shows for a new config with no functions block. It
+// names no Function, because `circleci function list` is the catalog.
+const (
+	FunctionsTip     = "CircleCI Functions can replace orbs and install languages and tools in a new config. Orbs remain supported."
+	FunctionsTipNext = "Run `circleci function list` to find one, then `circleci function get <name>` for its arguments and an example."
+)
+
+// FunctionsSuggestions returns the Functions tip for a config file that is new
+// and declares no functions, or nothing.
+func FunctionsSuggestions(path, configYAML string) []Suggestion {
+	var doc map[string]any
+	if err := yaml.Unmarshal([]byte(configYAML), &doc); err != nil {
+		return []Suggestion{}
+	}
+	if _, ok := doc["functions"]; ok || !isNewConfig(path) {
+		return []Suggestion{}
+	}
+	return []Suggestion{{Message: FunctionsTip + " " + FunctionsTipNext}}
+}
+
+// isNewConfig reports whether the file at path is absent from HEAD: untracked,
+// in a repository with no commits, or outside a repository. Anything git cannot
+// answer counts as not new, so a working pipeline is never told to switch.
+func isNewConfig(path string) bool {
+	abs, err := filepath.Abs(path)
+	if err != nil {
+		return false
+	}
+	file, err := filepath.EvalSymlinks(abs)
+	if err != nil {
+		return false
+	}
+	repo, err := git.PlainOpenWithOptions(filepath.Dir(file), &git.PlainOpenOptions{DetectDotGit: true})
+	if errors.Is(err, git.ErrRepositoryNotExists) {
+		return true
+	}
+	if err != nil {
+		return false
+	}
+	wt, err := repo.Worktree()
+	if err != nil {
+		return false
+	}
+	root, err := filepath.EvalSymlinks(wt.Filesystem().Root())
+	if err != nil {
+		return false
+	}
+	rel, err := filepath.Rel(root, file)
+	if err != nil {
+		return false
+	}
+	head, err := repo.Head()
+	if errors.Is(err, plumbing.ErrReferenceNotFound) {
+		return true
+	}
+	if err != nil {
+		return false
+	}
+	commit, err := repo.CommitObject(head.Hash())
+	if err != nil {
+		return false
+	}
+	tree, err := commit.Tree()
+	if err != nil {
+		return false
+	}
+	_, err = tree.File(filepath.ToSlash(rel))
+	return errors.Is(err, object.ErrFileNotFound) || errors.Is(err, object.ErrDirectoryNotFound)
 }
