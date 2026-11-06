@@ -87,7 +87,7 @@ func newTriggerCmd() *cobra.Command {
 	cmdutil.AddJSONFlag(cmd, &jsonOut)
 	cmdutil.AddJQFlag(cmd)
 
-	return cmd
+	return cmdd
 }
 
 type triggerJSONOutput struct {
