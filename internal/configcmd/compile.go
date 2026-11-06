@@ -33,6 +33,13 @@ type ValidateResult struct {
 	Valid        bool     `json:"valid"`
 	CompiledYAML string   `json:"compiled_yaml,omitempty"`
 	Errors       []string `json:"errors,omitempty"`
+	// Suggestions is never nil, so --json shows an empty array.
+	Suggestions []Suggestion `json:"suggestions"`
+}
+
+// Suggestion is a tip `config validate` reports alongside a valid config.
+type Suggestion struct {
+	Message string `json:"message"`
 }
 
 // Validate compiles the config YAML against the CircleCI API and returns whether it
@@ -70,6 +77,7 @@ func compile(ctx context.Context, client *apiclient.Client, in apiclient.Compile
 		Valid:        res.Valid,
 		CompiledYAML: res.CompiledYAML,
 		Errors:       res.Errors,
+		Suggestions:  []Suggestion{},
 	}
 	// The API can report an invalid config without explicit messages — say
 	// something rather than fail silently.
