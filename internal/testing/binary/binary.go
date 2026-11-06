@@ -168,8 +168,13 @@ func RunCLI(t *testing.T, opts RunOpts) CLIResult {
 		}
 	}
 
+	out := stdout.String()
+	if opts.TTY {
+		out = collapsePTYCarriageReturns(out)
+	}
+
 	return CLIResult{
-		Stdout:   normalizeLocalURLs(stdout.String()),
+		Stdout:   normalizeLocalURLs(out),
 		Stderr:   filterDebugLines(stderr.String()),
 		ExitCode: exitCode,
 	}
@@ -267,6 +272,16 @@ func runCLIInteractive(t testing.TB, opts RunOpts, wantExitCode int) *expect.Con
 }
 
 var localURLPortRe = regexp.MustCompile(`http://127\.0\.0\.1:\d+/`)
+
+var ptyDoubledCRRe = regexp.MustCompile(`\r{2,}\n`)
+
+// collapsePTYCarriageReturns undoes a macOS tty quirk: when a write fills the
+// PTY's output buffer midway through ONLCR's "\n" -> "\r\n" translation, the
+// kernel emits the "\r" again on retry, so a line ends "\r\r\n". Where that
+// lands depends on read timing, which made byte-exact TTY goldens flaky.
+func collapsePTYCarriageReturns(s string) string {
+	return ptyDoubledCRRe.ReplaceAllString(s, "\r\n")
+}
 
 // normalizeLocalURLs replaces random-port localhost URLs with a fixed port so
 // golden file comparisons are stable across test runs.
