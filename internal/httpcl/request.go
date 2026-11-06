@@ -180,6 +180,10 @@ func OptionalQueryParam(key, val string) func(*Request) {
 
 func noop(_ *Request) {}
 
+// PathSegments is a route param whose "/" separators stay literal while each
+// segment is escaped on its own, for slugs like "gh/org/repo".
+type PathSegments string
+
 func RouteParams(v ...any) func(*Request) {
 	return func(r *Request) { r.routeParams = v }
 }

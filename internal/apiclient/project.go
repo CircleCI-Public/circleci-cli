@@ -140,7 +140,7 @@ func (c *Client) ListEnvVars(ctx context.Context, projectSlug string) ([]EnvVar,
 		Items []EnvVar `json:"items"`
 	}
 	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodGet, "/api/v2/project/%s/envvar",
-		httpcl.RouteParams(projectSlug),
+		httpcl.RouteParams(httpcl.PathSegments(projectSlug)),
 		httpcl.JSONDecoder(&resp),
 	))
 	if err != nil {
@@ -154,7 +154,7 @@ func (c *Client) SetEnvVar(ctx context.Context, projectSlug, name, value string)
 	body := map[string]any{"name": name, "value": value}
 	var ev EnvVar
 	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodPost, "/api/v2/project/%s/envvar",
-		httpcl.RouteParams(projectSlug),
+		httpcl.RouteParams(httpcl.PathSegments(projectSlug)),
 		httpcl.Body(body),
 		httpcl.JSONDecoder(&ev),
 	))
@@ -167,7 +167,7 @@ func (c *Client) SetEnvVar(ctx context.Context, projectSlug, name, value string)
 // DeleteEnvVar deletes a project environment variable by name.
 func (c *Client) DeleteEnvVar(ctx context.Context, projectSlug, name string) error {
 	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodDelete, "/api/v2/project/%s/envvar/%s",
-		httpcl.RouteParams(projectSlug, name),
+		httpcl.RouteParams(httpcl.PathSegments(projectSlug), name),
 	))
 	return err
 }
@@ -284,7 +284,7 @@ func (c *Client) GetProjectByID(ctx context.Context, id uuid.UUID) (*ProjectRef,
 func (c *Client) GetProjectInfo(ctx context.Context, projectSlug string) (*ProjectInfo, error) {
 	var info ProjectInfo
 	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodGet, "/api/v2/project/%s",
-		httpcl.RouteParams(projectSlug),
+		httpcl.RouteParams(httpcl.PathSegments(projectSlug)),
 		httpcl.JSONDecoder(&info),
 	))
 	if err != nil {

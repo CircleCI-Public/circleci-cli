@@ -315,3 +315,43 @@ func TestDeprecationWarning_NoHeadersNoCallback(t *testing.T) {
 	assert.NilError(t, err)
 	assert.Check(t, cmp.Equal(called, false), "OnWarn should not fire without deprecation headers")
 }
+
+func TestClient_Call_RouteParamEscaping(t *testing.T) {
+	tests := []struct {
+		name         string
+		param        any
+		expectedPath string
+	}{
+		{
+			name:         "path segments keep separators and escape each segment",
+			param:        httpcl.PathSegments("gh/myorg/my repo#1"),
+			expectedPath: "/project/gh/myorg/my%20repo%231/envvar",
+		},
+		{
+			name:         "path segments escape dot segments",
+			param:        httpcl.PathSegments("gh/../x"),
+			expectedPath: "/project/gh/%2E%2E/x/envvar",
+		},
+		{
+			name:         "plain string escapes separators",
+			param:        "gh/myorg/repo",
+			expectedPath: "/project/gh%2Fmyorg%2Frepo/envvar",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var actual string
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				actual = r.URL.EscapedPath()
+			}))
+			t.Cleanup(srv.Close)
+
+			c := httpcl.New(httpcl.Config{BaseURL: srv.URL, DisableRetries: true})
+			_, err := c.Call(iostream.Testing(context.Background()), httpcl.NewRequest(http.MethodGet, "/project/%s/envvar",
+				httpcl.RouteParams(tt.param),
+			))
+			assert.NilError(t, err)
+			assert.Check(t, cmp.Equal(actual, tt.expectedPath))
+		})
+	}
+}

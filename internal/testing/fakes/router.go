@@ -24,7 +24,6 @@ package fakes
 
 import (
 	"context"
-	"net/http"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -41,16 +40,5 @@ func newRouter() *chi.Mux {
 	r := chi.NewRouter()
 	r.Use(logger.Middleware(ctx))
 	r.Use(middleware.Recoverer)
-	r.Use(decodeRawPath)
 	return r
-}
-
-// decodeRawPath forces chi to route on the decoded r.URL.Path rather than
-// r.URL.RawPath, so routes with literal slashes in path segments
-// (e.g. vcs/org/repo) match correctly.
-func decodeRawPath(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		r.URL.RawPath = ""
-		next.ServeHTTP(w, r)
-	})
 }
