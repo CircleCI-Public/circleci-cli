@@ -53,14 +53,15 @@ type reportJob struct {
 	hasFailedTest bool
 }
 
-// runFailureReport prints condensed output for every failed step in the run,
+// FailureReport prints condensed output for every failed step in the run,
 // organised as workflow → job → execution → step headers, followed by next
-// steps. It is the output path for --failure-report and never enters the TUI.
+// steps. It is the output path for --failure-report (on "run get" and
+// "my runs") and never enters the TUI.
 //
 // Output is written to stdout so it can be piped directly into an agent's
 // context window. Empty output (no failed steps, or run not in a failed state)
 // is valid and exits 0.
-func runFailureReport(ctx context.Context, client *apiclient.Client, r *apiclient.RunV3) error {
+func FailureReport(ctx context.Context, client *apiclient.Client, r *apiclient.RunV3) error {
 	workflows, err := client.GetRunWorkflowsV3(ctx, r.ID)
 	if err != nil {
 		if httpcl.HasStatusCode(err, http.StatusNotFound) {

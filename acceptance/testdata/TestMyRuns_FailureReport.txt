@@ -1,0 +1,20 @@
+# run: e0000000-0000-4000-8000-00000000b002
+
+- project: acme/api
+- ref: feature
+- revision: deadbee
+- created: 2026-06-19 10:00 UTC
+- status: failing
+
+## workflow: build
+
+### job: compile
+
+#### step 101: go build [exit: 1]
+
+internal/cmd/run/trigger.go:90:9: undefined: cmdd
+
+## next steps
+
+- If "build" failed transiently (network timeout, lost executor), rerun its failed jobs: circleci workflow rerun b0000000-0000-4000-8000-00000000b002 --from-failed
+- Push the fix and watch it: git push && circleci run watch --sha "$(git rev-parse HEAD)"

@@ -24,6 +24,7 @@ package my
 
 import (
 	"context"
+	"fmt"
 	"strings"
 
 	"github.com/MakeNowJust/heredoc"
@@ -33,13 +34,15 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/clikit/iostream"
 	"github.com/CircleCI-Public/circleci-cli/clikit/mdtable"
 	"github.com/CircleCI-Public/circleci-cli/internal/apiclient"
+	cmdrun "github.com/CircleCI-Public/circleci-cli/internal/cmd/run"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmdutil"
 )
 
 func newRunsCmd() *cobra.Command {
 	var (
-		limit   int
-		jsonOut bool
+		limit         int
+		jsonOut       bool
+		failureReport bool
 	)
 
 	cmd := &cobra.Command{
@@ -47,11 +50,10 @@ func newRunsCmd() *cobra.Command {
 		Aliases: []string{"run"},
 		Short:   "List your recent runs grouped by project",
 		Long: heredoc.Doc(`
-			List recent runs you triggered, across every project you have access to.
+			List recent runs you triggered across every project, in the order the API
+			returns them. Unlike "circleci run list", it is not limited to one project.
 
-			This is the personal counterpart to "circleci run list": rather than a
-			single project, it shows your runs everywhere, in the order the API
-			returns them, with the project of each run in its own column.
+			--failure-report counts a run still running with a failed job as failed.
 
 			JSON: an array of runs, each { project, project_id, id, phase, outcome, current_outcome,
 			branch, tag, revision, created_at, warnings[].type/message/description/url },
@@ -61,14 +63,14 @@ func newRunsCmd() *cobra.Command {
 			# List your recent runs across all projects
 			$ circleci my runs
 
-			# Show more results
-			$ circleci my runs --limit 50
-
 			# Output as JSON for scripting
 			$ circleci my runs --json
 
 			# Pull out just the run IDs with jq
 			$ circleci my runs --json --jq '.[].id'
+
+			# Diagnose your latest failed run, in any project
+			$ circleci my runs --failure-report
 		`),
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -77,13 +79,21 @@ func newRunsCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
+			if failureReport {
+				return runLatestFailureReport(ctx, client)
+			}
 			return runMyRuns(ctx, client, limit, jsonOut)
 		},
 	}
 
 	cmd.Flags().IntVar(&limit, "limit", 20, "Maximum number of runs to fetch [default: 20]")
+	cmd.Flags().BoolVar(&failureReport, "failure-report", false, "print the failure report for your newest failed run")
 	cmdutil.AddJSONFlag(cmd, &jsonOut)
 	cmdutil.AddJQFlag(cmd)
+	// The report is plain text about one run, so it takes no output or count flags.
+	cmd.MarkFlagsMutuallyExclusive("failure-report", "json")
+	cmd.MarkFlagsMutuallyExclusive("failure-report", "jq")
+	cmd.MarkFlagsMutuallyExclusive("failure-report", "limit")
 
 	return cmd
 }
@@ -129,6 +139,38 @@ func runMyRuns(ctx context.Context, client *apiclient.Client, limit int, jsonOut
 
 	printRuns(ctx, entries)
 	return nil
+}
+
+// runLatestFailureReport finds the user's newest run with a failed outcome, in
+// any phase, and prints a header naming it followed by its failure report. With
+// no failed run it says so on stderr and exits 0, as an empty list does.
+func runLatestFailureReport(ctx context.Context, client *apiclient.Client) error {
+	runs, err := client.ListMyRunsV3(ctx, apiclient.MyRunsParams{Limit: 1, CurrentOutcome: "failed"})
+	if err != nil {
+		return cmdutil.APIErr(err, "your runs",
+			"my.runs_failed", "Could not list your runs.")
+	}
+	if len(runs) == 0 {
+		iostream.ErrPrintln(ctx, "No failed runs found.")
+		return nil
+	}
+
+	r := &runs[0]
+	e := toEntry(r, cmdutil.RepoSlug(r.RepositoryURL), projectIDString(r.ProjectID))
+	project := e.Project
+	if project == "" {
+		project = "(unknown)"
+	}
+	var b strings.Builder
+	fmt.Fprintf(&b, "# run: %s\n\n", e.ID)
+	fmt.Fprintf(&b, "- project: %s\n", project)
+	fmt.Fprintf(&b, "- ref: %s\n", refDisplay(e.Branch, e.Tag))
+	fmt.Fprintf(&b, "- revision: %s\n", e.Revision)
+	fmt.Fprintf(&b, "- created: %s\n", e.CreatedAt)
+	fmt.Fprintf(&b, "- status: %s\n\n", apiclient.PhaseOutcomeText(e.Phase, e.Outcome, e.CurrentOutcome))
+	iostream.Print(ctx, b.String())
+
+	return cmdrun.FailureReport(ctx, client, r)
 }
 
 // projectIDString renders a run's project UUID for JSON, or "" for the nil UUID
