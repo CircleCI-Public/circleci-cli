@@ -154,7 +154,7 @@ No API token is required; without one, only public orbs resolve.
 Private and namespaced orbs need a token and resolve against your org, taken
 from --org, a 'circleci project link' binding, or the git remote, in that order.
 
-JSON fields (--json): valid (bool), compiled_yaml (string, when valid), errors (array of compilation messages, when invalid)
+JSON fields (--json): valid, compiled_yaml (when valid), errors (when invalid), suggestions (a Functions tip for a new config)
 
 | Flag                  | Description                                                                                  |
 | --------------------- | -------------------------------------------------------------------------------------------- |
