@@ -326,6 +326,10 @@ type MyRunsParams struct {
 	// Status narrows the list to runs with that pipeline status (e.g. "failed",
 	// "on_hold"); an empty status lists every status.
 	Status string
+	// CurrentOutcome narrows the list to runs with that current_outcome in any
+	// phase, so "failed" matches runs that have ended failed and runs that are
+	// still running with a failed job. It replaces the outcome Status implies.
+	CurrentOutcome string
 	// From and To bound the list to runs created within that window
 	// (filter[from]/filter[to], RFC3339). A nil bound is omitted, letting the
 	// endpoint apply its own default for that side.
@@ -342,6 +346,9 @@ type MyRunsParams struct {
 // converted to those via StatusPhaseOutcome.
 func (c *Client) ListMyRunsV3(ctx context.Context, params MyRunsParams) ([]RunV3, error) {
 	phase, currentOutcome := StatusPhaseOutcome(params.Status)
+	if params.CurrentOutcome != "" {
+		currentOutcome = params.CurrentOutcome
+	}
 	return paginateRunsV3(params.Limit, "", func(pageSize int, cursor string) (v3List[runWire], error) {
 		var resp v3List[runWire]
 		_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodGet, "/api/v3/runs",

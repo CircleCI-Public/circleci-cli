@@ -27,6 +27,7 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+	"time"
 
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/assert/cmp"
@@ -231,4 +232,98 @@ func TestMyRuns_NoToken(t *testing.T) {
 	})
 
 	assert.Equal(t, result.ExitCode, 3, "stderr: %s", result.Stderr) // ExitAuthError
+}
+
+// --- my runs --failure-report ---
+
+// TestMyRuns_FailureReport picks the newest run with a failed outcome — here
+// one still running with a failed job, ahead of an older run that ended failed
+// and skipping a newer run that succeeded — and prints a header naming it
+// followed by its failure report.
+func TestMyRuns_FailureReport(t *testing.T) {
+	const (
+		failingRunID = "e0000000-0000-4000-8000-00000000b002"
+		wfID         = "b0000000-0000-4000-8000-00000000b002"
+		jobID        = "d0000000-0000-4000-8000-00000000b002"
+		projectID    = "a0000000-0000-4000-8000-00000000aa02"
+	)
+	fake := fakes.NewCircleCI(t)
+	fake.SetUserRuns(
+		fakeMyRunV3("e0000000-0000-4000-8000-00000000b001", "a0000000-0000-4000-8000-00000000aa01", "ended", "succeeded", "https://github.com/acme/web", "main", "1111111122222222", "2026-06-19T11:00:00Z"),
+		fakeMyRunV3(failingRunID, projectID, "started", "failed", "https://github.com/acme/api", "feature", "deadbeef12345678", "2026-06-19T10:00:00Z"),
+		fakeMyRunV3("e0000000-0000-4000-8000-00000000b003", projectID, "ended", "failed", "https://github.com/acme/api", "main", "abc1234def5678", "2026-06-19T09:00:00Z"),
+	)
+	fake.AddRunWorkflowsV3(failingRunID, fakeWorkflowV3(wfID, "build", failingRunID, projectID, "started", "failed"))
+	fake.AddWorkflowJobsV3(wfID, fakeJobV3(jobID, "compile", wfID, projectID))
+
+	now := time.Date(2020, 1, 1, 12, 0, 0, 0, time.UTC).Format(v3TimeFormat)
+	fake.AddJobV3(fakes.JobV3{
+		ID: jobID, Name: "compile", Type: "build", Phase: "ended", Outcome: "failed",
+		StartedAt: now, EndedAt: now, WorkflowID: wfID, ProjectID: projectID,
+		Executions: [][]fakes.JobStep{{
+			{Name: "go build", Type: "run", Num: 101, Phase: "ended", Outcome: "failed", ExitCode: new(1), StartedAt: now, EndedAt: now},
+		}},
+	})
+	fake.AddJobStdoutCondensed(jobID, 0, 101, []byte("internal/cmd/run/trigger.go:90:9: undefined: cmdd\n"))
+
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"my", "runs", "--failure-report"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 0))
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, cmp.Equal(result.Stderr, ""))
+}
+
+// TestMyRuns_FailureReport_NoFailedRuns says so on stderr and exits 0 when none
+// of the user's runs failed, as an empty list does.
+func TestMyRuns_FailureReport_NoFailedRuns(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	fake.SetUserRuns(
+		fakeMyRunV3("e0000000-0000-4000-8000-00000000b001", "a0000000-0000-4000-8000-00000000aa01", "ended", "succeeded", "https://github.com/acme/web", "main", "1111111122222222", "2026-06-19T11:00:00Z"),
+	)
+
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"my", "runs", "--failure-report"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 0))
+	assert.Check(t, cmp.Equal(result.Stdout, ""))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+}
+
+// TestMyRuns_FailureReport_RejectsOtherFlags exits 2 when --failure-report is
+// combined with a flag it cannot honour: the report is plain text about one run.
+func TestMyRuns_FailureReport_RejectsOtherFlags(t *testing.T) {
+	for _, flag := range [][]string{{"--json"}, {"--jq", ".[]"}, {"--limit", "5"}} {
+		t.Run(flag[0], func(t *testing.T) {
+			env := testenv.New(t)
+			env.Token = testToken
+
+			result := binary.RunCLI(t, binary.RunOpts{
+				Binary:  binaryPath,
+				Args:    append([]string{"my", "runs", "--failure-report"}, flag...),
+				Env:     env.Environ(),
+				WorkDir: t.TempDir(),
+			})
+
+			assert.Check(t, cmp.Equal(result.ExitCode, 2))
+			assert.Check(t, cmp.Equal(result.Stdout, ""))
+			assert.Check(t, cmp.Contains(result.Stderr, "failure-report"))
+		})
+	}
 }

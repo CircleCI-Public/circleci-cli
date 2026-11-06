@@ -280,7 +280,7 @@ func runGet(ctx context.Context, client *apiclient.Client, args []string, projec
 	}
 
 	if failureReport {
-		return runFailureReport(ctx, client, r)
+		return FailureReport(ctx, client, r)
 	}
 	return displayRun(ctx, client, r, jsonOut)
 }
