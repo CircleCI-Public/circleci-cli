@@ -33,6 +33,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/hashicorp/go-retryablehttp"
@@ -119,9 +120,21 @@ func (c *Client) Call(ctx context.Context, r Request) (status int, err error) {
 	if len(r.routeParams) > 0 {
 		params := make([]any, len(r.routeParams))
 		for i, value := range r.routeParams {
-			switch value.(type) {
+			switch v := value.(type) {
 			case int, int8, int16, int32, int64, float32, float64:
 				params[i] = value
+			case PathSegments:
+				segments := strings.Split(string(v), "/")
+				for j, segment := range segments {
+					// url.PathEscape leaves dot segments literal, which would let a
+					// slug like "gh/../x" change the route.
+					if segment == "." || segment == ".." {
+						segments[j] = strings.ReplaceAll(segment, ".", "%2E")
+						continue
+					}
+					segments[j] = url.PathEscape(segment)
+				}
+				params[i] = strings.Join(segments, "/")
 			default:
 				params[i] = url.PathEscape(fmt.Sprint(value))
 			}

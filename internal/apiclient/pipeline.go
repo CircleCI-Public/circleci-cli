@@ -111,7 +111,7 @@ func (c *Client) GetPipeline(ctx context.Context, id string) (*Pipeline, error) 
 func (c *Client) GetPipelineByNumber(ctx context.Context, projectSlug string, number int64) (*Pipeline, error) {
 	var p Pipeline
 	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodGet, "/api/v2/project/%s/pipeline/%d",
-		httpcl.RouteParams(projectSlug, number),
+		httpcl.RouteParams(httpcl.PathSegments(projectSlug), number),
 		httpcl.JSONDecoder(&p),
 	))
 	if err != nil {
@@ -141,7 +141,7 @@ func (c *Client) TriggerPipeline(ctx context.Context, projectSlug, branch string
 
 	var resp TriggerResponse
 	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodPost, "/api/v2/project/%s/pipeline",
-		httpcl.RouteParams(projectSlug),
+		httpcl.RouteParams(httpcl.PathSegments(projectSlug)),
 		httpcl.Body(body),
 		httpcl.JSONDecoder(&resp),
 	))
