@@ -6,6 +6,22 @@ is added by its release PR (see [RELEASE.md](RELEASE.md)) and becomes its GitHub
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.15.0] - 2026-11-10
+
+### What's Changed
+* Add testresult flaky to list a project's flaky tests by @gcirclest in https://github.com/CircleCI-Public/circleci-cli/pull/1969
+* Say --type is only for Functions, not MCP tools or CLI commands by @stiyyagura0901 in https://github.com/CircleCI-Public/circleci-cli/pull/1974
+* Add extension reference to prompt commands by @liamclarkedev in https://github.com/CircleCI-Public/circleci-cli/pull/1977
+* Send project slugs with literal slash separators by @shawon-crosen in https://github.com/CircleCI-Public/circleci-cli/pull/1978
+* Add --failure-report to my runs by @gcirclest in https://github.com/CircleCI-Public/circleci-cli/pull/1976
+* Emit RFC 3339 timestamps in JSON and honour TZ in human output by @gcirclest in https://github.com/CircleCI-Public/circleci-cli/pull/1981
+* Suggest Functions when config validate passes on a new config by @stiyyagura0901 in https://github.com/CircleCI-Public/circleci-cli/pull/1975
+
+### New Contributors
+* @shawon-crosen made their first contribution in https://github.com/CircleCI-Public/circleci-cli/pull/1978
+
+**Full Changelog**: https://github.com/CircleCI-Public/circleci-cli/compare/v1.14.0...v1.15.0
+
 ## [1.14.0] - 2026-11-04
 
 ### What's Changed
