@@ -94,13 +94,13 @@ func NewSetupCmd() *cobra.Command {
 }
 
 func runSetup(ctx context.Context, host, token string, secureStorage bool, path string) error {
-	if err := config.SetHost(ctx, host); err != nil {
+	if err := config.SetHost(ctx, path, host); err != nil {
 		return clierrors.New("setup.save_failed", "Failed to save host", err.Error()).
 			WithExitCode(clierrors.ExitGeneralError)
 	}
 	// Let the config layer route the token to the keyring or the config file
 	// based on secureStorage, exactly as 'setting set token' does.
-	res, err := config.SetToken(ctx, token, secureStorage)
+	res, err := config.SetToken(ctx, path, token, secureStorage)
 	if err != nil {
 		return clierrors.New("setup.save_failed", "Failed to save token", err.Error()).
 			WithExitCode(clierrors.ExitGeneralError)
