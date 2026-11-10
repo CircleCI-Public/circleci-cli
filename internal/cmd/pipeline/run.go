@@ -26,7 +26,6 @@ import (
 	"context"
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/MakeNowJust/heredoc"
 	"github.com/spf13/cobra"
@@ -209,7 +208,7 @@ func runRun(ctx context.Context, client *apiclient.Client, projectSlug, definiti
 		out.ID = result.ID
 		out.State = result.State
 		out.Number = result.Number
-		out.CreatedAt = result.CreatedAt.Format(time.RFC3339)
+		out.CreatedAt = cmdutil.JSONTime(result.CreatedAt)
 		out.Branch = branch
 	}
 

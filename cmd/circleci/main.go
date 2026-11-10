@@ -47,6 +47,7 @@ func main() {
 	// surfaces as a normal EPIPE write error rather than terminating the process
 	// with exit code 141. Go's I/O layer handles EPIPE silently on stdout/stderr.
 	signal.Ignore(syscall.SIGPIPE)
+	applyTZ()
 	os.Exit(run())
 }
 

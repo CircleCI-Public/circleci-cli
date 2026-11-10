@@ -26,7 +26,6 @@ import (
 	"context"
 	"fmt"
 	"net/http"
-	"time"
 
 	"github.com/MakeNowJust/heredoc"
 	"github.com/spf13/cobra"
@@ -143,7 +142,7 @@ func RunEnvList(ctx context.Context, client *apiclient.Client, projectSlug strin
 	for _, v := range vars {
 		created := ""
 		if v.CreatedAt != nil {
-			created = v.CreatedAt.Format(time.RFC3339)
+			created = cmdutil.DisplayTime(*v.CreatedAt)
 		}
 		tbl.Row(v.Name, v.Value, created)
 	}

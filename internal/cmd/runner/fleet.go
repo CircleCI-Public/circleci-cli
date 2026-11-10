@@ -102,7 +102,7 @@ func toFleetOutput(f apiclient.RunnerFleet) fleetOutput {
 		QueuedTasks:        f.Attributes.QueuedTasks,
 	}
 	if t := f.Attributes.LastTaskClaimedAt; t != nil {
-		s := timestamp(*t)
+		s := cmdutil.JSONTime(*t)
 		out.LastTaskClaimedAt = &s
 	}
 	return out
@@ -113,7 +113,7 @@ func claimedOrNever(t *string) string {
 	if t == nil {
 		return "never"
 	}
-	return *t
+	return cmdutil.DisplayTimeString(*t)
 }
 
 // fleetUnavailableErr reports runner-admin's 503, which it answers when it cannot read the

@@ -26,6 +26,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/MakeNowJust/heredoc"
 	"github.com/google/uuid"
@@ -108,7 +109,7 @@ type runEntry struct {
 	Branch         string                 `json:"branch,omitempty"`
 	Tag            string                 `json:"tag,omitempty"`
 	Revision       string                 `json:"revision,omitempty"`
-	CreatedAt      string                 `json:"created_at"`
+	CreatedAt      time.Time              `json:"created_at"`
 	Warnings       []apiclient.RunWarning `json:"warnings,omitempty"`
 }
 
@@ -166,7 +167,7 @@ func runLatestFailureReport(ctx context.Context, client *apiclient.Client) error
 	fmt.Fprintf(&b, "- project: %s\n", project)
 	fmt.Fprintf(&b, "- ref: %s\n", refDisplay(e.Branch, e.Tag))
 	fmt.Fprintf(&b, "- revision: %s\n", e.Revision)
-	fmt.Fprintf(&b, "- created: %s\n", e.CreatedAt)
+	fmt.Fprintf(&b, "- created: %s\n", cmdutil.DisplayTime(e.CreatedAt))
 	fmt.Fprintf(&b, "- status: %s\n\n", apiclient.PhaseOutcomeText(e.Phase, e.Outcome, e.CurrentOutcome))
 	iostream.Print(ctx, b.String())
 
@@ -197,7 +198,7 @@ func toEntry(r *apiclient.RunV3, project, projectID string) runEntry {
 		Branch:         r.Branch,
 		Tag:            r.Tag,
 		Revision:       rev,
-		CreatedAt:      r.CreatedAt.Format("2006-01-02 15:04 UTC"),
+		CreatedAt:      r.CreatedAt.UTC(),
 		Warnings:       r.Warnings,
 	}
 }
@@ -222,7 +223,7 @@ func printRuns(ctx context.Context, entries []runEntry) {
 			refDisplay(e.Branch, e.Tag),
 			e.Revision,
 			"`"+e.ID.String()+"`",
-			e.CreatedAt,
+			cmdutil.DisplayTime(e.CreatedAt),
 			status,
 		)
 	}

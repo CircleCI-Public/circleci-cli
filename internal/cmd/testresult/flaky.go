@@ -189,7 +189,7 @@ func runFlaky(ctx context.Context, client *apiclient.Client, slug, sortKey strin
 	table := mdtable.New("Test", "Classname", "Times flaked", "Job", "Last flaked")
 	for _, ft := range tests {
 		table.Row(ft.TestName, ft.Classname, strconv.Itoa(ft.TimesFlaked), ft.JobName,
-			ft.LastFlakedAt.UTC().Format("2006-01-02 15:04 UTC"))
+			cmdutil.DisplayTime(ft.LastFlakedAt))
 	}
 	iostream.PrintMarkdown(ctx, "# Flaky tests\n"+table.Render())
 	printIncompleteNote(ctx, search)

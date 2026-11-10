@@ -177,12 +177,12 @@ func runGet(ctx context.Context, client *apiclient.Client, contextName, orgRef s
 	}
 
 	lines := fmt.Sprintf("# Context\n- ID: `%s`\n- Name: %s\n- Org ID: `%s`\n- Created: %s\n",
-		out.ID, out.Name, out.OrgID, out.CreatedAt.Format(time.RFC3339))
+		out.ID, out.Name, out.OrgID, cmdutil.DisplayTime(out.CreatedAt))
 
 	if len(envVars) > 0 {
 		tbl := mdtable.New("Variable", "Value", "Updated")
 		for _, v := range envVars {
-			tbl.Row(v.Variable, "`****"+v.TruncatedValue+"`", v.UpdatedAt.Format(time.RFC3339))
+			tbl.Row(v.Variable, "`****"+v.TruncatedValue+"`", cmdutil.DisplayTime(v.UpdatedAt))
 		}
 		lines += "\n## Environment Variables\n" + tbl.Render()
 	}

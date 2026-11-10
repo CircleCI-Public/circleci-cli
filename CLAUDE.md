@@ -321,6 +321,7 @@ through `iostream.Streams`.
 | `CIRCLE_NO_UPDATE_CHECK` | Disable checking for newer CLI and extension releases. Same as `setting set update-check off` | `config.IsUpdateCheck()` |
 | `CIRCLE_NO_PAGER` | Print long output inline instead of through a pager | `iostream` |
 | `PAGER` | Pager program for long output. Unset → built-in scrollable viewer; `cat` or empty → paging off | `iostream` |
+| `TZ` | Time zone for timestamps in human output. JSON is always UTC | Go runtime (`time.Local`), via `cmdutil.DisplayTime` |
 | `CIRCLE_NO_TELEMETRY` | Disable telemetry | `config` |
 | `NO_ANALYTICS` | Disable telemetry (cross-tool standard) | `config` |
 | `DO_NOT_TRACK` | Disable telemetry (cross-tool standard) | `config` |

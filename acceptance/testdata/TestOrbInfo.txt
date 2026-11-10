@@ -4,7 +4,7 @@
 - **Name:** myorg/my-orb
 - **Namespace:** myorg
 - **Latest Version:** 1.0.0
-- **Created:** 2026-01-01T00:00:00.000Z
+- **Created:** 2026-01-01 00:00 UTC
 - **Private:** no
 - **Listed:** yes
 

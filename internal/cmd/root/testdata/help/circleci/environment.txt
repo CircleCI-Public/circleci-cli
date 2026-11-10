@@ -29,6 +29,9 @@ extension releases. Same effect as `circleci setting set update-check off`.
 When unset, a built-in scrollable viewer is used. Set it to `cat` or an empty value to disable
 paging entirely.
 
+`TZ`: the time zone timestamps are shown in (for example `Europe/London`). Unset, the
+system zone is used. JSON output is always in UTC.
+
 `CIRCLE_NO_TELEMETRY`: set to any value to disable telemetry.
 
 `NO_ANALYTICS`: set to any value to disable telemetry.

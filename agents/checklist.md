@@ -40,6 +40,7 @@ A quick-reference checklist for agents writing a new CLI. Work through each sect
 - [ ] Long-running operations provide progress feedback — silence creates user anxiety
 - [ ] Color disabled when: no TTY, `NO_COLOR` set, `COLOR=false` set, `TERM=dumb`, `--no-color` passed
 - [ ] No animations/progress bars outside of a TTY
+- [ ] Timestamps: RFC 3339 in UTC in `--json`; local time via `cmdutil.Display*` in human output — no layout with a literal `UTC`/`Z`
 - [ ] Spinners and progress indicators routed to stderr (not stdout)
 - [ ] Network calls and non-obvious file writes are disclosed to the user
 

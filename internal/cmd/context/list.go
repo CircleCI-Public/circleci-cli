@@ -124,7 +124,7 @@ func runList(ctx context.Context, client *apiclient.Client, orgRef string, name 
 
 	tbl := mdtable.New("Name", "ID", "Created")
 	for _, e := range entries {
-		tbl.Row(e.Name, "`"+e.ID.String()+"`", e.CreatedAt.Format(time.RFC3339))
+		tbl.Row(e.Name, "`"+e.ID.String()+"`", cmdutil.DisplayTime(e.CreatedAt))
 	}
 	iostream.PrintMarkdown(ctx, "# Contexts\n"+tbl.Render())
 	return nil

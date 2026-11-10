@@ -130,7 +130,7 @@ func runTrigger(ctx context.Context, client *apiclient.Client, projectSlug, bran
 			ID:        resp.ID,
 			Number:    resp.Number,
 			State:     resp.State,
-			CreatedAt: resp.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
+			CreatedAt: cmdutil.JSONTime(resp.CreatedAt),
 		}
 		return iostream.PrintJSON(ctx, out)
 	}

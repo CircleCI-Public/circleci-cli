@@ -165,14 +165,6 @@ func instanceStatus(lastConnected time.Time) string {
 	}
 }
 
-// timestamp renders an API timestamp, leaving an absent one empty rather than printing the zero time.
-func timestamp(t time.Time) string {
-	if t.IsZero() {
-		return ""
-	}
-	return t.UTC().Format(time.RFC3339)
-}
-
 func yesNo(b bool) string {
 	if b {
 		return "yes"
@@ -231,8 +223,8 @@ func runInstanceList(ctx context.Context, client *apiclient.Client,
 			Version:          a.Attributes.Version,
 			Status:           instanceStatus(a.Attributes.LastConnectedAt),
 			IsBusy:           a.Attributes.IsBusy,
-			FirstConnectedAt: timestamp(a.Attributes.FirstConnectedAt),
-			LastConnectedAt:  timestamp(a.Attributes.LastConnectedAt),
+			FirstConnectedAt: cmdutil.JSONTime(a.Attributes.FirstConnectedAt),
+			LastConnectedAt:  cmdutil.JSONTime(a.Attributes.LastConnectedAt),
 		}
 	}
 
@@ -255,7 +247,7 @@ func runInstanceList(ctx context.Context, client *apiclient.Client,
 
 	table := mdtable.New("Resource Class", "Name", "Status", "Busy", "Last Connected")
 	for _, inst := range out {
-		table.Row(inst.ResourceClass, inst.Name, inst.Status, yesNo(inst.IsBusy), inst.LastConnectedAt)
+		table.Row(inst.ResourceClass, inst.Name, inst.Status, yesNo(inst.IsBusy), cmdutil.DisplayTimeString(inst.LastConnectedAt))
 	}
 	iostream.PrintMarkdown(ctx, "# Runner Instances\n"+table.Render())
 	return nil

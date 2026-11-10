@@ -137,9 +137,9 @@ func jobMarkdown(j *apiclient.JobV3, u string) string {
 	_, _ = fmt.Fprintf(&md, "- Type: %s\n", j.Type)
 	_, _ = fmt.Fprintf(&md, "- URL: %s\n", u)
 	_, _ = fmt.Fprintf(&md, "- Status: %s\n", j.Status())
-	_, _ = fmt.Fprintf(&md, "- Started: %s\n", j.StartedAt.Format("2006-01-02 15:04:05 UTC"))
+	_, _ = fmt.Fprintf(&md, "- Started: %s\n", cmdutil.DisplayTimeSeconds(j.StartedAt))
 	if j.StoppedAt != nil {
-		_, _ = fmt.Fprintf(&md, "- Stopped: %s\n", j.StoppedAt.Format("2006-01-02 15:04:05 UTC"))
+		_, _ = fmt.Fprintf(&md, "- Stopped: %s\n", cmdutil.DisplayTimeSeconds(*j.StoppedAt))
 		_, _ = fmt.Fprintf(&md, "- Duration: %s\n", j.StoppedAt.Sub(j.StartedAt).Round(100*1e6))
 	}
 	_, _ = fmt.Fprintf(&md, "- Workflow: `%s`\n", j.WorkflowID)

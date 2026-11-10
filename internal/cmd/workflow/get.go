@@ -26,6 +26,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/MakeNowJust/heredoc"
 	"github.com/google/uuid"
@@ -92,8 +93,8 @@ type workflowGetOutput struct {
 	Outcome        string      `json:"outcome,omitempty"`
 	CurrentOutcome string      `json:"current_outcome,omitempty"`
 	RunID          uuid.UUID   `json:"run_id"`
-	CreatedAt      string      `json:"created_at"`
-	EndedAt        string      `json:"ended_at,omitempty"`
+	CreatedAt      time.Time   `json:"created_at"`
+	EndedAt        *time.Time  `json:"ended_at,omitempty"`
 	Jobs           []jobOutput `json:"jobs"`
 }
 
@@ -159,10 +160,11 @@ func fetchWorkflowOutput(ctx context.Context, client *apiclient.Client, id uuid.
 		Outcome:        wf.Outcome,
 		CurrentOutcome: wf.CurrentOutcome,
 		RunID:          wf.RunID,
-		CreatedAt:      wf.CreatedAt.Format("2006-01-02 15:04:05 UTC"),
+		CreatedAt:      wf.CreatedAt.UTC(),
 	}
 	if wf.EndedAt != nil {
-		out.EndedAt = wf.EndedAt.Format("2006-01-02 15:04:05 UTC")
+		ended := wf.EndedAt.UTC()
+		out.EndedAt = &ended
 	}
 	for _, j := range jobs {
 		out.Jobs = append(out.Jobs, jobOutput{
@@ -210,9 +212,9 @@ func workflowMarkdown(w workflowGetOutput, u string) string {
 	_, _ = fmt.Fprintf(&md, "- Run: `%s`\n", w.RunID)
 	_, _ = fmt.Fprintf(&md, "- URL: %s\n", u)
 	_, _ = fmt.Fprintf(&md, "- Status: %s\n", apiclient.PhaseOutcomeStatus(w.Phase, w.Outcome, w.CurrentOutcome))
-	_, _ = fmt.Fprintf(&md, "- Created: %s\n", w.CreatedAt)
-	if w.EndedAt != "" {
-		_, _ = fmt.Fprintf(&md, "- Ended: %s\n", w.EndedAt)
+	_, _ = fmt.Fprintf(&md, "- Created: %s\n", cmdutil.DisplayTimeSeconds(w.CreatedAt))
+	if w.EndedAt != nil {
+		_, _ = fmt.Fprintf(&md, "- Ended: %s\n", cmdutil.DisplayTimeSeconds(*w.EndedAt))
 	}
 
 	if len(w.Jobs) > 0 {

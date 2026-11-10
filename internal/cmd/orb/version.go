@@ -137,7 +137,7 @@ func runOrbVersion(ctx context.Context, client *apiclient.Client, ref string, js
 	md += fmt.Sprintf("- **ID:** `%s`\n", out.ID)
 	md += fmt.Sprintf("- **Orb:** %s\n", out.OrbName)
 	md += fmt.Sprintf("- **Version:** %s\n", out.Version)
-	md += fmt.Sprintf("- **Published:** %s\n", out.CreatedAt)
+	md += fmt.Sprintf("- **Published:** %s\n", cmdutil.DisplayTimeString(out.CreatedAt))
 	md += fmt.Sprintf("- **Orb ID:** `%s`\n", out.OrbID)
 
 	iostream.PrintMarkdown(ctx, md)
