@@ -18,6 +18,11 @@
 8. **Make cross-boundary actions explicit** — file writes and network calls the
    user didn't ask for.
 9. **Keep output grep-parseable** for commands whose job is to display data.
+10. **Timestamps: RFC 3339 in UTC for JSON, local time for humans.** A `--json`
+    field holds a `time.Time` (normalised with `.UTC()`) or a
+    `cmdutil.JSONTime` string — never a display string. Human output goes through
+    `cmdutil.DisplayTime` / `DisplayTimeSeconds` / `DisplayTimeString`, which honour
+    `TZ` and name the zone. Never write a layout with a literal `UTC` or `Z` in it.
 
 ---
 
@@ -197,6 +202,39 @@ The `NO_COLOR` standard ([no-color.org](https://no-color.org)) is widely respect
 
 ---
 
+## Timestamps
+
+A timestamp has two readers, and they want different things.
+
+**JSON is for programs.** Emit RFC 3339 in UTC (`2026-01-15T14:30:45Z`) — the
+format every language parses without a custom layout. Keep the full precision the
+API gave you; don't round to the minute because the table does. In Go, put a
+`time.Time` in the output struct and assign it with `.UTC()`, or use
+`*time.Time` with `omitempty` for a time that may be absent. Where the field is a
+string — a zero time must render as `""`, or the API handed the value over as a
+string — use `cmdutil.JSONTime`.
+
+**Human output is for people**, who think in their own zone. Render through the
+`cmdutil.Display*` helpers: they convert to `time.Local`, which Go sets from `TZ`
+(on Unix natively; on Windows, which Go would otherwise leave on the registry zone,
+`cmd/circleci/tz_windows.go` applies it), and they print the zone abbreviation (`2026-01-15 09:30 EST`), so a reader never
+has to guess which zone a column is in. Use `DisplayTime` (minutes) in tables and
+`DisplayTimeSeconds` in single-resource detail views.
+
+**Don't share one formatted string between the two.** The bug this rule exists for:
+a struct field held `t.Format("2006-01-02 15:04 UTC")`, the table printed it, and
+`--json` printed it too. JSON got a string no parser accepts, and the table ignored
+`TZ`. Keep the struct typed and format at the point of rendering.
+
+**Never hard-code the zone in a layout.** `"...15:04 UTC"` or `"...15:04:05Z"` is
+only correct while the value happens to be in UTC; the moment it isn't, the output
+is wrong and says it's right.
+
+Acceptance tests pin `TZ=UTC` in `internal/testing/env`, so goldens don't depend on
+the machine. To test a zone, set `env.Extra["TZ"]`.
+
+---
+
 ## Output Command vs. Action Command
 
 It helps to think about your commands in two categories:
@@ -264,3 +302,4 @@ Users should never be surprised that their tool silently wrote to a file or call
 - [ ] Color disabled when: not a TTY, `NO_COLOR` set, `TERM=dumb`, `--no-color` passed
 - [ ] No animations outside of a TTY
 - [ ] Cross-program actions (file writes, network calls) made explicit to user
+- [ ] Timestamps: RFC 3339 UTC in JSON, `cmdutil.Display*` (local, zone named) in human output

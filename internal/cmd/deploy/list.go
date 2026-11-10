@@ -25,6 +25,7 @@ package deploy
 import (
 	"context"
 	"strings"
+	"time"
 
 	"github.com/MakeNowJust/heredoc"
 	"github.com/spf13/cobra"
@@ -91,16 +92,16 @@ func newListCmd() *cobra.Command {
 }
 
 type deployEntry struct {
-	ID            string `json:"id"`
-	ComponentName string `json:"component_name"`
-	Version       string `json:"version"`
-	Type          string `json:"type"`
-	Status        string `json:"status"`
-	IsRollback    bool   `json:"is_rollback"`
-	PipelineID    string `json:"pipeline_id,omitempty"`
-	WorkflowID    string `json:"workflow_id,omitempty"`
-	CreatedAt     string `json:"created_at"`
-	EndedAt       string `json:"ended_at,omitempty"`
+	ID            string     `json:"id"`
+	ComponentName string     `json:"component_name"`
+	Version       string     `json:"version"`
+	Type          string     `json:"type"`
+	Status        string     `json:"status"`
+	IsRollback    bool       `json:"is_rollback"`
+	PipelineID    string     `json:"pipeline_id,omitempty"`
+	WorkflowID    string     `json:"workflow_id,omitempty"`
+	CreatedAt     time.Time  `json:"created_at"`
+	EndedAt       *time.Time `json:"ended_at,omitempty"`
 }
 
 func runList(ctx context.Context, client *apiclient.Client, projectSlug string, orgWide bool, limit int, jsonOut bool) error {
@@ -133,9 +134,10 @@ func runList(ctx context.Context, client *apiclient.Client, projectSlug string, 
 
 	entries := make([]deployEntry, len(deployments))
 	for i, d := range deployments {
-		endedAt := ""
+		var endedAt *time.Time
 		if d.Attributes.EndedAt != nil {
-			endedAt = d.Attributes.EndedAt.Format("2006-01-02 15:04 UTC")
+			ended := d.Attributes.EndedAt.UTC()
+			endedAt = &ended
 		}
 		entry := deployEntry{
 			ID:            d.ID,
@@ -144,7 +146,7 @@ func runList(ctx context.Context, client *apiclient.Client, projectSlug string, 
 			Type:          d.Attributes.Type,
 			Status:        d.Attributes.Status,
 			IsRollback:    d.Attributes.IsRollback,
-			CreatedAt:     d.Attributes.CreatedAt.Format("2006-01-02 15:04 UTC"),
+			CreatedAt:     d.Attributes.CreatedAt.UTC(),
 			EndedAt:       endedAt,
 		}
 		if d.References.Pipeline != nil {
@@ -172,7 +174,7 @@ func runList(ctx context.Context, client *apiclient.Client, projectSlug string, 
 func printList(ctx context.Context, entries []deployEntry) {
 	table := mdtable.New("Component", "Version", "Type", "Status", "Created")
 	for _, e := range entries {
-		table.Row(e.ComponentName, e.Version, strings.ToLower(e.Type), strings.ToLower(e.Status), e.CreatedAt)
+		table.Row(e.ComponentName, e.Version, strings.ToLower(e.Type), strings.ToLower(e.Status), cmdutil.DisplayTime(e.CreatedAt))
 	}
 	iostream.PrintMarkdown(ctx, "# Deploys\n"+table.Render())
 }

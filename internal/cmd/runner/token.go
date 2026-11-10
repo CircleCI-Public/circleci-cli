@@ -237,7 +237,7 @@ func printTokenList(ctx context.Context, out []tokenOutput, resourceClass string
 	}
 	table := mdtable.New("ID", "Nickname", "Created")
 	for _, t := range out {
-		table.Row(t.ID, t.Nickname, t.CreatedAt)
+		table.Row(t.ID, t.Nickname, cmdutil.DisplayTimeString(t.CreatedAt))
 	}
 	iostream.PrintMarkdown(ctx, "# Runner Tokens\n"+table.Render())
 	return nil
@@ -351,7 +351,7 @@ func runTokenCreate(ctx context.Context, client *apiclient.Client, resourceClass
 		iostream.Printf(ctx, "Nickname:  %s\n", out.Nickname)
 	}
 	iostream.Printf(ctx, "ID:        %s\n", out.ID)
-	iostream.Printf(ctx, "Created:   %s\n", out.CreatedAt)
+	iostream.Printf(ctx, "Created:   %s\n", cmdutil.DisplayTimeString(out.CreatedAt))
 	iostream.Printf(ctx, "\nToken (save this — it will not be shown again):\n%s\n", out.Token)
 
 	// A script written for CLI 0.1.x may still redirect this output into its

@@ -118,7 +118,7 @@ type runListEntry struct {
 	Revision       string          `json:"revision,omitempty"`
 	RepositoryURL  string          `json:"repository_url,omitempty"`
 	Commit         *commitOutput   `json:"commit,omitempty"`
-	CreatedAt      string          `json:"created_at"`
+	CreatedAt      time.Time       `json:"created_at"`
 	Warnings       []warningOutput `json:"warnings,omitempty"`
 }
 
@@ -185,7 +185,7 @@ func toListEntry(r *apiclient.RunV3) runListEntry {
 		Revision:       rev,
 		RepositoryURL:  r.RepositoryURL,
 		Commit:         commitOutputFrom(r.Commit),
-		CreatedAt:      r.CreatedAt.Format("2006-01-02 15:04 UTC"),
+		CreatedAt:      r.CreatedAt.UTC(),
 		Warnings:       warns,
 	}
 }
@@ -197,7 +197,7 @@ func printList(ctx context.Context, entries []runListEntry) {
 		if len(e.Warnings) > 0 {
 			status += " :warning:"
 		}
-		table.Row(refDisplay(e.Branch, e.Tag), orDash(e.Revision), orDash(entrySubject(e)), "`"+e.ID.String()+"`", e.CreatedAt, status)
+		table.Row(refDisplay(e.Branch, e.Tag), orDash(e.Revision), orDash(entrySubject(e)), "`"+e.ID.String()+"`", cmdutil.DisplayTime(e.CreatedAt), status)
 	}
 	iostream.PrintMarkdown(ctx, "# Runs\n"+table.Render())
 }

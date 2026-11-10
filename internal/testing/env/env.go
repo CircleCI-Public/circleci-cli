@@ -66,6 +66,9 @@ func (e *TestEnv) Environ() []string {
 		"XDG_DATA_HOME=" + filepath.Join(e.HomeDir, ".local", "share"),
 		"PATH=" + os.Getenv("PATH"),
 		"CIRCLE_SPINNER_DISABLED=true",
+		// Human output shows timestamps in the local zone; pin it so goldens
+		// do not depend on the machine running them. Extra can override it.
+		"TZ=UTC",
 	}
 
 	if runtime.GOOS == "windows" {
