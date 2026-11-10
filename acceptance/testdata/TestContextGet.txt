@@ -2,13 +2,13 @@
 - ID: `c0000001-0000-4000-8000-000000000001`
 - Name: my-context
 - Org ID: `a0000001-0000-4000-8000-0000000000a1`
-- Created: 2020-01-01T12:00:00Z
+- Created: 2020-01-01 12:00 UTC
 
 ## Environment Variables
 | Variable    | Value      | Updated              |
 | ----------- | ---------- | -------------------- |
-| DB_PASSWORD | `****abcd` | 2020-06-01T12:00:00Z |
-| API_KEY     | `****abcd` | 2020-06-01T12:00:00Z |
+| DB_PASSWORD | `****abcd` | 2020-06-01 12:00 UTC |
+| API_KEY     | `****abcd` | 2020-06-01 12:00 UTC |
 
 ## Restrictions
 | Type    | Value                                | Name   | ID                                     |

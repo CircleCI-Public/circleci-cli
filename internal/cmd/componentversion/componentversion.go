@@ -25,6 +25,7 @@ package componentversion
 
 import (
 	"context"
+	"time"
 
 	"github.com/MakeNowJust/heredoc"
 	"github.com/spf13/cobra"
@@ -36,9 +37,9 @@ import (
 )
 
 type componentVersionEntry struct {
-	Name        string `json:"name"`
-	ComponentID string `json:"component_id"`
-	CreatedAt   string `json:"created_at"`
+	Name        string    `json:"name"`
+	ComponentID string    `json:"component_id"`
+	CreatedAt   time.Time `json:"created_at"`
 }
 
 // NewComponentVersionCmd returns the top-level "circleci component-version" command group.
@@ -132,7 +133,7 @@ func RunList(ctx context.Context, client *apiclient.Client, componentID, envID s
 		entries[i] = componentVersionEntry{
 			Name:        v.Attributes.Name,
 			ComponentID: v.References.Component.ID,
-			CreatedAt:   v.Attributes.CreatedAt.Format("2006-01-02 15:04 UTC"),
+			CreatedAt:   v.Attributes.CreatedAt.UTC(),
 		}
 	}
 
@@ -147,7 +148,7 @@ func RunList(ctx context.Context, client *apiclient.Client, componentID, envID s
 
 	table := mdtable.New("Version", "Created")
 	for _, e := range entries {
-		table.Row(e.Name, e.CreatedAt)
+		table.Row(e.Name, cmdutil.DisplayTime(e.CreatedAt))
 	}
 	iostream.PrintMarkdown(ctx, "# Component Versions\n"+table.Render())
 	return nil

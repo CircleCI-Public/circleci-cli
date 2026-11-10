@@ -1,7 +1,7 @@
 Created token for resource class: my-org/linux-runner
 Nickname:  my-server
 ID:        b344b1b8-3b0f-547e-aa7b-998acf933f14
-Created:   2026-01-01T00:00:00Z
+Created:   2026-01-01 00:00 UTC
 
 Token (save this — it will not be shown again):
 fake-runner-token-value

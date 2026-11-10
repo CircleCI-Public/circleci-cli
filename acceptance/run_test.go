@@ -1338,6 +1338,45 @@ func TestRunList(t *testing.T) {
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
 }
 
+// TestRunList_TZ checks that the table shows created times in the zone TZ
+// names, while --json stays RFC 3339 in UTC whatever the zone.
+func TestRunList_TZ(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	slug := watchSlug
+	addProjectBySlug(fake, slug, runTestProjectID)
+	fake.AddRunV3("e0000000-0000-4000-8000-000000000001", runTestProjectID, fakeRunV3("e0000000-0000-4000-8000-000000000001", runTestProjectID, "ended", "succeeded", "main", "abc1234def5678"))
+
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+	env.Extra["TZ"] = "America/New_York"
+
+	t.Run("table uses the local zone", func(t *testing.T) {
+		result := binary.RunCLI(t, binary.RunOpts{
+			Binary:  binaryPath,
+			Args:    []string{"run", "list", "--project", slug},
+			Env:     env.Environ(),
+			WorkDir: t.TempDir(),
+		})
+		assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+		assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	})
+
+	t.Run("json stays in UTC", func(t *testing.T) {
+		result := binary.RunCLI(t, binary.RunOpts{
+			Binary:  binaryPath,
+			Args:    []string{"run", "list", "--project", slug, "--json"},
+			Env:     env.Environ(),
+			WorkDir: t.TempDir(),
+		})
+		assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+		var out []map[string]any
+		assert.NilError(t, json.Unmarshal([]byte(result.Stdout), &out))
+		assert.Assert(t, cmp.Len(out, 1))
+		assert.Check(t, cmp.Equal(out[0]["created_at"], "2020-01-01T12:00:00Z"))
+	})
+}
+
 // TestRunList_NoVCS covers a run that resolved no commit — e.g. a not_run run
 // whose config could not be fetched. The Ref and Revision cells should show "-"
 // rather than blank, and the status should read "not run".

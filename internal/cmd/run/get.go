@@ -152,7 +152,7 @@ type runGetOutput struct {
 	Revision       string           `json:"revision,omitempty"`
 	RepositoryURL  string           `json:"repository_url,omitempty"`
 	Commit         *commitOutput    `json:"commit,omitempty"`
-	CreatedAt      string           `json:"created_at"`
+	CreatedAt      time.Time        `json:"created_at"`
 	Errors         []errorOutput    `json:"errors,omitempty"`
 	Warnings       []warningOutput  `json:"warnings,omitempty"`
 	Workflows      []workflowOutput `json:"workflows"`
@@ -948,7 +948,7 @@ func buildOutput(r *apiclient.RunV3, workflows []apiclient.WorkflowV3, wfJobs []
 		Revision:       revision,
 		RepositoryURL:  r.RepositoryURL,
 		Commit:         commitOutputFrom(r.Commit),
-		CreatedAt:      r.CreatedAt.Format("2006-01-02 15:04:05 UTC"),
+		CreatedAt:      r.CreatedAt.UTC(),
 		Errors:         errs,
 		Warnings:       warns,
 		Workflows:      wflows,
@@ -1026,7 +1026,7 @@ func runMarkdown(r runGetOutput, u string) string {
 	}
 	_, _ = fmt.Fprintf(&md, "- URL: %s\n", u)
 	_, _ = fmt.Fprintf(&md, "- Status: %s\n", deriveDisplayStatus(r))
-	_, _ = fmt.Fprintf(&md, "- Created: %s\n", r.CreatedAt)
+	_, _ = fmt.Fprintf(&md, "- Created: %s\n", cmdutil.DisplayTimeSeconds(r.CreatedAt))
 
 	if len(r.Errors) > 0 {
 		md.WriteString("\n## Errors\n")

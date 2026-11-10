@@ -177,7 +177,7 @@ func runOrbInfo(ctx context.Context, client *apiclient.Client, ref string, jsonO
 	md += fmt.Sprintf("- **Name:** %s\n", pkg.Name)
 	md += fmt.Sprintf("- **Namespace:** %s\n", pkg.Namespace)
 	md += fmt.Sprintf("- **Latest Version:** %s\n", pkg.LatestVersion)
-	md += fmt.Sprintf("- **Created:** %s\n", pkg.CreatedAt)
+	md += fmt.Sprintf("- **Created:** %s\n", cmdutil.DisplayTimeString(pkg.CreatedAt))
 	md += fmt.Sprintf("- **Private:** %s\n", fmtBool(pkg.IsPrivate))
 	md += fmt.Sprintf("- **Listed:** %s\n", fmtBool(pkg.IsListed))
 

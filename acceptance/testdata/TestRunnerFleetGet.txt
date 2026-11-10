@@ -7,7 +7,7 @@
 - Agents: 4
 - Running Tasks: 2
 - Queued Tasks: 5
-- Last Task Claimed: 2026-04-18T12:00:00Z
+- Last Task Claimed: 2026-04-18 12:00 UTC
 
 ## Agents
 | Agent    | ID                                   |

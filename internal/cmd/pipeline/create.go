@@ -26,7 +26,6 @@ import (
 	"context"
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/MakeNowJust/heredoc"
 	"github.com/spf13/cobra"
@@ -256,7 +255,7 @@ func runCreate(ctx context.Context, client *apiclient.Client, in createInput) er
 		ID:             resp.ID,
 		Name:           resp.Name,
 		Description:    resp.Description,
-		CreatedAt:      resp.CreatedAt.Format(time.RFC3339),
+		CreatedAt:      cmdutil.JSONTime(resp.CreatedAt),
 		ConfigSource:   resp.ConfigSource,
 		CheckoutSource: resp.CheckoutSource,
 	}

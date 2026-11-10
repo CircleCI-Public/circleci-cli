@@ -25,7 +25,6 @@ package pipeline
 import (
 	"context"
 	"fmt"
-	"time"
 
 	"github.com/MakeNowJust/heredoc"
 	"github.com/spf13/cobra"
@@ -114,7 +113,7 @@ func runList(ctx context.Context, client *apiclient.Client, projectSlug, project
 			ID:             d.ID,
 			Name:           d.Name,
 			Description:    d.Description,
-			CreatedAt:      d.CreatedAt.Format(time.RFC3339),
+			CreatedAt:      cmdutil.JSONTime(d.CreatedAt),
 			ConfigSource:   d.ConfigSource,
 			CheckoutSource: d.CheckoutSource,
 		}

@@ -236,6 +236,9 @@ var helpTopics = []helpTopic{
 			When unset, a built-in scrollable viewer is used. Set it to %[1]scat%[1]s or an empty value to disable
 			paging entirely.
 
+			%[1]sTZ%[1]s: the time zone timestamps are shown in (for example %[1]sEurope/London%[1]s). Unset, the
+			system zone is used. JSON output is always in UTC.
+
 			%[1]sCIRCLE_NO_TELEMETRY%[1]s: set to any value to disable telemetry.
 
 			%[1]sNO_ANALYTICS%[1]s: set to any value to disable telemetry.

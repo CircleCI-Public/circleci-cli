@@ -285,7 +285,7 @@ func runTriggerList(ctx context.Context, client *apiclient.Client, projectSlug, 
 	for i, t := range triggers {
 		e := triggerListEntry{
 			ID:          t.ID,
-			CreatedAt:   t.CreatedAt.Format("2006-01-02T15:04:05Z"),
+			CreatedAt:   cmdutil.JSONTime(t.CreatedAt),
 			EventName:   t.EventName,
 			EventPreset: t.EventPreset,
 			ConfigRef:   t.ConfigRef,
@@ -516,7 +516,7 @@ func runTriggerCreate(
 
 	out := triggerCreateOutput{
 		ID:          resp.ID,
-		CreatedAt:   resp.CreatedAt.Format("2006-01-02T15:04:05Z"),
+		CreatedAt:   cmdutil.JSONTime(resp.CreatedAt),
 		EventName:   resp.EventName,
 		EventPreset: resp.EventPreset,
 		ConfigRef:   resp.ConfigRef,
@@ -645,7 +645,7 @@ func runTriggerUpdate(ctx context.Context, client *apiclient.Client, triggerID, 
 
 	out := triggerCreateOutput{
 		ID:          resp.ID,
-		CreatedAt:   resp.CreatedAt.Format("2006-01-02T15:04:05Z"),
+		CreatedAt:   cmdutil.JSONTime(resp.CreatedAt),
 		EventName:   resp.EventName,
 		EventPreset: resp.EventPreset,
 		ConfigRef:   resp.ConfigRef,
