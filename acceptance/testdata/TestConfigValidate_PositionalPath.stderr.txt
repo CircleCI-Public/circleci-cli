@@ -1,0 +1,2 @@
+tip: CircleCI Functions can replace orbs and install languages and tools in a new config. Orbs remain supported.
+  Run `circleci function list` to find one, then `circleci function get <name>` for its arguments and an example.

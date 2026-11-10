@@ -26,6 +26,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"testing"
 
@@ -121,6 +122,52 @@ func TestConfigValidate_JSON(t *testing.T) {
 	assert.Check(t, cmp.Equal(out["valid"], true))
 	_, hasYAML := out["compiled_yaml"]
 	assert.Check(t, hasYAML, "expected compiled_yaml field in JSON output")
+	assert.Check(t, cmp.Len(out["suggestions"], 1), "a new config gets the Functions tip")
+}
+
+// TestConfigValidate_NoFunctionsTip pins that the tip is only for a new config
+// that declares no functions, so a working pipeline is never told to switch.
+func TestConfigValidate_NoFunctionsTip(t *testing.T) {
+	tests := []struct {
+		name   string
+		config string
+		commit bool
+	}{
+		{name: "committed config", config: testConfigYAML, commit: true},
+		{name: "config declares functions", config: "functions:\n  setup-node: github.com/circleci-functions/setup-node@v0.4.0\n" + testConfigYAML},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			fake := fakes.NewCircleCI(t)
+			fake.SetCompileResponse(true, testCompiledYAML)
+			env := testenv.New(t)
+			env.Token = testToken
+			env.CircleCIURL = fake.URL()
+			dir := t.TempDir()
+			writeConfig(t, dir, tc.config)
+			if tc.commit {
+				gitCommitAll(t, dir)
+			}
+
+			t.Run("no tip on stderr", func(t *testing.T) {
+				result := binary.RunCLI(t, binary.RunOpts{
+					Binary: binaryPath, Args: []string{"config", "validate"}, Env: env.Environ(), WorkDir: dir,
+				})
+				assert.Check(t, cmp.Equal(result.ExitCode, 0))
+				assert.Check(t, cmp.Equal(result.Stderr, ""))
+			})
+			t.Run("empty suggestions in JSON", func(t *testing.T) {
+				result := binary.RunCLI(t, binary.RunOpts{
+					Binary: binaryPath, Args: []string{"config", "validate", "--json"}, Env: env.Environ(), WorkDir: dir,
+				})
+				assert.Assert(t, cmp.Equal(result.ExitCode, 0), "stderr: %s", result.Stderr)
+				var out map[string]any
+				err := json.Unmarshal([]byte(result.Stdout), &out)
+				assert.NilError(t, err)
+				assert.Check(t, cmp.DeepEqual(out["suggestions"], []any{}))
+			})
+		})
+	}
 }
 
 func TestConfigValidate_Invalid(t *testing.T) {
@@ -1073,6 +1120,22 @@ func TestConfigPack_NotFound(t *testing.T) {
 }
 
 // --- helpers ---
+
+// gitCommitAll commits everything in dir as the first commit of a new repository.
+func gitCommitAll(t *testing.T, dir string) {
+	t.Helper()
+	for _, args := range [][]string{{"init"}, {"add", "-A"}, {"commit", "-m", "init"}} {
+		cmd := exec.Command("git", args...)
+		cmd.Dir = dir
+		cmd.Env = []string{
+			"GIT_CONFIG_GLOBAL=/dev/null", "GIT_CONFIG_NOSYSTEM=1",
+			"GIT_AUTHOR_NAME=test", "GIT_AUTHOR_EMAIL=test@test.com",
+			"GIT_COMMITTER_NAME=test", "GIT_COMMITTER_EMAIL=test@test.com",
+		}
+		out, err := cmd.CombinedOutput()
+		assert.NilError(t, err, "git %v: %s", args, out)
+	}
+}
 
 func writeConfig(t *testing.T, dir, content string) {
 	t.Helper()

@@ -58,7 +58,7 @@ func newValidateCmd() *cobra.Command {
 			Private and namespaced orbs need a token and resolve against your org, taken
 			from --org, a 'circleci project link' binding, or the git remote, in that order.
 
-			JSON fields (--json): valid (bool), compiled_yaml (string, when valid), errors (array of compilation messages, when invalid)
+			JSON fields (--json): valid, compiled_yaml (when valid), errors (when invalid), suggestions (a Functions tip for a new config)
 		`),
 		Example: heredoc.Doc(`
 			# Validate the default config file
@@ -119,6 +119,10 @@ func newValidateCmd() *cobra.Command {
 				return configAPIErr(err)
 			}
 
+			if result.Valid {
+				result.Suggestions = configcmd.FunctionsSuggestions(path, yaml)
+			}
+
 			if jsonOut {
 				if err := cmdutil.WriteJSON(iostream.Out(ctx), result); err != nil {
 					return err
@@ -139,6 +143,9 @@ func newValidateCmd() *cobra.Command {
 			}
 
 			iostream.Printf(ctx, "Config file at %q is valid.\n", path)
+			if len(result.Suggestions) > 0 {
+				iostream.ErrPrintf(ctx, "tip: %s\n  %s\n", configcmd.FunctionsTip, configcmd.FunctionsTipNext)
+			}
 			return nil
 		},
 	}
