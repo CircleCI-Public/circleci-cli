@@ -5245,21 +5245,21 @@ git repository.
 
 List your recent runs grouped by project
 
-List recent runs you triggered, across every project you have access to.
+List recent runs you triggered across every project, in the order the API
+returns them. Unlike "circleci run list", it is not limited to one project.
 
-This is the personal counterpart to "circleci run list": rather than a
-single project, it shows your runs everywhere, in the order the API
-returns them, with the project of each run in its own column.
+--failure-report counts a run still running with a failed job as failed.
 
 JSON: an array of runs, each { project, project_id, id, phase, outcome, current_outcome,
 branch, tag, revision, created_at, warnings[].type/message/description/url },
 where project is the run's "org/repo" repository (when known) and project_id its UUID.
 
-| Flag          | Description                                                                       |
-| ------------- | --------------------------------------------------------------------------------- |
-| `--jq string` | Process values from the response using jq syntax (see `circleci help formatting`) |
-| `--json`      | Output as JSON                                                                    |
-| `--limit int` | Maximum number of runs to fetch [default: 20] (default 20)                        |
+| Flag               | Description                                                                       |
+| ------------------ | --------------------------------------------------------------------------------- |
+| `--failure-report` | print the failure report for your newest failed run                               |
+| `--jq string`      | Process values from the response using jq syntax (see `circleci help formatting`) |
+| `--json`           | Output as JSON                                                                    |
+| `--limit int`      | Maximum number of runs to fetch [default: 20] (default 20)                        |
 
 
 **Aliases:**
@@ -5271,12 +5271,12 @@ where project is the run's "org/repo" repository (when known) and project_id its
 
 - List your recent runs across all projects: 
   `circleci my runs`
-- Show more results: 
-  `circleci my runs --limit 50`
 - Output as JSON for scripting: 
   `circleci my runs --json`
 - Pull out just the run IDs with jq: 
   `circleci my runs --json --jq '.[].id'`
+- Diagnose your latest failed run, in any project: 
+  `circleci my runs --failure-report`
 
 ### `circleci onboard [path] [flags]`
 
