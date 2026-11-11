@@ -660,6 +660,65 @@ func TestWorkflowRerun_NotFound(t *testing.T) {
 	assert.Equal(t, result.ExitCode, 5, "stderr: %s", result.Stderr) // ExitNotFound
 }
 
+// TestWorkflowRerun_Disabled pins what the user sees when an organization has
+// reruns switched off: the API's reason (the v3 detail), not a bare "Bad
+// Request", plus where to turn them back on.
+func TestWorkflowRerun_Disabled(t *testing.T) {
+	fake, env := setupWorkflowFake(t)
+	fake.SetRerunError(testWorkflowDetailID, http.StatusBadRequest, "Rerun requests are disabled")
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"workflow", "rerun", testWorkflowDetailID},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 4), "stderr: %s", result.Stderr) // ExitAPIError
+	assert.Check(t, cmp.Equal(result.Stdout, ""))
+	assert.Check(t, cmp.Contains(result.Stderr, "Rerun requests are disabled"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+}
+
+// TestWorkflowRerun_NotFinished pins the refusal agents hit most with
+// --from-failed: the workflow is still running because approval jobs are on
+// hold. The user sees the API's reason and what to do about it.
+func TestWorkflowRerun_NotFinished(t *testing.T) {
+	fake, env := setupWorkflowFake(t)
+	fake.SetRerunError(testWorkflowDetailID, http.StatusBadRequest, "Workflow must be in a terminal state to be rerun")
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"workflow", "rerun", "--from-failed", testWorkflowDetailID},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 4), "stderr: %s", result.Stderr) // ExitAPIError
+	assert.Check(t, cmp.Equal(result.Stdout, ""))
+	assert.Check(t, cmp.Contains(result.Stderr, "Workflow must be in a terminal state to be rerun"))
+	assert.Check(t, cmp.Contains(result.Stderr, "workflow cancel "+testWorkflowDetailID))
+	assert.Check(t, !strings.Contains(result.Stderr, "Organization Settings"), "stderr: %s", result.Stderr)
+}
+
+// TestWorkflowRerun_LimitReached checks the other refusal the API makes with a
+// reason, a 403, reaches the user as that reason.
+func TestWorkflowRerun_LimitReached(t *testing.T) {
+	fake, env := setupWorkflowFake(t)
+	fake.SetRerunError(testWorkflowDetailID, http.StatusForbidden, "Rerun limit reached")
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"workflow", "rerun", testWorkflowDetailID},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 4), "stderr: %s", result.Stderr) // ExitAPIError
+	assert.Check(t, cmp.Contains(result.Stderr, "Rerun limit reached"))
+	assert.Check(t, !strings.Contains(result.Stderr, "Organization Settings"), "stderr: %s", result.Stderr)
+}
+
 // --- workflow cancel ---
 
 func TestWorkflowCancel(t *testing.T) {
