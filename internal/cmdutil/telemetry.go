@@ -225,7 +225,22 @@ func classifyError(err error) (exitCode int, errorCode string) {
 	if cliErr, ok := errors.AsType[*clierrors.CLIError](err); ok {
 		return cliErr.ExitCode, cliErr.Code
 	}
+	if exited, ok := errors.AsType[ExitStatusError](err); ok {
+		return exited.ExitStatus(), exited.ErrorCode()
+	}
 	return clierrors.ExitGeneralError, unclassifiedErrorCode
+}
+
+// ExitStatusError is an error that ends the process with an exit status of its
+// own rather than a CLIError's, such as an extension that exited non-zero.
+// cmdutil cannot import the packages that return one, so it names the contract
+// instead.
+type ExitStatusError interface {
+	error
+	// ExitStatus is the status the process exits with.
+	ExitStatus() int
+	// ErrorCode is the machine-readable code telemetry records for it.
+	ErrorCode() string
 }
 
 // unclassifiedErrorCode is the error code of an error that escaped the

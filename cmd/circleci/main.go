@@ -69,13 +69,10 @@ func run() int {
 		}
 		// Extension exit codes are not errors — propagate them directly.
 		if exited, ok := errors.AsType[*extension.ErrExited](err); ok {
-			if exited.Code > 0 {
-				return exited.Code
-			}
 			if exited.Code < 0 {
 				_, _ = fmt.Fprintln(os.Stderr, "extension terminated by signal")
 			}
-			return clierrors.ExitGeneralError
+			return exited.ExitStatus()
 		}
 		// A failed --jq expression is a user input error, not an API/IO failure.
 		// Convert it to a structured CLIError so it renders like other argument

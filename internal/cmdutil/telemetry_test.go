@@ -179,6 +179,29 @@ func TestRecordTelemetry(t *testing.T) {
 		}))
 	})
 
+	t.Run("records an exit status error's own status and code", func(t *testing.T) {
+		recorder, client := newTelemetry(t)
+		wantErr := exitStatusErr{status: 42}
+		cmd := &cobra.Command{
+			Use:  "ext",
+			RunE: func(cmd *cobra.Command, args []string) error { return wantErr },
+		}
+
+		cmd.SetContext(cmdutil.WithTelemetry(context.Background(), client))
+		cmdutil.RecordTelemetry(cmd)
+		assert.Check(t, cmp.ErrorIs(cmd.RunE(cmd, nil), wantErr))
+		assert.NilError(t, client.Close())
+
+		assert.Check(t, cmp.DeepEqual(properties(recorder.Tracks()), []analytics.Properties{
+			{
+				"command":    "ext",
+				"flags":      "",
+				"exit_code":  42,
+				"error_code": "test.exited",
+			},
+		}))
+	})
+
 	// Handlers wrap as an error travels back up, so the classification has to look
 	// through the error tree rather than at the outermost error alone.
 	t.Run("records a structured error wrapped by its caller", func(t *testing.T) {
@@ -652,3 +675,11 @@ func properties(tracks []analytics.Track) []analytics.Properties {
 	}
 	return props
 }
+
+// exitStatusErr is a stand-in for an error that carries its own exit status,
+// such as an extension's.
+type exitStatusErr struct{ status int }
+
+func (e exitStatusErr) Error() string     { return fmt.Sprintf("exited %d", e.status) }
+func (e exitStatusErr) ExitStatus() int   { return e.status }
+func (e exitStatusErr) ErrorCode() string { return "test.exited" }
