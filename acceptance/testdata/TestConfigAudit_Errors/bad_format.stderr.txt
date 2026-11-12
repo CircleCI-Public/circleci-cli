@@ -1,0 +1,7 @@
+error: --format must be one of text, sarif (got: "xml")
+
+Suggestions:
+  • Use --format text or --format sarif
+  • For JSON output use --json
+
+Reference: https://cli.circleci.com/reference/

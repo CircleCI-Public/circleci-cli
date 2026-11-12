@@ -1,0 +1,7 @@
+error: --project only applies with --online.
+
+Suggestions:
+  • Add --online to check this project's settings
+  • Or drop --project
+
+Reference: https://cli.circleci.com/reference/

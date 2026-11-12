@@ -10,17 +10,17 @@ Using an AI coding agent? Run `circleci help agents` to install CircleCI's skill
 
 ## CI Commands
 
-| Command      | Description                                          |
-| ------------ | ---------------------------------------------------- |
-| `artifact`   | List and download a job's artifact files             |
-| `config`     | Generate, validate, process and pack config YAML     |
-| `function`   | Discover and declare CircleCI functions              |
-| `job`        | Inspect a job's details, output and artifacts        |
-| `pipeline`   | Manage the pipeline definitions a run executes       |
-| `preflight`  | Run uncommitted changes through CI before you commit |
-| `run`        | Trigger, watch, approve and cancel pipeline runs     |
-| `testresult` | Inspect test results and flaky tests                 |
-| `workflow`   | Inspect, rerun and cancel workflows (job graphs)     |
+| Command      | Description                                             |
+| ------------ | ------------------------------------------------------- |
+| `artifact`   | List and download a job's artifact files                |
+| `config`     | Generate, validate, audit, process and pack config YAML |
+| `function`   | Discover and declare CircleCI functions                 |
+| `job`        | Inspect a job's details, output and artifacts           |
+| `pipeline`   | Manage the pipeline definitions a run executes          |
+| `preflight`  | Run uncommitted changes through CI before you commit    |
+| `run`        | Trigger, watch, approve and cancel pipeline runs        |
+| `testresult` | Inspect test results and flaky tests                    |
+| `workflow`   | Inspect, rerun and cancel workflows (job graphs)        |
 
 ## Management Commands
 
@@ -74,6 +74,7 @@ Using an AI coding agent? Run `circleci help agents` to install CircleCI's skill
 | Topic             | Description                                                   |
 | ----------------- | ------------------------------------------------------------- |
 | `agents`          | Use circleci with AI coding agents: skills and MCP            |
+| `config-audit`    | Rules, suppression and SARIF upload for circleci config audit |
 | `environment`     | Environment variables that can be used with circleci          |
 | `formatting`      | Formatting options for JSON data exported from circleci       |
 | `getting-started` | Install, authenticate, and start using circleci               |

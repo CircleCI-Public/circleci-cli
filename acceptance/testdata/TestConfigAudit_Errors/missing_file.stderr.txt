@@ -1,0 +1,5 @@
+error: No config file found at "nope.yml".
+
+Suggestions:
+  • Check the path and try again
+  • Run from the root of your project, or pass the path to your config file

@@ -1,0 +1,8 @@
+warning: unknown rule "no-such-rule" in ignore comment on line 2
+error: 1 finding at or above low in .circleci/config.yml.
+
+Suggestions:
+  • See each rule's fix: circleci help config-audit
+  • To accept a finding, add # circleci-audit: ignore[<rule-id>] on its line or the line above
+
+Reference: https://cli.circleci.com/reference/

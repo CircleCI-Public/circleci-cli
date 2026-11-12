@@ -1,0 +1,10 @@
+Usage:  circleci config audit [<path>] [flags]
+
+Flags:
+      --format string         output format: text or sarif (default "text")
+  -h, --help                  help for audit
+      --json                  Output as JSON
+      --min-severity string   lowest severity to report: low, medium or high (default "low")
+      --online                also check project, org and context settings (read-only API calls)
+      --project string        project slug for --online (e.g. gh/org/repo); defaults to the git remote
+  

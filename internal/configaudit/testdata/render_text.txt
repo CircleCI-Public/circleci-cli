@@ -1,0 +1,28 @@
+medium unpinned-orb c.yml:3:9  orb circleci/node@5 is a major-version alias
+   |
+ 3 |   node: circleci/node@5
+   |         ^^^^^^^^^^^^^^^
+   = fix: pin the orb to an exact version (name@X.Y.Z)
+
+high unpinned-image c.yml:12:16  image cimg/base:latest uses the latest tag
+   |
+12 |       - image: cimg/base:latest
+   |                ^^^^^^^^^^^^^^^^
+   = fix: pin the image to a digest (image:tag@sha256:<digest>)
+
+low unpinned-image c.yml:20:8  span runs past the end of its line
+   |
+20 |   key: value
+   |        ^^^^^
+   = fix: shorten the span
+
+low unpinned-image c.yml:21:3  span runs onto the next line
+   |
+21 |   abc
+   |   ^^^
+   = fix: shorten the span
+
+high fork-pr-secrets project settings  a finding with no position
+   = fix: turn it off
+
+5 findings (2 high, 1 medium, 2 low), 1 suppressed

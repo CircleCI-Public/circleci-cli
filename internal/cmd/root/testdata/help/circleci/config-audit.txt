@@ -1,0 +1,183 @@
+# Config audit
+`circleci config audit` checks a pipeline config for supply-chain and secret-handling
+risks: untrusted input reaching a shell, unpinned dependencies, secrets in the file,
+and contexts handed to every branch. It runs offline and reads only the file you give
+it. With `--online` it also reads project, org and context settings, using GET requests
+only; it never changes anything in your organization.
+
+Orbs are not expanded, so findings inside an orb's own commands and jobs are not
+reported. Only the config in the file is audited.
+
+Each finding has a severity (how much it matters) and a confidence (how likely it is to
+be a real problem).
+
+## Rules
+
+The Needs column says what a rule audits: the config file, or project, org and context
+settings, which are read only with `--online`.
+
+| Rule | Severity | Confidence | Catches | Needs |
+|---|---|---|---|---|
+| `pipeline-value-injection` | high | high | Pipeline value an outsider controls is expanded into a shell command | file |
+| `unpinned-orb` | medium | high | Orb reference is not pinned to an exact version | file |
+| `unpinned-image` | medium | high | Docker image is not pinned to a digest | file |
+| `cache-poisoning` | medium | low | A cache any branch can fill is restored by a job with secrets or on the default branch | file |
+| `ssh-keys-unrestricted` | medium | high | add_ssh_keys does not name the keys to add | file |
+| `curl-pipe-shell` | medium | medium | A downloaded script is piped straight into a shell | file |
+| `hardcoded-secret` | high | medium | A secret is written into the config as a literal value | file |
+| `context-on-any-branch` | medium | medium | A workflow job gets a context on every branch | file |
+| `dynamic-config-untrusted` | low | low | A setup workflow continues with a config that is generated, or not checked in | file |
+| `fork-pr-secrets` | high | high | Fork pull requests are built and receive project secrets | `--online` |
+| `ssh-rerun-allowed` | medium | high | Jobs can be rerun with SSH | `--online` |
+| `settings-not-admin-only` | low | high | Project settings can be changed by non-admins | `--online` |
+| `user-checkout-keys-allowed` | low | high | User checkout keys are allowed in the org | `--online` |
+| `uncertified-orbs-allowed` | low | high | Uncertified public orbs are allowed in the org | `--online` |
+| `context-unrestricted` | medium | high | A context the config uses has no project or expression restriction | `--online` |
+
+### pipeline-value-injection
+
+Values such as the branch name, tag or commit message are chosen by whoever pushes or opens a pull request. Expanded into a run step before the shell reads it, they become shell syntax, so a crafted branch name runs commands with the job's secrets.
+
+Fix: pass it through environment: (BRANCH: << pipeline.git.branch >>) and use "$BRANCH"
+
+### unpinned-orb
+
+A major-version alias, no version or @volatile lets the orb publisher change the code your jobs run, with your secrets, without a change to your config.
+
+Fix: pin the orb to an exact version (name@X.Y.Z)
+
+### unpinned-image
+
+A tag can be moved to different content at any time, so a job can silently run an image you never reviewed. :latest and a missing tag are the most exposed.
+
+Fix: pin the image to a digest (image:tag@sha256:<digest>)
+
+### cache-poisoning
+
+Without {{ .Branch }} in the key, a build of any branch, including one from an outside contributor, can save a cache that the default branch or a job with a context later restores, so planted files run with its secrets.
+
+Fix: add {{ .Branch }} to the cache key so a branch cannot fill a cache that other branches restore
+
+### ssh-keys-unrestricted
+
+Without fingerprints, every SSH key added to the project is loaded into the job, so a compromised step can use keys the job never needed.
+
+Fix: list the keys to add with fingerprints: [<fingerprint>]
+
+### curl-pipe-shell
+
+The script runs unreviewed and unverified, so whoever controls the server, or a network position in between, runs code in your job with its secrets.
+
+Fix: download the script, verify its checksum, then run it
+
+### hardcoded-secret
+
+The config is readable by everyone with access to the repository and lives forever in its history, so a literal token or password there has to be treated as leaked.
+
+Fix: move the value to a context or project environment variable
+
+### context-on-any-branch
+
+A context's secrets are handed to the job on whichever branch runs it, so anyone who can push a branch can write a config change that reads them.
+
+Fix: add filters.branches.only, an approval job, or a restricted context
+
+### dynamic-config-untrusted
+
+The config reviewed is a setup config for a dynamic pipeline. Review the config used to continue the pipeline.
+
+Fix: continue with a config checked into the repository, or check what the step generates before continuing
+
+### fork-pr-secrets
+
+With both "Build forked pull requests" and "Pass secrets to builds from forked pull requests" on, anyone who can open a pull request from a fork can change the config of their copy and read the project's environment variables and contexts. This applies to OAuth pipelines; GitHub App pipelines never build fork pull requests.
+
+Fix: turn off "Pass secrets to builds from forked pull requests" in Project Settings > Advanced
+
+### ssh-rerun-allowed
+
+Anyone who can rerun a job can open a shell in it, with every secret the job holds, so SSH reruns widen who can read the project's secrets.
+
+Fix: disable SSH reruns for this project
+
+### settings-not-admin-only
+
+Settings such as the fork pull request options and SSH reruns decide who can reach the project's secrets. Letting any member change them lets any member loosen them.
+
+Fix: require admin access to change this project's settings
+
+### user-checkout-keys-allowed
+
+A user key acts as the person who created it, so a job using one can reach every repository that person can, well beyond the project it runs for.
+
+Fix: disable user checkout keys in the org's settings
+
+### uncertified-orbs-allowed
+
+Any published orb can then run in your jobs, with their secrets, although CircleCI has not reviewed it. The finding is medium when the config also has an unpinned orb.
+
+Fix: turn off uncertified public orbs in the org's settings, and pin every orb to an exact version
+
+### context-unrestricted
+
+A context with no restriction, or only one for a group such as All members, is open to every branch of every project in the org, and does not stop fork pull requests from receiving it.
+
+Fix: restrict the context to this project or to an expression such as the default branch
+
+## Suppressing a finding
+
+Put a comment on the flagged line, or alone on the line directly above it:
+
+```yaml
+- run: curl -fsSL https://example.com/install.sh | sh # circleci-audit: ignore[curl-pipe-shell]
+# circleci-audit: ignore[unpinned-image, unpinned-orb]
+- image: cimg/node:lts
+```
+
+Separate several rule ids with commas. An id that names no rule is reported as a
+warning, and a known id that does not match the finding suppresses nothing.
+
+The comment also works inside a `run: |` block, where a shell comment on the line above a
+command annotates that exact command; the shell ignores it. Suppressed findings do not
+change the exit code, and are counted as suppressed in the summary.
+
+Settings findings from `--online` have no line to carry a comment, so a comment cannot
+suppress them. Raise `--min-severity` to leave them out.
+
+## Exit codes
+
+- 0: nothing at or above `--min-severity` (default low), or only suppressed findings.
+- 7: one or more findings at or above `--min-severity`. The report is still written in full
+  to stdout; the error goes to stderr.
+- 2: the file could not be read or parsed, or a flag was invalid.
+
+With `--online`, a missing token, an unresolvable project or a failed request is a warning:
+the offline rules still run, and the exit code is not affected.
+
+## Code scanning
+
+`--format sarif` writes a SARIF 2.1.0 log to stdout, which GitHub code scanning and other
+SARIF consumers can ingest. Suppressed findings are included, marked as suppressed. A
+SARIF upload needs a file path, not stdin, so write the log to a file and audit a file
+path rather than `-` so locations point at the file in your repository. The audit exits 7
+when it finds something, so keep the job going with `|| true` and let the upload step
+report the findings.
+
+A CircleCI job that writes the file (it assumes the circleci CLI is installed):
+
+```yaml
+jobs:
+  audit-config:
+    docker:
+      - image: cimg/base:current
+    steps:
+      - checkout
+      - run:
+          name: Audit pipeline config
+          command: circleci config audit --format sarif > audit.sarif || true
+      - store_artifacts:
+          path: audit.sarif
+```
+
+Then upload `audit.sarif` with the code scanning upload step of your choice, for example the
+GitHub CLI or the code scanning REST API.

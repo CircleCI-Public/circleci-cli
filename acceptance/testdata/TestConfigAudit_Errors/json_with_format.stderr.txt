@@ -1,0 +1,9 @@
+{
+  "error": true,
+  "code": "args.invalid_flags",
+  "message": "If any flags in the group [json format] are set none of the others can be; [format json] were all set.",
+  "suggestions": [
+    "Run 'circleci config audit --help' to see the flags and how they combine"
+  ],
+  "exit_code": 2
+}

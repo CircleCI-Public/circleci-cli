@@ -1,0 +1,27 @@
+version: 2.1
+orbs:
+  node: circleci/node@5.2.0
+jobs:
+  build:
+    docker:
+      - image: cimg/node:20.11@sha256:0000000000000000000000000000000000000000000000000000000000000000
+    environment:
+      BRANCH: << pipeline.git.branch >>
+    steps:
+      - checkout
+      - add_ssh_keys:
+          fingerprints: ["SHA256:abc"]
+      - run: echo "building $BRANCH"
+      - restore_cache:
+          key: deps-{{ .Branch }}-{{ checksum "package-lock.json" }}
+      - save_cache:
+          key: deps-{{ .Branch }}-{{ checksum "package-lock.json" }}
+          paths: [node_modules]
+workflows:
+  main:
+    jobs:
+      - build:
+          context: org-secrets
+          filters:
+            branches:
+              only: main

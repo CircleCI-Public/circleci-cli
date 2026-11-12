@@ -1,0 +1,371 @@
+{
+  "$schema": "https://docs.oasis-open.org/sarif/sarif/v2.1.0/errata01/os/schemas/sarif-schema-2.1.0.json",
+  "version": "2.1.0",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "name": "circleci-config-audit",
+          "version": "dev",
+          "rules": [
+            {
+              "id": "pipeline-value-injection",
+              "shortDescription": {
+                "text": "Pipeline value an outsider controls is expanded into a shell command"
+              },
+              "fullDescription": {
+                "text": "Values such as the branch name, tag or commit message are chosen by whoever pushes or opens a pull request. Expanded into a run step before the shell reads it, they become shell syntax, so a crafted branch name runs commands with the job's secrets."
+              },
+              "help": {
+                "text": "pass it through environment: (BRANCH: \u003c\u003c pipeline.git.branch \u003e\u003e) and use \"$BRANCH\""
+              },
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "properties": {
+                "security-severity": "8.0",
+                "tags": [
+                  "security"
+                ]
+              }
+            },
+            {
+              "id": "unpinned-orb",
+              "shortDescription": {
+                "text": "Orb reference is not pinned to an exact version"
+              },
+              "fullDescription": {
+                "text": "A major-version alias, no version or @volatile lets the orb publisher change the code your jobs run, with your secrets, without a change to your config."
+              },
+              "help": {
+                "text": "pin the orb to an exact version (name@X.Y.Z)"
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "security-severity": "5.0",
+                "tags": [
+                  "security"
+                ]
+              }
+            },
+            {
+              "id": "unpinned-image",
+              "shortDescription": {
+                "text": "Docker image is not pinned to a digest"
+              },
+              "fullDescription": {
+                "text": "A tag can be moved to different content at any time, so a job can silently run an image you never reviewed. :latest and a missing tag are the most exposed."
+              },
+              "help": {
+                "text": "pin the image to a digest (image:tag@sha256:\u003cdigest\u003e)"
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "security-severity": "5.0",
+                "tags": [
+                  "security"
+                ]
+              }
+            },
+            {
+              "id": "cache-poisoning",
+              "shortDescription": {
+                "text": "A cache any branch can fill is restored by a job with secrets or on the default branch"
+              },
+              "fullDescription": {
+                "text": "Without {{ .Branch }} in the key, a build of any branch, including one from an outside contributor, can save a cache that the default branch or a job with a context later restores, so planted files run with its secrets."
+              },
+              "help": {
+                "text": "add {{ .Branch }} to the cache key so a branch cannot fill a cache that other branches restore"
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "security-severity": "5.0",
+                "tags": [
+                  "security"
+                ]
+              }
+            },
+            {
+              "id": "ssh-keys-unrestricted",
+              "shortDescription": {
+                "text": "add_ssh_keys does not name the keys to add"
+              },
+              "fullDescription": {
+                "text": "Without fingerprints, every SSH key added to the project is loaded into the job, so a compromised step can use keys the job never needed."
+              },
+              "help": {
+                "text": "list the keys to add with fingerprints: [\u003cfingerprint\u003e]"
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "security-severity": "5.0",
+                "tags": [
+                  "security"
+                ]
+              }
+            },
+            {
+              "id": "curl-pipe-shell",
+              "shortDescription": {
+                "text": "A downloaded script is piped straight into a shell"
+              },
+              "fullDescription": {
+                "text": "The script runs unreviewed and unverified, so whoever controls the server, or a network position in between, runs code in your job with its secrets."
+              },
+              "help": {
+                "text": "download the script, verify its checksum, then run it"
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "security-severity": "5.0",
+                "tags": [
+                  "security"
+                ]
+              }
+            },
+            {
+              "id": "hardcoded-secret",
+              "shortDescription": {
+                "text": "A secret is written into the config as a literal value"
+              },
+              "fullDescription": {
+                "text": "The config is readable by everyone with access to the repository and lives forever in its history, so a literal token or password there has to be treated as leaked."
+              },
+              "help": {
+                "text": "move the value to a context or project environment variable"
+              },
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "properties": {
+                "security-severity": "8.0",
+                "tags": [
+                  "security"
+                ]
+              }
+            },
+            {
+              "id": "context-on-any-branch",
+              "shortDescription": {
+                "text": "A workflow job gets a context on every branch"
+              },
+              "fullDescription": {
+                "text": "A context's secrets are handed to the job on whichever branch runs it, so anyone who can push a branch can write a config change that reads them."
+              },
+              "help": {
+                "text": "add filters.branches.only, an approval job, or a restricted context"
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "security-severity": "5.0",
+                "tags": [
+                  "security"
+                ]
+              }
+            },
+            {
+              "id": "dynamic-config-untrusted",
+              "shortDescription": {
+                "text": "A setup workflow continues with a config that is generated, or not checked in"
+              },
+              "fullDescription": {
+                "text": "The config reviewed is a setup config for a dynamic pipeline. Review the config used to continue the pipeline."
+              },
+              "help": {
+                "text": "continue with a config checked into the repository, or check what the step generates before continuing"
+              },
+              "defaultConfiguration": {
+                "level": "note"
+              },
+              "properties": {
+                "security-severity": "2.0",
+                "tags": [
+                  "security"
+                ]
+              }
+            },
+            {
+              "id": "fork-pr-secrets",
+              "shortDescription": {
+                "text": "Fork pull requests are built and receive project secrets"
+              },
+              "fullDescription": {
+                "text": "With both \"Build forked pull requests\" and \"Pass secrets to builds from forked pull requests\" on, anyone who can open a pull request from a fork can change the config of their copy and read the project's environment variables and contexts. This applies to OAuth pipelines; GitHub App pipelines never build fork pull requests."
+              },
+              "help": {
+                "text": "turn off \"Pass secrets to builds from forked pull requests\" in Project Settings \u003e Advanced"
+              },
+              "defaultConfiguration": {
+                "level": "error"
+              },
+              "properties": {
+                "security-severity": "8.0",
+                "tags": [
+                  "security"
+                ]
+              }
+            },
+            {
+              "id": "ssh-rerun-allowed",
+              "shortDescription": {
+                "text": "Jobs can be rerun with SSH"
+              },
+              "fullDescription": {
+                "text": "Anyone who can rerun a job can open a shell in it, with every secret the job holds, so SSH reruns widen who can read the project's secrets."
+              },
+              "help": {
+                "text": "disable SSH reruns for this project"
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "security-severity": "5.0",
+                "tags": [
+                  "security"
+                ]
+              }
+            },
+            {
+              "id": "settings-not-admin-only",
+              "shortDescription": {
+                "text": "Project settings can be changed by non-admins"
+              },
+              "fullDescription": {
+                "text": "Settings such as the fork pull request options and SSH reruns decide who can reach the project's secrets. Letting any member change them lets any member loosen them."
+              },
+              "help": {
+                "text": "require admin access to change this project's settings"
+              },
+              "defaultConfiguration": {
+                "level": "note"
+              },
+              "properties": {
+                "security-severity": "2.0",
+                "tags": [
+                  "security"
+                ]
+              }
+            },
+            {
+              "id": "user-checkout-keys-allowed",
+              "shortDescription": {
+                "text": "User checkout keys are allowed in the org"
+              },
+              "fullDescription": {
+                "text": "A user key acts as the person who created it, so a job using one can reach every repository that person can, well beyond the project it runs for."
+              },
+              "help": {
+                "text": "disable user checkout keys in the org's settings"
+              },
+              "defaultConfiguration": {
+                "level": "note"
+              },
+              "properties": {
+                "security-severity": "2.0",
+                "tags": [
+                  "security"
+                ]
+              }
+            },
+            {
+              "id": "uncertified-orbs-allowed",
+              "shortDescription": {
+                "text": "Uncertified public orbs are allowed in the org"
+              },
+              "fullDescription": {
+                "text": "Any published orb can then run in your jobs, with their secrets, although CircleCI has not reviewed it. The finding is medium when the config also has an unpinned orb."
+              },
+              "help": {
+                "text": "turn off uncertified public orbs in the org's settings, and pin every orb to an exact version"
+              },
+              "defaultConfiguration": {
+                "level": "note"
+              },
+              "properties": {
+                "security-severity": "2.0",
+                "tags": [
+                  "security"
+                ]
+              }
+            },
+            {
+              "id": "context-unrestricted",
+              "shortDescription": {
+                "text": "A context the config uses has no project or expression restriction"
+              },
+              "fullDescription": {
+                "text": "A context with no restriction, or only one for a group such as All members, is open to every branch of every project in the org, and does not stop fork pull requests from receiving it."
+              },
+              "help": {
+                "text": "restrict the context to this project or to an expression such as the default branch"
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "properties": {
+                "security-severity": "5.0",
+                "tags": [
+                  "security"
+                ]
+              }
+            }
+          ]
+        }
+      },
+      "invocations": [
+        {
+          "executionSuccessful": true,
+          "toolExecutionNotifications": [
+            {
+              "level": "warning",
+              "message": {
+                "text": "no CircleCI API token; skipping --online checks, offline results only"
+              }
+            }
+          ]
+        }
+      ],
+      "results": [
+        {
+          "ruleId": "context-on-any-branch",
+          "level": "warning",
+          "message": {
+            "text": "job build gets context org-secrets on every branch"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": ".circleci/config.yml"
+                },
+                "region": {
+                  "startLine": 12,
+                  "startColumn": 20,
+                  "endLine": 12,
+                  "endColumn": 31,
+                  "snippet": {
+                    "text": "          context: org-secrets"
+                  }
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

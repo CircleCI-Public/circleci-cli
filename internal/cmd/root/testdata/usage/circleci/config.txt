@@ -1,6 +1,7 @@
 Usage:  circleci config <command> [flags]
 
 Available commands:
+  audit
   generate
   pack
   process

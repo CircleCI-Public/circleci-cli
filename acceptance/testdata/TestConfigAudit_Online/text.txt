@@ -1,0 +1,16 @@
+medium context-on-any-branch .circleci/config.yml:12:20  job build gets context org-secrets on every branch
+   |
+12 |           context: org-secrets
+   |                    ^^^^^^^^^^^
+   = fix: add filters.branches.only, an approval job, or a restricted context
+
+high fork-pr-secrets project settings  fork PRs are built and receive project secrets and contexts (OAuth pipelines)
+   = fix: turn off "Pass secrets to builds from forked pull requests" in Project Settings > Advanced
+
+medium context-unrestricted context org-secrets  context org-secrets has no project or expression restriction
+   = fix: restrict the context to this project or to an expression such as the default branch
+
+medium ssh-rerun-allowed project settings  jobs can be rerun with SSH, exposing their secrets to anyone who can rerun
+   = fix: disable SSH reruns for this project
+
+4 findings (1 high, 3 medium, 0 low), 0 suppressed

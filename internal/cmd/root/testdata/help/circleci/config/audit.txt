@@ -1,0 +1,41 @@
+Check a pipeline config for supply-chain risks
+
+## Usage
+
+`circleci config audit [<path>] [flags]`
+
+## Arguments
+
+`<path>` is the pipeline config file to audit, by default
+`.circleci/config.yml`. Pass `-` to read the config from stdin.
+
+## Flags
+
+| Flag                    | Description                                                              |
+| ----------------------- | ------------------------------------------------------------------------ |
+| `--format string`       | output format: text or sarif (default "text")                            |
+| `--json`                | Output as JSON                                                           |
+| `--min-severity string` | lowest severity to report: low, medium or high (default "low")           |
+| `--online`              | also check project, org and context settings (read-only API calls)       |
+| `--project string`      | project slug for --online (e.g. gh/org/repo); defaults to the git remote |
+
+Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `circleci --help`.
+
+## Examples
+
+- Audit the default config file: 
+  `circleci config audit`
+- Audit a file and show only high-severity findings: 
+  `circleci config audit path/to/config.yml --min-severity high`
+- Audit config from stdin and output JSON: 
+  `cat config.yml | circleci config audit - --json`
+- Also check the project's settings (read-only API calls): 
+  `circleci config audit --online`
+
+## Details
+
+Runs offline unless --online is given; orbs are not expanded. Exits 7 when a finding
+is at or above --min-severity. Rules and suppression comments: 'circleci help config-audit'.
+
+JSON fields (--json): file, findings (rule_id, severity, confidence, message, fix, file, line, column, end_line, end_column, snippet, location), summary (high, medium, low, total, suppressed), online (checked, project, requests), warnings
+

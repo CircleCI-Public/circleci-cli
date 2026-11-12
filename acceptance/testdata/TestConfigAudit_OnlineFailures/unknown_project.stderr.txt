@@ -1,0 +1,8 @@
+warning: could not find project gh/acme/missing: project not found: "gh/acme/missing"; skipping --online checks, offline results only
+error: 1 finding at or above low in .circleci/config.yml.
+
+Suggestions:
+  • See each rule's fix: circleci help config-audit
+  • To accept a finding, add # circleci-audit: ignore[<rule-id>] on its line or the line above
+
+Reference: https://cli.circleci.com/reference/
