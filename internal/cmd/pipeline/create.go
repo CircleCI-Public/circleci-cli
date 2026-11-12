@@ -35,10 +35,9 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/clikit/iostream"
 	"github.com/CircleCI-Public/circleci-cli/internal/apiclient"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmdutil"
+	"github.com/CircleCI-Public/circleci-cli/internal/provider"
 )
 
-var validConfigProviders = []string{"github_app", "github_server", "circleci", "origin"}
-var validCheckoutProviders = []string{"github_app", "github_server", "origin"}
 var validConfigFileTypes = []string{configFileTypeGitHubActions}
 
 const (
@@ -49,22 +48,6 @@ const (
 	defaultWorkflowPath  = workflowDir + "/ci.yml"
 	gitHubActionsDocsURL = "https://circleci.com/docs/guides/orchestrate/use-a-github-actions-workflow-file-as-your-pipeline-configuration/"
 )
-
-// repoConfigProviders are config source providers that require a repo external ID.
-var repoConfigProviders = map[string]bool{
-	"github_app":    true,
-	"github_server": true,
-	"origin":        true,
-}
-
-// fullNameProviders are providers that address a repository by owner and name
-// rather than by id, and so need the full name as well as the external ID.
-// Origin exposes no lookup by id, so the full name is what resolves the
-// repository at all; the API rejects a write without it and rejects a pair that
-// names two different repositories.
-var fullNameProviders = map[string]bool{
-	"origin": true,
-}
 
 // createInput is the flag set of `pipeline create`. The flags are passed as one
 // value rather than a dozen positional strings, so two adjacent ones cannot be
@@ -146,14 +129,17 @@ func newCreateCmd() *cobra.Command {
 	cmd.Flags().StringVar(&in.projectID, "project-id", "", "Project UUID (overrides --project)")
 	cmd.Flags().StringVar(&in.name, "name", "", "Pipeline definition name (required)")
 	cmd.Flags().StringVar(&in.description, "description", "", "Pipeline definition description")
-	cmd.Flags().StringVar(&in.configProvider, "config-provider", "", fmt.Sprintf("Config source provider (one of: %s)", strings.Join(validConfigProviders, ", ")))
-	cmd.Flags().StringVar(&in.configRepoID, "config-repo-id", "", "Config source repo external ID (required for github_app, github_server, origin)")
-	cmd.Flags().StringVar(&in.configRepoFullName, "config-repo-full-name", "", "Config source repo owner/name (required for origin)")
+	cmd.Flags().StringVar(&in.configProvider, "config-provider", "", fmt.Sprintf("Config source provider (one of: %s)", provider.List(provider.ConfigSource)))
+	cmd.Flags().StringVar(&in.configRepoID, "config-repo-id", "", fmt.Sprintf("Config source repo external ID (required for %s)",
+		provider.List(provider.ConfigSource, provider.Provider.NeedsRepoID)))
+	cmd.Flags().StringVar(&in.configRepoFullName, "config-repo-full-name", "", fmt.Sprintf("Config source repo owner/name (required for %s)",
+		provider.List(provider.ConfigSource, provider.Provider.NeedsFullName)))
 	cmd.Flags().StringVar(&in.configFile, "config-file", "", "Config file path (e.g. .circleci/config.yml)")
 	cmd.Flags().StringVar(&in.configFileType, "config-file-type", "", fmt.Sprintf("Config file type, omit for standard CircleCI YAML (one of: %s)", strings.Join(validConfigFileTypes, ", ")))
-	cmd.Flags().StringVar(&in.checkoutProvider, "checkout-provider", "", fmt.Sprintf("Checkout source provider (one of: %s)", strings.Join(validCheckoutProviders, ", ")))
+	cmd.Flags().StringVar(&in.checkoutProvider, "checkout-provider", "", fmt.Sprintf("Checkout source provider (one of: %s)", provider.List(provider.CheckoutSource)))
 	cmd.Flags().StringVar(&in.checkoutRepoID, "checkout-repo-id", "", "Checkout source repo external ID")
-	cmd.Flags().StringVar(&in.checkoutRepoFullName, "checkout-repo-full-name", "", "Checkout source repo owner/name (required for origin)")
+	cmd.Flags().StringVar(&in.checkoutRepoFullName, "checkout-repo-full-name", "", fmt.Sprintf("Checkout source repo owner/name (required for %s)",
+		provider.List(provider.CheckoutSource, provider.Provider.NeedsFullName)))
 	cmd.Flags().BoolVar(&in.allowNonstandardPath, "allow-nonstandard-path", false, "allow a github-actions config file outside .github/workflows/")
 	cmdutil.AddJSONFlag(cmd, &in.jsonOut)
 	cmdutil.AddJQFlag(cmd)
@@ -181,11 +167,12 @@ func runCreate(ctx context.Context, client *apiclient.Client, in createInput) er
 		return err
 	}
 
-	in.configProvider, err = resolveRequiredSelect(ctx, in.configProvider, "Config source provider", validConfigProviders, "--config-provider is required")
+	in.configProvider, err = resolveRequiredSelect(ctx, in.configProvider, "Config source provider", provider.Names(provider.ConfigSource), "--config-provider is required")
 	if err != nil {
 		return err
 	}
-	if err := validateConfigProvider(in.configProvider); err != nil {
+	configP, err := validateConfigProvider(in.configProvider)
+	if err != nil {
 		return err
 	}
 	if in.configFileType != "" {
@@ -205,13 +192,13 @@ func runCreate(ctx context.Context, client *apiclient.Client, in createInput) er
 	// configRepo stays zero for a hosted config (the circleci provider), which has
 	// no repository at all; the checkout then has nothing to default to.
 	var configRepo repoOption
-	if repoConfigProviders[in.configProvider] {
-		configRepo, err = resolveRepoFromOptions(ctx, in.configProvider, repoOpts, in.configRepoID, "Config repo external ID", "--config-repo-id is required for provider "+in.configProvider)
+	if configP.NeedsRepoID() {
+		configRepo, err = resolveRepoFromOptions(ctx, configP, repoOpts, in.configRepoID, "Config repo external ID", "--config-repo-id is required for provider "+in.configProvider)
 		if err != nil {
 			return err
 		}
 		in.configRepoID = configRepo.id
-		in.configRepoFullName, err = resolveRepoFullName(ctx, in.configProvider, in.configRepoFullName, configRepo,
+		in.configRepoFullName, err = resolveRepoFullName(ctx, configP, in.configRepoFullName, configRepo,
 			"Config repo owner/name", "--config-repo-full-name is required for provider "+in.configProvider)
 		if err != nil {
 			return err
@@ -230,20 +217,21 @@ func runCreate(ctx context.Context, client *apiclient.Client, in createInput) er
 		return err
 	}
 
-	in.checkoutProvider, err = resolveRequiredSelect(ctx, in.checkoutProvider, "Checkout source provider", validCheckoutProviders, "--checkout-provider is required")
+	in.checkoutProvider, err = resolveRequiredSelect(ctx, in.checkoutProvider, "Checkout source provider", provider.Names(provider.CheckoutSource), "--checkout-provider is required")
 	if err != nil {
 		return err
 	}
-	if err := validateCheckoutProvider(in.checkoutProvider); err != nil {
+	checkoutP, err := validateCheckoutProvider(in.checkoutProvider)
+	if err != nil {
 		return err
 	}
 
-	checkoutRepo, err := resolveCheckoutRepo(ctx, in.checkoutProvider, repoOpts, in.checkoutRepoID, configRepo)
+	checkoutRepo, err := resolveCheckoutRepo(ctx, checkoutP, repoOpts, in.checkoutRepoID, configRepo)
 	if err != nil {
 		return err
 	}
 	in.checkoutRepoID = checkoutRepo.id
-	in.checkoutRepoFullName, err = resolveRepoFullName(ctx, in.checkoutProvider, in.checkoutRepoFullName, checkoutRepo,
+	in.checkoutRepoFullName, err = resolveRepoFullName(ctx, checkoutP, in.checkoutRepoFullName, checkoutRepo,
 		"Checkout repo owner/name", "--checkout-repo-full-name is required for provider "+in.checkoutProvider)
 	if err != nil {
 		return err
@@ -377,9 +365,9 @@ func repoFor(opts []repoOption, id string) repoOption {
 	return repoOption{id: id}
 }
 
-func pickFromRepoOptions(ctx context.Context, provider string, opts []repoOption, prompt string) (repoOption, error) {
+func pickFromRepoOptions(ctx context.Context, p provider.Provider, opts []repoOption, prompt string) (repoOption, error) {
 	if len(opts) == 0 {
-		return promptRepoID(ctx, provider, prompt)
+		return promptRepoID(ctx, p, prompt)
 	}
 
 	const enterManually = "Enter manually..."
@@ -398,12 +386,12 @@ func pickFromRepoOptions(ctx context.Context, provider string, opts []repoOption
 			WithExitCode(clierrors.ExitCancelled)
 	}
 	if labels[idx] == enterManually {
-		return promptRepoID(ctx, provider, prompt)
+		return promptRepoID(ctx, p, prompt)
 	}
 	return opts[idx], nil
 }
 
-func resolveRepoFromOptions(ctx context.Context, provider string, opts []repoOption, val, prompt, errMsg string) (repoOption, error) {
+func resolveRepoFromOptions(ctx context.Context, p provider.Provider, opts []repoOption, val, prompt, errMsg string) (repoOption, error) {
 	if val != "" {
 		return repoFor(opts, val), nil
 	}
@@ -415,10 +403,10 @@ func resolveRepoFromOptions(ctx context.Context, provider string, opts []repoOpt
 			).
 			WithExitCode(clierrors.ExitBadArguments)
 	}
-	return pickFromRepoOptions(ctx, provider, opts, prompt)
+	return pickFromRepoOptions(ctx, p, opts, prompt)
 }
 
-func resolveCheckoutRepo(ctx context.Context, provider string, opts []repoOption, val string, configRepo repoOption) (repoOption, error) {
+func resolveCheckoutRepo(ctx context.Context, p provider.Provider, opts []repoOption, val string, configRepo repoOption) (repoOption, error) {
 	if val != "" {
 		return repoFor(opts, val), nil
 	}
@@ -432,7 +420,7 @@ func resolveCheckoutRepo(ctx context.Context, provider string, opts []repoOption
 	}
 
 	if configRepo.id == "" {
-		return pickFromRepoOptions(ctx, provider, opts, "Checkout repo external ID")
+		return pickFromRepoOptions(ctx, p, opts, "Checkout repo external ID")
 	}
 
 	configLabel := configRepo.label
@@ -452,7 +440,7 @@ func resolveCheckoutRepo(ctx context.Context, provider string, opts []repoOption
 	case 0:
 		return configRepo, nil
 	default:
-		return pickFromRepoOptions(ctx, provider, opts, "Checkout repo external ID")
+		return pickFromRepoOptions(ctx, p, opts, "Checkout repo external ID")
 	}
 }
 
@@ -462,9 +450,9 @@ func resolveCheckoutRepo(ctx context.Context, provider string, opts []repoOption
 // addresses repositories by owner and name it is required: an explicit flag wins,
 // then the name carried by the repository that was resolved, then a prompt.
 func resolveRepoFullName(
-	ctx context.Context, provider, val string, repo repoOption, prompt, errMsg string,
+	ctx context.Context, p provider.Provider, val string, repo repoOption, prompt, errMsg string,
 ) (string, error) {
-	if !fullNameProviders[provider] {
+	if !p.NeedsFullName() {
 		return val, nil
 	}
 	if val != "" {
@@ -476,17 +464,8 @@ func resolveRepoFullName(
 	return resolveRequired(ctx, "", prompt, "e.g. myorg/myrepo", "", errMsg)
 }
 
-// repoIDExample is a sample external repository id in the shape the provider
-// uses: opaque text for Origin, a number for the GitHub providers.
-func repoIDExample(provider string) string {
-	if provider == "origin" {
-		return "e.g. repo_01abc"
-	}
-	return "e.g. 123456789"
-}
-
-func promptRepoID(ctx context.Context, provider, prompt string) (repoOption, error) {
-	v, err := iostream.PromptText(ctx, prompt, repoIDExample(provider))
+func promptRepoID(ctx context.Context, p provider.Provider, prompt string) (repoOption, error) {
+	v, err := iostream.PromptText(ctx, prompt, p.RepoIDExample)
 	if err != nil {
 		return repoOption{}, err
 	}
@@ -537,15 +516,13 @@ func checkWorkflowPath(ctx context.Context, in createInput) error {
 	return nil
 }
 
-func validateConfigProvider(v string) *clierrors.CLIError {
-	for _, valid := range validConfigProviders {
-		if v == valid {
-			return nil
-		}
+func validateConfigProvider(v string) (provider.Provider, error) {
+	if p, ok := provider.Lookup(v, provider.ConfigSource); ok {
+		return p, nil
 	}
-	return clierrors.New("args.invalid_config_provider", "Invalid --config-provider value",
+	return provider.Provider{}, clierrors.New("args.invalid_config_provider", "Invalid --config-provider value",
 		fmt.Sprintf("%q is not a valid config provider.", v)).
-		WithSuggestions("Valid values: " + strings.Join(validConfigProviders, ", ")).
+		WithSuggestions("Valid values: " + provider.List(provider.ConfigSource)).
 		WithExitCode(clierrors.ExitBadArguments)
 }
 
@@ -561,14 +538,12 @@ func validateConfigFileType(v string) *clierrors.CLIError {
 		WithExitCode(clierrors.ExitBadArguments)
 }
 
-func validateCheckoutProvider(v string) *clierrors.CLIError {
-	for _, valid := range validCheckoutProviders {
-		if v == valid {
-			return nil
-		}
+func validateCheckoutProvider(v string) (provider.Provider, error) {
+	if p, ok := provider.Lookup(v, provider.CheckoutSource); ok {
+		return p, nil
 	}
-	return clierrors.New("args.invalid_checkout_provider", "Invalid --checkout-provider value",
+	return provider.Provider{}, clierrors.New("args.invalid_checkout_provider", "Invalid --checkout-provider value",
 		fmt.Sprintf("%q is not a valid checkout provider.", v)).
-		WithSuggestions("Valid values: " + strings.Join(validCheckoutProviders, ", ")).
+		WithSuggestions("Valid values: " + provider.List(provider.CheckoutSource)).
 		WithExitCode(clierrors.ExitBadArguments)
 }
