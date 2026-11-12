@@ -1002,6 +1002,167 @@ func TestProjectTriggerCreate_OriginMissingRepoFullName(t *testing.T) {
 	assert.Check(t, strings.Contains(result.Stderr, "--repo-full-name"))
 }
 
+// Forgejo resolves a repository from its owner/name alone, so the trigger
+// carries no repo id.
+func TestProjectTriggerCreate_ForgejoByFullName(t *testing.T) {
+	fake, env := setupTriggerFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary: binaryPath,
+		Args: []string{
+			"project", "trigger", "create",
+			"--project", "gh/myorg/alpha",
+			"--pipeline-definition-id", triggerPipelineDefID,
+			"--provider", "forgejo",
+			"--repo-full-name", "myorg/myrepo",
+		},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, cmp.Contains(result.Stdout, triggerID))
+
+	t.Run("check request", func(t *testing.T) {
+		assert.Check(t, cmp.DeepEqual(fake.LastRequest(), &httprecorder.Request{
+			Method: http.MethodPost,
+			URL:    url.URL{Path: "/api/v3/triggers", RawQuery: "filter%5Bproject_id%5D=" + triggerProjectID},
+			Header: http.Header{
+				"Authorization": {"Bearer test-token"},
+				"User-Agent":    {httpcl.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
+			},
+			Body: new(`{"data":{"attributes":{"is_disabled":false,"event":{"type":"vcs","vcs":{"provider":"forgejo","repo_full_name":"myorg/myrepo"}}},"references":{"pipeline":{"id":"` + triggerPipelineDefID + `"}}}}`),
+		}, ignoreCommonHeaders))
+	})
+}
+
+// A Forgejo repository named by id alone needs no full name.
+func TestProjectTriggerCreate_ForgejoByID(t *testing.T) {
+	fake, env := setupTriggerFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary: binaryPath,
+		Args: []string{
+			"project", "trigger", "create",
+			"--project", "gh/myorg/alpha",
+			"--pipeline-definition-id", triggerPipelineDefID,
+			"--provider", "forgejo",
+			"--repo-id", "42",
+		},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+
+	t.Run("check request", func(t *testing.T) {
+		assert.Check(t, cmp.DeepEqual(fake.LastRequest(), &httprecorder.Request{
+			Method: http.MethodPost,
+			URL:    url.URL{Path: "/api/v3/triggers", RawQuery: "filter%5Bproject_id%5D=" + triggerProjectID},
+			Header: http.Header{
+				"Authorization": {"Bearer test-token"},
+				"User-Agent":    {httpcl.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
+			},
+			Body: new(`{"data":{"attributes":{"is_disabled":false,"event":{"type":"vcs","vcs":{"provider":"forgejo","repo_id":"42"}}},"references":{"pipeline":{"id":"` + triggerPipelineDefID + `"}}}}`),
+		}, ignoreCommonHeaders))
+	})
+}
+
+// Both are forwarded when both are given; the API checks they name the same
+// repository.
+func TestProjectTriggerCreate_ForgejoByIDAndFullName(t *testing.T) {
+	fake, env := setupTriggerFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary: binaryPath,
+		Args: []string{
+			"project", "trigger", "create",
+			"--project", "gh/myorg/alpha",
+			"--pipeline-definition-id", triggerPipelineDefID,
+			"--provider", "forgejo",
+			"--repo-id", "42",
+			"--repo-full-name", "myorg/myrepo",
+		},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+
+	t.Run("check request", func(t *testing.T) {
+		assert.Check(t, cmp.DeepEqual(fake.LastRequest(), &httprecorder.Request{
+			Method: http.MethodPost,
+			URL:    url.URL{Path: "/api/v3/triggers", RawQuery: "filter%5Bproject_id%5D=" + triggerProjectID},
+			Header: http.Header{
+				"Authorization": {"Bearer test-token"},
+				"User-Agent":    {httpcl.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
+			},
+			Body: new(`{"data":{"attributes":{"is_disabled":false,"event":{"type":"vcs","vcs":{"provider":"forgejo","repo_id":"42","repo_full_name":"myorg/myrepo"}}},"references":{"pipeline":{"id":"` + triggerPipelineDefID + `"}}}}`),
+		}, ignoreCommonHeaders))
+	})
+}
+
+// Interactively, Forgejo asks for the owner/name, which is what a user knows,
+// rather than a numeric id.
+func TestProjectTriggerCreate_Forgejo_InteractivePromptsFullName(t *testing.T) {
+	fake, env := setupTriggerFake(t)
+
+	console := binary.RunCLIInteractive(t, binary.RunOpts{
+		Binary: binaryPath,
+		Args: []string{
+			"project", "trigger", "create",
+			"--project", "gh/myorg/alpha",
+			"--pipeline-definition-id", triggerPipelineDefID,
+			"--provider", "forgejo",
+		},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Assert(t, t.Run("prompts for owner/name", func(t *testing.T) {
+		_, err := console.ExpectString("Repository owner/name")
+		assert.NilError(t, err)
+		_, err = console.Send("myorg/myrepo\r")
+		assert.NilError(t, err)
+	}))
+
+	assert.Assert(t, t.Run("creates the trigger", func(t *testing.T) {
+		_, err := console.ExpectString(triggerID)
+		assert.NilError(t, err)
+	}))
+
+	t.Run("check request", func(t *testing.T) {
+		assert.Check(t, cmp.DeepEqual(fake.LastRequest(), &httprecorder.Request{
+			Method: http.MethodPost,
+			URL:    url.URL{Path: "/api/v3/triggers", RawQuery: "filter%5Bproject_id%5D=" + triggerProjectID},
+			Header: http.Header{
+				"Authorization": {"Bearer test-token"},
+				"User-Agent":    {httpcl.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
+			},
+			Body: new(`{"data":{"attributes":{"is_disabled":false,"event":{"type":"vcs","vcs":{"provider":"forgejo","repo_full_name":"myorg/myrepo"}}},"references":{"pipeline":{"id":"` + triggerPipelineDefID + `"}}}}`),
+		}, ignoreCommonHeaders))
+	})
+}
+
+func TestProjectTriggerCreate_ForgejoMissingRepo(t *testing.T) {
+	_, env := setupTriggerFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary: binaryPath,
+		Args: []string{
+			"project", "trigger", "create",
+			"--project", "gh/myorg/alpha",
+			"--pipeline-definition-id", triggerPipelineDefID,
+			"--provider", "forgejo",
+		},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 2))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+}
+
 // --- project trigger update ---
 
 func TestProjectTriggerUpdate(t *testing.T) {

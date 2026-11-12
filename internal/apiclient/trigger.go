@@ -173,10 +173,9 @@ func (c *Client) ListTriggers(ctx context.Context, projectID, pipelineDefinition
 }
 
 // CreateTriggerInput contains the fields for creating a trigger.
-// Provider must be one of: github_app, github_server, github_oauth, origin,
-// webhook, schedule. RepoID is the repository external ID, required by every
-// VCS-backed provider; RepoFullName is additionally required by providers that
-// address a repository by owner and name rather than by id.
+// Provider is a trigger source from internal/provider. RepoID is the repository
+// external ID; RepoFullName is its owner/name. Which of the two a provider needs
+// is recorded in its registry entry.
 type CreateTriggerInput struct {
 	ProjectID            string
 	PipelineDefinitionID string

@@ -50,6 +50,8 @@ const (
 	pipelineRepoID    = "987654321"
 	// Origin repository ids are opaque text rather than numeric.
 	pipelineOriginRepoID = "repo_01abc"
+	// Forgejo repository ids are numeric.
+	pipelineForgejoRepoID = "42"
 )
 
 // fakePipelineDefPayload builds a v3 pipeline data entity with both sources
@@ -388,6 +390,188 @@ func TestPipelineCreate_OriginMissingCheckoutRepoFullName(t *testing.T) {
 
 	assert.Equal(t, result.ExitCode, 2, "stderr: %s", result.Stderr)
 	assert.Check(t, strings.Contains(result.Stderr, "--checkout-repo-full-name"))
+}
+
+// Forgejo resolves a repository from its owner/name alone, so a create that
+// names only the full names sends no repo id at all.
+func TestPipelineCreate_ForgejoByFullName(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	fake.AddProjectBySlug("gh/myorg/myrepo", pipelineProjectID, "myrepo", "a0000000-0000-4000-8000-0000000b0003")
+	fake.SetCreatePipelineDefinitionResponse(pipelineProjectID,
+		fakePipelineDefPayload(pipelineDefID, "my-pipeline", "forgejo", pipelineForgejoRepoID, ".circleci/config.yml", "forgejo", pipelineForgejoRepoID),
+	)
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary: binaryPath,
+		Args: []string{
+			"pipeline", "create",
+			"--project-id", pipelineProjectID,
+			"--name", "my-pipeline",
+			"--config-provider", "forgejo",
+			"--config-repo-full-name", "myorg/myrepo",
+			"--config-file", ".circleci/config.yml",
+			"--checkout-provider", "forgejo",
+			"--checkout-repo-full-name", "myorg/myrepo",
+		},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, cmp.Contains(result.Stdout, pipelineDefID))
+
+	t.Run("check request", func(t *testing.T) {
+		assert.Check(t, cmp.DeepEqual(fake.LastRequest(), &httprecorder.Request{
+			Method: http.MethodPost,
+			URL:    url.URL{Path: "/api/v3/pipelines"},
+			Header: http.Header{
+				"Authorization": {"Bearer test-token"},
+				"User-Agent":    {httpcl.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
+			},
+			Body: new(`{"data":{"attributes":{"name":"my-pipeline","config":{"type":"vcs","file_path":".circleci/config.yml","vcs":{"provider":"forgejo","repo_full_name":"myorg/myrepo"}},"checkout":{"vcs":{"provider":"forgejo","repo_full_name":"myorg/myrepo"}}},"references":{"project":{"id":"` + pipelineProjectID + `"}}}}`),
+		}, ignoreCommonHeaders))
+	})
+}
+
+// A Forgejo repository named by id alone needs no full name.
+func TestPipelineCreate_ForgejoByID(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	fake.AddProjectBySlug("gh/myorg/myrepo", pipelineProjectID, "myrepo", "a0000000-0000-4000-8000-0000000b0003")
+	fake.SetCreatePipelineDefinitionResponse(pipelineProjectID,
+		fakePipelineDefPayload(pipelineDefID, "my-pipeline", "forgejo", pipelineForgejoRepoID, ".circleci/config.yml", "forgejo", pipelineForgejoRepoID),
+	)
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary: binaryPath,
+		Args: []string{
+			"pipeline", "create",
+			"--project-id", pipelineProjectID,
+			"--name", "my-pipeline",
+			"--config-provider", "forgejo",
+			"--config-repo-id", pipelineForgejoRepoID,
+			"--config-file", ".circleci/config.yml",
+			"--checkout-provider", "forgejo",
+			"--checkout-repo-id", pipelineForgejoRepoID,
+		},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+
+	t.Run("check request", func(t *testing.T) {
+		assert.Check(t, cmp.DeepEqual(fake.LastRequest(), &httprecorder.Request{
+			Method: http.MethodPost,
+			URL:    url.URL{Path: "/api/v3/pipelines"},
+			Header: http.Header{
+				"Authorization": {"Bearer test-token"},
+				"User-Agent":    {httpcl.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
+			},
+			Body: new(`{"data":{"attributes":{"name":"my-pipeline","config":{"type":"vcs","file_path":".circleci/config.yml","vcs":{"provider":"forgejo","repo_id":"` + pipelineForgejoRepoID + `"}},"checkout":{"vcs":{"provider":"forgejo","repo_id":"` + pipelineForgejoRepoID + `"}}},"references":{"project":{"id":"` + pipelineProjectID + `"}}}}`),
+		}, ignoreCommonHeaders))
+	})
+}
+
+func TestPipelineCreate_ForgejoMissingConfigRepo(t *testing.T) {
+	_, env := setupPipelineFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary: binaryPath,
+		Args: []string{
+			"pipeline", "create",
+			"--project-id", pipelineProjectID,
+			"--name", "my-pipeline",
+			"--config-provider", "forgejo",
+			"--config-file", ".circleci/config.yml",
+			"--checkout-provider", "forgejo",
+			"--checkout-repo-full-name", "myorg/myrepo",
+		},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 2))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+}
+
+func TestPipelineCreate_ForgejoMissingCheckoutRepo(t *testing.T) {
+	_, env := setupPipelineFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary: binaryPath,
+		Args: []string{
+			"pipeline", "create",
+			"--project-id", pipelineProjectID,
+			"--name", "my-pipeline",
+			"--config-provider", "forgejo",
+			"--config-repo-full-name", "myorg/myrepo",
+			"--config-file", ".circleci/config.yml",
+			"--checkout-provider", "forgejo",
+		},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 2))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+}
+
+// A config repo named by owner/name alone is still offered as the checkout's
+// default, and the checkout then carries the same name.
+func TestPipelineCreate_Forgejo_InteractiveCheckoutDefaultsToConfig(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	fake.AddProjectBySlug("gh/myorg/myrepo", pipelineProjectID, "myrepo", "a0000000-0000-4000-8000-0000000b0003")
+	fake.SetCreatePipelineDefinitionResponse(pipelineProjectID,
+		fakePipelineDefPayload(pipelineDefID, "my-pipeline", "forgejo", pipelineForgejoRepoID, ".circleci/config.yml", "forgejo", pipelineForgejoRepoID),
+	)
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+
+	console := binary.RunCLIInteractive(t, binary.RunOpts{
+		Binary: binaryPath,
+		Args: []string{
+			"pipeline", "create",
+			"--project-id", pipelineProjectID,
+			"--name", "my-pipeline",
+			"--config-provider", "forgejo",
+			"--config-repo-full-name", "myorg/myrepo",
+			"--config-file", ".circleci/config.yml",
+			"--checkout-provider", "forgejo",
+		},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Assert(t, t.Run("offers the config repo for checkout", func(t *testing.T) {
+		_, err := console.ExpectString("myorg/myrepo")
+		assert.NilError(t, err)
+		_, err = console.Send("\r")
+		assert.NilError(t, err)
+	}))
+
+	assert.Assert(t, t.Run("creates the pipeline definition", func(t *testing.T) {
+		_, err := console.ExpectString("Pipeline definition created")
+		assert.NilError(t, err)
+	}))
+
+	t.Run("check request", func(t *testing.T) {
+		assert.Check(t, cmp.DeepEqual(fake.LastRequest(), &httprecorder.Request{
+			Method: http.MethodPost,
+			URL:    url.URL{Path: "/api/v3/pipelines"},
+			Header: http.Header{
+				"Authorization": {"Bearer test-token"},
+				"User-Agent":    {httpcl.UserAgent(runtime.GOOS, runtime.GOARCH, "dev", "")},
+			},
+			Body: new(`{"data":{"attributes":{"name":"my-pipeline","config":{"type":"vcs","file_path":".circleci/config.yml","vcs":{"provider":"forgejo","repo_full_name":"myorg/myrepo"}},"checkout":{"vcs":{"provider":"forgejo","repo_full_name":"myorg/myrepo"}}},"references":{"project":{"id":"` + pipelineProjectID + `"}}}}`),
+		}, ignoreCommonHeaders))
+	})
 }
 
 // A GitHub provider keys repositories by id alone, so an unasked-for full name is

@@ -132,14 +132,16 @@ func newCreateCmd() *cobra.Command {
 	cmd.Flags().StringVar(&in.configProvider, "config-provider", "", fmt.Sprintf("Config source provider (one of: %s)", provider.List(provider.ConfigSource)))
 	cmd.Flags().StringVar(&in.configRepoID, "config-repo-id", "", fmt.Sprintf("Config source repo external ID (required for %s)",
 		provider.List(provider.ConfigSource, provider.Provider.NeedsRepoID)))
-	cmd.Flags().StringVar(&in.configRepoFullName, "config-repo-full-name", "", fmt.Sprintf("Config source repo owner/name (required for %s)",
-		provider.List(provider.ConfigSource, provider.Provider.NeedsFullName)))
+	cmd.Flags().StringVar(&in.configRepoFullName, "config-repo-full-name", "", fmt.Sprintf("Config source repo owner/name (required for %s; enough on its own for %s)",
+		provider.List(provider.ConfigSource, provider.Provider.NeedsFullName),
+		provider.List(provider.ConfigSource, provider.Provider.FullNameIsEnough)))
 	cmd.Flags().StringVar(&in.configFile, "config-file", "", "Config file path (e.g. .circleci/config.yml)")
 	cmd.Flags().StringVar(&in.configFileType, "config-file-type", "", fmt.Sprintf("Config file type, omit for standard CircleCI YAML (one of: %s)", strings.Join(validConfigFileTypes, ", ")))
 	cmd.Flags().StringVar(&in.checkoutProvider, "checkout-provider", "", fmt.Sprintf("Checkout source provider (one of: %s)", provider.List(provider.CheckoutSource)))
 	cmd.Flags().StringVar(&in.checkoutRepoID, "checkout-repo-id", "", "Checkout source repo external ID")
-	cmd.Flags().StringVar(&in.checkoutRepoFullName, "checkout-repo-full-name", "", fmt.Sprintf("Checkout source repo owner/name (required for %s)",
-		provider.List(provider.CheckoutSource, provider.Provider.NeedsFullName)))
+	cmd.Flags().StringVar(&in.checkoutRepoFullName, "checkout-repo-full-name", "", fmt.Sprintf("Checkout source repo owner/name (required for %s; enough on its own for %s)",
+		provider.List(provider.CheckoutSource, provider.Provider.NeedsFullName),
+		provider.List(provider.CheckoutSource, provider.Provider.FullNameIsEnough)))
 	cmd.Flags().BoolVar(&in.allowNonstandardPath, "allow-nonstandard-path", false, "allow a github-actions config file outside .github/workflows/")
 	cmdutil.AddJSONFlag(cmd, &in.jsonOut)
 	cmdutil.AddJQFlag(cmd)
@@ -192,8 +194,8 @@ func runCreate(ctx context.Context, client *apiclient.Client, in createInput) er
 	// configRepo stays zero for a hosted config (the circleci provider), which has
 	// no repository at all; the checkout then has nothing to default to.
 	var configRepo repoOption
-	if configP.NeedsRepoID() {
-		configRepo, err = resolveRepoFromOptions(ctx, configP, repoOpts, in.configRepoID, "Config repo external ID", "--config-repo-id is required for provider "+in.configProvider)
+	if configP.HasRepo() {
+		configRepo, err = resolveRepoFromOptions(ctx, configP, repoOpts, in.configRepoID, in.configRepoFullName, configRepoFlags)
 		if err != nil {
 			return err
 		}
@@ -226,7 +228,7 @@ func runCreate(ctx context.Context, client *apiclient.Client, in createInput) er
 		return err
 	}
 
-	checkoutRepo, err := resolveCheckoutRepo(ctx, checkoutP, repoOpts, in.checkoutRepoID, configRepo)
+	checkoutRepo, err := resolveCheckoutRepo(ctx, checkoutP, repoOpts, in.checkoutRepoID, in.checkoutRepoFullName, configRepo)
 	if err != nil {
 		return err
 	}
@@ -365,9 +367,10 @@ func repoFor(opts []repoOption, id string) repoOption {
 	return repoOption{id: id}
 }
 
-func pickFromRepoOptions(ctx context.Context, p provider.Provider, opts []repoOption, prompt string) (repoOption, error) {
+func pickFromRepoOptions(ctx context.Context, p provider.Provider, opts []repoOption, f repoFlags) (repoOption, error) {
+	prompt := f.subject + " external ID"
 	if len(opts) == 0 {
-		return promptRepoID(ctx, p, prompt)
+		return promptRepo(ctx, p, f)
 	}
 
 	const enterManually = "Enter manually..."
@@ -386,41 +389,79 @@ func pickFromRepoOptions(ctx context.Context, p provider.Provider, opts []repoOp
 			WithExitCode(clierrors.ExitCancelled)
 	}
 	if labels[idx] == enterManually {
-		return promptRepoID(ctx, p, prompt)
+		return promptRepo(ctx, p, f)
 	}
 	return opts[idx], nil
 }
 
-func resolveRepoFromOptions(ctx context.Context, p provider.Provider, opts []repoOption, val, prompt, errMsg string) (repoOption, error) {
-	if val != "" {
-		return repoFor(opts, val), nil
-	}
-	if !iostream.IsInteractive(ctx) {
-		return repoOption{}, clierrors.New("args.missing_flag", "Missing required flag", errMsg).
-			WithSuggestions(
-				"Pass "+strings.Fields(errMsg)[0]+" <value>",
-				"Run with --help for flag descriptions",
-			).
-			WithExitCode(clierrors.ExitBadArguments)
-	}
-	return pickFromRepoOptions(ctx, p, opts, prompt)
+// repoFlags names the flags and prompt subject for one source's repository.
+type repoFlags struct {
+	subject  string // "Config repo", the start of every prompt for it
+	id       string // the external id flag
+	fullName string // the owner/name flag
 }
 
-func resolveCheckoutRepo(ctx context.Context, p provider.Provider, opts []repoOption, val string, configRepo repoOption) (repoOption, error) {
-	if val != "" {
-		return repoFor(opts, val), nil
+var (
+	configRepoFlags   = repoFlags{subject: "Config repo", id: "--config-repo-id", fullName: "--config-repo-full-name"}
+	checkoutRepoFlags = repoFlags{subject: "Checkout repo", id: "--checkout-repo-id", fullName: "--checkout-repo-full-name"}
+)
+
+// repoFromFlags returns the repository the flags name, and whether they name
+// one: an id, or an owner/name alone for a provider that resolves by name.
+func repoFromFlags(p provider.Provider, opts []repoOption, id, fullName string) (repoOption, bool) {
+	if id != "" {
+		return repoFor(opts, id), true
 	}
-	if !iostream.IsInteractive(ctx) {
-		return repoOption{}, clierrors.New("args.missing_flag", "Missing required flag", "--checkout-repo-id is required").
+	if fullName != "" && p.FullNameIsEnough() {
+		return repoOption{fullName: fullName, label: fullName}, true
+	}
+	return repoOption{}, false
+}
+
+// missingRepoErr is the non-interactive error for a source that names no
+// repository. A provider that also resolves a repository by owner/name accepts
+// either flag, so the error names both.
+func missingRepoErr(p provider.Provider, f repoFlags) error {
+	if p.FullNameIsEnough() {
+		return clierrors.New("args.missing_flag", "Missing required flag",
+			f.id+" or "+f.fullName+" is required for provider "+p.Name).
 			WithSuggestions(
-				"Pass --checkout-repo-id <value>",
-				"Run with --help for flag descriptions",
+				"Pass "+f.fullName+" <owner>/<repo>",
+				"Or pass "+f.id+" <value>",
 			).
 			WithExitCode(clierrors.ExitBadArguments)
 	}
+	return clierrors.New("args.missing_flag", "Missing required flag",
+		f.id+" is required for provider "+p.Name).
+		WithSuggestions(
+			"Pass "+f.id+" <value>",
+			"Run with --help for flag descriptions",
+		).
+		WithExitCode(clierrors.ExitBadArguments)
+}
 
-	if configRepo.id == "" {
-		return pickFromRepoOptions(ctx, p, opts, "Checkout repo external ID")
+func resolveRepoFromOptions(ctx context.Context, p provider.Provider, opts []repoOption, id, fullName string, f repoFlags) (repoOption, error) {
+	if repo, ok := repoFromFlags(p, opts, id, fullName); ok {
+		return repo, nil
+	}
+	if !iostream.IsInteractive(ctx) {
+		return repoOption{}, missingRepoErr(p, f)
+	}
+	return pickFromRepoOptions(ctx, p, opts, f)
+}
+
+func resolveCheckoutRepo(ctx context.Context, p provider.Provider, opts []repoOption, id, fullName string, configRepo repoOption) (repoOption, error) {
+	if repo, ok := repoFromFlags(p, opts, id, fullName); ok {
+		return repo, nil
+	}
+	if !iostream.IsInteractive(ctx) {
+		return repoOption{}, missingRepoErr(p, checkoutRepoFlags)
+	}
+
+	// A config repo named by owner/name alone has no id, but is still the
+	// checkout's natural default.
+	if configRepo.id == "" && configRepo.fullName == "" {
+		return pickFromRepoOptions(ctx, p, opts, checkoutRepoFlags)
 	}
 
 	configLabel := configRepo.label
@@ -440,31 +481,47 @@ func resolveCheckoutRepo(ctx context.Context, p provider.Provider, opts []repoOp
 	case 0:
 		return configRepo, nil
 	default:
-		return pickFromRepoOptions(ctx, p, opts, "Checkout repo external ID")
+		return pickFromRepoOptions(ctx, p, opts, checkoutRepoFlags)
 	}
 }
 
 // resolveRepoFullName returns the repo full name to send for a source. For a
 // provider that keys repositories by id the name is decorative, so whatever was
 // passed is forwarded untouched and nothing is guessed. For a provider that
-// addresses repositories by owner and name it is required: an explicit flag wins,
-// then the name carried by the repository that was resolved, then a prompt.
+// addresses repositories by owner and name it is used when known: an explicit
+// flag wins, then the name carried by the repository that was resolved. Only a
+// provider that needs the name prompts for it.
 func resolveRepoFullName(
 	ctx context.Context, p provider.Provider, val string, repo repoOption, prompt, errMsg string,
 ) (string, error) {
-	if !p.NeedsFullName() {
-		return val, nil
-	}
-	if val != "" {
+	if val != "" || (!p.NeedsFullName() && !p.FullNameIsEnough()) {
 		return val, nil
 	}
 	if repo.fullName != "" {
 		return repo.fullName, nil
 	}
+	if !p.NeedsFullName() {
+		return "", nil
+	}
 	return resolveRequired(ctx, "", prompt, "e.g. myorg/myrepo", "", errMsg)
 }
 
-func promptRepoID(ctx context.Context, p provider.Provider, prompt string) (repoOption, error) {
+// promptRepo asks for the repository by hand: by owner/name for a provider that
+// resolves repositories that way, since that is what a user knows, else by id.
+func promptRepo(ctx context.Context, p provider.Provider, f repoFlags) (repoOption, error) {
+	if p.FullNameIsEnough() {
+		prompt := f.subject + " owner/name"
+		v, err := iostream.PromptText(ctx, prompt, "e.g. myorg/myrepo")
+		if err != nil {
+			return repoOption{}, err
+		}
+		if v == "" {
+			return repoOption{}, clierrors.New("create.cancelled", "Aborted", "No value entered for: "+prompt).
+				WithExitCode(clierrors.ExitCancelled)
+		}
+		return repoOption{fullName: v, label: v}, nil
+	}
+	prompt := f.subject + " external ID"
 	v, err := iostream.PromptText(ctx, prompt, p.RepoIDExample)
 	if err != nil {
 		return repoOption{}, err

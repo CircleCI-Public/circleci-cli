@@ -556,23 +556,23 @@ Set where CircleCI finds config and what it checks out. Next: `project trigger c
 
 JSON fields: id, name, description, created_at, config_source.provider, config_source.file_path, config_source.repo.external_id, config_source.repo.full_name, checkout_source.provider, checkout_source.repo.external_id, checkout_source.repo.full_name
 
-| Flag                               | Description                                                                       |
-| ---------------------------------- | --------------------------------------------------------------------------------- |
-| `--allow-nonstandard-path`         | allow a github-actions config file outside .github/workflows/                     |
-| `--checkout-provider string`       | Checkout source provider (one of: github_app, github_server, origin)              |
-| `--checkout-repo-full-name string` | Checkout source repo owner/name (required for origin)                             |
-| `--checkout-repo-id string`        | Checkout source repo external ID                                                  |
-| `--config-file string`             | Config file path (e.g. .circleci/config.yml)                                      |
-| `--config-file-type string`        | Config file type, omit for standard CircleCI YAML (one of: github-actions)        |
-| `--config-provider string`         | Config source provider (one of: github_app, github_server, circleci, origin)      |
-| `--config-repo-full-name string`   | Config source repo owner/name (required for origin)                               |
-| `--config-repo-id string`          | Config source repo external ID (required for github_app, github_server, origin)   |
-| `--description string`             | Pipeline definition description                                                   |
-| `--jq string`                      | Process values from the response using jq syntax (see `circleci help formatting`) |
-| `--json`                           | Output as JSON                                                                    |
-| `--name string`                    | Pipeline definition name (required)                                               |
-| `--project string`                 | Project slug (e.g. gh/org/repo); defaults to git remote                           |
-| `--project-id string`              | Project UUID (overrides --project)                                                |
+| Flag                               | Description                                                                           |
+| ---------------------------------- | ------------------------------------------------------------------------------------- |
+| `--allow-nonstandard-path`         | allow a github-actions config file outside .github/workflows/                         |
+| `--checkout-provider string`       | Checkout source provider (one of: github_app, github_server, origin, forgejo)         |
+| `--checkout-repo-full-name string` | Checkout source repo owner/name (required for origin; enough on its own for forgejo)  |
+| `--checkout-repo-id string`        | Checkout source repo external ID                                                      |
+| `--config-file string`             | Config file path (e.g. .circleci/config.yml)                                          |
+| `--config-file-type string`        | Config file type, omit for standard CircleCI YAML (one of: github-actions)            |
+| `--config-provider string`         | Config source provider (one of: github_app, github_server, circleci, origin, forgejo) |
+| `--config-repo-full-name string`   | Config source repo owner/name (required for origin; enough on its own for forgejo)    |
+| `--config-repo-id string`          | Config source repo external ID (required for github_app, github_server, origin)       |
+| `--description string`             | Pipeline definition description                                                       |
+| `--jq string`                      | Process values from the response using jq syntax (see `circleci help formatting`)     |
+| `--json`                           | Output as JSON                                                                        |
+| `--name string`                    | Pipeline definition name (required)                                                   |
+| `--project string`                 | Project slug (e.g. gh/org/repo); defaults to git remote                               |
+| `--project-id string`              | Project UUID (overrides --project)                                                    |
 
 
 **Examples:**
@@ -4091,8 +4091,8 @@ JSON fields: id, created_at, event_name, event_preset, config_ref, checkout_ref,
 | `--pipeline-definition-id string` | Pipeline definition ID (required)                                                                                                                                                                                                                                                                                                                       |
 | `--project string`                | Project slug (e.g. gh/org/repo); defaults to git remote                                                                                                                                                                                                                                                                                                 |
 | `--project-id string`             | Project UUID (overrides --project)                                                                                                                                                                                                                                                                                                                      |
-| `--provider string`               | Event source provider (one of: github_app, github_server, github_oauth, origin, webhook, schedule) (default "github_app")                                                                                                                                                                                                                               |
-| `--repo-full-name string`         | Repository owner/name (required for origin)                                                                                                                                                                                                                                                                                                             |
+| `--provider string`               | Event source provider (one of: github_app, github_server, github_oauth, origin, forgejo, webhook, schedule) (default "github_app")                                                                                                                                                                                                                      |
+| `--repo-full-name string`         | Repository owner/name (required for origin; enough on its own for forgejo)                                                                                                                                                                                                                                                                              |
 | `--repo-id string`                | Repository external ID (required for github_app, github_server, github_oauth, origin)                                                                                                                                                                                                                                                                   |
 
 
