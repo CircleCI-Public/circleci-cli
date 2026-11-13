@@ -89,12 +89,15 @@ func newArtifactCmd() *cobra.Command {
 			}
 
 			if len(entries) == 0 {
-				iostream.ErrPrintln(ctx, "No artifacts found.")
-				return nil
+				if !jsonOut {
+					iostream.ErrPrintln(ctx, "No artifacts found.")
+					return nil
+				}
+				entries = []artifacts.Entry{}
 			}
 
-			if outputDir != "" {
-				sp := iostream.Spinner(ctx, true, fmt.Sprintf("Downloading %d artifact(s) to %q", len(entries), outputDir))
+			if outputDir != "" && len(entries) > 0 {
+				sp := iostream.Spinner(ctx, !jsonOut, fmt.Sprintf("Downloading %d artifact(s) to %q", len(entries), outputDir))
 				dlErr := artifacts.Download(ctx, client, entries, outputDir)
 				sp.Stop()
 				if dlErr != nil {

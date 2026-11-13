@@ -1260,14 +1260,24 @@ func (f *CircleCI) handleSearchTestFlakes(w http.ResponseWriter, r *http.Request
 	render.JSON(w, r, map[string]any{"data": data, "page": map[string]any{"next": next, "prev": nil}})
 }
 
+// handleGetJobArtifactsV3 answers 404 for a job with no registered artifacts,
+// whether or not the job itself is registered: production does the same for a
+// job that stored nothing and for one that does not exist.
 func (f *CircleCI) handleGetJobArtifactsV3(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	f.mu.RLock()
-	items := make([]any, 0, len(f.jobArtifactsV3[id]))
-	for _, a := range f.jobArtifactsV3[id] {
+	stored := f.jobArtifactsV3[id]
+	items := make([]any, 0, len(stored))
+	for _, a := range stored {
 		items = append(items, artifactEntity(a))
 	}
 	f.mu.RUnlock()
+
+	if len(stored) == 0 {
+		render.Status(r, http.StatusNotFound)
+		render.JSON(w, r, map[string]any{"message": "not found"})
+		return
+	}
 
 	render.JSON(w, r, map[string]any{"data": items})
 }

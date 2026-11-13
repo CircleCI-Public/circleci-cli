@@ -28,12 +28,16 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
 
+	"github.com/google/uuid"
+
 	"github.com/CircleCI-Public/circleci-cli/internal/apiclient"
+	"github.com/CircleCI-Public/circleci-cli/internal/httpcl"
 )
 
 // Entry is a single artifact produced by a job.
@@ -46,12 +50,28 @@ type Entry struct {
 // Client is the subset of apiclient.Client methods we need.
 type Client interface {
 	GetJobArtifactsV3(ctx context.Context, jobID string) ([]apiclient.Artifact, error)
+	GetJobV3(ctx context.Context, id uuid.UUID) (*apiclient.JobV3, error)
 	DownloadArtifact(ctx context.Context, artifactURL string, dst io.Writer) error
 }
 
 // ForJob fetches artifacts for a job identified by UUID.
+//
+// The artifacts endpoint answers 404 both for a job that does not exist and for
+// a job that stored no artifacts, so on a 404 ForJob asks the job endpoint which
+// one it is. A job that exists returns an empty list; otherwise ForJob returns
+// the job endpoint's error. An ID that is not a UUID keeps the artifacts 404.
 func ForJob(ctx context.Context, client Client, jobID string) ([]Entry, error) {
 	arts, err := client.GetJobArtifactsV3(ctx, jobID)
+	if httpcl.HasStatusCode(err, http.StatusNotFound) {
+		id, parseErr := uuid.Parse(jobID)
+		if parseErr != nil {
+			return nil, err
+		}
+		if _, jobErr := client.GetJobV3(ctx, id); jobErr != nil {
+			return nil, jobErr
+		}
+		return []Entry{}, nil
+	}
 	if err != nil {
 		return nil, err
 	}
