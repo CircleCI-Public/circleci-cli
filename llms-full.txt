@@ -783,13 +783,13 @@ CircleCI compiles into workflows. Attach triggers to a definition with
 
 Create a pipeline definition
 
-Create a pipeline definition: where CircleCI finds the config YAML and which
-repository to check out. Add a trigger next with `project trigger create`.
+Set where CircleCI finds config and what it checks out. Next: `project trigger create`.
 
 JSON fields: id, name, description, created_at, config_source.provider, config_source.file_path, config_source.repo.external_id, config_source.repo.full_name, checkout_source.provider, checkout_source.repo.external_id, checkout_source.repo.full_name
 
 | Flag                               | Description                                                                       |
 | ---------------------------------- | --------------------------------------------------------------------------------- |
+| `--allow-nonstandard-path`         | allow a github-actions config file outside .github/workflows/                     |
 | `--checkout-provider string`       | Checkout source provider (one of: github_app, github_server, origin)              |
 | `--checkout-repo-full-name string` | Checkout source repo owner/name (required for origin)                             |
 | `--checkout-repo-id string`        | Checkout source repo external ID                                                  |
