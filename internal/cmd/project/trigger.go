@@ -36,34 +36,8 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/internal/apiclient"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmdutil"
 	"github.com/CircleCI-Public/circleci-cli/internal/gitremote"
+	"github.com/CircleCI-Public/circleci-cli/internal/provider"
 )
-
-// repoProviders are the event source providers that require a repository ID.
-var repoProviders = map[string]bool{
-	"github_app":    true,
-	"github_server": true,
-	"github_oauth":  true,
-	"origin":        true,
-}
-
-// fullNameProviders are the event source providers that address a repository by
-// owner and name rather than by id, and so need the full name as well as the
-// repository ID. Origin exposes no lookup by id, so the full name is what
-// resolves the repository at all; the API rejects a trigger without it and
-// rejects a pair that names two different repositories.
-var fullNameProviders = map[string]bool{
-	"origin": true,
-}
-
-// validProviders lists the allowed values for --provider.
-var validProviders = []string{
-	"github_app",
-	"github_server",
-	"github_oauth",
-	"origin",
-	"webhook",
-	"schedule",
-}
 
 // validEventPresets lists the allowed values for --event-preset.
 var validEventPresets = []string{
@@ -332,7 +306,7 @@ func newTriggerCreateCmd() *cobra.Command {
 		projectSlug          string
 		projectID            string
 		pipelineDefinitionID string
-		provider             string
+		providerName         string
 		repoID               string
 		repoFullName         string
 		eventPreset          string
@@ -379,16 +353,19 @@ func newTriggerCreateCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return runTriggerCreate(ctx, client, projectSlug, projectID, pipelineDefinitionID, provider, repoID, repoFullName, eventPreset, configRef, checkoutRef, jsonOut)
+			return runTriggerCreate(ctx, client, projectSlug, projectID, pipelineDefinitionID, providerName, repoID, repoFullName, eventPreset, configRef, checkoutRef, jsonOut)
 		},
 	}
 
 	cmd.Flags().StringVar(&projectSlug, "project", "", "Project slug (e.g. gh/org/repo); defaults to git remote")
 	cmd.Flags().StringVar(&projectID, "project-id", "", "Project UUID (overrides --project)")
 	cmd.Flags().StringVar(&pipelineDefinitionID, "pipeline-definition-id", "", "Pipeline definition ID (required)")
-	cmd.Flags().StringVar(&provider, "provider", "github_app", fmt.Sprintf("Event source provider (one of: %s)", strings.Join(validProviders, ", ")))
-	cmd.Flags().StringVar(&repoID, "repo-id", "", "Repository external ID (required for github_app, github_server, github_oauth, origin)")
-	cmd.Flags().StringVar(&repoFullName, "repo-full-name", "", "Repository owner/name (required for origin)")
+	cmd.Flags().StringVar(&providerName, "provider", "github_app", fmt.Sprintf("Event source provider (one of: %s)",
+		provider.List(provider.TriggerSource)))
+	cmd.Flags().StringVar(&repoID, "repo-id", "", fmt.Sprintf("Repository external ID (required for %s)",
+		provider.List(provider.TriggerSource, provider.Provider.NeedsRepoID)))
+	cmd.Flags().StringVar(&repoFullName, "repo-full-name", "", fmt.Sprintf("Repository owner/name (required for %s)",
+		provider.List(provider.TriggerSource, provider.Provider.NeedsFullName)))
 	cmd.Flags().StringVar(&eventPreset, "event-preset", "", fmt.Sprintf("Event preset for filtering trigger events (one of: %s)", strings.Join(validEventPresets, ", ")))
 	cmd.Flags().StringVar(&configRef, "config-ref", "", "Git ref for fetching config (only needed when config repo differs from event source repo)")
 	cmd.Flags().StringVar(&checkoutRef, "checkout-ref", "", "Git ref for checking out code (only needed when checkout repo differs from event source repo)")
@@ -411,10 +388,11 @@ type triggerCreateOutput struct {
 func runTriggerCreate(
 	ctx context.Context,
 	client *apiclient.Client,
-	projectSlug, projectID, pipelineDefinitionID, provider, repoID, repoFullName, eventPreset, configRef, checkoutRef string,
+	projectSlug, projectID, pipelineDefinitionID, providerName, repoID, repoFullName, eventPreset, configRef, checkoutRef string,
 	jsonOut bool,
 ) error {
-	if err := validateProvider(provider); err != nil {
+	p, err := validateProvider(providerName)
+	if err != nil {
 		return err
 	}
 
@@ -440,10 +418,10 @@ func runTriggerCreate(
 		}
 	}
 
-	if repoID == "" && repoProviders[provider] {
+	if repoID == "" && p.NeedsRepoID() {
 		if !iostream.IsInteractive(ctx) {
 			return clierrors.New("args.missing_flag", "Missing required flag",
-				fmt.Sprintf("--repo-id is required for provider %q in non-interactive mode.", provider)).
+				fmt.Sprintf("--repo-id is required for provider %q in non-interactive mode.", p.Name)).
 				WithSuggestions(
 					"Pass --repo-id <external-repo-id>",
 					"Find the repository ID via the GitHub API: GET /repos/{owner}/{repo}",
@@ -467,10 +445,10 @@ func runTriggerCreate(
 
 	// Origin addresses a repository by owner and name and offers no lookup by id,
 	// so the full name is required alongside --repo-id rather than decorative.
-	if repoFullName == "" && fullNameProviders[provider] {
+	if repoFullName == "" && p.NeedsFullName() {
 		if !iostream.IsInteractive(ctx) {
 			return clierrors.New("args.missing_flag", "Missing required flag",
-				fmt.Sprintf("--repo-full-name is required for provider %q in non-interactive mode.", provider)).
+				fmt.Sprintf("--repo-full-name is required for provider %q in non-interactive mode.", p.Name)).
 				WithSuggestions(
 					"Pass --repo-full-name <owner>/<repo>",
 					"It must name the same repository as --repo-id",
@@ -500,7 +478,7 @@ func runTriggerCreate(
 	resp, err := client.CreateTrigger(ctx, apiclient.CreateTriggerInput{
 		ProjectID:            resolvedProjectID,
 		PipelineDefinitionID: pipelineDefinitionID,
-		Provider:             provider,
+		Provider:             p.Name,
 		RepoID:               repoID,
 		RepoFullName:         repoFullName,
 		EventPreset:          eventPreset,
@@ -740,15 +718,13 @@ func runTriggerDelete(ctx context.Context, client *apiclient.Client, triggerID, 
 	return nil
 }
 
-func validateProvider(v string) *clierrors.CLIError {
-	for _, valid := range validProviders {
-		if v == valid {
-			return nil
-		}
+func validateProvider(v string) (provider.Provider, error) {
+	if p, ok := provider.Lookup(v, provider.TriggerSource); ok {
+		return p, nil
 	}
-	return clierrors.New("args.invalid_provider", "Invalid --provider value",
+	return provider.Provider{}, clierrors.New("args.invalid_provider", "Invalid --provider value",
 		fmt.Sprintf("%q is not a valid provider.", v)).
-		WithSuggestions("Valid values: " + strings.Join(validProviders, ", ")).
+		WithSuggestions("Valid values: " + provider.List(provider.TriggerSource)).
 		WithExitCode(clierrors.ExitBadArguments)
 }
 

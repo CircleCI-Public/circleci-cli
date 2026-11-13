@@ -69,12 +69,104 @@ func TestRegistryIsUsable(t *testing.T) {
 	for _, p := range registry {
 		t.Run(p.Name, func(t *testing.T) {
 			assert.Check(t, p.Name != "", "Name is the value the API is sent")
+			assert.Check(t, p.Roles != 0, "a provider with no role can never be sent")
+			if p.Repo != NoRepo {
+				assert.Check(t, p.RepoIDExample != "", "RepoIDExample is the repo id prompt placeholder")
+			}
+			onboarding := p.Short != "" || p.Install != "" || p.InstalledPath != ""
+			if len(p.Hosts) == 0 {
+				// Without hosts onboarding never offers the entry, so its onboarding
+				// fields would be dead.
+				assert.Check(t, !onboarding, "onboarding fields are set but there are no Hosts to resolve the integration from")
+				return
+			}
+			// An onboarding integration: the connection flow reads these.
 			assert.Check(t, p.Short != "", "Short names the integration in progress output")
 			assert.Check(t, p.Install != "", "Install is the subject of the install prompt")
-			assert.Check(t, len(p.Hosts) > 0, "an integration with no hosts can never be resolved from a remote")
 			// A missing page sends the browser to the app root after an install, which
 			// reads as a finish line while the terminal is still waiting.
 			assert.Check(t, p.InstalledPath != "", "InstalledPath is where an install returns the browser")
 		})
 	}
+}
+
+// TestNames pins the values each source field accepts, in the order help text,
+// errors and pickers list them.
+func TestNames(t *testing.T) {
+	cases := []struct {
+		name    string
+		role    Role
+		filters []func(Provider) bool
+		want    []string
+	}{
+		{
+			name: "config",
+			role: ConfigSource,
+			want: []string{"github_app", "github_server", "circleci", "origin"},
+		},
+		{
+			name:    "config with repo id",
+			role:    ConfigSource,
+			filters: []func(Provider) bool{Provider.NeedsRepoID},
+			want:    []string{"github_app", "github_server", "origin"},
+		},
+		{
+			name:    "config with full name",
+			role:    ConfigSource,
+			filters: []func(Provider) bool{Provider.NeedsFullName},
+			want:    []string{"origin"},
+		},
+		{
+			name: "checkout",
+			role: CheckoutSource,
+			want: []string{"github_app", "github_server", "origin"},
+		},
+		{
+			name:    "checkout with full name",
+			role:    CheckoutSource,
+			filters: []func(Provider) bool{Provider.NeedsFullName},
+			want:    []string{"origin"},
+		},
+		{
+			name: "trigger",
+			role: TriggerSource,
+			want: []string{"github_app", "github_server", "github_oauth", "origin", "webhook", "schedule"},
+		},
+		{
+			name:    "trigger with repo id",
+			role:    TriggerSource,
+			filters: []func(Provider) bool{Provider.NeedsRepoID},
+			want:    []string{"github_app", "github_server", "github_oauth", "origin"},
+		},
+		{
+			name:    "trigger with full name",
+			role:    TriggerSource,
+			filters: []func(Provider) bool{Provider.NeedsFullName},
+			want:    []string{"origin"},
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Check(t, cmp.DeepEqual(Names(tc.role, tc.filters...), tc.want))
+		})
+	}
+}
+
+func TestLookup(t *testing.T) {
+	t.Run("found in role", func(t *testing.T) {
+		p, ok := Lookup("origin", CheckoutSource)
+		assert.Check(t, cmp.Equal(ok, true))
+		assert.Check(t, cmp.Equal(p.Name, "origin"))
+		assert.Check(t, cmp.Equal(p.NeedsRepoID(), true))
+		assert.Check(t, cmp.Equal(p.NeedsFullName(), true))
+	})
+	// circleci is a hosted config: valid as a config source, never as a checkout.
+	t.Run("known but not in role", func(t *testing.T) {
+		_, ok := Lookup("circleci", CheckoutSource)
+		assert.Check(t, cmp.Equal(ok, false))
+	})
+	t.Run("unknown", func(t *testing.T) {
+		_, ok := Lookup("gitlab", ConfigSource)
+		assert.Check(t, cmp.Equal(ok, false))
+	})
 }
