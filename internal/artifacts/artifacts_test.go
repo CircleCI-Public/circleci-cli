@@ -26,15 +26,18 @@ import (
 	"context"
 	"errors"
 	"io"
+	"net/http"
 	"os"
 	"path/filepath"
 	"testing"
 
+	"github.com/google/uuid"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/assert/cmp"
 
 	"github.com/CircleCI-Public/circleci-cli/internal/apiclient"
 	"github.com/CircleCI-Public/circleci-cli/internal/artifacts"
+	"github.com/CircleCI-Public/circleci-cli/internal/httpcl"
 )
 
 // noopClient satisfies artifacts.Client; DownloadArtifact writes fixed content.
@@ -42,6 +45,9 @@ type noopClient struct{}
 
 func (noopClient) GetJobArtifactsV3(_ context.Context, _ string) ([]apiclient.Artifact, error) {
 	return nil, nil
+}
+func (noopClient) GetJobV3(_ context.Context, _ uuid.UUID) (*apiclient.JobV3, error) {
+	return &apiclient.JobV3{}, nil
 }
 func (noopClient) DownloadArtifact(_ context.Context, _ string, dst io.Writer) error {
 	_, err := io.WriteString(dst, "content")
@@ -145,4 +151,59 @@ func TestDownload_LegitimateNestedPath(t *testing.T) {
 	}
 	err := artifacts.Download(context.Background(), noopClient{}, entries, dir)
 	assert.NilError(t, err)
+}
+
+// fakeForJobClient answers the artifacts and job endpoints with fixed errors
+// and records whether the job endpoint was asked.
+type fakeForJobClient struct {
+	noopClient
+	artifactsErr error
+	jobErr       error
+	askedJob     bool
+}
+
+func (c *fakeForJobClient) GetJobArtifactsV3(_ context.Context, _ string) ([]apiclient.Artifact, error) {
+	return nil, c.artifactsErr
+}
+
+func (c *fakeForJobClient) GetJobV3(_ context.Context, _ uuid.UUID) (*apiclient.JobV3, error) {
+	c.askedJob = true
+	if c.jobErr != nil {
+		return nil, c.jobErr
+	}
+	return &apiclient.JobV3{}, nil
+}
+
+func TestForJob_NotFound(t *testing.T) {
+	const jobID = "cccccccc-0000-0000-0000-000000000001"
+	notFound := &httpcl.HTTPError{Method: "GET", StatusCode: http.StatusNotFound}
+
+	t.Run("a job that exists but stored nothing is an empty list", func(t *testing.T) {
+		client := &fakeForJobClient{artifactsErr: notFound}
+		entries, err := artifacts.ForJob(context.Background(), client, jobID)
+		assert.NilError(t, err)
+		assert.Check(t, cmp.Len(entries, 0))
+	})
+
+	t.Run("a job the job endpoint does not know returns its 404", func(t *testing.T) {
+		jobNotFound := &httpcl.HTTPError{Method: "GET", Route: "/api/v3/jobs/%s", StatusCode: http.StatusNotFound}
+		client := &fakeForJobClient{artifactsErr: notFound, jobErr: jobNotFound}
+		_, err := artifacts.ForJob(context.Background(), client, jobID)
+		assert.Check(t, cmp.ErrorIs(err, jobNotFound))
+	})
+
+	t.Run("an id that is not a UUID keeps the artifacts 404", func(t *testing.T) {
+		client := &fakeForJobClient{artifactsErr: notFound}
+		_, err := artifacts.ForJob(context.Background(), client, "not-a-uuid")
+		assert.Check(t, cmp.ErrorIs(err, notFound))
+		assert.Check(t, cmp.Equal(client.askedJob, false))
+	})
+
+	t.Run("other errors are returned without asking the job endpoint", func(t *testing.T) {
+		serverErr := &httpcl.HTTPError{Method: "GET", StatusCode: http.StatusInternalServerError}
+		client := &fakeForJobClient{artifactsErr: serverErr}
+		_, err := artifacts.ForJob(context.Background(), client, jobID)
+		assert.Check(t, cmp.ErrorIs(err, serverErr))
+		assert.Check(t, cmp.Equal(client.askedJob, false))
+	})
 }

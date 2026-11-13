@@ -24,6 +24,7 @@ package acceptance_test
 
 import (
 	"encoding/json"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"testing"
@@ -263,5 +264,112 @@ func TestArtifact_NoToken(t *testing.T) {
 	})
 
 	assert.Equal(t, result.ExitCode, 3) // ExitAuthError
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+}
+
+// The V3 artifacts endpoint answers 404 for a job that stored no artifacts as
+// well as for a job that does not exist (AEX-99). A job that exists and stored
+// nothing is an empty list, not "No resource found".
+func TestArtifact_JobWithNoArtifacts(t *testing.T) {
+	const jobID = "cccccccc-0000-0000-0000-000000000002"
+	setup := func(t *testing.T) *testenv.TestEnv {
+		t.Helper()
+		fake := fakes.NewCircleCI(t)
+		fake.AddJobV3(fakes.JobV3{ID: jobID, Name: "test-linux", Phase: "ended", Outcome: "success"})
+		env := testenv.New(t)
+		env.Token = testToken
+		env.CircleCIURL = fake.URL()
+		return env
+	}
+
+	for _, args := range [][]string{{"artifact", jobID}, {"job", "artifact", jobID}} {
+		t.Run(args[0], func(t *testing.T) {
+			result := binary.RunCLI(t, binary.RunOpts{
+				Binary:  binaryPath,
+				Args:    args,
+				Env:     setup(t).Environ(),
+				WorkDir: t.TempDir(),
+			})
+
+			assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+			assert.Check(t, cmp.Equal(result.Stdout, ""))
+			assert.Check(t, golden.String(result.Stderr, "TestArtifact_JobWithNoArtifacts.stderr.txt"))
+		})
+	}
+}
+
+func TestArtifact_JobWithNoArtifacts_JSON(t *testing.T) {
+	const jobID = "cccccccc-0000-0000-0000-000000000002"
+	fake := fakes.NewCircleCI(t)
+	fake.AddJobV3(fakes.JobV3{ID: jobID, Name: "test-linux", Phase: "ended", Outcome: "success"})
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+
+	for _, args := range [][]string{{"artifact", "--json", jobID}, {"job", "artifact", "--json", jobID}} {
+		t.Run(args[0], func(t *testing.T) {
+			result := binary.RunCLI(t, binary.RunOpts{
+				Binary:  binaryPath,
+				Args:    args,
+				Env:     env.Environ(),
+				WorkDir: t.TempDir(),
+			})
+
+			assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+
+			var out []map[string]any
+			err := json.Unmarshal([]byte(result.Stdout), &out)
+			assert.NilError(t, err)
+			assert.Check(t, cmp.DeepEqual(out, []map[string]any{}))
+
+			assert.Check(t, golden.String(result.Stdout, "TestArtifact_JobWithNoArtifacts_JSON.json"))
+		})
+	}
+}
+
+// With --json and --output, an empty job prints only [] and downloads nothing.
+func TestArtifact_JobWithNoArtifacts_JSONOutput(t *testing.T) {
+	const jobID = "cccccccc-0000-0000-0000-000000000002"
+	fake := fakes.NewCircleCI(t)
+	fake.AddJobV3(fakes.JobV3{ID: jobID, Name: "test-linux", Phase: "ended", Outcome: "success"})
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+
+	for _, args := range [][]string{{"artifact"}, {"job", "artifact"}} {
+		t.Run(args[0], func(t *testing.T) {
+			outDir := filepath.Join(t.TempDir(), "out")
+			result := binary.RunCLI(t, binary.RunOpts{
+				Binary:  binaryPath,
+				Args:    append(args, "--json", "--output", outDir, jobID),
+				Env:     env.Environ(),
+				WorkDir: t.TempDir(),
+			})
+
+			assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+			assert.Check(t, cmp.Equal(result.Stderr, ""))
+			assert.Check(t, golden.String(result.Stdout, "TestArtifact_JobWithNoArtifacts_JSON.json"))
+
+			_, err := os.Stat(outDir)
+			assert.Check(t, cmp.ErrorIs(err, fs.ErrNotExist))
+		})
+	}
+}
+
+// A job ID the job endpoint does not know is still not found.
+func TestArtifact_UnknownJob(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"artifact", "cccccccc-0000-0000-0000-000000000003"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 5) // ExitNotFound
 	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 }
