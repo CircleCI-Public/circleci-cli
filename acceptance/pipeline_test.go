@@ -460,6 +460,64 @@ func TestPipelineCreate_WithGitHubActionsFileType(t *testing.T) {
 	})
 }
 
+// pipelineCreatePosts counts the requests that would have created a pipeline
+// definition.
+func pipelineCreatePosts(fake *fakes.CircleCI) int {
+	n := 0
+	for _, r := range fake.AllRequests() {
+		if r.Method == http.MethodPost && r.URL.Path == "/api/v3/pipelines" {
+			n++
+		}
+	}
+	return n
+}
+
+func gitHubActionsNonstandardArgs(extra ...string) []string {
+	return append([]string{
+		"pipeline", "create",
+		"--project-id", pipelineProjectID,
+		"--name", "actions-pipeline",
+		"--config-provider", "github_app",
+		"--config-repo-id", pipelineRepoID,
+		"--config-file", ".circleci/config.yml",
+		"--config-file-type", "github-actions",
+		"--checkout-provider", "github_app",
+		"--checkout-repo-id", pipelineRepoID,
+	}, extra...)
+}
+
+func TestPipelineCreate_GitHubActionsNonstandardPath(t *testing.T) {
+	fake, env := setupPipelineFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    gitHubActionsNonstandardArgs(),
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 2), "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+	assert.Check(t, cmp.Equal(pipelineCreatePosts(fake), 0))
+}
+
+func TestPipelineCreate_GitHubActionsNonstandardPath_Allowed(t *testing.T) {
+	fake, env := setupPipelineFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    gitHubActionsNonstandardArgs("--allow-nonstandard-path"),
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Assert(t, cmp.Equal(result.ExitCode, 0), "stderr: %s", result.Stderr)
+	body := fake.LastRequest().Body
+	assert.Assert(t, body != nil)
+	assert.Check(t, cmp.Contains(*body, `"file_type":"github-actions"`))
+	assert.Check(t, cmp.Contains(*body, `"file_path":".circleci/config.yml"`))
+}
+
 func TestPipelineCreate_InvalidConfigFileType(t *testing.T) {
 	_, env := setupPipelineFake(t)
 
@@ -558,6 +616,59 @@ func TestPipelineCreate_Interactive_DefaultConfigPath(t *testing.T) {
 
 	_, err = console.ExpectString("Pipeline definition created")
 	assert.NilError(t, err)
+}
+
+func TestPipelineCreate_Interactive_GitHubActionsDefaultPath(t *testing.T) {
+	_, env := setupPipelineFake(t)
+
+	console := binary.RunCLIInteractive(t, binary.RunOpts{
+		Binary: binaryPath,
+		Args: []string{
+			"pipeline", "create",
+			"--project", "gh/myorg/myrepo",
+			"--name", "actions-pipeline",
+			"--config-provider", "github_app",
+			"--config-repo-id", pipelineRepoID,
+			"--config-file-type", "github-actions",
+			// Skip --config-file to trigger prompt
+			"--checkout-provider", "github_app",
+			"--checkout-repo-id", pipelineRepoID,
+		},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	_, err := console.ExpectString("Config file path")
+	assert.NilError(t, err)
+	_, err = console.ExpectString("default: .github/workflows/ci.yml · enter confirm · esc cancel")
+	assert.NilError(t, err)
+	_, err = console.Send("\r")
+	assert.NilError(t, err)
+
+	_, err = console.ExpectString("Pipeline definition created")
+	assert.NilError(t, err)
+}
+
+func TestPipelineCreate_Interactive_GitHubActionsNonstandardPath(t *testing.T) {
+	fake, env := setupPipelineFake(t)
+
+	console := binary.RunCLIInteractiveExitCode(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    gitHubActionsNonstandardArgs(),
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	}, 6)
+
+	_, err := console.ExpectString(".circleci/config.yml is not in .github/workflows/")
+	assert.NilError(t, err)
+	_, err = console.ExpectString("Create the pipeline definition anyway?")
+	assert.NilError(t, err)
+	_, err = console.Send("\r")
+	assert.NilError(t, err)
+
+	_, err = console.ExpectString("User cancelled the create.")
+	assert.NilError(t, err)
+	assert.Check(t, cmp.Equal(pipelineCreatePosts(fake), 0))
 }
 
 // --- pipeline list ---

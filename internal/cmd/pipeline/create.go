@@ -25,6 +25,7 @@ package pipeline
 import (
 	"context"
 	"fmt"
+	"path"
 	"strings"
 
 	"github.com/MakeNowJust/heredoc"
@@ -38,7 +39,16 @@ import (
 
 var validConfigProviders = []string{"github_app", "github_server", "circleci", "origin"}
 var validCheckoutProviders = []string{"github_app", "github_server", "origin"}
-var validConfigFileTypes = []string{"github-actions"}
+var validConfigFileTypes = []string{configFileTypeGitHubActions}
+
+const (
+	configFileTypeGitHubActions = "github-actions"
+	// workflowDir is where GitHub reads workflow files from, and where the
+	// CircleCI docs and web UI put a github-actions config.
+	workflowDir          = ".github/workflows"
+	defaultWorkflowPath  = workflowDir + "/ci.yml"
+	gitHubActionsDocsURL = "https://circleci.com/docs/guides/orchestrate/use-a-github-actions-workflow-file-as-your-pipeline-configuration/"
+)
 
 // repoConfigProviders are config source providers that require a repo external ID.
 var repoConfigProviders = map[string]bool{
@@ -72,6 +82,7 @@ type createInput struct {
 	checkoutProvider     string
 	checkoutRepoID       string
 	checkoutRepoFullName string
+	allowNonstandardPath bool
 	jsonOut              bool
 }
 
@@ -82,8 +93,7 @@ func newCreateCmd() *cobra.Command {
 		Use:   "create",
 		Short: "Create a pipeline definition",
 		Long: heredoc.Docf(`
-			Create a pipeline definition: where CircleCI finds the config YAML and which
-			repository to check out. Add a trigger next with %[1]sproject trigger create%[1]s.
+			Set where CircleCI finds config and what it checks out. Next: %[1]sproject trigger create%[1]s.
 
 			JSON fields: id, name, description, created_at, config_source.provider, config_source.file_path, config_source.repo.external_id, config_source.repo.full_name, checkout_source.provider, checkout_source.repo.external_id, checkout_source.repo.full_name
 		`, "`"),
@@ -144,6 +154,7 @@ func newCreateCmd() *cobra.Command {
 	cmd.Flags().StringVar(&in.checkoutProvider, "checkout-provider", "", fmt.Sprintf("Checkout source provider (one of: %s)", strings.Join(validCheckoutProviders, ", ")))
 	cmd.Flags().StringVar(&in.checkoutRepoID, "checkout-repo-id", "", "Checkout source repo external ID")
 	cmd.Flags().StringVar(&in.checkoutRepoFullName, "checkout-repo-full-name", "", "Checkout source repo owner/name (required for origin)")
+	cmd.Flags().BoolVar(&in.allowNonstandardPath, "allow-nonstandard-path", false, "allow a github-actions config file outside .github/workflows/")
 	cmdutil.AddJSONFlag(cmd, &in.jsonOut)
 	cmdutil.AddJQFlag(cmd)
 
@@ -207,8 +218,15 @@ func runCreate(ctx context.Context, client *apiclient.Client, in createInput) er
 		}
 	}
 
-	in.configFile, err = resolveRequired(ctx, in.configFile, "Config file path", ".circleci/config.yml", ".circleci/config.yml", "--config-file is required")
+	defaultConfigFile := ".circleci/config.yml"
+	if in.configFileType == configFileTypeGitHubActions {
+		defaultConfigFile = defaultWorkflowPath
+	}
+	in.configFile, err = resolveRequired(ctx, in.configFile, "Config file path", defaultConfigFile, defaultConfigFile, "--config-file is required")
 	if err != nil {
+		return err
+	}
+	if err := checkWorkflowPath(ctx, in); err != nil {
 		return err
 	}
 
@@ -477,6 +495,46 @@ func promptRepoID(ctx context.Context, provider, prompt string) (repoOption, err
 			WithExitCode(clierrors.ExitCancelled)
 	}
 	return repoOption{id: v}, nil
+}
+
+// isStandardWorkflowPath reports whether p is a YAML file directly in
+// .github/workflows/. GitHub does not read subdirectories of it.
+func isStandardWorkflowPath(p string) bool {
+	p = path.Clean(p)
+	ext := path.Ext(p)
+	return path.Dir(p) == workflowDir && (ext == ".yml" || ext == ".yaml")
+}
+
+// checkWorkflowPath guards against a github-actions definition pointing at a
+// file that is probably a CircleCI config. CircleCI would translate that file
+// as a GitHub Actions workflow and produce jobs that do nothing and pass.
+func checkWorkflowPath(ctx context.Context, in createInput) error {
+	if in.configFileType != configFileTypeGitHubActions || in.allowNonstandardPath || isStandardWorkflowPath(in.configFile) {
+		return nil
+	}
+
+	streams := iostream.Get(ctx)
+	if !streams.IsInteractive() {
+		return clierrors.New("args.nonstandard_workflow_path", "Config file is not a GitHub Actions workflow path",
+			fmt.Sprintf("%s is not in %s/, where GitHub Actions workflow files live. CircleCI will run it as a GitHub Actions workflow; a CircleCI config run this way produces jobs that do nothing and pass.",
+				in.configFile, workflowDir)).
+			WithSuggestions(
+				"Omit --config-file-type if this is a CircleCI config",
+				"Pass --allow-nonstandard-path to create it anyway",
+			).
+			WithRef(gitHubActionsDocsURL).
+			WithExitCode(clierrors.ExitBadArguments)
+	}
+
+	iostream.ErrPrintf(ctx, "%s %s\n", iostream.SymbolWarn(ctx), iostream.Warning(ctx,
+		fmt.Sprintf("%s is not in %s/. CircleCI will run it as a GitHub Actions workflow; a CircleCI config run this way produces jobs that do nothing and pass.",
+			in.configFile, workflowDir)))
+	if !streams.Confirm(ctx, "Create the pipeline definition anyway?") {
+		return clierrors.New("pipeline_definition.create_aborted", "Create aborted", "User cancelled the create.").
+			WithRef(gitHubActionsDocsURL).
+			WithExitCode(clierrors.ExitCancelled)
+	}
+	return nil
 }
 
 func validateConfigProvider(v string) *clierrors.CLIError {

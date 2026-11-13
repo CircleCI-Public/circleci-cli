@@ -1,0 +1,7 @@
+error: .circleci/config.yml is not in .github/workflows/, where GitHub Actions workflow files live. CircleCI will run it as a GitHub Actions workflow; a CircleCI config run this way produces jobs that do nothing and pass.
+
+Suggestions:
+  • Omit --config-file-type if this is a CircleCI config
+  • Pass --allow-nonstandard-path to create it anyway
+
+Reference: https://circleci.com/docs/guides/orchestrate/use-a-github-actions-workflow-file-as-your-pipeline-configuration/

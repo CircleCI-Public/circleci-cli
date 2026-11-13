@@ -1,6 +1,7 @@
 Usage:  circleci pipeline create [flags]
 
 Flags:
+      --allow-nonstandard-path           allow a github-actions config file outside .github/workflows/
       --checkout-provider string         Checkout source provider (one of: github_app, github_server, origin)
       --checkout-repo-full-name string   Checkout source repo owner/name (required for origin)
       --checkout-repo-id string          Checkout source repo external ID
