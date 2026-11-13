@@ -23,6 +23,9 @@
 package config
 
 import (
+	"context"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"gotest.tools/v3/assert"
@@ -61,4 +64,65 @@ func TestIsTelemetryEnabled(t *testing.T) {
 			assert.Equal(t, cfg.IsTelemetry(), tc.want)
 		})
 	}
+}
+
+// TestSettersHonourPath locks in that the setters write to the file they are
+// given and only fall back to the default XDG location when the path is empty.
+// The commands print the path they passed as the save location, so a setter
+// that drops it makes that message describe a file that was never written.
+func TestSettersHonourPath(t *testing.T) {
+	// Keep the default location inside a temp dir, so the test never reads or
+	// writes the developer's real config file.
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	defaultPath, err := Path()
+	assert.NilError(t, err)
+
+	// Environment overrides would mask the values read back from the file.
+	t.Setenv("CIRCLE_TOKEN", "")
+	t.Setenv("CIRCLE_CLI_TOKEN", "")
+	t.Setenv("CIRCLE_HOST", "")
+
+	ctx := context.Background()
+	path := filepath.Join(t.TempDir(), "nested", "config.yml")
+
+	res, err := SetToken(ctx, path, "my-token", false)
+	assert.NilError(t, err)
+	assert.Equal(t, res.Storage, StoredInFile)
+
+	assert.NilError(t, SetHost(ctx, path, "https://circleci.example.com"))
+	assert.NilError(t, SetTheme(ctx, path, "dracula"))
+
+	cfg, err := Load(ctx, path, false)
+	assert.NilError(t, err)
+	assert.Equal(t, cfg.EffectiveToken(), "my-token")
+	assert.Equal(t, cfg.EffectiveHost(), "https://circleci.example.com")
+	assert.Equal(t, cfg.EffectiveTheme(), "dracula")
+
+	_, err = os.Stat(defaultPath)
+	assert.Assert(t, os.IsNotExist(err), "the default config file must stay untouched: %v", err)
+
+	// Deleting and logging out go through the same path.
+	_, err = DeleteToken(ctx, path, false)
+	assert.NilError(t, err)
+	cfg, err = Load(ctx, path, false)
+	assert.NilError(t, err)
+	assert.Equal(t, cfg.EffectiveToken(), "")
+
+	_, err = SetToken(ctx, path, "second-token", false)
+	assert.NilError(t, err)
+	_, err = SetLogout(ctx, path, false)
+	assert.NilError(t, err)
+	cfg, err = Load(ctx, path, false)
+	assert.NilError(t, err)
+	assert.Equal(t, cfg.EffectiveToken(), "")
+
+	_, err = os.Stat(defaultPath)
+	assert.Assert(t, os.IsNotExist(err), "the default config file must stay untouched: %v", err)
+
+	// An empty path still means the default XDG location.
+	_, err = SetToken(ctx, "", "other-token", false)
+	assert.NilError(t, err)
+	cfg, err = Load(ctx, "", false)
+	assert.NilError(t, err)
+	assert.Equal(t, cfg.EffectiveToken(), "other-token")
 }
