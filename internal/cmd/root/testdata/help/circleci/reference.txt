@@ -19,8 +19,7 @@ List and download a job's artifact files
 
 List or download artifacts produced by a CircleCI job.
 
-Pass the job UUID to list its artifacts. Use --output to save
-them to a local directory.
+For the artifacts of every job in a run at once: `circleci run artifacts`.
 
 JSON fields: path, url, execution
 
@@ -337,8 +336,7 @@ List or download artifacts for a job
 
 List or download artifacts produced by a specific job.
 
-Pass the job UUID to list its artifacts. Use --output to save
-them to a local directory.
+For the artifacts of every job in a run at once: `circleci run artifacts`.
 
 JSON fields: path, url, execution
 
@@ -732,7 +730,7 @@ failed_steps[]/failed_tests[]), run_summary (run_id, outcome, failed_jobs[], ...
 
 ### `circleci run <command>`
 
-Trigger, watch, approve and cancel pipeline runs
+Trigger, watch, approve and cancel runs, and list artifacts
 
 Work with CircleCI runs.
 
@@ -771,6 +769,40 @@ looked up in the git remote's project (or `--project`).
   `circleci run approve 75 --job hold-deploy --force`
 - Approve the hold on the latest run on main, by run UUID: 
   `circleci run list --branch main --json --jq '.[0].id' | xargs circleci run approve --force`
+
+#### `circleci run artifacts [<run-id>] [flags]`
+
+List and download the artifacts of every job in a run
+
+Lists each job's artifact paths; --json adds URLs; -o saves to <dir>/<workflow>/<job>/.
+
+JSON fields: id, phase, outcome, current_outcome, branch, tag, revision, repository_url, commit.subject/url/author_name/author_login, created_at, errors[].type/message, warnings[].type/message/description/url, workflows[].id/name/phase/outcome/current_outcome/duration/jobs[].id/name/phase/outcome/current_outcome/type/artifacts[].path/url/execution
+
+| Flag                  | Description                                                                       |
+| --------------------- | --------------------------------------------------------------------------------- |
+| `-b, --branch string` | branch name (defaults to the current branch, or main when --project is set)       |
+| `--jq string`         | Process values from the response using jq syntax (see `circleci help formatting`) |
+| `--json`              | Output as JSON                                                                    |
+| `-o, --output string` | download artifacts into this directory                                            |
+| `--project string`    | project slug (e.g. gh/org/repo); defaults to git remote                           |
+| `--status string`     | filter by run status, e.g. success or failed; picks the latest such run           |
+
+
+**Arguments:**
+
+`<run-id>` is optional: a run UUID or number. Omit it to use the latest
+run for the project and branch (see `--project` and `--branch`).
+
+**Examples:**
+
+- List the artifacts of the latest run on the current branch: 
+  `circleci run artifacts`
+- List the artifacts of the last successful run: 
+  `circleci run artifacts --status success`
+- Output a run's artifacts, with their URLs, as JSON: 
+  `circleci run artifacts 5034460f-c7c4-4c43-9457-de07e2029e7b --json`
+- Download the last successful run's artifacts into ./artifacts: 
+  `circleci run artifacts --status success -o ./artifacts`
 
 #### `circleci run cancel <run-number-or-id> [flags]`
 
@@ -860,9 +892,6 @@ List recent runs for a CircleCI project.
 A run is one execution of a pipeline. The project is inferred from the
 current git repository's remote unless overridden with --project.
 
-The markdown table includes the commit subject; the JSON adds the full
-commit and repository detail.
-
 JSON fields: id, phase, outcome, current_outcome, branch, tag, revision, repository_url, commit.subject/url/author_name/author_login, created_at, warnings[].type/message/description/url
 
 | Flag                   | Description                                                                       |
@@ -873,6 +902,7 @@ JSON fields: id, phase, outcome, current_outcome, branch, tag, revision, reposit
 | `--json`               | Output as JSON                                                                    |
 | `--limit int`          | Maximum number of runs to show [default: 10] (default 10)                         |
 | `--project string`     | Project slug (e.g. gh/org/repo); defaults to git remote                           |
+| `--status string`      | filter by run status, e.g. success or failed                                      |
 
 
 **Aliases:**
@@ -890,8 +920,8 @@ JSON fields: id, phase, outcome, current_outcome, branch, tag, revision, reposit
   `circleci run list --branch main`
 - List runs for an explicit project: 
   `circleci run list --project gh/org/repo`
-- Show more results: 
-  `circleci run list --limit 25`
+- Show the last successful run: 
+  `circleci run list --status success --limit 1`
 - Output as JSON for scripting: 
   `circleci run list --json`
 

@@ -380,6 +380,20 @@ const (
 	StatusUnauthorized = "unauthorized"
 )
 
+// RunStatuses lists every pipeline status value above, in alphabetical order.
+var RunStatuses = []string{
+	StatusCanceled,
+	StatusError,
+	StatusFailed,
+	StatusFailing,
+	StatusNotRun,
+	StatusOnHold,
+	StatusQueued,
+	StatusRunning,
+	StatusSuccess,
+	StatusUnauthorized,
+}
+
 // StatusPhaseOutcome maps a pipeline.status value (the tokens above, as used by
 // the runs/search pipeline.status filter and the run picker's status cycle) to
 // the run phase and current_outcome the my-runs list endpoint filters on

@@ -1727,6 +1727,55 @@ func TestRunList_PaginatesExhausted(t *testing.T) {
 	assert.Check(t, cmp.Len(out, 15), "expected 15 runs (server exhausted before limit), got %d", len(out))
 }
 
+// TestRunList_Status checks that --status narrows the list server-side: of a
+// newer failed run and an older successful one, only the successful one is
+// listed.
+func TestRunList_Status(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	slug := watchSlug
+	addProjectBySlug(fake, slug, runTestProjectID)
+	failedID := "e0000000-0000-4000-8000-0000000000d1"
+	successID := "e0000000-0000-4000-8000-0000000000d2"
+	fake.AddRunV3(failedID, runTestProjectID, fakeRunV3(failedID, runTestProjectID, "ended", "failed", "main", "deadbeef12345678"))
+	fake.AddRunV3(successID, runTestProjectID, fakeRunV3(successID, runTestProjectID, "ended", "succeeded", "main", "abc1234def5678"))
+
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"run", "list", "--project", slug, "--status", "success"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, !strings.Contains(result.Stdout, failedID), "the failed run must be filtered out")
+}
+
+// TestRunList_InvalidStatus checks that an unknown --status value is rejected
+// as a bad argument before any API call.
+func TestRunList_InvalidStatus(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"run", "list", "--project", testSlug, "--status", "succeeded"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 2)) // ExitBadArguments
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+	assert.Check(t, cmp.Nil(fake.LastRequest()), "no API call should be made")
+}
+
 // --- run trigger (still V2) ---
 
 func TestRunTrigger(t *testing.T) {
