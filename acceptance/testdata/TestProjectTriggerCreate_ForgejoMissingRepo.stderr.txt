@@ -1,0 +1,5 @@
+error: --repo-id or --repo-full-name is required for provider "forgejo" in non-interactive mode.
+
+Suggestions:
+  • Pass --repo-full-name <owner>/<repo>
+  • Or pass --repo-id <external-repo-id>

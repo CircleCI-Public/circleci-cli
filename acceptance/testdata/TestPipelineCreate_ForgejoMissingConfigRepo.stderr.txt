@@ -1,0 +1,5 @@
+error: --config-repo-id or --config-repo-full-name is required for provider forgejo
+
+Suggestions:
+  • Pass --config-repo-full-name <owner>/<repo>
+  • Or pass --config-repo-id <value>

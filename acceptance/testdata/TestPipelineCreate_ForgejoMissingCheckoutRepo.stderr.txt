@@ -1,0 +1,5 @@
+error: --checkout-repo-id or --checkout-repo-full-name is required for provider forgejo
+
+Suggestions:
+  • Pass --checkout-repo-full-name <owner>/<repo>
+  • Or pass --checkout-repo-id <value>

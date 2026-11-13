@@ -364,8 +364,9 @@ func newTriggerCreateCmd() *cobra.Command {
 		provider.List(provider.TriggerSource)))
 	cmd.Flags().StringVar(&repoID, "repo-id", "", fmt.Sprintf("Repository external ID (required for %s)",
 		provider.List(provider.TriggerSource, provider.Provider.NeedsRepoID)))
-	cmd.Flags().StringVar(&repoFullName, "repo-full-name", "", fmt.Sprintf("Repository owner/name (required for %s)",
-		provider.List(provider.TriggerSource, provider.Provider.NeedsFullName)))
+	cmd.Flags().StringVar(&repoFullName, "repo-full-name", "", fmt.Sprintf("Repository owner/name (required for %s; enough on its own for %s)",
+		provider.List(provider.TriggerSource, provider.Provider.NeedsFullName),
+		provider.List(provider.TriggerSource, provider.Provider.FullNameIsEnough)))
 	cmd.Flags().StringVar(&eventPreset, "event-preset", "", fmt.Sprintf("Event preset for filtering trigger events (one of: %s)", strings.Join(validEventPresets, ", ")))
 	cmd.Flags().StringVar(&configRef, "config-ref", "", "Git ref for fetching config (only needed when config repo differs from event source repo)")
 	cmd.Flags().StringVar(&checkoutRef, "checkout-ref", "", "Git ref for checking out code (only needed when checkout repo differs from event source repo)")
@@ -418,28 +419,37 @@ func runTriggerCreate(
 		}
 	}
 
-	if repoID == "" && p.NeedsRepoID() {
+	// A provider that resolves repositories by owner/name is satisfied by
+	// --repo-full-name alone, and is asked for the name rather than an id.
+	namedByFullName := p.FullNameIsEnough() && repoFullName != ""
+	if repoID == "" && p.HasRepo() && !namedByFullName {
 		if !iostream.IsInteractive(ctx) {
-			return clierrors.New("args.missing_flag", "Missing required flag",
-				fmt.Sprintf("--repo-id is required for provider %q in non-interactive mode.", p.Name)).
-				WithSuggestions(
-					"Pass --repo-id <external-repo-id>",
-					"Find the repository ID via the GitHub API: GET /repos/{owner}/{repo}",
-					"See: https://docs.github.com/en/rest/repos/repos#get-a-repository",
-				).
-				WithExitCode(clierrors.ExitBadArguments)
+			return missingRepoIDErr(p)
 		}
-		var promptErr error
-		repoID, promptErr = iostream.PromptText(ctx,
-			"Repository external ID",
-			"e.g. 123456789")
-		if promptErr != nil {
-			return promptErr
-		}
-		if repoID == "" {
-			return clierrors.New("trigger.create_cancelled", "Aborted",
-				"No repository ID entered.").
-				WithExitCode(clierrors.ExitCancelled)
+		if p.FullNameIsEnough() {
+			var promptErr error
+			repoFullName, promptErr = iostream.PromptText(ctx, "Repository owner/name", "e.g. myorg/myrepo")
+			if promptErr != nil {
+				return promptErr
+			}
+			if repoFullName == "" {
+				return clierrors.New("trigger.create_cancelled", "Aborted",
+					"No repository owner/name entered.").
+					WithExitCode(clierrors.ExitCancelled)
+			}
+		} else {
+			var promptErr error
+			repoID, promptErr = iostream.PromptText(ctx,
+				"Repository external ID",
+				p.RepoIDExample)
+			if promptErr != nil {
+				return promptErr
+			}
+			if repoID == "" {
+				return clierrors.New("trigger.create_cancelled", "Aborted",
+					"No repository ID entered.").
+					WithExitCode(clierrors.ExitCancelled)
+			}
 		}
 	}
 
@@ -716,6 +726,28 @@ func runTriggerDelete(ctx context.Context, client *apiclient.Client, triggerID, 
 
 	iostream.Printf(ctx, "%s Deleted trigger %s\n", iostream.SymbolOK(ctx), triggerID)
 	return nil
+}
+
+// missingRepoIDErr is the non-interactive error for a repository-backed trigger
+// that names no repository.
+func missingRepoIDErr(p provider.Provider) error {
+	if p.FullNameIsEnough() {
+		return clierrors.New("args.missing_flag", "Missing required flag",
+			fmt.Sprintf("--repo-id or --repo-full-name is required for provider %q in non-interactive mode.", p.Name)).
+			WithSuggestions(
+				"Pass --repo-full-name <owner>/<repo>",
+				"Or pass --repo-id <external-repo-id>",
+			).
+			WithExitCode(clierrors.ExitBadArguments)
+	}
+	return clierrors.New("args.missing_flag", "Missing required flag",
+		fmt.Sprintf("--repo-id is required for provider %q in non-interactive mode.", p.Name)).
+		WithSuggestions(
+			"Pass --repo-id <external-repo-id>",
+			"Find the repository ID via the GitHub API: GET /repos/{owner}/{repo}",
+			"See: https://docs.github.com/en/rest/repos/repos#get-a-repository",
+		).
+		WithExitCode(clierrors.ExitBadArguments)
 }
 
 func validateProvider(v string) (provider.Provider, error) {

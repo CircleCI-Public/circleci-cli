@@ -2,13 +2,13 @@ Usage:  circleci pipeline create [flags]
 
 Flags:
       --allow-nonstandard-path           allow a github-actions config file outside .github/workflows/
-      --checkout-provider string         Checkout source provider (one of: github_app, github_server, origin)
-      --checkout-repo-full-name string   Checkout source repo owner/name (required for origin)
+      --checkout-provider string         Checkout source provider (one of: github_app, github_server, origin, forgejo)
+      --checkout-repo-full-name string   Checkout source repo owner/name (required for origin; enough on its own for forgejo)
       --checkout-repo-id string          Checkout source repo external ID
       --config-file string               Config file path (e.g. .circleci/config.yml)
       --config-file-type string          Config file type, omit for standard CircleCI YAML (one of: github-actions)
-      --config-provider string           Config source provider (one of: github_app, github_server, circleci, origin)
-      --config-repo-full-name string     Config source repo owner/name (required for origin)
+      --config-provider string           Config source provider (one of: github_app, github_server, circleci, origin, forgejo)
+      --config-repo-full-name string     Config source repo owner/name (required for origin; enough on its own for forgejo)
       --config-repo-id string            Config source repo external ID (required for github_app, github_server, origin)
       --description string               Pipeline definition description
   -h, --help                             help for create

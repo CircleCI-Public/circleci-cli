@@ -102,7 +102,7 @@ func TestNames(t *testing.T) {
 		{
 			name: "config",
 			role: ConfigSource,
-			want: []string{"github_app", "github_server", "circleci", "origin"},
+			want: []string{"github_app", "github_server", "circleci", "origin", "forgejo"},
 		},
 		{
 			name:    "config with repo id",
@@ -119,7 +119,7 @@ func TestNames(t *testing.T) {
 		{
 			name: "checkout",
 			role: CheckoutSource,
-			want: []string{"github_app", "github_server", "origin"},
+			want: []string{"github_app", "github_server", "origin", "forgejo"},
 		},
 		{
 			name:    "checkout with full name",
@@ -130,7 +130,7 @@ func TestNames(t *testing.T) {
 		{
 			name: "trigger",
 			role: TriggerSource,
-			want: []string{"github_app", "github_server", "github_oauth", "origin", "webhook", "schedule"},
+			want: []string{"github_app", "github_server", "github_oauth", "origin", "forgejo", "webhook", "schedule"},
 		},
 		{
 			name:    "trigger with repo id",
@@ -143,6 +143,12 @@ func TestNames(t *testing.T) {
 			role:    TriggerSource,
 			filters: []func(Provider) bool{Provider.NeedsFullName},
 			want:    []string{"origin"},
+		},
+		{
+			name:    "trigger by full name alone",
+			role:    TriggerSource,
+			filters: []func(Provider) bool{Provider.FullNameIsEnough},
+			want:    []string{"forgejo"},
 		},
 	}
 	for _, tc := range cases {
@@ -159,6 +165,15 @@ func TestLookup(t *testing.T) {
 		assert.Check(t, cmp.Equal(p.Name, "origin"))
 		assert.Check(t, cmp.Equal(p.NeedsRepoID(), true))
 		assert.Check(t, cmp.Equal(p.NeedsFullName(), true))
+	})
+	// Forgejo resolves a repository from either its id or its owner/name.
+	t.Run("id or full name", func(t *testing.T) {
+		p, ok := Lookup("forgejo", TriggerSource)
+		assert.Check(t, cmp.Equal(ok, true))
+		assert.Check(t, cmp.Equal(p.NeedsRepoID(), false))
+		assert.Check(t, cmp.Equal(p.NeedsFullName(), false))
+		assert.Check(t, cmp.Equal(p.HasRepo(), true))
+		assert.Check(t, cmp.Equal(p.FullNameIsEnough(), true))
 	})
 	// circleci is a hosted config: valid as a config source, never as a checkout.
 	t.Run("known but not in role", func(t *testing.T) {

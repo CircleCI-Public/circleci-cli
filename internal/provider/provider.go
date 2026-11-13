@@ -55,6 +55,10 @@ const (
 	// repository at all; the API rejects a write without it and rejects a pair that
 	// names two different repositories.
 	RepoIDAndFullName
+	// RepoIDOrFullName providers identify a repository by its external id or by
+	// its owner/name; either alone is enough. When both are sent they must name the
+	// same repository.
+	RepoIDOrFullName
 )
 
 // Provider describes a value the API accepts in a source's provider field.
@@ -91,8 +95,15 @@ type Provider struct {
 // Has reports whether p may be sent in the source field r.
 func (p Provider) Has(r Role) bool { return p.Roles&r != 0 }
 
+// HasRepo reports whether a source of p names a repository at all.
+func (p Provider) HasRepo() bool { return p.Repo != NoRepo }
+
 // NeedsRepoID reports whether a source of p must name a repository external id.
 func (p Provider) NeedsRepoID() bool { return p.Repo == RepoID || p.Repo == RepoIDAndFullName }
+
+// FullNameIsEnough reports whether a source of p may name its repository by
+// owner/name alone, with no external id.
+func (p Provider) FullNameIsEnough() bool { return p.Repo == RepoIDOrFullName }
 
 // NeedsFullName reports whether a source of p must name the repository's
 // owner/name as well as its id.
@@ -139,6 +150,13 @@ var registry = []Provider{
 		Install:       "the CircleCI Origin app",
 		Hosts:         []string{"origin.cursor.com"},
 		InstalledPath: "cli/origin-installed",
+	},
+	{
+		// Usually self-hosted, so it has no hosts to recognise a remote by.
+		Name:          "forgejo",
+		Roles:         ConfigSource | CheckoutSource | TriggerSource,
+		Repo:          RepoIDOrFullName,
+		RepoIDExample: "e.g. 12345",
 	},
 	{
 		Name:  "webhook",
