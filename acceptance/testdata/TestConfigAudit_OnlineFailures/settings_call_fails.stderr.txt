@@ -1,0 +1,9 @@
+warning: could not read project settings: GET /api/v3/projects/00000000-0000-0000-0000-00000000a0d2/settings: 404 Not Found; offline results only
+checked gh/acme/web: org settings, 1 context (read-only)
+error: 2 findings at or above low in .circleci/config.yml.
+
+Suggestions:
+  • See each rule's fix: circleci help config-audit
+  • To accept a finding, add # circleci-audit: ignore[<rule-id>] on its line or the line above
+
+Reference: https://cli.circleci.com/reference/

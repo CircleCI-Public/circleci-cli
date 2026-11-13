@@ -1,0 +1,10 @@
+medium context-on-any-branch .circleci/config.yml:12:20  job build gets context org-secrets on every branch
+   |
+12 |           context: org-secrets
+   |                    ^^^^^^^^^^^
+   = fix: add filters.branches.only, an approval job, or a restricted context
+
+medium context-unrestricted context org-secrets  context org-secrets has no project or expression restriction
+   = fix: restrict the context to this project or to an expression such as the default branch
+
+2 findings (0 high, 2 medium, 0 low), 0 suppressed

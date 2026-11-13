@@ -174,7 +174,7 @@ internal/cmd/
 ├── certificate/          circleci certificate upload/list/delete — iOS code signing certs.
 ├── cmdauth/              circleci auth login/logout/me/id/signup.
 ├── completion/           circleci completion <shell>.
-├── config/               circleci config validate/process/pack/generate.
+├── config/               circleci config validate/process/pack/generate/audit.
 ├── context/              circleci context create/delete/get/list/open + secret + restriction.
 ├── deploy/               circleci deploy init/list/open.
 ├── dlc/                  circleci dlc purge — top-level alias for project dlc purge.
@@ -217,6 +217,8 @@ the reverse.
 ```
 internal/
 ├── artifacts/            Listing and downloading job artifacts.
+├── configaudit/          Offline security audit of pipeline config, and the read-only
+│                         --online settings checks.
 ├── configcmd/            Backs circleci config validate/process/pack.
 ├── configgen/            Renders pipeline YAML from a reposcan.Result and writes it to disk.
 ├── deployinit/           Scans and patches .circleci/config.yml to add deploy marker steps.

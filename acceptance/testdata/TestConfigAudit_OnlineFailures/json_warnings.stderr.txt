@@ -1,0 +1,11 @@
+{
+  "error": true,
+  "code": "config.audit_findings",
+  "message": "1 finding at or above low in .circleci/config.yml.",
+  "suggestions": [
+    "See each rule's fix: circleci help config-audit",
+    "To accept a finding, add # circleci-audit: ignore[\u003crule-id\u003e] on its line or the line above"
+  ],
+  "ref": "https://cli.circleci.com/reference/",
+  "exit_code": 7
+}

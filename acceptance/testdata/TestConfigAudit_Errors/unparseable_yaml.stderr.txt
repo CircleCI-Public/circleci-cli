@@ -1,0 +1,7 @@
+error: parse .circleci/config.yml: yaml: line 1: did not find expected node content
+
+Suggestions:
+  • Fix the YAML syntax at the line shown
+  • Run: circleci config validate .circleci/config.yml
+
+Reference: https://cli.circleci.com/reference/

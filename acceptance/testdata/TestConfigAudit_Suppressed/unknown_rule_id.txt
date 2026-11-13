@@ -1,0 +1,7 @@
+medium unpinned-orb .circleci/config.yml:3:9  orb circleci/node@5 is a major-version alias
+  |
+3 |   node: circleci/node@5
+  |         ^^^^^^^^^^^^^^^
+  = fix: pin the orb to an exact version (name@X.Y.Z)
+
+1 finding (0 high, 1 medium, 0 low), 0 suppressed

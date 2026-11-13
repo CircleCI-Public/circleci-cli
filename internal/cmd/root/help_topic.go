@@ -33,6 +33,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/CircleCI-Public/circleci-cli/clikit/iostream"
+	"github.com/CircleCI-Public/circleci-cli/internal/configaudit"
 )
 
 // HelpTopicAnnotation marks a command as a `circleci help <topic>` page rather
@@ -391,6 +392,11 @@ var helpTopics = []helpTopic{
 			### Remove preflight branches left behind
 			%[1]s$ circleci preflight cleanup --force%[1]s
 		`, "`"),
+	},
+	{
+		name:  "config-audit",
+		short: "Rules, suppression and SARIF upload for circleci config audit",
+		long:  configaudit.CatalogMarkdown(),
 	},
 	{
 		name:  "reference",

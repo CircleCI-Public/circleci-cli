@@ -1,0 +1,79 @@
+medium unpinned-orb .circleci/config.yml:4:9  orb circleci/node@5 is a major-version alias
+   |
+ 4 |   node: circleci/node@5
+   |         ^^^^^^^^^^^^^^^
+   = fix: pin the orb to an exact version (name@X.Y.Z)
+
+medium unpinned-orb .circleci/config.yml:5:12  orb circleci/aws-cli@volatile uses @volatile
+   |
+ 5 |   aws-cli: circleci/aws-cli@volatile
+   |            ^^^^^^^^^^^^^^^^^^^^^^^^^
+   = fix: pin the orb to an exact version (name@X.Y.Z)
+
+high unpinned-image .circleci/config.yml:10:16  image cimg/base:latest uses the latest tag
+   |
+10 |       - image: cimg/base:latest
+   |                ^^^^^^^^^^^^^^^^
+   = fix: pin the image to a digest (image:tag@sha256:<digest>)
+
+high hardcoded-secret .circleci/config.yml:13:21  docker auth password has a literal value (hunt…)
+   |
+13 |           password: hunt…
+   |                     ^^^^^
+   = fix: move the value to a context or project environment variable
+
+high pipeline-value-injection .circleci/config.yml:21:26  parameter who defaults to pipeline.git.branch and is expanded into a shell command
+   |
+21 |       - run: echo "hello << parameters.who >>"
+   |                          ^^^^^^^^^^^^^^^^^^^^
+   = fix: pass it through environment: (WHO: << parameters.who >>) and use "$WHO"
+
+high hardcoded-secret .circleci/config.yml:26:21  GITHUB_TOKEN has a literal value (ghp_…)
+   |
+26 |       GITHUB_TOKEN: ghp_…
+   |                     ^^^^^
+   = fix: move the value to a context or project environment variable
+
+medium ssh-keys-unrestricted .circleci/config.yml:29:9  add_ssh_keys loads every SSH key of the project
+   |
+29 |       - add_ssh_keys
+   |         ^^^^^^^^^^^^
+   = fix: list the keys to add with fingerprints: [<fingerprint>]
+
+medium curl-pipe-shell .circleci/config.yml:30:14  a remote script is piped into a shell
+   |
+30 |       - run: curl -fsSL https://example.com/install.sh | bash
+   |              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   = fix: download the script, verify its checksum, then run it
+
+high pipeline-value-injection .circleci/config.yml:33:26  pipeline.git.branch is expanded into a shell command
+   |
+33 |           command: echo "<< pipeline.git.branch >>"
+   |                          ^^^^^^^^^^^^^^^^^^^^^^^^^
+   = fix: pass it through environment: (BRANCH: << pipeline.git.branch >>) and use "$BRANCH"
+
+medium cache-poisoning .circleci/config.yml:37:16  cache key deps-{{ checksum "package-lock.json" }} has no {{ .Branch }} and is restored by job build, which gets a context
+   |
+37 |           key: deps-{{ checksum "package-lock.json" }}
+   |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   = fix: add {{ .Branch }} to the cache key so a branch cannot fill a cache that other branches restore
+
+low dynamic-config-untrusted .circleci/config.yml:42:31  configuration_path generated.yml is written by a run step, so the config it continues with is generated
+   |
+42 |           configuration_path: generated.yml
+   |                               ^^^^^^^^^^^^^
+   = fix: continue with a config checked into the repository, or check what the step generates before continuing
+
+medium unpinned-image .circleci/config.yml:45:16  image cimg/node:20.11 is pinned to a tag, not a digest
+   |
+45 |       - image: cimg/node:20.11
+   |                ^^^^^^^^^^^^^^^
+   = fix: pin the image to a digest (image:tag@sha256:<digest>)
+
+medium context-on-any-branch .circleci/config.yml:52:20  job build gets context org-secrets on every branch
+   |
+52 |           context: org-secrets
+   |                    ^^^^^^^^^^^
+   = fix: add filters.branches.only, an approval job, or a restricted context
+
+13 findings (5 high, 7 medium, 1 low), 0 suppressed

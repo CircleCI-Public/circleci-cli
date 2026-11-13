@@ -1,0 +1,8 @@
+checked gh/acme/web: project settings, org settings, 1 context (read-only)
+error: 4 findings at or above low in .circleci/config.yml.
+
+Suggestions:
+  • See each rule's fix: circleci help config-audit
+  • To accept a finding, add # circleci-audit: ignore[<rule-id>] on its line or the line above
+
+Reference: https://cli.circleci.com/reference/

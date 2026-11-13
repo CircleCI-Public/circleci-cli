@@ -1,0 +1,53 @@
+version: 2.1
+setup: true
+orbs:
+  node: circleci/node@5
+  aws-cli: circleci/aws-cli@volatile
+  continuation: circleci/continuation@1.0.0
+executors:
+  builder:
+    docker:
+      - image: cimg/base:latest
+        auth:
+          username: deploy
+          password: hunter2hunter2
+commands:
+  greet:
+    parameters:
+      who:
+        type: string
+        default: << pipeline.git.branch >>
+    steps:
+      - run: echo "hello << parameters.who >>"
+jobs:
+  build:
+    executor: builder
+    environment:
+      GITHUB_TOKEN: ghp_abcdefghijklmnopqrstuvwxyz0123456789
+    steps:
+      - checkout
+      - add_ssh_keys
+      - run: curl -fsSL https://example.com/install.sh | bash
+      - run:
+          name: Show branch
+          command: echo "<< pipeline.git.branch >>"
+      - restore_cache:
+          key: deps-{{ checksum "package-lock.json" }}
+      - save_cache:
+          key: deps-{{ checksum "package-lock.json" }}
+          paths: [node_modules]
+      - greet
+      - run: ./scripts/generate-config.sh > generated.yml
+      - continuation/continue:
+          configuration_path: generated.yml
+  deploy:
+    docker:
+      - image: cimg/node:20.11
+    steps:
+      - checkout
+workflows:
+  main:
+    jobs:
+      - build:
+          context: org-secrets
+      - deploy

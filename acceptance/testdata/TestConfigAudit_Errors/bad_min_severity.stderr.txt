@@ -1,0 +1,6 @@
+error: --min-severity must be one of low, medium, high (got: "extreme")
+
+Suggestions:
+  • Use --min-severity low, medium or high
+
+Reference: https://cli.circleci.com/reference/
