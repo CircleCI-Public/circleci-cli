@@ -1,0 +1,41 @@
+List and download the artifacts of every job in a run
+
+## Usage
+
+`circleci run artifacts [<run-id>] [flags]`
+
+## Arguments
+
+`<run-id>` is optional: a run UUID or number. Omit it to use the latest
+run for the project and branch (see `--project` and `--branch`).
+
+## Flags
+
+| Flag                  | Description                                                                       |
+| --------------------- | --------------------------------------------------------------------------------- |
+| `-b, --branch string` | branch name (defaults to the current branch, or main when --project is set)       |
+| `--jq string`         | Process values from the response using jq syntax (see `circleci help formatting`) |
+| `--json`              | Output as JSON                                                                    |
+| `-o, --output string` | download artifacts into this directory                                            |
+| `--project string`    | project slug (e.g. gh/org/repo); defaults to git remote                           |
+| `--status string`     | filter by run status, e.g. success or failed; picks the latest such run           |
+
+Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `circleci --help`.
+
+## Examples
+
+- List the artifacts of the latest run on the current branch: 
+  `circleci run artifacts`
+- List the artifacts of the last successful run: 
+  `circleci run artifacts --status success`
+- Output a run's artifacts, with their URLs, as JSON: 
+  `circleci run artifacts 5034460f-c7c4-4c43-9457-de07e2029e7b --json`
+- Download the last successful run's artifacts into ./artifacts: 
+  `circleci run artifacts --status success -o ./artifacts`
+
+## Details
+
+Lists each job's artifact paths; --json adds URLs; -o saves to <dir>/<workflow>/<job>/.
+
+JSON fields: id, phase, outcome, current_outcome, branch, tag, revision, repository_url, commit.subject/url/author_name/author_login, created_at, errors[].type/message, warnings[].type/message/description/url, workflows[].id/name/phase/outcome/current_outcome/duration/jobs[].id/name/phase/outcome/current_outcome/type/artifacts[].path/url/execution
+

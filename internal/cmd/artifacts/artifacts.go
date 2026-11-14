@@ -56,8 +56,7 @@ func NewArtifactCmd() *cobra.Command {
 		Long: heredoc.Doc(`
 			List or download artifacts produced by a CircleCI job.
 
-			Pass the job UUID to list its artifacts. Use --output to save
-			them to a local directory.
+			For the artifacts of every job in a run at once: ` + "`circleci run artifacts`" + `.
 
 			JSON fields: path, url, execution
 		`),

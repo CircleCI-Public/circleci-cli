@@ -1,0 +1,5 @@
+error: --status selects the latest run, so it cannot be combined with a run ID.
+
+Suggestions:
+  • List that run's artifacts: circleci run artifacts e0000000-0000-4000-8000-0000000000a1
+  • Or drop the run ID: circleci run artifacts --status success

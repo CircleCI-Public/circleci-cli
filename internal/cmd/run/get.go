@@ -62,6 +62,9 @@ const (
 	// current branch is meaningless for a (possibly different) project, so rather
 	// than consulting git we guess the common default branch name.
 	defaultBranchGuess = "main"
+
+	// latestRunWindowDays is how far back latestRun searches for a run.
+	latestRunWindowDays = 90
 )
 
 func newGetCmd() *cobra.Command {
@@ -236,53 +239,67 @@ func runGet(ctx context.Context, client *apiclient.Client, args []string, projec
 			return apiErr(err, id.String())
 		}
 	} else {
-		effectiveBranch := branch
-		if projectSlug == "" {
-			// No --project: infer both the project and (when not supplied) the
-			// branch from the current git repository.
-			info, err := gitremote.Detect()
-			if err != nil {
-				return cmdutil.GitDetectErr(err, "Or provide a run UUID: circleci run get <uuid>")
-			}
-			projectSlug = info.Slug
-			if effectiveBranch == "" {
-				effectiveBranch = info.Branch
-			}
-		} else if effectiveBranch == "" {
-			// --project was given explicitly; the local branch is meaningless for a
-			// (possibly different) project, so default to "main" rather than the
-			// checked-out branch.
-			effectiveBranch = defaultBranchGuess
-		}
-
-		proj, err := client.GetProjectBySlug(ctx, projectSlug)
+		latest, slug, br, err := latestRun(ctx, client, "get", projectSlug, branch, "", !jsonOut)
 		if err != nil {
-			return apiErr(err, projectSlug)
+			return err
 		}
-
-		sp := iostream.Spinner(ctx, !jsonOut, fmt.Sprintf("Fetching latest run for %s on branch %s", projectSlug, effectiveBranch))
-		now := time.Now().UTC()
-		runs, searchErr := client.SearchRunsV3(ctx, apiclient.RunSearchParams{
-			ProjectIDs: []string{proj.ID.String()},
-			From:       now.AddDate(0, 0, -90),
-			To:         now,
-			Filter:     apiclient.BuildRunFilter(effectiveBranch, ""),
-			Limit:      1,
-		})
-		sp.Stop()
-		if searchErr != nil {
-			return apiErr(searchErr, fmt.Sprintf("%s@%s", projectSlug, effectiveBranch))
+		if latest == nil {
+			return apiErr(fmt.Errorf("no runs found"), fmt.Sprintf("%s@%s", slug, br))
 		}
-		if len(runs) == 0 {
-			return apiErr(fmt.Errorf("no runs found"), fmt.Sprintf("%s@%s", projectSlug, effectiveBranch))
-		}
-		r = &runs[0]
+		r = latest
 	}
 
 	if failureReport {
 		return FailureReport(ctx, client, r)
 	}
 	return displayRun(ctx, client, r, jsonOut)
+}
+
+// latestRun finds the most recent run for a project and branch, narrowed to
+// status when it is set. It returns the slug and branch it searched, and a nil
+// run when none matches, leaving the caller to word that error. verb names the
+// subcommand in the git-detection suggestion.
+func latestRun(ctx context.Context, client *apiclient.Client, verb, projectSlug, branch, status string, spinner bool) (*apiclient.RunV3, string, string, error) {
+	if projectSlug == "" {
+		// No --project: infer both the project and (when not supplied) the
+		// branch from the current git repository.
+		info, err := gitremote.Detect()
+		if err != nil {
+			return nil, "", "", cmdutil.GitDetectErr(err, "Or provide a run UUID: circleci run "+verb+" <uuid>")
+		}
+		projectSlug = info.Slug
+		if branch == "" {
+			branch = info.Branch
+		}
+	} else if branch == "" {
+		// --project was given explicitly; the local branch is meaningless for a
+		// (possibly different) project, so default to "main" rather than the
+		// checked-out branch.
+		branch = defaultBranchGuess
+	}
+
+	proj, err := client.GetProjectBySlug(ctx, projectSlug)
+	if err != nil {
+		return nil, projectSlug, branch, apiErr(err, projectSlug)
+	}
+
+	sp := iostream.Spinner(ctx, spinner, fmt.Sprintf("Fetching latest run for %s on branch %s", projectSlug, branch))
+	now := time.Now().UTC()
+	runs, err := client.SearchRunsV3(ctx, apiclient.RunSearchParams{
+		ProjectIDs: []string{proj.ID.String()},
+		From:       now.AddDate(0, 0, -latestRunWindowDays),
+		To:         now,
+		Filter:     apiclient.BuildRunFilter(branch, status),
+		Limit:      1,
+	})
+	sp.Stop()
+	if err != nil {
+		return nil, projectSlug, branch, apiErr(err, fmt.Sprintf("%s@%s", projectSlug, branch))
+	}
+	if len(runs) == 0 {
+		return nil, projectSlug, branch, nil
+	}
+	return &runs[0], projectSlug, branch, nil
 }
 
 // displayRun fetches a run's workflows and their jobs, then renders the run

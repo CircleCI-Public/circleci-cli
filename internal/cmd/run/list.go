@@ -42,6 +42,7 @@ func newListCmd() *cobra.Command {
 		projectSlug   string
 		branch        string
 		currentBranch bool
+		status        string
 		limit         int
 		jsonOut       bool
 	)
@@ -55,9 +56,6 @@ func newListCmd() *cobra.Command {
 
 			A run is one execution of a pipeline. The project is inferred from the
 			current git repository's remote unless overridden with --project.
-
-			The markdown table includes the commit subject; the JSON adds the full
-			commit and repository detail.
 
 			JSON fields: id, phase, outcome, current_outcome, branch, tag, revision, repository_url, commit.subject/url/author_name/author_login, created_at, warnings[].type/message/description/url
 		`),
@@ -74,8 +72,8 @@ func newListCmd() *cobra.Command {
 			# List runs for an explicit project
 			$ circleci run list --project gh/org/repo
 
-			# Show more results
-			$ circleci run list --limit 25
+			# Show the last successful run
+			$ circleci run list --status success --limit 1
 
 			# Output as JSON for scripting
 			$ circleci run list --json
@@ -83,6 +81,9 @@ func newListCmd() *cobra.Command {
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
+			if err := validateRunStatus(status); err != nil {
+				return err
+			}
 			client, err := cmdutil.LoadClient(ctx)
 			if err != nil {
 				return err
@@ -94,13 +95,14 @@ func newListCmd() *cobra.Command {
 				}
 				branch = info.Branch
 			}
-			return runList(ctx, client, projectSlug, branch, limit, jsonOut)
+			return runList(ctx, client, projectSlug, branch, status, limit, jsonOut)
 		},
 	}
 
 	cmd.Flags().StringVar(&projectSlug, "project", "", "Project slug (e.g. gh/org/repo); defaults to git remote")
 	cmd.Flags().StringVarP(&branch, "branch", "b", "", "Filter by branch")
 	cmd.Flags().BoolVarP(&currentBranch, "current-branch", "B", false, "Filter by the currently checked-out branch")
+	cmd.Flags().StringVar(&status, "status", "", statusFlagUsage)
 	cmd.Flags().IntVar(&limit, "limit", 10, "Maximum number of runs to show [default: 10]")
 	cmdutil.AddJSONFlag(cmd, &jsonOut)
 	cmdutil.AddJQFlag(cmd)
@@ -122,7 +124,7 @@ type runListEntry struct {
 	Warnings       []warningOutput `json:"warnings,omitempty"`
 }
 
-func runList(ctx context.Context, client *apiclient.Client, projectSlug, branch string, limit int, jsonOut bool) error {
+func runList(ctx context.Context, client *apiclient.Client, projectSlug, branch, status string, limit int, jsonOut bool) error {
 	if projectSlug == "" {
 		info, err := gitremote.Detect()
 		if err != nil {
@@ -141,7 +143,7 @@ func runList(ctx context.Context, client *apiclient.Client, projectSlug, branch 
 		ProjectIDs: []string{proj.ID.String()},
 		From:       now.AddDate(0, 0, -90),
 		To:         now,
-		Filter:     apiclient.BuildRunFilter(branch, ""),
+		Filter:     apiclient.BuildRunFilter(branch, status),
 		Limit:      limit,
 	})
 	if err != nil {
