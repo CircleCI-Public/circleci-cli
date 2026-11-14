@@ -6,6 +6,18 @@ is added by its release PR (see [RELEASE.md](RELEASE.md)) and becomes its GitHub
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.16.0] - 2026-11-14
+
+### What's Changed
+* Record extension subcommand and exit code on command_invocation by @Fab10-CircleCi in https://github.com/CircleCI-Public/circleci-cli/pull/1964
+* Check pipeline create's GitHub Actions config path (AEX-133) by @joel-thompson in https://github.com/CircleCI-Public/circleci-cli/pull/1979
+* Move CLI provider lists into the provider registry (AEX-97) by @joel-thompson in https://github.com/CircleCI-Public/circleci-cli/pull/1985
+* Accept Forgejo in pipeline create and trigger create (AEX-97) by @joel-thompson in https://github.com/CircleCI-Public/circleci-cli/pull/1986
+* List an empty job's artifacts as empty instead of not found (AEX-99) by @joel-thompson in https://github.com/CircleCI-Public/circleci-cli/pull/1987
+
+
+**Full Changelog**: https://github.com/CircleCI-Public/circleci-cli/compare/v1.15.0...v1.16.0
+
 ## [1.15.0] - 2026-11-10
 
 ### What's Changed
