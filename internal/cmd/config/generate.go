@@ -23,6 +23,7 @@
 package cmdconfig
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -32,14 +33,22 @@ import (
 
 	clierrors "github.com/CircleCI-Public/circleci-cli/clikit/errors"
 	"github.com/CircleCI-Public/circleci-cli/clikit/iostream"
+	"github.com/CircleCI-Public/circleci-cli/internal/cmdutil"
 	"github.com/CircleCI-Public/circleci-cli/internal/configgen"
+	"github.com/CircleCI-Public/circleci-cli/internal/configprompt"
 	"github.com/CircleCI-Public/circleci-cli/internal/reposcan"
 )
 
+type generatePromptJSON struct {
+	Prompt        string `json:"prompt"`
+	PromptVersion string `json:"prompt_version"`
+}
+
 func newGenerateCmd() *cobra.Command {
+	var template, jsonOut bool
 	cmd := &cobra.Command{
 		Use:   "generate [path]",
-		Short: "Generate .circleci/config.yml from a repository scan",
+		Short: "Print a prompt for your coding agent to write .circleci/config.yml",
 		Annotations: map[string]string{
 			"help:arguments": heredoc.Docf(`
 				%[1]s<path>%[1]s is optional and is the directory to scan. Defaults to
@@ -47,52 +56,105 @@ func newGenerateCmd() *cobra.Command {
 			`, "`"),
 		},
 		Long: heredoc.Docf(`
-			Detect the language stack, container image, and setup commands for a
-			repository, then write a starter pipeline to %[1]s<path>/.circleci/config.yml%[1]s.
+			Detect the repository's stack and print a prompt for a coding agent to
+			write %[1]s<path>/.circleci/config.yml%[1]s, or improve it if it exists. Nothing
+			is written; %[1]s--template%[1]s writes a starter config from a local template
+			instead.
 
-			If no supported stack is detected, a minimal cimg/base:stable template
-			with a placeholder build step is written instead so you have something
-			to iterate on.
-
-			If a config file already exists at that path, generate does not overwrite
-			it; it prints a confirmation and exits successfully. The .circleci/
-			directory is created if needed, and the file is written atomically.
+			JSON fields: prompt, prompt_version.
 		`, "`"),
 		Example: heredoc.Doc(`
-			# Generate a config for the current directory
+			# Print a prompt for the current directory
 			$ circleci config generate
 
-			# Generate a config for a specific project path
+			# Print a prompt for a specific project path
 			$ circleci config generate ./my-app
 
-			# Re-run is a no-op when a config already exists
-			$ circleci config generate
-			✓ Using existing config at .circleci/config.yml
+			# Get the prompt as JSON
+			$ circleci config generate --json
+
+			# Write a starter config from the local template
+			$ circleci config generate --template
 		`),
 		Args: cobra.MaximumNArgs(1),
-		RunE: runGenerate,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			dir := "."
+			if len(args) == 1 {
+				dir = args[0]
+			}
+			if template {
+				return runGenerateTemplate(cmd.Context(), dir)
+			}
+			return runGeneratePrompt(cmd.Context(), dir, jsonOut)
+		},
 	}
+	cmd.Flags().BoolVar(&template, "template", false, "write a starter config from a local template instead of printing a prompt")
+	cmdutil.AddJSONFlag(cmd, &jsonOut)
+	cmd.MarkFlagsMutuallyExclusive("template", "json")
 	return cmd
 }
 
-func runGenerate(cmd *cobra.Command, args []string) error {
-	ctx := cmd.Context()
+func checkGenerateDir(dir string) error {
+	info, err := os.Stat(dir)
+	if err == nil && info.IsDir() {
+		return nil
+	}
+	return clierrors.New(
+		"config.path_not_found",
+		"Path not found",
+		fmt.Sprintf("No directory exists at %q.", dir),
+	).WithSuggestions(
+		"Check the path you passed and try again",
+		"Omit the argument to scan the current directory",
+	).WithExitCode(clierrors.ExitBadArguments)
+}
 
-	dir := "."
-	if len(args) == 1 {
-		dir = args[0]
+func scanFailed(err error) error {
+	return clierrors.New(
+		"config.scan_failed",
+		"Repository scan failed",
+		fmt.Sprintf("Could not detect the project stack: %s.", err),
+	).WithSuggestions(
+		"Re-run with --debug to see scan details",
+		"Try again; image resolution requires network access",
+	).WithExitCode(clierrors.ExitGeneralError)
+}
+
+func runGeneratePrompt(ctx context.Context, dir string, jsonOut bool) error {
+	if err := checkGenerateDir(dir); err != nil {
+		return err
 	}
 
-	info, err := os.Stat(dir)
-	if err != nil || !info.IsDir() {
-		return clierrors.New(
-			"config.path_not_found",
-			"Path not found",
-			fmt.Sprintf("No directory exists at %q.", dir),
-		).WithSuggestions(
-			"Check the path you passed and try again",
-			"Omit the argument to scan the current directory",
-		).WithExitCode(clierrors.ExitBadArguments)
+	sp := iostream.Spinner(ctx, !jsonOut, "Scanning repository")
+	result, err := reposcan.NewDefaultScanner().Scan(ctx, dir)
+	sp.Stop()
+	if err != nil {
+		return scanFailed(err)
+	}
+
+	client := cmdutil.LoadClientOptionalAuth(ctx)
+	sp = iostream.Spinner(ctx, !jsonOut, "Fetching the config prompt")
+	prompt, err := client.ConfigPrompt(ctx, configprompt.NewRequest(dir, result))
+	sp.Stop()
+	if err != nil {
+		return cmdutil.APIErr(err, "config prompt", "config.prompt_not_found", "The %s is not available on this CircleCI host.").
+			WithSuggestions("Or write a starter config without the server: circleci config generate --template")
+	}
+
+	if jsonOut {
+		return iostream.PrintJSON(ctx, generatePromptJSON{Prompt: prompt.Prompt, PromptVersion: prompt.PromptVersion})
+	}
+	iostream.Print(ctx, prompt.Prompt)
+	if iostream.IsTerminal(ctx) {
+		iostream.ErrPrintf(ctx, "\n%s Paste this prompt into your coding agent, or rerun with --template to write a starter config.\n",
+			iostream.SymbolOK(ctx))
+	}
+	return nil
+}
+
+func runGenerateTemplate(ctx context.Context, dir string) error {
+	if err := checkGenerateDir(dir); err != nil {
+		return err
 	}
 
 	// Skip-check before scan so a no-op re-run never makes a network call.
@@ -105,14 +167,7 @@ func runGenerate(cmd *cobra.Command, args []string) error {
 
 	result, err := reposcan.NewDefaultScanner().Scan(ctx, dir)
 	if err != nil {
-		return clierrors.New(
-			"config.scan_failed",
-			"Repository scan failed",
-			fmt.Sprintf("Could not detect the project stack: %s.", err),
-		).WithSuggestions(
-			"Re-run with --debug to see scan details",
-			"Try again; image resolution requires network access",
-		).WithExitCode(clierrors.ExitGeneralError)
+		return scanFailed(err)
 	}
 
 	if !result.IsEmpty() {

@@ -36,8 +36,8 @@ import (
 	testenv "github.com/CircleCI-Public/circleci-cli/internal/testing/env"
 )
 
-// TestConfigGenerate_SkipsWhenExists exercises the idempotent re-run path
-// from a real binary: when a config already exists, the command prints a
+// TestConfigGenerate_SkipsWhenExists exercises the idempotent --template re-run
+// path from a real binary: when a config already exists, the command prints a
 // confirmation and exits without overwriting it.
 func TestConfigGenerate_SkipsWhenExists(t *testing.T) {
 	dir := t.TempDir()
@@ -50,7 +50,7 @@ func TestConfigGenerate_SkipsWhenExists(t *testing.T) {
 	env := testenv.New(t)
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"config", "generate", dir},
+		Args:    []string{"config", "generate", "--template", dir},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
@@ -88,7 +88,7 @@ func TestConfigGenerate_PathNotFound(t *testing.T) {
 	assert.Check(t, golden.String(stderr, t.Name()+".stderr.txt"))
 }
 
-// TestConfigGenerate_DotNetProject exercises the happy path end-to-end through
+// TestConfigGenerate_DotNetProject exercises the --template path end-to-end through
 // the real binary against a real on-disk project. The skeleton .csproj fixture
 // under testdata/config-generate/dotnet drives chunk-cli/envbuilder's local-only
 // .NET detection path — no Docker Hub call — so the test is deterministic in
@@ -101,7 +101,7 @@ func TestConfigGenerate_DotNetProject(t *testing.T) {
 	env := testenv.New(t)
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"config", "generate", dir},
+		Args:    []string{"config", "generate", "--template", dir},
 		Env:     env.Environ(),
 		WorkDir: t.TempDir(),
 	})
@@ -142,7 +142,7 @@ func copyFixture(t *testing.T, src, dst string) {
 	}))
 }
 
-// TestConfigGenerate_DefaultPath exercises the no-arg invocation: with no path
+// TestConfigGenerate_DefaultPath exercises the no-arg --template invocation: with no path
 // argument the command scans the current working directory. An empty cwd
 // triggers envbuilder's "unknown" stack — which short-circuits the Docker Hub
 // version lookup — and configgen writes the cimg/base:stable fallback.
@@ -152,7 +152,7 @@ func TestConfigGenerate_DefaultPath(t *testing.T) {
 	env := testenv.New(t)
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
-		Args:    []string{"config", "generate"},
+		Args:    []string{"config", "generate", "--template"},
 		Env:     env.Environ(),
 		WorkDir: dir,
 	})

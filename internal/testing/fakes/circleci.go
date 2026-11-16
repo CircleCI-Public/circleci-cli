@@ -171,6 +171,9 @@ type CircleCI struct {
 	// Feedback state.
 	feedbackReportError *feedbackReportError // error for POST /api/v3/tool/send-feedback (nil → 200)
 
+	// Config prompt state.
+	configPromptStatus int // status for POST /api/v3/configs/generate-prompt (0 → 200)
+
 	// Policy state.
 	policyBundles   map[string]map[string]string // "ownerID/ctx" → bundle
 	decisionLogs    map[string][]DecisionLog     // "ownerID/ctx" → logs
@@ -481,6 +484,7 @@ func NewCircleCI(t *testing.T, tokens ...string) *CircleCI {
 	r.Post("/api/v3/orgs/{id}/update-settings", f.handleUpdateOrgSettingsV3)
 	// Feedback (v3) routes.
 	r.Post("/api/v3/tool/send-feedback", f.handleSendFeedback)
+	r.Post("/api/v3/configs/generate-prompt", f.handleConfigPrompt)
 	// Job (v3) routes.
 	r.Get("/api/v3/jobs", f.handleListWorkflowJobsV3)
 	r.Get("/api/v3/jobs/{id}", f.handleGetJobV3)
@@ -616,15 +620,15 @@ func (f *CircleCI) authMiddleware(next http.Handler) http.Handler {
 // authExempt reports whether a path is reachable without authentication. These
 // are the routes the CLI legitimately calls with no (or not-yet-issued) token:
 // the OAuth login flow, signed artifact downloads, the optional-auth config
-// compile endpoint, the public functions catalog, and the public tool-releases
-// feed.
+// compile endpoint, the config prompt, the public functions catalog, and the
+// public tool-releases feed.
 func authExempt(path string) bool {
 	if strings.HasPrefix(path, "/oauth/") || strings.HasPrefix(path, "/artifacts/") ||
 		strings.HasPrefix(path, "/api/v3/function/") {
 		return true
 	}
 	switch path {
-	case "/api/v3/configs/compile", "/api/v3/tool/releases":
+	case "/api/v3/configs/compile", "/api/v3/configs/generate-prompt", "/api/v3/tool/releases":
 		return true
 	}
 	return false
@@ -4502,6 +4506,57 @@ func (f *CircleCI) handleSendFeedback(w http.ResponseWriter, r *http.Request) {
 	}
 
 	render.JSON(w, r, map[string]any{"data": map[string]any{"id": FeedbackReportID}})
+}
+
+// ConfigPrompt is the prompt POST /api/v3/configs/generate-prompt answers with. It names the
+// detected stack so a test can tell the request reached the server.
+const ConfigPrompt = "Write a starter CircleCI config.\n\nStack: %s\n"
+
+// ConfigPromptVersion is the prompt_version POST /api/v3/configs/generate-prompt reports.
+const ConfigPromptVersion = "1"
+
+// SetConfigPromptStatus makes POST /api/v3/configs/generate-prompt answer every request with
+// status and a v3 error envelope. Until it is called the route answers 200.
+func (f *CircleCI) SetConfigPromptStatus(status int) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.configPromptStatus = status
+}
+
+// handleConfigPrompt echoes the request's stack in the prompt; the rest of the body
+// is asserted through the request recorder.
+func (f *CircleCI) handleConfigPrompt(w http.ResponseWriter, r *http.Request) {
+	f.mu.RLock()
+	status := f.configPromptStatus
+	f.mu.RUnlock()
+
+	if status != 0 {
+		render.Status(r, status)
+		render.JSON(w, r, map[string]any{"error": map[string]any{
+			"title":  http.StatusText(status),
+			"detail": "config prompt unavailable",
+		}})
+		return
+	}
+
+	var body struct {
+		Stack *struct {
+			Stack string `json:"stack"`
+		} `json:"stack"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		render.Status(r, http.StatusBadRequest)
+		render.JSON(w, r, map[string]any{"message": "invalid JSON"})
+		return
+	}
+	stack := "none"
+	if body.Stack != nil {
+		stack = body.Stack.Stack
+	}
+	render.JSON(w, r, map[string]any{"data": map[string]any{"attributes": map[string]any{
+		"prompt":         fmt.Sprintf(ConfigPrompt, stack),
+		"prompt_version": ConfigPromptVersion,
+	}}})
 }
 
 func (f *CircleCI) handleRollbackProject(w http.ResponseWriter, r *http.Request) {
