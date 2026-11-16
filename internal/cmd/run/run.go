@@ -43,7 +43,7 @@ func NewRunCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "run <command>",
 		GroupID: "ci",
-		Short:   "Trigger, watch, approve and cancel pipeline runs",
+		Short:   "Trigger, watch, approve and cancel runs, and list artifacts",
 		Long: heredoc.Doc(`
 			Work with CircleCI runs.
 
@@ -58,6 +58,7 @@ func NewRunCmd() *cobra.Command {
 	)
 	cmdutil.AddGroup(cmd, "Targeted commands",
 		newApproveCmd(),
+		newArtifactsCmd(),
 		newCancelCmd(),
 		newOpenCmd(),
 		newGetCmd(),

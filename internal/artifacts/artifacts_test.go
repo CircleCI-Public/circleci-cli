@@ -207,3 +207,55 @@ func TestForJob_NotFound(t *testing.T) {
 		assert.Check(t, cmp.Equal(client.askedJob, false))
 	})
 }
+
+func TestFormatRunMarkdown(t *testing.T) {
+	t.Run("one section per job, paths only", func(t *testing.T) {
+		got := artifacts.FormatRunMarkdown([]artifacts.JobArtifacts{
+			{Workflow: "build", Job: "test", Entries: []artifacts.Entry{
+				{Path: "coverage/index.html", URL: "https://example.com/a", Execution: 0},
+				{Path: "results.xml", URL: "https://example.com/b", Execution: 0},
+			}},
+			{Workflow: "build", Job: "lint", Entries: []artifacts.Entry{}},
+		})
+		assert.Check(t, cmp.Equal(got, "## build / test\n"+
+			"- coverage/index.html\n"+
+			"- results.xml\n"+
+			"\n"+
+			"## build / lint\n"+
+			"No artifacts.\n"))
+	})
+
+	t.Run("groups a job's executions", func(t *testing.T) {
+		got := artifacts.FormatRunMarkdown([]artifacts.JobArtifacts{
+			{Workflow: "build", Job: "test", Entries: []artifacts.Entry{
+				{Path: "t-1.xml", Execution: 1},
+				{Path: "t-0.xml", Execution: 0},
+			}},
+		})
+		assert.Check(t, cmp.Equal(got, "## build / test\n"+
+			"### Execution 0\n"+
+			"- t-0.xml\n"+
+			"### Execution 1\n"+
+			"- t-1.xml\n"))
+	})
+
+	t.Run("no jobs", func(t *testing.T) {
+		assert.Check(t, cmp.Equal(artifacts.FormatRunMarkdown(nil), ""))
+	})
+}
+
+func TestSafeDirName(t *testing.T) {
+	for name, want := range map[string]string{
+		"test":           "test",
+		"build-and-test": "build-and-test",
+		"a/b":            "a_b",
+		`a\b`:            "a_b",
+		"..":             "_",
+		".":              "_",
+		"":               "_",
+		"../../etc":      ".._.._etc",
+		"win:dows?":      "win_dows_",
+	} {
+		assert.Check(t, cmp.Equal(artifacts.SafeDirName(name), want), "name %q", name)
+	}
+}

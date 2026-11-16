@@ -111,12 +111,45 @@ func hasMultipleExecutions(entries []Entry) bool {
 func FormatMarkdown(entries []Entry) string {
 	var md strings.Builder
 	md.WriteString("# Artifacts\n")
+	writeEntries(&md, entries, "##")
+	return md.String()
+}
 
+// JobArtifacts is one job's artifacts in a run-wide listing, labelled with the
+// workflow and job it came from.
+type JobArtifacts struct {
+	Workflow string
+	Job      string
+	Entries  []Entry
+}
+
+// FormatRunMarkdown returns one markdown section per job, headed by its
+// workflow and job name, listing paths as FormatMarkdown does. The caller
+// writes any heading for the run itself.
+func FormatRunMarkdown(jobs []JobArtifacts) string {
+	var md strings.Builder
+	for i, j := range jobs {
+		if i > 0 {
+			md.WriteString("\n")
+		}
+		fmt.Fprintf(&md, "## %s / %s\n", j.Workflow, j.Job)
+		if len(j.Entries) == 0 {
+			md.WriteString("No artifacts.\n")
+			continue
+		}
+		writeEntries(&md, j.Entries, "###")
+	}
+	return md.String()
+}
+
+// writeEntries lists entries as "- <path>" lines: flat when they share one
+// execution, otherwise grouped under "<heading> Execution N" in index order.
+func writeEntries(md *strings.Builder, entries []Entry, heading string) {
 	if !hasMultipleExecutions(entries) {
 		for _, e := range entries {
-			fmt.Fprintf(&md, "- %s\n", e.Path)
+			fmt.Fprintf(md, "- %s\n", e.Path)
 		}
-		return md.String()
+		return
 	}
 
 	seen := map[int]struct{}{}
@@ -130,14 +163,30 @@ func FormatMarkdown(entries []Entry) string {
 	sort.Ints(idxs)
 
 	for _, idx := range idxs {
-		fmt.Fprintf(&md, "## Execution %d\n", idx)
+		fmt.Fprintf(md, "%s Execution %d\n", heading, idx)
 		for _, e := range entries {
 			if e.Execution == idx {
-				fmt.Fprintf(&md, "- %s\n", e.Path)
+				fmt.Fprintf(md, "- %s\n", e.Path)
 			}
 		}
 	}
-	return md.String()
+}
+
+// SafeDirName turns a workflow or job name into a single path component, for
+// laying out a run's downloads as <dir>/<workflow>/<job>/. Path separators and
+// characters Windows forbids in file names become "_", and a name that would
+// be empty, "." or ".." becomes "_", so the result never leaves its parent.
+func SafeDirName(name string) string {
+	safe := strings.Map(func(r rune) rune {
+		if strings.ContainsRune(`/\:*?"<>|`, r) || r < 0x20 {
+			return '_'
+		}
+		return r
+	}, name)
+	if safe == "" || safe == "." || safe == ".." {
+		return "_"
+	}
+	return safe
 }
 
 // Download fetches each entry's artifact and writes it under dir, preserving

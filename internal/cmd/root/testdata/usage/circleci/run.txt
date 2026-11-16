@@ -2,6 +2,7 @@ Usage:  circleci run <command> [flags]
 
 Available commands:
   approve
+  artifacts
   cancel
   get
   list

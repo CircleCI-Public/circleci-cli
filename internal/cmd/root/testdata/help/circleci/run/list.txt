@@ -16,6 +16,7 @@ Aliases: `circleci run ls`
 | `--json`               | Output as JSON                                                                    |
 | `--limit int`          | Maximum number of runs to show [default: 10] (default 10)                         |
 | `--project string`     | Project slug (e.g. gh/org/repo); defaults to git remote                           |
+| `--status string`      | filter by run status, e.g. success or failed                                      |
 
 Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `circleci --help`.
 
@@ -29,8 +30,8 @@ Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `ci
   `circleci run list --branch main`
 - List runs for an explicit project: 
   `circleci run list --project gh/org/repo`
-- Show more results: 
-  `circleci run list --limit 25`
+- Show the last successful run: 
+  `circleci run list --status success --limit 1`
 - Output as JSON for scripting: 
   `circleci run list --json`
 
@@ -40,9 +41,6 @@ List recent runs for a CircleCI project.
 
 A run is one execution of a pipeline. The project is inferred from the
 current git repository's remote unless overridden with --project.
-
-The markdown table includes the commit subject; the JSON adds the full
-commit and repository detail.
 
 JSON fields: id, phase, outcome, current_outcome, branch, tag, revision, repository_url, commit.subject/url/author_name/author_login, created_at, warnings[].type/message/description/url
 

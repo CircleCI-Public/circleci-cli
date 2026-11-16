@@ -1,0 +1,11 @@
+Usage:  circleci run artifacts [<run-id>] [flags]
+
+Flags:
+  -b, --branch string    branch name (defaults to the current branch, or main when --project is set)
+  -h, --help             help for artifacts
+      --jq string        Process values from the response using jq syntax
+      --json             Output as JSON
+  -o, --output string    download artifacts into this directory
+      --project string   project slug (e.g. gh/org/repo); defaults to git remote
+      --status string    filter by run status, e.g. success or failed; picks the latest such run
+  
