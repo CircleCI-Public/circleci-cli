@@ -58,10 +58,14 @@ type RunnerAgent struct {
 	ID         uuid.UUID `json:"id"`
 	Attributes struct {
 		Name             string    `json:"name"`
+		Hostname         string    `json:"hostname"`
+		IP               string    `json:"ip"`
 		IsBusy           bool      `json:"is_busy"`
 		Version          string    `json:"version"`
 		FirstConnectedAt time.Time `json:"first_connected_at"`
 		LastConnectedAt  time.Time `json:"last_connected_at"`
+		// LastTaskClaimedAt is nil when the agent has never claimed a task.
+		LastTaskClaimedAt *time.Time `json:"last_task_claimed_at"`
 	} `json:"attributes"`
 	References struct {
 		ResourceClass struct {

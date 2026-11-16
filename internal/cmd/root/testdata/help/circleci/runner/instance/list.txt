@@ -35,7 +35,7 @@ Give a namespace or resource class as an argument or flag, not both.
 
 STATUS is derived from last_connected_at (online under 2 minutes, idle
 under 30, offline beyond). BUSY says whether the instance holds a task.
-Hostname, IP and last-used time are not reported by the agents API.
+LAST TASK is when the instance last claimed a task; blank if it never has.
 
-JSON fields: id, resource_class, resource_class_id, name, version, status, is_busy, first_connected_at, last_connected_at
+JSON fields: id, resource_class, resource_class_id, name, hostname, ip, version, status, is_busy, first_connected_at, last_connected_at, last_task_claimed_at
 

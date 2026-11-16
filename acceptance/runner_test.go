@@ -68,6 +68,8 @@ func fakeAgent(id, rc, name, version string, busy bool) fakes.RunnerAgent {
 		ID:             id,
 		ResourceClass:  rc,
 		Name:           name,
+		Hostname:       name + ".internal",
+		IP:             "10.0.0.1",
 		Version:        version,
 		IsBusy:         busy,
 		FirstConnected: "2026-01-01T00:00:00Z",
@@ -86,7 +88,10 @@ func setupRunnerFake(t *testing.T) (*fakes.CircleCI, *testenv.TestEnv) {
 	fake.AddRunnerToken("my-org/linux-runner", fakeToken("10000000-0000-4000-8000-000000000001", "my-org/linux-runner", "prod-server-1"))
 	fake.AddRunnerToken("my-org/linux-runner", fakeToken("10000000-0000-4000-8000-000000000002", "my-org/linux-runner", "prod-server-2"))
 
-	fake.AddRunnerAgent(fakeAgent("aaaaaaaa-1111-4111-8111-aaaaaaaaaaaa", "my-org/linux-runner", "runner-1", "1.0.0", false))
+	// runner-1 has claimed a task; runner-2 never has, so the API serves its last_task_claimed_at as null.
+	claimed := fakeAgent("aaaaaaaa-1111-4111-8111-aaaaaaaaaaaa", "my-org/linux-runner", "runner-1", "1.0.0", false)
+	claimed.LastTaskClaimed = "2026-04-18T11:30:00Z"
+	fake.AddRunnerAgent(claimed)
 	fake.AddRunnerAgent(fakeAgent("bbbbbbbb-2222-4222-8222-bbbbbbbbbbbb", "my-org/arm-runner", "runner-2", "1.0.0", false))
 
 	env := testenv.New(t)
@@ -2051,7 +2056,18 @@ func TestRunnerInstanceList_JSON(t *testing.T) {
 	var out []map[string]any
 	err := json.Unmarshal([]byte(result.Stdout), &out)
 	assert.NilError(t, err)
-	assert.Check(t, cmp.Len(out, 2))
+	assert.Assert(t, cmp.Len(out, 2))
+
+	t.Run("instance that claimed a task", func(t *testing.T) {
+		assert.Check(t, cmp.Equal(out[0]["hostname"], "runner-1.internal"))
+		assert.Check(t, cmp.Equal(out[0]["ip"], "10.0.0.1"))
+		assert.Check(t, cmp.Equal(out[0]["last_task_claimed_at"], "2026-04-18T11:30:00Z"))
+	})
+
+	t.Run("instance that never claimed a task omits last_task_claimed_at", func(t *testing.T) {
+		_, ok := out[1]["last_task_claimed_at"]
+		assert.Check(t, !ok, "last_task_claimed_at should be absent, got %v", out[1]["last_task_claimed_at"])
+	})
 
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".json"))
 }
