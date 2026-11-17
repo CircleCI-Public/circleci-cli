@@ -1219,7 +1219,7 @@ func TestOnboard_Telemetry(t *testing.T) {
 	t.Run("records an outcome for every step it reaches", func(t *testing.T) {
 		dir, fake, env := onboardRepo(t)
 		addFirstPipelineResponses(fake)
-		segment := onboardTelemetryEnv(t, env)
+		segment := fakeSegmentEnv(t, env)
 
 		result := binary.RunCLI(t, binary.RunOpts{
 			Binary:  binaryPath,
@@ -1246,7 +1246,7 @@ func TestOnboard_Telemetry(t *testing.T) {
 		dir := t.TempDir()
 		initGitRepoWithRemote(t, dir, "https://github.com/myorg/my-repo.git")
 		_, env := onboardAuthenticatedEnv(t, "testuser")
-		segment := onboardTelemetryEnv(t, env)
+		segment := fakeSegmentEnv(t, env)
 
 		result := binary.RunCLI(t, binary.RunOpts{
 			Binary:  binaryPath,
@@ -1271,7 +1271,7 @@ func TestOnboard_Telemetry(t *testing.T) {
 	// indistinguishable from "ran and reported nothing".
 	t.Run("marks steps a failed run never reached", func(t *testing.T) {
 		env := testenv.New(t)
-		segment := onboardTelemetryEnv(t, env)
+		segment := fakeSegmentEnv(t, env)
 		dir := t.TempDir()
 
 		result := binary.RunCLI(t, binary.RunOpts{
@@ -1292,9 +1292,9 @@ func TestOnboard_Telemetry(t *testing.T) {
 	})
 }
 
-// onboardTelemetryEnv points env's telemetry at a fake Segment service and
+// fakeSegmentEnv points env's telemetry at a fake Segment service and
 // returns it, so a test can assert on the events the run actually sent.
-func onboardTelemetryEnv(t *testing.T, env *testenv.TestEnv) *fakesegment.Service {
+func fakeSegmentEnv(t *testing.T, env *testenv.TestEnv) *fakesegment.Service {
 	t.Helper()
 
 	segment := fakesegment.New(iostream.Testing(context.Background()), telemetry.SegmentKey)

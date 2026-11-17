@@ -30,13 +30,16 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/segmentio/analytics-go/v3"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/assert/cmp"
 	"gotest.tools/v3/golden"
+	"gotest.tools/v3/poll"
 
 	"github.com/CircleCI-Public/circleci-cli/internal/testing/binary"
 	testenv "github.com/CircleCI-Public/circleci-cli/internal/testing/env"
 	"github.com/CircleCI-Public/circleci-cli/internal/testing/fakes"
+	"github.com/CircleCI-Public/circleci-cli/internal/testing/fakesegment"
 )
 
 const (
@@ -168,6 +171,78 @@ func TestConfigValidate_NoFunctionsTip(t *testing.T) {
 			})
 		})
 	}
+}
+
+// TestConfigValidate_FunctionsTipTelemetry pins the functions_tip property on the
+// command_invocation event, which is how we count how often the tip is shown.
+// The full event shape is pinned by TestAPI_Telemetry.
+func TestConfigValidate_FunctionsTipTelemetry(t *testing.T) {
+	tests := []struct {
+		name   string
+		args   []string
+		commit bool
+		want   any
+	}{
+		{
+			name: "tip shown on stderr",
+			args: []string{"config", "validate"},
+			want: "shown",
+		},
+		{
+			name: "tip shown in JSON",
+			args: []string{"config", "validate", "--json"},
+			want: "shown",
+		},
+		{
+			name:   "no tip for a committed config",
+			args:   []string{"config", "validate"},
+			commit: true,
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			fake := fakes.NewCircleCI(t)
+			fake.SetCompileResponse(true, testCompiledYAML)
+			env := testenv.New(t)
+			env.Token = testToken
+			env.CircleCIURL = fake.URL()
+			segment := fakeSegmentEnv(t, env)
+			dir := t.TempDir()
+			writeConfig(t, dir, testConfigYAML)
+			if tc.commit {
+				gitCommitAll(t, dir)
+			}
+
+			result := binary.RunCLI(t, binary.RunOpts{
+				Binary: binaryPath, Args: tc.args, Env: env.Environ(), WorkDir: dir,
+			})
+			assert.Assert(t, cmp.Equal(result.ExitCode, 0), "stderr: %s", result.Stderr)
+
+			props := awaitCommandProps(t, segment)
+			assert.Check(t, cmp.Equal(props["functions_tip"], tc.want))
+		})
+	}
+}
+
+// awaitCommandProps waits for the command_invocation event and returns its
+// properties. The events are delivered by a detached subprocess, so they arrive
+// after the CLI has already exited.
+func awaitCommandProps(t *testing.T, segment *fakesegment.Service) analytics.Properties {
+	t.Helper()
+
+	var props analytics.Properties
+	poll.WaitOn(t, func(t poll.LogT) poll.Result {
+		for _, batch := range segment.Batches() {
+			for _, msg := range batch.Messages {
+				if msg.Event == "command_invocation" {
+					props = msg.Properties
+					return poll.Success()
+				}
+			}
+		}
+		return poll.Continue("no command_invocation event yet")
+	})
+	return props
 }
 
 func TestConfigValidate_Invalid(t *testing.T) {

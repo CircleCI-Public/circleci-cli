@@ -122,6 +122,9 @@ func newValidateCmd() *cobra.Command {
 			if result.Valid {
 				result.Suggestions = configcmd.FunctionsSuggestions(path, yaml)
 			}
+			if len(result.Suggestions) > 0 {
+				cmdutil.SetTelemetryProp(ctx, "functions_tip", "shown")
+			}
 
 			if jsonOut {
 				if err := cmdutil.WriteJSON(iostream.Out(ctx), result); err != nil {
