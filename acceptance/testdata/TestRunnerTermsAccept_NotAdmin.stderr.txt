@@ -1,0 +1,7 @@
+error: Accepting the self-hosted runner terms for gh/my-org requires the admin role in that organization.
+
+Suggestions:
+  • Check your role with: circleci org get --org gh/my-org
+  • Ask an organization admin to accept the terms
+
+Reference: https://circleci.com/legal/runner-terms/

@@ -1,0 +1,2 @@
+
+Next, create a resource class: circleci runner resource-class create <namespace>/<name>

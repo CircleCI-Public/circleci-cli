@@ -4598,6 +4598,44 @@ organization name (for example, `my-org/my-runner`), or as its ID.
 - Update and output the result as JSON: 
   `circleci runner resource-class update my-org/my-runner --description "ARM runner" --json`
 
+#### `circleci runner terms <command>`
+
+Accept the self-hosted runner terms
+
+Manage your organization's acceptance of the self-hosted runner terms.
+
+An organization admin must accept the terms once before the organization
+can use self-hosted runners.
+
+##### `circleci runner terms accept [flags]`
+
+Accept the self-hosted runner terms for an organization
+
+Accept CircleCI's self-hosted runner terms on behalf of an organization.
+You must be an admin of the organization. Asks for confirmation first;
+does nothing if the terms are already accepted.
+
+Terms: https://circleci.com/legal/runner-terms/
+
+JSON fields: org_id, accepted, already_accepted
+
+| Flag           | Description                                                                       |
+| -------------- | --------------------------------------------------------------------------------- |
+| `-f, --force`  | skip confirmation prompt                                                          |
+| `--jq string`  | Process values from the response using jq syntax (see `circleci help formatting`) |
+| `--json`       | Output as JSON                                                                    |
+| `--org string` | Organization slug (e.g. gh/myorg) or UUID; defaults to git remote                 |
+
+
+**Examples:**
+
+- Accept the terms for the org of the current git repository: 
+  `circleci runner terms accept`
+- Accept the terms for a specific org: 
+  `circleci runner terms accept --org gh/myorg`
+- Accept without a confirmation prompt, for scripting: 
+  `circleci runner terms accept --org gh/myorg --force --json`
+
 #### `circleci runner token <command>`
 
 Manage runner tokens

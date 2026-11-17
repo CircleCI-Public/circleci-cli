@@ -1,0 +1,4 @@
+Usage:  circleci runner terms <command> [flags]
+
+Available commands:
+  accept

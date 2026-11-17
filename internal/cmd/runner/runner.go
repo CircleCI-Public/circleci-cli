@@ -62,6 +62,7 @@ func NewRunnerCmd() *cobra.Command {
 		newTokenCmd(),
 		newInstanceCmd(),
 		newFleetCmd(),
+		newTermsCmd(),
 	)
 
 	return cmd

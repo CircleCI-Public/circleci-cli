@@ -250,6 +250,9 @@ type CircleCI struct {
 	// lists: those the caller is an admin of.
 	orgManageable   map[string]bool
 	canManageStatus int // non-zero: every filter[can_manage] request answers this status
+	// updateOrgSettingsStatus, when non-zero, is the status every
+	// POST /api/v3/orgs/:id/update-settings answers — e.g. 403 for a non-admin.
+	updateOrgSettingsStatus int
 
 	// Release state (GET /api/v3/tool/releases).
 	releaseTool        string    // tool name the fake answers for (default "circleci-cli")
@@ -6279,8 +6282,35 @@ func (f *CircleCI) handleGetOrgSettingsV3(w http.ResponseWriter, r *http.Request
 	})
 }
 
+// RunnerTermsAccepted reports the stored is_runner_terms_of_service_accepted
+// for the org, so tests can check what an update wrote.
+func (f *CircleCI) RunnerTermsAccepted(orgID string) bool {
+	f.mu.RLock()
+	defer f.mu.RUnlock()
+	attrs, _ := f.orgSettings[orgID].(map[string]any)
+	accepted, _ := attrs["is_runner_terms_of_service_accepted"].(bool)
+	return accepted
+}
+
+// SetUpdateOrgSettingsStatus makes every POST /api/v3/orgs/:id/update-settings
+// fail with status, leaving the stored settings unchanged.
+func (f *CircleCI) SetUpdateOrgSettingsStatus(status int) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.updateOrgSettingsStatus = status
+}
+
 func (f *CircleCI) handleUpdateOrgSettingsV3(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
+
+	f.mu.RLock()
+	status := f.updateOrgSettingsStatus
+	f.mu.RUnlock()
+	if status != 0 {
+		render.Status(r, status)
+		render.JSON(w, r, map[string]any{"message": http.StatusText(status)})
+		return
+	}
 
 	var patch map[string]any
 	if err := json.NewDecoder(r.Body).Decode(&patch); err != nil {

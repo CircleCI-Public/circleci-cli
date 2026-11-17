@@ -18,12 +18,13 @@ Manage self-hosted runners
 
 ## Subcommands
 
-| Command          | Description                    |
-| ---------------- | ------------------------------ |
-| `fleet`          | View runner fleets             |
-| `instance`       | Manage runner instances        |
-| `resource-class` | Manage runner resource classes |
-| `token`          | Manage runner tokens           |
+| Command          | Description                         |
+| ---------------- | ----------------------------------- |
+| `fleet`          | View runner fleets                  |
+| `instance`       | Manage runner instances             |
+| `resource-class` | Manage runner resource classes      |
+| `terms`          | Accept the self-hosted runner terms |
+| `token`          | Manage runner tokens                |
 
 ## Flags
 

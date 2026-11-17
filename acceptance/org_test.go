@@ -307,3 +307,26 @@ func TestOrgGet_NotMember(t *testing.T) {
 	assert.Check(t, cmp.Equal(result.ExitCode, 5))
 	assert.Check(t, cmp.Contains(result.Stderr, "You are not a member of an organization"))
 }
+
+// TestOrgGet_InfersOrgFromProject pins that --org is optional inside a
+// checkout: the org is recovered from the git remote's project.
+func TestOrgGet_InfersOrgFromProject(t *testing.T) {
+	fake, env := setupOrgFake(t)
+	fake.AddProjectBySlug("gh/myorg/myrepo", "00000000-0000-4000-8000-0000000000b1", "myrepo", orgGetID)
+
+	dir := t.TempDir()
+	initGitRepoWithRemote(t, dir, "https://github.com/myorg/myrepo")
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"org", "get", "--json"},
+		Env:     env.Environ(),
+		WorkDir: dir,
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	var out map[string]any
+	assert.NilError(t, json.Unmarshal([]byte(result.Stdout), &out))
+	assert.Check(t, cmp.Equal(out["id"], orgGetID))
+	assert.Check(t, cmp.Equal(out["name"], "myorg"))
+}

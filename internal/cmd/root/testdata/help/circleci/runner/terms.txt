@@ -1,0 +1,23 @@
+Accept the self-hosted runner terms
+
+## Usage
+
+`circleci runner terms <command> [flags]`
+
+## General Commands
+
+| Command  | Description                                             |
+| -------- | ------------------------------------------------------- |
+| `accept` | Accept the self-hosted runner terms for an organization |
+
+## Flags
+
+Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `circleci --help`.
+
+## Details
+
+Manage your organization's acceptance of the self-hosted runner terms.
+
+An organization admin must accept the terms once before the organization
+can use self-hosted runners.
+
