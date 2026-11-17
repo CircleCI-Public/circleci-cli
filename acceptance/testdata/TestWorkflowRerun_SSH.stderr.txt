@@ -1,0 +1,2 @@
+Once the job starts, its output shows the ssh command to connect.
+Follow it with: circleci workflow get 11111111-1111-4111-8111-111111111111

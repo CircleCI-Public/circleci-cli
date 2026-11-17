@@ -83,6 +83,7 @@ type CircleCI struct {
 	rerunResponses          map[string]int            // workflow id → HTTP status to return
 	rerunNewIDs             map[string]string         // workflow id → id of the workflow its rerun creates
 	rerunFromFailed         map[string]bool           // workflow id → is_from_failed as the request actually set it
+	rerunRequests           map[string]RerunRequest   // workflow id → the rerun options as the endpoint decoded them
 	cancelResponses         map[string]int            // workflow id → HTTP status to return
 	approveResponses        map[string]int            // "workflowID/jobID" → HTTP status to return
 	pipelineCancelResponses map[string]int            // pipeline id → HTTP status to return
@@ -305,6 +306,7 @@ func NewCircleCI(t *testing.T, tokens ...string) *CircleCI {
 		rerunResponses:                    map[string]int{},
 		rerunNewIDs:                       map[string]string{},
 		rerunFromFailed:                   map[string]bool{},
+		rerunRequests:                     map[string]RerunRequest{},
 		cancelResponses:                   map[string]int{},
 		workflowJobsStatus:                map[string]int{},
 		runSearchStatus:                   map[string]int{},
@@ -664,6 +666,23 @@ func (f *CircleCI) RerunWasFromFailed(workflowID string) bool {
 	f.mu.RLock()
 	defer f.mu.RUnlock()
 	return f.rerunFromFailed[workflowID]
+}
+
+// RerunRequest is a rerun request as the v3 endpoint decodes it.
+type RerunRequest struct {
+	IsFromFailed bool     `json:"is_from_failed"`
+	IsSSHEnabled bool     `json:"is_ssh_enabled"`
+	Jobs         []string `json:"jobs"`
+}
+
+// RerunRequestFor returns the rerun options the endpoint decoded for workflowID,
+// and whether a rerun of it was requested at all. Like RerunWasFromFailed, this
+// is what the endpoint understood — a field sent under its v2 name reads as unset.
+func (f *CircleCI) RerunRequestFor(workflowID string) (RerunRequest, bool) {
+	f.mu.RLock()
+	defer f.mu.RUnlock()
+	req, ok := f.rerunRequests[workflowID]
+	return req, ok
 }
 
 // SetRerunNewWorkflowID sets the id that rerunning workflowID reports, for a test
@@ -1955,8 +1974,8 @@ func runStatus(run RunV3) string {
 // entirely. Because the client made the matching mistakes, assertions round-tripped
 // through agreeing errors and passed.
 //
-// So: decode *only* is_from_failed, tolerating unknown fields exactly as the real
-// handler does. A caller sending the wrong field name gets false recorded here and
+// So: decode *only* the v3 fields (is_from_failed, is_ssh_enabled, jobs),
+// tolerating unknown fields exactly as the real handler does. A caller sending the wrong field name gets false recorded here and
 // fails a test, rather than being quietly accepted.
 func (f *CircleCI) handleRerunWorkflow(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
@@ -1971,14 +1990,13 @@ func (f *CircleCI) handleRerunWorkflow(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// An absent body is a valid full rerun, so a decode failure is not an error.
-	var req struct {
-		IsFromFailed bool `json:"is_from_failed"`
-	}
+	var req RerunRequest
 	_ = json.NewDecoder(r.Body).Decode(&req)
 
 	f.mu.Lock()
 	newID, override := f.rerunNewIDs[id]
 	f.rerunFromFailed[id] = req.IsFromFailed
+	f.rerunRequests[id] = req
 	f.mu.Unlock()
 	if !override {
 		newID = DefaultRerunWorkflowID

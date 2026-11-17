@@ -1,0 +1,7 @@
+error: This project has SSH access to jobs turned off, so the job can't be rerun with SSH.
+
+Suggestions:
+  • Check the setting with: circleci project setting get disable-ssh
+  • A project admin can turn it back on with: circleci project setting set disable-ssh false
+
+Reference: https://circleci.com/docs/guides/execute/ssh-access-jobs/
