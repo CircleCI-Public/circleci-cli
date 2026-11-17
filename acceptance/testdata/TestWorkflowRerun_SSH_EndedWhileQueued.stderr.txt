@@ -1,0 +1,6 @@
+error: Job run-tests ended without printing an ssh command, so there is nothing to connect to.
+
+Suggestions:
+  • See how the job ended with: circleci job get d0000000-0000-4000-8000-000000000301
+
+Reference: https://circleci.com/docs/guides/execute/ssh-access-jobs/

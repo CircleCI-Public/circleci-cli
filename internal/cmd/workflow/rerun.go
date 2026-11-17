@@ -24,9 +24,11 @@ package workflow
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/MakeNowJust/heredoc"
 	"github.com/google/uuid"
@@ -36,9 +38,14 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/clikit/iostream"
 	"github.com/CircleCI-Public/circleci-cli/internal/apiclient"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmdutil"
+	"github.com/CircleCI-Public/circleci-cli/internal/jobssh"
 )
 
 const sshDocsURL = "https://circleci.com/docs/guides/execute/ssh-access-jobs/"
+
+// sshPollInterval is how often an SSH rerun is polled for its ssh command. The
+// user is waiting at the terminal, so this is shorter than run watch's.
+const sshPollInterval = 3 * time.Second
 
 func newRerunCmd() *cobra.Command {
 	var (
@@ -56,9 +63,10 @@ func newRerunCmd() *cobra.Command {
 			`, "`"),
 		},
 		Long: heredoc.Doc(`
-			A rerun creates a new workflow; its ID is reported so you can follow it.
+			Reports the new workflow's ID. With --ssh, waits for each job's ssh command.
 
-			JSON fields: workflow_id, rerun_from, from_failed, ssh, jobs[].id/name
+			JSON fields: workflow_id, rerun_from, from_failed, ssh, jobs[].id/name/
+			rerun_job_id/ssh_commands[].execution/command/user/host/port
 		`),
 		Example: heredoc.Doc(`
 			# Rerun all jobs in a workflow from scratch
@@ -67,11 +75,8 @@ func newRerunCmd() *cobra.Command {
 			# Rerun only the failed jobs
 			$ circleci workflow rerun 5034460f-c7c4-4c43-9457-de07e2029e7b --from-failed
 
-			# Rerun one job with SSH access, by name
+			# Rerun one job with SSH and print the ssh command once it starts
 			$ circleci workflow rerun <workflow-id> --ssh --job run-tests
-
-			# Rerun two jobs by job ID (see: circleci workflow get <workflow-id>)
-			$ circleci workflow rerun <workflow-id> --job <job-id> --job <job-id>
 		`),
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -95,6 +100,8 @@ func newRerunCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&opts.fromFailed, "from-failed", false, "Rerun only failed jobs")
 	cmd.Flags().StringArrayVar(&opts.jobs, "job", nil, "Rerun only this job, by name or ID (repeatable)")
 	cmd.Flags().BoolVar(&opts.ssh, "ssh", false, "Enable SSH access to the rerun jobs (requires --job)")
+	cmd.Flags().BoolVar(&opts.noWait, "no-wait", false, "With --ssh, return without waiting for the ssh command")
+	cmd.Flags().DurationVar(&opts.timeout, "timeout", 10*time.Minute, "With --ssh, how long to wait for the ssh command")
 	cmdutil.AddJSONFlag(cmd, &jsonOut)
 	return cmd
 }
@@ -102,8 +109,13 @@ func newRerunCmd() *cobra.Command {
 type rerunOpts struct {
 	fromFailed bool
 	ssh        bool
+	noWait     bool
+	timeout    time.Duration
 	jobs       []string
 }
+
+// waitForSSH reports whether the rerun waits for the ssh commands.
+func (o rerunOpts) waitForSSH() bool { return o.ssh && !o.noWait }
 
 // validate rejects flag combinations the API would refuse, before any request.
 // The relationships are checked by value rather than with cobra's flag groups:
@@ -130,6 +142,11 @@ func (o rerunOpts) validate(workflowID string) error {
 			WithRef(sshDocsURL).
 			WithExitCode(clierrors.ExitBadArguments)
 	}
+	if o.waitForSSH() && o.timeout <= 0 {
+		return clierrors.New("workflow.rerun.invalid_args", "Invalid arguments",
+			fmt.Sprintf("--timeout must be a positive duration such as 10m (got %s).", o.timeout)).
+			WithExitCode(clierrors.ExitBadArguments)
+	}
 	for _, j := range o.jobs {
 		if strings.TrimSpace(j) == "" {
 			return clierrors.New("workflow.rerun.invalid_args", "Invalid arguments",
@@ -150,11 +167,24 @@ type rerunJSONOutput struct {
 	Jobs       []rerunJobJSON `json:"jobs,omitempty"`
 }
 
-// rerunJobJSON identifies a job the rerun was limited to, in the *old* workflow.
-// The rerun creates new jobs with new IDs; these are the ones that were named.
+// rerunJobJSON identifies a job the rerun was limited to. ID is the job in the
+// *old* workflow, the one that was named; the rerun creates a new job with a new
+// ID, reported as RerunJobID once the rerun has been waited on.
 type rerunJobJSON struct {
-	ID   uuid.UUID `json:"id"`
-	Name string    `json:"name"`
+	ID          uuid.UUID        `json:"id"`
+	Name        string           `json:"name"`
+	RerunJobID  *uuid.UUID       `json:"rerun_job_id,omitempty"`
+	SSHCommands []sshCommandJSON `json:"ssh_commands,omitempty"`
+}
+
+// sshCommandJSON is how to connect to one execution of a rerun job. User and
+// Port are omitted when the command has none.
+type sshCommandJSON struct {
+	Execution int    `json:"execution"`
+	Command   string `json:"command"`
+	User      string `json:"user,omitempty"`
+	Host      string `json:"host"`
+	Port      int    `json:"port,omitempty"`
 }
 
 func runRerun(ctx context.Context, client *apiclient.Client, id string, opts rerunOpts, jsonOut bool) error {
@@ -196,6 +226,16 @@ func runRerun(ctx context.Context, client *apiclient.Client, id string, opts rer
 	}
 
 	if jsonOut {
+		// A failed wait still prints what it found before returning its
+		// error (which goes to stderr): on a timeout with two jobs, the one
+		// that connected is as usable as it is in human mode.
+		var (
+			conns   []jobssh.Conn
+			waitErr error
+		)
+		if opts.waitForSSH() {
+			conns, waitErr = waitForSSH(ctx, newID, client, jobs, opts, false)
+		}
 		out := rerunJSONOutput{
 			WorkflowID: newID,
 			RerunFrom:  id,
@@ -203,9 +243,12 @@ func runRerun(ctx context.Context, client *apiclient.Client, id string, opts rer
 			SSH:        opts.ssh,
 		}
 		for _, j := range jobs {
-			out.Jobs = append(out.Jobs, rerunJobJSON{ID: j.ID, Name: j.Name})
+			out.Jobs = append(out.Jobs, rerunJob(j, conns))
 		}
-		return iostream.PrintJSON(ctx, out)
+		if err := iostream.PrintJSON(ctx, out); err != nil {
+			return err
+		}
+		return waitErr
 	}
 
 	// Lead with the new workflow's ID rather than the one that was passed in: the
@@ -224,14 +267,99 @@ func runRerun(ctx context.Context, client *apiclient.Client, id string, opts rer
 		iostream.Printf(ctx, "Rerunning %s from scratch as workflow %s\n", id, newID)
 	}
 
-	if opts.ssh {
-		// The SSH command only exists once the job has started, and appears in
-		// the job's output. Waiting for it and printing it is not done yet, so
-		// point at where it will be.
+	switch {
+	case opts.waitForSSH():
+		if _, err := waitForSSH(ctx, newID, client, jobs, opts, true); err != nil {
+			return err
+		}
+		iostream.ErrPrintf(ctx, "Connect with the SSH key added to CircleCI or your VCS provider. See: %s\n", sshDocsURL)
+	case opts.ssh:
 		iostream.ErrPrintf(ctx, "Once the job starts, its output shows the ssh command to connect.\n")
 		iostream.ErrPrintf(ctx, "Follow it with: circleci workflow get %s\n", newID)
 	}
 	return nil
+}
+
+// waitForSSH waits for the rerun jobs' ssh commands. With human set, it shows
+// progress on stderr and prints each command on stdout as it is found.
+func waitForSSH(ctx context.Context, newID string, client *apiclient.Client, jobs []apiclient.WorkflowJobV3, opts rerunOpts, human bool) ([]jobssh.Conn, error) {
+	wfID, err := uuid.Parse(newID)
+	if err != nil {
+		return nil, clierrors.New("workflow.rerun.invalid_id", "Invalid workflow ID",
+			fmt.Sprintf("The rerun reported %q, which is not a workflow ID, so its ssh command can't be looked up.", newID)).
+			WithExitCode(clierrors.ExitAPIError)
+	}
+	names := make([]string, len(jobs))
+	for i, j := range jobs {
+		names[i] = j.Name
+	}
+	spin := &iostream.Spin{}
+	defer func() { spin.Stop() }()
+	waitOpts := jobssh.Options{Timeout: opts.timeout, Interval: sshPollInterval}
+	if human {
+		waitOpts.OnStatus = func(msg string) {
+			spin.Stop()
+			spin = iostream.Spinner(ctx, true, msg)
+		}
+		waitOpts.OnConn = func(c jobssh.Conn) {
+			spin.Stop()
+			label := c.Job
+			if c.Executions > 1 {
+				label = fmt.Sprintf("%s (execution %d)", c.Job, c.Execution)
+			}
+			iostream.Printf(ctx, "%s: %s\n", label, c.Command)
+		}
+	}
+
+	conns, err := jobssh.Wait(ctx, client, wfID, names, waitOpts)
+	if err == nil {
+		return conns, nil
+	}
+	var timeout *jobssh.TimeoutError
+	var noSSH *jobssh.NoSSHError
+	switch {
+	case errors.As(err, &timeout):
+		return conns, clierrors.New("workflow.rerun.ssh_timeout", "Timed out waiting for SSH",
+			fmt.Sprintf("No ssh command for %s within %s. The rerun is still running.", strings.Join(timeout.Pending, ", "), timeout.Timeout)).
+			WithSuggestions(
+				fmt.Sprintf("Check whether the job is still queued with: circleci workflow get %s", newID),
+				"Wait longer next time with --timeout, e.g. --timeout 30m",
+			).
+			WithExitCode(clierrors.ExitTimeout)
+	case errors.As(err, &noSSH):
+		return conns, clierrors.New("workflow.rerun.ssh_unavailable", "No SSH access",
+			fmt.Sprintf("Job %s ended without printing an ssh command, so there is nothing to connect to.", noSSH.Job)).
+			WithSuggestions(fmt.Sprintf("See how the job ended with: circleci job get %s", noSSH.JobID)).
+			WithRef(sshDocsURL).
+			WithExitCode(clierrors.ExitGeneralError)
+	case ctx.Err() != nil:
+		return conns, clierrors.New("workflow.rerun.interrupted", "Stopped waiting",
+			"Stopped waiting for the ssh command. The rerun is still running.").
+			WithSuggestions(fmt.Sprintf("Follow it with: circleci workflow get %s", newID)).
+			WithExitCode(clierrors.ExitCancelled)
+	}
+	return conns, apiErr(err, newID)
+}
+
+// rerunJob is the --json entry for a job the rerun was limited to, with the
+// commands found for its rerun, if any.
+func rerunJob(j apiclient.WorkflowJobV3, conns []jobssh.Conn) rerunJobJSON {
+	out := rerunJobJSON{ID: j.ID, Name: j.Name}
+	for _, c := range conns {
+		if c.Job != j.Name {
+			continue
+		}
+		id := c.JobID
+		out.RerunJobID = &id
+		out.SSHCommands = append(out.SSHCommands, sshCommandJSON{
+			Execution: c.Execution,
+			Command:   c.Command,
+			User:      c.User,
+			Host:      c.Host,
+			Port:      c.Port,
+		})
+	}
+	return out
 }
 
 // resolveJobs maps each --job value to a job in the workflow. A value that

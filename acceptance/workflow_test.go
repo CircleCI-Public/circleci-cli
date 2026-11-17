@@ -24,6 +24,7 @@ package acceptance_test
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/url"
 	"runtime"
@@ -667,8 +668,50 @@ const (
 	wfDeployJobID   = "d0000000-0000-4000-8000-000000000202"
 )
 
+// wfSSHRerunJobID is the run-tests job in the workflow an SSH rerun creates.
+const wfSSHRerunJobID = "d0000000-0000-4000-8000-000000000301"
+
+// sshStepOutput is the Enable SSH step output of a real Docker job (CRLF line
+// endings included) for the given job ID and execution.
+func sshStepOutput(jobID string, execution int) []byte {
+	return []byte(fmt.Sprintf("\r\nEnabling SSH access through ssh.circleci.com...\r\n\r\n"+
+		"You can now SSH into this job if your SSH public key is added:\r\n"+
+		"    $ ssh %s-%d@ssh.circleci.com\r\n\r\n"+
+		"Use the same SSH public key that you've added in your User Settings or that you use for your VCS-provider (e.g., GitHub).\r\n\r\n"+
+		"Job SSH keys can be added in your User Settings at https://app.circleci.com/settings/user/job-ssh-keys\r\n\r\n"+
+		"SSH Session Activity Log (times in UTC):\r\n", jobID, execution))
+}
+
+// addSSHRerunJob registers run-tests in the rerun workflow as a started job
+// whose executions each have a running Enable SSH step (step 101, as on a real
+// job) that has printed its command. It returns the job, for a test that lists
+// it alongside others.
+func addSSHRerunJob(fake *fakes.CircleCI, executions int) fakes.JobV3 {
+	job := fakes.JobV3{
+		ID:         wfSSHRerunJobID,
+		Name:       "run-tests",
+		Type:       "build",
+		Phase:      "started",
+		StartedAt:  "2026-11-17T17:11:12.621Z",
+		ProjectID:  wfProjectID,
+		WorkflowID: fakes.DefaultRerunWorkflowID,
+	}
+	for i := range executions {
+		job.Executions = append(job.Executions, []fakes.JobStep{
+			{Name: "Spin up environment", Type: "spinup_environment", Num: 0, Phase: "ended", Outcome: "succeeded",
+				StartedAt: "2026-11-17T17:11:10.895Z", EndedAt: "2026-11-17T17:11:15.625Z"},
+			{Name: "Enable SSH", Type: "enable_ssh", Num: 101, Phase: "started", StartedAt: "2026-11-17T17:11:16.552Z"},
+		})
+		fake.AddJobStdout(wfSSHRerunJobID, i, 101, sshStepOutput(wfSSHRerunJobID, i))
+	}
+	fake.AddWorkflowJobsV3(fakes.DefaultRerunWorkflowID, job)
+	fake.AddJobV3(job)
+	return job
+}
+
 func TestWorkflowRerun_SSH(t *testing.T) {
 	fake, env := setupWorkflowFake(t)
+	addSSHRerunJob(fake, 1)
 
 	result := binary.RunCLI(t, binary.RunOpts{
 		Binary:  binaryPath,
@@ -681,6 +724,80 @@ func TestWorkflowRerun_SSH(t *testing.T) {
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
 	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 
+	// What the endpoint decoded, not merely what was sent: the v2 names
+	// (enable_ssh) would read as unset here, as they do on the real v3 handler.
+	t.Run("endpoint saw ssh and the job", func(t *testing.T) {
+		req, ok := fake.RerunRequestFor(testWorkflowDetailID)
+		assert.Assert(t, ok, "no rerun was requested")
+		assert.Check(t, cmp.DeepEqual(req, fakes.RerunRequest{
+			IsSSHEnabled: true,
+			Jobs:         []string{wfRunTestsJobID},
+		}))
+	})
+}
+
+// TestWorkflowRerun_SSH_JSON waits on a job with two parallel executions, each
+// with its own command.
+func TestWorkflowRerun_SSH_JSON(t *testing.T) {
+	fake, env := setupWorkflowFake(t)
+	addSSHRerunJob(fake, 2)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"workflow", "rerun", testWorkflowDetailID, "--ssh", "--job", "run-tests", "--json"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, cmp.Equal(result.Stderr, ""), "--json prints no progress")
+
+	var out map[string]any
+	assert.NilError(t, json.Unmarshal([]byte(result.Stdout), &out))
+	assert.Check(t, cmp.DeepEqual(out, map[string]any{
+		"workflow_id": fakes.DefaultRerunWorkflowID,
+		"rerun_from":  testWorkflowDetailID,
+		"from_failed": false,
+		"ssh":         true,
+		"jobs": []any{
+			map[string]any{
+				"id":           wfRunTestsJobID,
+				"name":         "run-tests",
+				"rerun_job_id": wfSSHRerunJobID,
+				"ssh_commands": []any{
+					map[string]any{
+						"execution": float64(0),
+						"command":   "ssh " + wfSSHRerunJobID + "-0@ssh.circleci.com",
+						"user":      wfSSHRerunJobID + "-0",
+						"host":      "ssh.circleci.com",
+					},
+					map[string]any{
+						"execution": float64(1),
+						"command":   "ssh " + wfSSHRerunJobID + "-1@ssh.circleci.com",
+						"user":      wfSSHRerunJobID + "-1",
+						"host":      "ssh.circleci.com",
+					},
+				},
+			},
+		},
+	}))
+}
+
+func TestWorkflowRerun_SSH_NoWait(t *testing.T) {
+	fake, env := setupWorkflowFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"workflow", "rerun", testWorkflowDetailID, "--ssh", "--job", "run-tests", "--no-wait"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+
+	// The rerun is the last request: nothing polls the new workflow.
 	t.Run("check request", func(t *testing.T) {
 		assert.Check(t, cmp.DeepEqual(fake.LastRequest(), &httprecorder.Request{
 			Method: http.MethodPost,
@@ -692,17 +809,117 @@ func TestWorkflowRerun_SSH(t *testing.T) {
 			Body: new(`{"is_from_failed":false,"is_ssh_enabled":true,"jobs":["` + wfRunTestsJobID + `"]}`),
 		}, ignoreCommonHeaders))
 	})
+}
 
-	// What the endpoint decoded, not merely what was sent: the v2 names
-	// (enable_ssh) would read as unset here, as they do on the real v3 handler.
-	t.Run("endpoint saw ssh and the job", func(t *testing.T) {
-		req, ok := fake.RerunRequestFor(testWorkflowDetailID)
-		assert.Assert(t, ok, "no rerun was requested")
-		assert.Check(t, cmp.DeepEqual(req, fakes.RerunRequest{
-			IsSSHEnabled: true,
-			Jobs:         []string{wfRunTestsJobID},
-		}))
+// TestWorkflowRerun_SSH_Timeout reruns a job that never leaves the queue.
+func TestWorkflowRerun_SSH_Timeout(t *testing.T) {
+	fake, env := setupWorkflowFake(t)
+	queued := fakes.JobV3{ID: wfSSHRerunJobID, Name: "run-tests", Type: "build", Phase: "queued"}
+	fake.AddWorkflowJobsV3(fakes.DefaultRerunWorkflowID, queued)
+	fake.AddJobV3(queued)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"workflow", "rerun", testWorkflowDetailID, "--ssh", "--job", "run-tests", "--timeout", "1s"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
 	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 8), "stderr: %s", result.Stderr) // ExitTimeout
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+}
+
+// TestWorkflowRerun_SSH_Timeout_JSON reruns two jobs, one of which connects
+// and one of which never leaves the queue. The command found is still printed.
+func TestWorkflowRerun_SSH_Timeout_JSON(t *testing.T) {
+	fake, env := setupWorkflowFake(t)
+	runTests := addSSHRerunJob(fake, 1)
+	deploy := fakes.JobV3{ID: "d0000000-0000-4000-8000-000000000302", Name: "deploy", Type: "build", Phase: "queued"}
+	fake.AddWorkflowJobsV3(fakes.DefaultRerunWorkflowID, runTests, deploy)
+	fake.AddJobV3(deploy)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary: binaryPath,
+		Args: []string{"workflow", "rerun", testWorkflowDetailID,
+			"--ssh", "--job", "run-tests", "--job", "deploy", "--timeout", "1s", "--json"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 8), "stderr: %s", result.Stderr) // ExitTimeout
+	assert.Check(t, cmp.Contains(result.Stderr, "No ssh command for deploy within 1s"))
+
+	var out map[string]any
+	assert.NilError(t, json.Unmarshal([]byte(result.Stdout), &out))
+	assert.Check(t, cmp.DeepEqual(out, map[string]any{
+		"workflow_id": fakes.DefaultRerunWorkflowID,
+		"rerun_from":  testWorkflowDetailID,
+		"from_failed": false,
+		"ssh":         true,
+		"jobs": []any{
+			map[string]any{
+				"id":           wfRunTestsJobID,
+				"name":         "run-tests",
+				"rerun_job_id": wfSSHRerunJobID,
+				"ssh_commands": []any{
+					map[string]any{
+						"execution": float64(0),
+						"command":   "ssh " + wfSSHRerunJobID + "-0@ssh.circleci.com",
+						"user":      wfSSHRerunJobID + "-0",
+						"host":      "ssh.circleci.com",
+					},
+				},
+			},
+			map[string]any{"id": wfDeployJobID, "name": "deploy"},
+		},
+	}))
+}
+
+// TestWorkflowRerun_SSH_EndedWhileQueued reruns a job that ends before it
+// starts (here, canceled while queued). It has no executions, and must fail
+// at once rather than read as queued until the timeout.
+func TestWorkflowRerun_SSH_EndedWhileQueued(t *testing.T) {
+	fake, env := setupWorkflowFake(t)
+	canceled := fakes.JobV3{ID: wfSSHRerunJobID, Name: "run-tests", Type: "build", Phase: "ended", Outcome: "canceled"}
+	fake.AddWorkflowJobsV3(fakes.DefaultRerunWorkflowID, canceled)
+	fake.AddJobV3(canceled)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"workflow", "rerun", testWorkflowDetailID, "--ssh", "--job", "run-tests"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 1), "stderr: %s", result.Stderr) // ExitGeneralError
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+}
+
+// TestWorkflowRerun_SSH_JobEndedWithoutSSH reruns a job that ends without ever
+// running an SSH step.
+func TestWorkflowRerun_SSH_JobEndedWithoutSSH(t *testing.T) {
+	fake, env := setupWorkflowFake(t)
+	ended := fakes.JobV3{
+		ID: wfSSHRerunJobID, Name: "run-tests", Type: "build",
+		Phase: "ended", Outcome: "failed",
+		StartedAt: "2026-11-17T17:11:12.621Z", EndedAt: "2026-11-17T17:11:20.000Z",
+		Executions: [][]fakes.JobStep{{
+			{Name: "Spin up environment", Type: "spinup_environment", Num: 0, Phase: "ended", Outcome: "failed",
+				StartedAt: "2026-11-17T17:11:10.895Z", EndedAt: "2026-11-17T17:11:20.000Z"},
+		}},
+	}
+	fake.AddWorkflowJobsV3(fakes.DefaultRerunWorkflowID, ended)
+	fake.AddJobV3(ended)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"workflow", "rerun", testWorkflowDetailID, "--ssh", "--job", "run-tests"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 1), "stderr: %s", result.Stderr) // ExitGeneralError
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 }
 
 // TestWorkflowRerun_JobByNameAndID_JSON reruns jobs named both ways at once,
@@ -765,6 +982,11 @@ func TestWorkflowRerun_InvalidFlags(t *testing.T) {
 			name: "empty job",
 			args: []string{"--job", ""},
 			want: "--job needs a job name or job ID",
+		},
+		{
+			name: "zero timeout",
+			args: []string{"--ssh", "--job", "run-tests", "--timeout", "0s"},
+			want: "--timeout must be a positive duration",
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
