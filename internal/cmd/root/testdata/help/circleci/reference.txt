@@ -3141,7 +3141,8 @@ Manage CircleCI organizations
 
 List and manage CircleCI organizations.
 
-Use 'circleci org list' to see all organizations you belong to.
+Use 'circleci org list' to see all organizations you belong to, and
+'circleci org get' for one org's details, including whether you are an admin.
 Use 'circleci org setting list' to view advanced settings for an org,
 or a specific settings subcommand to view or change an individual setting.
 
@@ -3175,6 +3176,34 @@ JSON fields: id, name, slug, vcs_type
   `circleci org create acme --json`
 - Capture the slug to pass to --org: 
   `circleci org create acme --json --jq '.slug'`
+
+#### `circleci org get [flags]`
+
+Show organization details and your role in it
+
+Show an organization's ID, name and VCS provider, and whether you are
+an admin of it.
+
+admin is null in JSON (and "unknown" otherwise) when the CircleCI
+server does not support the permission check.
+
+JSON fields: id, name, vcs_type, admin
+
+| Flag           | Description                                                                       |
+| -------------- | --------------------------------------------------------------------------------- |
+| `--jq string`  | Process values from the response using jq syntax (see `circleci help formatting`) |
+| `--json`       | Output as JSON                                                                    |
+| `--org string` | Organization slug (e.g. gh/myorg) or UUID; defaults to git remote                 |
+
+
+**Examples:**
+
+- Show the org of the current git repository: 
+  `circleci org get`
+- Show a specific org: 
+  `circleci org get --org gh/myorg`
+- Check whether you are an admin, for scripting: 
+  `circleci org get --org gh/myorg --json --jq '.admin'`
 
 #### `circleci org list [flags]`
 

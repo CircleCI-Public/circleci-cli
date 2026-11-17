@@ -24,6 +24,7 @@ package acceptance_test
 
 import (
 	"encoding/json"
+	"net/http"
 	"testing"
 
 	"gotest.tools/v3/assert"
@@ -208,4 +209,101 @@ func TestOrgCreate_Rejected(t *testing.T) {
 	assert.Check(t, cmp.Equal(result.ExitCode, 4))
 	assert.Check(t, cmp.Contains(result.Stderr, "org creation not configured"))
 	assert.Check(t, cmp.Contains(result.Stderr, "circleci org list"))
+}
+
+const orgGetID = "a0000000-0000-4000-8000-0000000c0002"
+
+func runOrgGet(t *testing.T, env *testenv.TestEnv, args ...string) binary.CLIResult {
+	t.Helper()
+	return binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    append([]string{"org", "get"}, args...),
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+}
+
+func TestOrgGet_Admin(t *testing.T) {
+	fake, env := setupOrgFake(t)
+	fake.SetOrgManageable(orgGetID)
+
+	result := runOrgGet(t, env, "--org", "gh/myorg")
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+}
+
+func TestOrgGet_NotAdmin(t *testing.T) {
+	_, env := setupOrgFake(t)
+
+	result := runOrgGet(t, env, "--org", orgGetID)
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+}
+
+func TestOrgGet_JSON(t *testing.T) {
+	fake, env := setupOrgFake(t)
+	fake.SetOrgManageable(orgGetID)
+
+	result := runOrgGet(t, env, "--org", "gh/myorg", "--json")
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	var out map[string]any
+	assert.NilError(t, json.Unmarshal([]byte(result.Stdout), &out))
+	assert.Check(t, cmp.DeepEqual(out, map[string]any{
+		"id":       orgGetID,
+		"name":     "myorg",
+		"vcs_type": "github",
+		"admin":    true,
+	}))
+}
+
+func TestOrgGet_PermissionCheckFails(t *testing.T) {
+	fake, env := setupOrgFake(t)
+	fake.SetCanManageStatus(http.StatusBadRequest)
+
+	t.Run("human output says unknown and warns", func(t *testing.T) {
+		result := runOrgGet(t, env, "--org", "gh/myorg")
+
+		assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+		assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+		assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+	})
+
+	t.Run("json reports admin as null", func(t *testing.T) {
+		result := runOrgGet(t, env, "--org", "gh/myorg", "--json")
+
+		assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+		var out map[string]any
+		assert.NilError(t, json.Unmarshal([]byte(result.Stdout), &out))
+		assert.Check(t, cmp.Contains(out, "admin"))
+		assert.Check(t, cmp.Nil(out["admin"]))
+		assert.Check(t, cmp.Equal(result.Stderr, ""))
+	})
+}
+
+// TestOrgGet_PermissionCheckServerError covers an admin check that fails for a
+// reason other than an unsupported filter: the command must not report success
+// with admin unknown.
+func TestOrgGet_PermissionCheckServerError(t *testing.T) {
+	fake, env := setupOrgFake(t)
+	fake.SetCanManageStatus(http.StatusInternalServerError)
+
+	result := runOrgGet(t, env, "--org", "gh/myorg")
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 4))
+	assert.Check(t, cmp.Equal(result.Stdout, ""))
+	assert.Check(t, cmp.Contains(result.Stderr, "API returned 500"))
+}
+
+func TestOrgGet_NotMember(t *testing.T) {
+	_, env := setupOrgFake(t)
+
+	result := runOrgGet(t, env, "--org", "a0000000-0000-4000-8000-0000000c0099")
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 5))
+	assert.Check(t, cmp.Contains(result.Stderr, "You are not a member of an organization"))
 }

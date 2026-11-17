@@ -39,7 +39,8 @@ func NewOrgCmd() *cobra.Command {
 		Long: heredoc.Doc(`
 			List and manage CircleCI organizations.
 
-			Use 'circleci org list' to see all organizations you belong to.
+			Use 'circleci org list' to see all organizations you belong to, and
+			'circleci org get' for one org's details, including whether you are an admin.
 			Use 'circleci org setting list' to view advanced settings for an org,
 			or a specific settings subcommand to view or change an individual setting.
 		`),
@@ -49,6 +50,7 @@ func NewOrgCmd() *cobra.Command {
 
 	cmdutil.AddGroup(cmd, "General commands",
 		newListCmd(),
+		newGetCmd(),
 		newCreateCmd(),
 	)
 	cmdutil.AddGroup(cmd, "Subcommands",

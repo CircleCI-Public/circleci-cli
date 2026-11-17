@@ -6,10 +6,11 @@ Manage CircleCI organizations
 
 ## General Commands
 
-| Command  | Description                      |
-| -------- | -------------------------------- |
-| `create` | Create an organization           |
-| `list`   | List organizations you belong to |
+| Command  | Description                                   |
+| -------- | --------------------------------------------- |
+| `create` | Create an organization                        |
+| `get`    | Show organization details and your role in it |
+| `list`   | List organizations you belong to              |
 
 ## Subcommands
 
@@ -25,7 +26,8 @@ Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `ci
 
 List and manage CircleCI organizations.
 
-Use 'circleci org list' to see all organizations you belong to.
+Use 'circleci org list' to see all organizations you belong to, and
+'circleci org get' for one org's details, including whether you are an admin.
 Use 'circleci org setting list' to view advanced settings for an org,
 or a specific settings subcommand to view or change an individual setting.
 
