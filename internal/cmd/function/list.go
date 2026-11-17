@@ -87,10 +87,7 @@ func newListCmd() *cobra.Command {
 			if pinned {
 				return runListPinned(ctx, configFile, jsonOut)
 			}
-			client, err := cmdutil.LoadClient(ctx)
-			if err != nil {
-				return err
-			}
+			client := cmdutil.LoadClientOptionalAuth(ctx)
 			return runList(ctx, client, includePseudo, jsonOut)
 		},
 	}

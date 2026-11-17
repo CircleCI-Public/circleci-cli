@@ -74,10 +74,7 @@ func newUpdateCmd() *cobra.Command {
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
-			client, err := cmdutil.LoadClient(ctx)
-			if err != nil {
-				return err
-			}
+			client := cmdutil.LoadClientOptionalAuth(ctx)
 			return runUpdate(ctx, client, args[0], version, configFile, dryRun, jsonOut)
 		},
 	}

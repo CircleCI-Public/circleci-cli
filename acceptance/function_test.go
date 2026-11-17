@@ -613,3 +613,36 @@ func TestFunctionUpdateNotDeclared(t *testing.T) {
 	assert.Check(t, cmp.Equal(result.ExitCode, 5))
 	assert.Check(t, cmp.Contains(result.Stderr, "no entry in the functions block"))
 }
+
+// TestFunction_NoToken pins that the function commands work with no API token,
+// since the functions catalog is public.
+func TestFunction_NoToken(t *testing.T) {
+	tests := []struct {
+		name   string
+		config string
+		args   []string
+	}{
+		{name: "list", args: []string{"list"}},
+		{name: "get", args: []string{"get", "setup-go"}},
+		{name: "add", config: baseConfig, args: []string{"add", "setup-go"}},
+		{
+			name:   "update",
+			config: "version: 2.1\n\nfunctions:\n  setup-go: " + setupGoName + "@v0.9.0\n",
+			args:   []string{"update", "setup-go"},
+		},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			env := setupFunctionFake(t)
+			env.Token = ""
+			dir := t.TempDir()
+			if tc.config != "" {
+				dir = writeFnConfig(t, tc.config)
+			}
+
+			result := runFunctionIn(t, env, dir, tc.args...)
+
+			assert.Check(t, cmp.Equal(result.ExitCode, 0), "stderr: %s", result.Stderr)
+		})
+	}
+}

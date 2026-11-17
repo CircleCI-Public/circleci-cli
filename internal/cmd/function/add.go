@@ -83,10 +83,7 @@ func newAddCmd() *cobra.Command {
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
-			client, err := cmdutil.LoadClient(ctx)
-			if err != nil {
-				return err
-			}
+			client := cmdutil.LoadClientOptionalAuth(ctx)
 			return runAdd(ctx, client, args[0], alias, version, configFile, dryRun, jsonOut)
 		},
 	}

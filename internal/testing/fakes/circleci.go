@@ -614,9 +614,11 @@ func (f *CircleCI) authMiddleware(next http.Handler) http.Handler {
 // authExempt reports whether a path is reachable without authentication. These
 // are the routes the CLI legitimately calls with no (or not-yet-issued) token:
 // the OAuth login flow, signed artifact downloads, the optional-auth config
-// compile endpoint, and the public tool-releases feed.
+// compile endpoint, the public functions catalog, and the public tool-releases
+// feed.
 func authExempt(path string) bool {
-	if strings.HasPrefix(path, "/oauth/") || strings.HasPrefix(path, "/artifacts/") {
+	if strings.HasPrefix(path, "/oauth/") || strings.HasPrefix(path, "/artifacts/") ||
+		strings.HasPrefix(path, "/api/v3/function/") {
 		return true
 	}
 	switch path {

@@ -80,10 +80,7 @@ func newGetCmd() *cobra.Command {
 		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
-			client, err := cmdutil.LoadClient(ctx)
-			if err != nil {
-				return err
-			}
+			client := cmdutil.LoadClientOptionalAuth(ctx)
 			return runGet(ctx, client, args[0], version, jsonOut)
 		},
 	}
