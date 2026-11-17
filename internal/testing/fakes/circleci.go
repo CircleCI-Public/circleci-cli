@@ -2052,10 +2052,14 @@ type RunnerAgent struct {
 	ID             string
 	ResourceClass  string
 	Name           string
+	Hostname       string
+	IP             string
 	Version        string
 	IsBusy         bool
 	FirstConnected string
 	LastConnected  string
+	// LastTaskClaimed is served as null when empty, as for an agent that never claimed a task.
+	LastTaskClaimed string
 }
 
 // AddResourceClass registers a runner resource class.
@@ -2082,14 +2086,21 @@ func (f *CircleCI) AddRunnerAgent(agent RunnerAgent) {
 // runnerAgentEntity renders a stored RunnerAgent as its V3 entity, referencing rcID as its
 // resource class.
 func runnerAgentEntity(a RunnerAgent, rcID string) map[string]any {
+	var lastTaskClaimed any
+	if a.LastTaskClaimed != "" {
+		lastTaskClaimed = a.LastTaskClaimed
+	}
 	return map[string]any{
 		"id": a.ID,
 		"attributes": map[string]any{
-			"name":               a.Name,
-			"is_busy":            a.IsBusy,
-			"version":            a.Version,
-			"first_connected_at": a.FirstConnected,
-			"last_connected_at":  a.LastConnected,
+			"name":                 a.Name,
+			"hostname":             a.Hostname,
+			"ip":                   a.IP,
+			"is_busy":              a.IsBusy,
+			"version":              a.Version,
+			"first_connected_at":   a.FirstConnected,
+			"last_connected_at":    a.LastConnected,
+			"last_task_claimed_at": lastTaskClaimed,
 		},
 		"references": map[string]any{
 			"resource_class": map[string]any{

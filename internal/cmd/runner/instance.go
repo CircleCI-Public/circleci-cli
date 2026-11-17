@@ -71,9 +71,9 @@ func newInstanceListCmd() *cobra.Command {
 
 			STATUS is derived from last_connected_at (online under 2 minutes, idle
 			under 30, offline beyond). BUSY says whether the instance holds a task.
-			Hostname, IP and last-used time are not reported by the agents API.
+			LAST TASK is when the instance last claimed a task; blank if it never has.
 
-			JSON fields: id, resource_class, resource_class_id, name, version, status, is_busy, first_connected_at, last_connected_at
+			JSON fields: id, resource_class, resource_class_id, name, hostname, ip, version, status, is_busy, first_connected_at, last_connected_at, last_task_claimed_at
 		`),
 		Example: heredoc.Doc(`
 			# List connected instances for the org inferred from the git remote
@@ -142,11 +142,15 @@ type instanceOutput struct {
 	ResourceClass    string `json:"resource_class"`
 	ResourceClassID  string `json:"resource_class_id"`
 	Name             string `json:"name"`
+	Hostname         string `json:"hostname"`
+	IP               string `json:"ip"`
 	Version          string `json:"version"`
 	Status           string `json:"status"`
 	IsBusy           bool   `json:"is_busy"`
 	FirstConnectedAt string `json:"first_connected_at"`
 	LastConnectedAt  string `json:"last_connected_at"`
+	// LastTaskClaimedAt is omitted when the instance has never claimed a task.
+	LastTaskClaimedAt *time.Time `json:"last_task_claimed_at,omitempty"`
 }
 
 // instanceStatus derives a liveness status from last_connected_at. It is independent of is_busy,
@@ -215,16 +219,24 @@ func runInstanceList(ctx context.Context, client *apiclient.Client,
 
 	out := make([]instanceOutput, len(agents))
 	for i, a := range agents {
+		var lastTask *time.Time
+		if t := a.Attributes.LastTaskClaimedAt; t != nil && !t.IsZero() {
+			utc := t.UTC()
+			lastTask = &utc
+		}
 		out[i] = instanceOutput{
-			ID:               a.ID.String(),
-			ResourceClass:    a.References.ResourceClass.Attributes.ResourceClass,
-			ResourceClassID:  a.References.ResourceClass.ID.String(),
-			Name:             a.Attributes.Name,
-			Version:          a.Attributes.Version,
-			Status:           instanceStatus(a.Attributes.LastConnectedAt),
-			IsBusy:           a.Attributes.IsBusy,
-			FirstConnectedAt: cmdutil.JSONTime(a.Attributes.FirstConnectedAt),
-			LastConnectedAt:  cmdutil.JSONTime(a.Attributes.LastConnectedAt),
+			ID:                a.ID.String(),
+			ResourceClass:     a.References.ResourceClass.Attributes.ResourceClass,
+			ResourceClassID:   a.References.ResourceClass.ID.String(),
+			Name:              a.Attributes.Name,
+			Hostname:          a.Attributes.Hostname,
+			IP:                a.Attributes.IP,
+			Version:           a.Attributes.Version,
+			Status:            instanceStatus(a.Attributes.LastConnectedAt),
+			IsBusy:            a.Attributes.IsBusy,
+			FirstConnectedAt:  cmdutil.JSONTime(a.Attributes.FirstConnectedAt),
+			LastConnectedAt:   cmdutil.JSONTime(a.Attributes.LastConnectedAt),
+			LastTaskClaimedAt: lastTask,
 		}
 	}
 
@@ -245,9 +257,14 @@ func runInstanceList(ctx context.Context, client *apiclient.Client,
 		return nil
 	}
 
-	table := mdtable.New("Resource Class", "Name", "Status", "Busy", "Last Connected")
+	table := mdtable.New("Resource Class", "Name", "Hostname", "Status", "Busy", "Last Connected", "Last Task")
 	for _, inst := range out {
-		table.Row(inst.ResourceClass, inst.Name, inst.Status, yesNo(inst.IsBusy), cmdutil.DisplayTimeString(inst.LastConnectedAt))
+		lastTask := ""
+		if inst.LastTaskClaimedAt != nil {
+			lastTask = cmdutil.DisplayTime(*inst.LastTaskClaimedAt)
+		}
+		table.Row(inst.ResourceClass, inst.Name, inst.Hostname, inst.Status, yesNo(inst.IsBusy),
+			cmdutil.DisplayTimeString(inst.LastConnectedAt), lastTask)
 	}
 	iostream.PrintMarkdown(ctx, "# Runner Instances\n"+table.Render())
 	return nil

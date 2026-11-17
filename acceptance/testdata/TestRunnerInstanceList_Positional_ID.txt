@@ -1,4 +1,4 @@
 # Runner Instances
-| Resource Class      | Name     | Status  | Busy | Last Connected       |
-| ------------------- | -------- | ------- | ---- | -------------------- |
-| my-org/linux-runner | runner-1 | offline | no   | 2026-04-18 12:00 UTC |
+| Resource Class      | Name     | Hostname          | Status  | Busy | Last Connected       | Last Task            |
+| ------------------- | -------- | ----------------- | ------- | ---- | -------------------- | -------------------- |
+| my-org/linux-runner | runner-1 | runner-1.internal | offline | no   | 2026-04-18 12:00 UTC | 2026-04-18 11:30 UTC |
