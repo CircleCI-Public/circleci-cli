@@ -1524,16 +1524,19 @@ shown in the output of `circleci run get`.
 
 Rerun a workflow
 
-A rerun creates a new workflow; its ID is reported so you can follow it.
+Reports the new workflow's ID. With --ssh, waits for each job's ssh command.
 
-JSON fields: workflow_id, rerun_from, from_failed, ssh, jobs[].id/name
+JSON fields: workflow_id, rerun_from, from_failed, ssh, jobs[].id/name/
+rerun_job_id/ssh_commands[].execution/command/user/host/port
 
-| Flag                | Description                                          |
-| ------------------- | ---------------------------------------------------- |
-| `--from-failed`     | Rerun only failed jobs                               |
-| `--job stringArray` | Rerun only this job, by name or ID (repeatable)      |
-| `--json`            | Output as JSON                                       |
-| `--ssh`             | Enable SSH access to the rerun jobs (requires --job) |
+| Flag                 | Description                                                      |
+| -------------------- | ---------------------------------------------------------------- |
+| `--from-failed`      | Rerun only failed jobs                                           |
+| `--job stringArray`  | Rerun only this job, by name or ID (repeatable)                  |
+| `--json`             | Output as JSON                                                   |
+| `--no-wait`          | With --ssh, return without waiting for the ssh command           |
+| `--ssh`              | Enable SSH access to the rerun jobs (requires --job)             |
+| `--timeout duration` | With --ssh, how long to wait for the ssh command (default 10m0s) |
 
 
 **Arguments:**
@@ -1547,10 +1550,8 @@ shown in the output of `circleci run get`.
   `circleci workflow rerun 5034460f-c7c4-4c43-9457-de07e2029e7b`
 - Rerun only the failed jobs: 
   `circleci workflow rerun 5034460f-c7c4-4c43-9457-de07e2029e7b --from-failed`
-- Rerun one job with SSH access, by name: 
+- Rerun one job with SSH and print the ssh command once it starts: 
   `circleci workflow rerun <workflow-id> --ssh --job run-tests`
-- Rerun two jobs by job ID (see: circleci workflow get <workflow-id>): 
-  `circleci workflow rerun <workflow-id> --job <job-id> --job <job-id>`
 
 ## Management Commands
 
