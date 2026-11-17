@@ -1,0 +1,23 @@
+Connect Forgejo to CircleCI. Needs Forgejo 16 or later.
+
+Create a bot user
+  As a site admin, create a dedicated user, e.g. CircleCI-bot, and give it access to acme's repos:
+    An organization: make a team with Specific repositories and Read access,
+    then add the bot and the repos to it.
+    A user: add the bot to each repo as a collaborator.
+
+Add the connection integration
+  Signed in as the bot: Settings → Authorized Integrations → Add → Generic JWT.
+    Name:          CircleCI connection
+    Issuer:        https://oidc.circleci.com/org/a0000000-0000-4000-8000-00000000d001
+    Claim rules:   {"rules":[{"claim":"sub","compare":"eq","value":"circleci/soc-integrations/forgejo/connection"}]}
+    Capabilities:  user Read, organization Read, repository Read and write
+  Then copy the Audience it generates (--connection-audience).
+
+Add the checkout integration
+  Signed in as the bot: Settings → Authorized Integrations → Add → Generic JWT.
+    Name:          CircleCI checkout
+    Issuer:        https://oidc.circleci.com/org/a0000000-0000-4000-8000-00000000d001
+    Claim rules:   {"rules":[{"claim":"sub","compare":"eq","value":"circleci/soc-integrations/forgejo/checkout"}]}
+    Capabilities:  repository Read
+  Then copy the Audience it generates (--checkout-audience).
