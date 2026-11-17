@@ -1,0 +1,7 @@
+Scanning repository...
+Fetching the config prompt...
+error: API returned 500: Internal Server Error: config prompt unavailable
+
+Suggestions:
+  • If this looks like a CircleCI problem, report it: circleci feedback "<what you ran and what went wrong>"
+  • Or write a starter config without the server: circleci config generate --template

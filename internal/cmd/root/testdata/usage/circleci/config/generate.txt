@@ -1,5 +1,7 @@
 Usage:  circleci config generate [path] [flags]
 
 Flags:
-  -h, --help   help for generate
+  -h, --help       help for generate
+      --json       Output as JSON
+      --template   write a starter config from a local template instead of printing a prompt
   

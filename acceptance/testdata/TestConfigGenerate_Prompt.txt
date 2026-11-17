@@ -1,0 +1,3 @@
+Write a starter CircleCI config.
+
+Stack: dotnet

@@ -1,0 +1,1 @@
+{"prompt":"Write a starter CircleCI config.\n\nStack: none\n","prompt_version":"1"}
