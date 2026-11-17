@@ -225,6 +225,8 @@ internal/
 ├── gitremote/            Resolves project slug + branch. Prefers .circleci/info.yml, then
 │                         falls back to parsing the git remote URL.
 ├── iossigning/           Reads and base64-encodes certs / provisioning profiles.
+├── jobssh/               Waits for a job rerun with SSH to print its ssh command and
+│                         parses it (backs workflow rerun --ssh).
 ├── onboarder/            Orchestrates the local onboarding flow.
 ├── orbinit/              Scaffolds a new orb project from the Orb-Template repo.
 ├── org/                  Shared organization operations (slug/ID resolution).

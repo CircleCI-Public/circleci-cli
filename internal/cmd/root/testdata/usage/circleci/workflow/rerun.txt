@@ -1,9 +1,11 @@
 Usage:  circleci workflow rerun <workflow-id> [flags]
 
 Flags:
-      --from-failed       Rerun only failed jobs
-  -h, --help              help for rerun
-      --job stringArray   Rerun only this job, by name or ID (repeatable)
-      --json              Output as JSON
-      --ssh               Enable SSH access to the rerun jobs (requires --job)
+      --from-failed        Rerun only failed jobs
+  -h, --help               help for rerun
+      --job stringArray    Rerun only this job, by name or ID (repeatable)
+      --json               Output as JSON
+      --no-wait            With --ssh, return without waiting for the ssh command
+      --ssh                Enable SSH access to the rerun jobs (requires --job)
+      --timeout duration   With --ssh, how long to wait for the ssh command (default 10m0s)
   

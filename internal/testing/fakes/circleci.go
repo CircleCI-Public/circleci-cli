@@ -985,8 +985,9 @@ func jobV3Entity(j JobV3) map[string]any {
 	return map[string]any{"id": j.ID, "attributes": attrs, "references": refs}
 }
 
-// jobStepEntity renders a single JobStep, omitting exit_code when unset and
-// command when empty.
+// jobStepEntity renders a single JobStep, omitting exit_code when unset,
+// command when empty, and ended_at when empty — the real API sends no ended_at
+// for a step that is still running.
 func jobStepEntity(s JobStep) map[string]any {
 	step := map[string]any{
 		"name":       s.Name,
@@ -995,7 +996,9 @@ func jobStepEntity(s JobStep) map[string]any {
 		"phase":      s.Phase,
 		"outcome":    s.Outcome,
 		"started_at": s.StartedAt,
-		"ended_at":   s.EndedAt,
+	}
+	if s.EndedAt != "" {
+		step["ended_at"] = s.EndedAt
 	}
 	if s.ExitCode != nil {
 		step["exit_code"] = *s.ExitCode
