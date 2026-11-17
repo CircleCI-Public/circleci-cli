@@ -3770,3 +3770,164 @@ func TestRunnerFleetGet_JSON(t *testing.T) {
 		},
 	}))
 }
+
+func runRunnerTerms(t *testing.T, env *testenv.TestEnv, args ...string) binary.CLIResult {
+	t.Helper()
+	return binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    append([]string{"runner", "terms", "accept", "--org", "gh/my-org"}, args...),
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+}
+
+func TestRunnerTermsAccept_Force(t *testing.T) {
+	fake, env := setupRunnerFake(t)
+
+	result := runRunnerTerms(t, env, "--force")
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+	assert.Check(t, fake.RunnerTermsAccepted(testRunnerOrgID), "terms must be stored as accepted")
+}
+
+func TestRunnerTermsAccept_JSON(t *testing.T) {
+	_, env := setupRunnerFake(t)
+
+	result := runRunnerTerms(t, env, "--force", "--json")
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	var out map[string]any
+	assert.NilError(t, json.Unmarshal([]byte(result.Stdout), &out))
+	assert.Check(t, cmp.DeepEqual(out, map[string]any{
+		"org_id":           testRunnerOrgID,
+		"accepted":         true,
+		"already_accepted": false,
+	}))
+}
+
+func TestRunnerTermsAccept_AlreadyAccepted(t *testing.T) {
+	fake, env := setupRunnerFake(t)
+	fake.SetOrgSettings(testRunnerOrgID, map[string]any{"is_runner_terms_of_service_accepted": true})
+	// A second write would fail, proving the command does not make one.
+	fake.SetUpdateOrgSettingsStatus(http.StatusInternalServerError)
+
+	t.Run("human output", func(t *testing.T) {
+		result := runRunnerTerms(t, env)
+
+		assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+		assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+		assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+	})
+
+	t.Run("json", func(t *testing.T) {
+		result := runRunnerTerms(t, env, "--json")
+
+		assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+		var out map[string]any
+		assert.NilError(t, json.Unmarshal([]byte(result.Stdout), &out))
+		assert.Check(t, cmp.DeepEqual(out, map[string]any{
+			"org_id":           testRunnerOrgID,
+			"accepted":         true,
+			"already_accepted": true,
+		}))
+	})
+}
+
+func TestRunnerTermsAccept_RequiresForceWhenNotInteractive(t *testing.T) {
+	fake, env := setupRunnerFake(t)
+
+	result := runRunnerTerms(t, env)
+
+	assert.Check(t, cmp.Equal(result.ExitCode, clierrors.ExitCancelled))
+	assert.Check(t, cmp.Contains(result.Stderr, "needs confirmation"))
+	assert.Check(t, cmp.Contains(result.Stderr, "--force"))
+	assert.Check(t, !fake.RunnerTermsAccepted(testRunnerOrgID), "terms must not be accepted without confirmation")
+}
+
+func TestRunnerTermsAccept_NotAdmin(t *testing.T) {
+	fake, env := setupRunnerFake(t)
+	fake.SetUpdateOrgSettingsStatus(http.StatusForbidden)
+
+	result := runRunnerTerms(t, env, "--force")
+
+	assert.Check(t, cmp.Equal(result.ExitCode, clierrors.ExitAPIError))
+	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+}
+
+func TestRunnerTermsAccept_Interactive(t *testing.T) {
+	t.Run("accepts when confirmed", func(t *testing.T) {
+		fake, env := setupRunnerFake(t)
+		console := binary.RunCLIInteractive(t, binary.RunOpts{
+			Binary:  binaryPath,
+			Args:    []string{"runner", "terms", "accept", "--org", "gh/my-org"},
+			Env:     env.Environ(),
+			WorkDir: t.TempDir(),
+		})
+
+		_, err := console.ExpectString("[y/N]")
+		assert.NilError(t, err)
+		_, err = console.Send("y")
+		assert.NilError(t, err)
+		_, err = console.ExpectString("Accepted the self-hosted runner terms for gh/my-org")
+		assert.NilError(t, err)
+		assert.Check(t, fake.RunnerTermsAccepted(testRunnerOrgID), "terms must be stored as accepted")
+	})
+
+	t.Run("declining leaves the terms unaccepted", func(t *testing.T) {
+		fake, env := setupRunnerFake(t)
+		console := binary.RunCLIInteractiveExitCode(t, binary.RunOpts{
+			Binary:  binaryPath,
+			Args:    []string{"runner", "terms", "accept", "--org", "gh/my-org"},
+			Env:     env.Environ(),
+			WorkDir: t.TempDir(),
+		}, clierrors.ExitCancelled)
+
+		_, err := console.ExpectString("[y/N]")
+		assert.NilError(t, err)
+		_, err = console.Send("n")
+		assert.NilError(t, err)
+		_, err = console.ExpectString("were not accepted")
+		assert.NilError(t, err)
+		assert.Check(t, !fake.RunnerTermsAccepted(testRunnerOrgID), "terms must not be accepted when declined")
+	})
+}
+
+// TestRunnerTermsAccept_InfersOrgFromProject pins that --org is optional inside
+// a checkout: the org is recovered from the git remote's project, and named by
+// its slug rather than its UUID.
+func TestRunnerTermsAccept_InfersOrgFromProject(t *testing.T) {
+	fake, env := setupRunnerFake(t)
+	fake.AddProjectBySlug("gh/my-org/my-repo", "00000000-0000-4000-8000-0000000000b1", "my-repo", testRunnerOrgID)
+
+	dir := t.TempDir()
+	initGitRepoWithRemote(t, dir, "https://github.com/my-org/my-repo")
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"runner", "terms", "accept", "--force"},
+		Env:     env.Environ(),
+		WorkDir: dir,
+	})
+
+	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+	assert.Check(t, cmp.Contains(result.Stdout, "Accepted the self-hosted runner terms for gh/my-org"))
+	assert.Check(t, fake.RunnerTermsAccepted(testRunnerOrgID), "terms must be accepted for the project's org")
+}
+
+// TestRunnerTermsAccept_NoOrgOutsideProject pins the error when --org is
+// omitted outside a checkout: it names the flag that would have supplied it.
+func TestRunnerTermsAccept_NoOrgOutsideProject(t *testing.T) {
+	_, env := setupRunnerFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"runner", "terms", "accept", "--force"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Check(t, result.ExitCode != 0, "stdout: %s", result.Stdout)
+	assert.Check(t, cmp.Contains(result.Stderr, "circleci runner terms accept --org"))
+}

@@ -6,4 +6,5 @@ Available commands:
   instance
   open
   resource-class
+  terms
   token

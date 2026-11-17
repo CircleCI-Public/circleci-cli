@@ -1,0 +1,9 @@
+Usage:  circleci runner terms accept [flags]
+
+Flags:
+  -f, --force        skip confirmation prompt
+  -h, --help         help for accept
+      --jq string    Process values from the response using jq syntax
+      --json         Output as JSON
+      --org string   Organization slug (e.g. gh/myorg) or UUID; defaults to git remote
+  

@@ -1,0 +1,1 @@
+✓ Accepted the self-hosted runner terms for gh/my-org
