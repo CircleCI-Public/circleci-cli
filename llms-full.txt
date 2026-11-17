@@ -1521,16 +1521,16 @@ shown in the output of `circleci run get`.
 
 Rerun a workflow
 
-All jobs rerun from scratch unless --from-failed is given, which reruns
-only the jobs that failed. Either way a new workflow is created, and its
-ID is reported so you can follow the run.
+A rerun creates a new workflow; its ID is reported so you can follow it.
 
-JSON fields: workflow_id, rerun_from, from_failed
+JSON fields: workflow_id, rerun_from, from_failed, ssh, jobs[].id/name
 
-| Flag            | Description            |
-| --------------- | ---------------------- |
-| `--from-failed` | Rerun only failed jobs |
-| `--json`        | Output as JSON         |
+| Flag                | Description                                          |
+| ------------------- | ---------------------------------------------------- |
+| `--from-failed`     | Rerun only failed jobs                               |
+| `--job stringArray` | Rerun only this job, by name or ID (repeatable)      |
+| `--json`            | Output as JSON                                       |
+| `--ssh`             | Enable SSH access to the rerun jobs (requires --job) |
 
 
 **Arguments:**
@@ -1544,10 +1544,10 @@ shown in the output of `circleci run get`.
   `circleci workflow rerun 5034460f-c7c4-4c43-9457-de07e2029e7b`
 - Rerun only the failed jobs: 
   `circleci workflow rerun 5034460f-c7c4-4c43-9457-de07e2029e7b --from-failed`
-- Find a workflow ID from the latest run: 
-  `circleci run get --json --jq '.workflows[].id'`
-- Rerun and capture the new workflow's ID: 
-  `circleci workflow rerun <workflow-id> --from-failed --json --jq .workflow_id`
+- Rerun one job with SSH access, by name: 
+  `circleci workflow rerun <workflow-id> --ssh --job run-tests`
+- Rerun two jobs by job ID (see: circleci workflow get <workflow-id>): 
+  `circleci workflow rerun <workflow-id> --job <job-id> --job <job-id>`
 
 ## Management Commands
 
@@ -5747,11 +5747,12 @@ Each feature is independently enabled, configure them per suite in .circleci/tes
 
 List selected test atoms on stdout
 
-| Flag                                           | Description                                                          |
-| ---------------------------------------------- | -------------------------------------------------------------------- |
-| `--analyze-tests all\|impacted\|none\|default` | Which tests to analyze for generating impact data (default default)  |
-| `--run-tests all\|impacted\|none\|default`     | Which tests to select and run (default default)                      |
-| `-t, --test-atom-pattern REGEXP`               | Only consider discovered test atoms matching this regular expression |
+| Flag                                                                                                                                                  | Description                                                                                                                                    |
+| ----------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--analyze-tests all\|impacted\|none\|default`                                                                                                        | Which tests to analyze for generating impact data (default default)                                                                            |
+| `--run-tests all\|impacted\|none\|default`                                                                                                            | Which tests to select and run (default default)                                                                                                |
+| `-t, --test-atom-pattern REGEXP`                                                                                                                      | Only consider discovered test atoms matching this regular expression                                                                           |
+| `--runner auto\|codeception\|cucumber\|cypress\|django\|exunit\|gotestsum\|gradle\|jest\|minitest\|mocha\|phpunit\|playwright\|pytest\|rspec\|vitest` | Test runner to use when the suite is not defined in .circleci/test-suites.yml. 'auto' detects the runner from the project files (default auto) |
 
 
 **Arguments:**
@@ -5762,11 +5763,12 @@ List selected test atoms on stdout
 
 Run a testsuite defined in .circleci/test-suites.yml
 
-| Flag                                           | Description                                                          |
-| ---------------------------------------------- | -------------------------------------------------------------------- |
-| `--analyze-tests all\|impacted\|none\|default` | Which tests to analyze for generating impact data (default default)  |
-| `--run-tests all\|impacted\|none\|default`     | Which tests to select and run (default default)                      |
-| `-t, --test-atom-pattern REGEXP`               | Only consider discovered test atoms matching this regular expression |
+| Flag                                                                                                                                                  | Description                                                                                                                                    |
+| ----------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--analyze-tests all\|impacted\|none\|default`                                                                                                        | Which tests to analyze for generating impact data (default default)                                                                            |
+| `--run-tests all\|impacted\|none\|default`                                                                                                            | Which tests to select and run (default default)                                                                                                |
+| `-t, --test-atom-pattern REGEXP`                                                                                                                      | Only consider discovered test atoms matching this regular expression                                                                           |
+| `--runner auto\|codeception\|cucumber\|cypress\|django\|exunit\|gotestsum\|gradle\|jest\|minitest\|mocha\|phpunit\|playwright\|pytest\|rspec\|vitest` | Test runner to use when the suite is not defined in .circleci/test-suites.yml. 'auto' detects the runner from the project files (default auto) |
 
 
 **Arguments:**
@@ -5777,9 +5779,10 @@ Run a testsuite defined in .circleci/test-suites.yml
 
 Run diagnostics to check your test suite setup
 
-| Flag     | Description                                      |
-| -------- | ------------------------------------------------ |
-| `--json` | Output doctor results as JSON. Requires --doctor |
+| Flag                                                                                                                                                  | Description                                                                                                                                    |
+| ----------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--json`                                                                                                                                              | Output doctor results as JSON. Requires --doctor                                                                                               |
+| `--runner auto\|codeception\|cucumber\|cypress\|django\|exunit\|gotestsum\|gradle\|jest\|minitest\|mocha\|phpunit\|playwright\|pytest\|rspec\|vitest` | Test runner to use when the suite is not defined in .circleci/test-suites.yml. 'auto' detects the runner from the project files (default auto) |
 
 
 **Arguments:**
@@ -5817,9 +5820,9 @@ Run diagnostics to check your test suite setup
 
 (experimental) Generate a .circleci/test-suites.yml file
 
-| Flag                                                                                                                                                       | Description                                  |
-| ---------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------- |
-| `--template cypress\|gotestsum\|jest\|mocha\|pytest\|rspec\|vitest\|phpunit\|exunit\|cucumber\|playwright\|gradle\|django\|minitest\|codeception\|default` | specifies the test runner. (default default) |
+| Flag                                                                                                                                                    | Description                               |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------- |
+| `--template auto\|codeception\|cucumber\|cypress\|django\|exunit\|gotestsum\|gradle\|jest\|minitest\|mocha\|phpunit\|playwright\|pytest\|rspec\|vitest` | specifies the test runner. (default auto) |
 
 
 **Arguments:**
