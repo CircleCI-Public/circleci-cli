@@ -204,6 +204,39 @@ func TestDeriveDisplayStatus(t *testing.T) {
 
 		assert.Check(t, is.Equal(status, "⚠️ errored"))
 	})
+
+	t.Run("a held workflow waiting for approval is on hold", func(t *testing.T) {
+		status := deriveDisplayStatus(runGetOutput{
+			Phase:     "running",
+			Workflows: []workflowOutput{{Name: "deploy", Phase: apiclient.PhaseHeld}},
+		})
+
+		assert.Check(t, is.Equal(status, "⏸️ on hold"))
+	})
+
+	t.Run("a held workflow alongside a started one is still running", func(t *testing.T) {
+		status := deriveDisplayStatus(runGetOutput{
+			Phase: "running",
+			Workflows: []workflowOutput{
+				{Name: "deploy", Phase: apiclient.PhaseHeld},
+				{Name: "build", Phase: "running"},
+			},
+		})
+
+		assert.Check(t, is.Equal(status, "running"))
+	})
+
+	t.Run("a held workflow alongside a failed one is failed", func(t *testing.T) {
+		status := deriveDisplayStatus(runGetOutput{
+			Phase: "running",
+			Workflows: []workflowOutput{
+				{Name: "deploy", Phase: apiclient.PhaseHeld},
+				{Name: "build", Phase: "ended", Outcome: "failed"},
+			},
+		})
+
+		assert.Check(t, is.Equal(status, "failed"))
+	})
 }
 
 func TestErrorSummary(t *testing.T) {

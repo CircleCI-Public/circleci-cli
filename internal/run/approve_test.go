@@ -24,11 +24,36 @@ package run
 
 import (
 	"testing"
+	"time"
 
 	"github.com/google/uuid"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/assert/cmp"
+
+	"github.com/CircleCI-Public/circleci-cli/internal/apiclient"
 )
+
+func TestIsPendingApproval(t *testing.T) {
+	startedAt := time.Date(2026, 11, 17, 10, 0, 0, 0, time.UTC)
+	tests := []struct {
+		name string
+		job  apiclient.WorkflowJobV3
+		want bool
+	}{
+		{"approval started", apiclient.WorkflowJobV3{Type: "approval", Phase: "started", StartedAt: &startedAt}, true},
+		{"approval queued with started_at", apiclient.WorkflowJobV3{Type: "approval", Phase: "queued", StartedAt: &startedAt}, true},
+		{"approval queued without started_at", apiclient.WorkflowJobV3{Type: "approval", Phase: "queued"}, false},
+		{"approval held", apiclient.WorkflowJobV3{Type: "approval", Phase: "held"}, true},
+		{"build held", apiclient.WorkflowJobV3{Type: "build", Phase: "held"}, false},
+		{"build queued with started_at", apiclient.WorkflowJobV3{Type: "build", Phase: "queued", StartedAt: &startedAt}, false},
+		{"approval ended", apiclient.WorkflowJobV3{Type: "approval", Phase: "ended", StartedAt: &startedAt}, false},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Check(t, cmp.Equal(isPendingApproval(tc.job), tc.want))
+		})
+	}
+}
 
 func TestMatchApprovals(t *testing.T) {
 	deployHold := PendingApproval{

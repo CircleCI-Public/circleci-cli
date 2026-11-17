@@ -243,13 +243,13 @@ func collectRunArtifacts(ctx context.Context, client *apiclient.Client, summary 
 }
 
 // jobMayHaveArtifacts reports whether a job is worth asking for artifacts: an
-// approval job runs nothing, and a job with no ID or one still created or
-// queued has not run, so none of them can have stored any.
+// approval job runs nothing, and a job with no ID or one still created,
+// queued or held has not run, so none of them can have stored any.
 func jobMayHaveArtifacts(j jobOutput) bool {
 	switch {
 	case j.Type == apiclient.JobTypeApproval, j.ID == uuid.Nil:
 		return false
-	case j.Phase == apiclient.PhaseCreated, j.Phase == apiclient.PhaseQueued:
+	case j.Phase == apiclient.PhaseCreated, j.Phase == apiclient.PhaseQueued, j.Phase == apiclient.PhaseHeld:
 		return false
 	default:
 		return true
