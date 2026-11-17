@@ -285,20 +285,22 @@ Work with the pipeline configuration file at .circleci/config.yml.
 This group manages the pipeline YAML that CircleCI executes. For CLI
 tool settings (API token, host, defaults), use 'circleci setting'.
 
-#### `circleci config generate [path]`
+#### `circleci config generate [path] [flags]`
 
-Generate .circleci/config.yml from a repository scan
+Print a prompt for your coding agent to write .circleci/config.yml
 
-Detect the language stack, container image, and setup commands for a
-repository, then write a starter pipeline to `<path>/.circleci/config.yml`.
+Detect the repository's stack and print a prompt for a coding agent to
+write `<path>/.circleci/config.yml`, or improve it if it exists. Nothing
+is written; `--template` writes a starter config from a local template
+instead.
 
-If no supported stack is detected, a minimal cimg/base:stable template
-with a placeholder build step is written instead so you have something
-to iterate on.
+JSON fields: prompt, prompt_version.
 
-If a config file already exists at that path, generate does not overwrite
-it; it prints a confirmation and exits successfully. The .circleci/
-directory is created if needed, and the file is written atomically.
+| Flag         | Description                                                               |
+| ------------ | ------------------------------------------------------------------------- |
+| `--json`     | Output as JSON                                                            |
+| `--template` | write a starter config from a local template instead of printing a prompt |
+
 
 **Arguments:**
 
@@ -307,13 +309,14 @@ the current directory.
 
 **Examples:**
 
-- Generate a config for the current directory: 
+- Print a prompt for the current directory: 
   `circleci config generate`
-- Generate a config for a specific project path: 
+- Print a prompt for a specific project path: 
   `circleci config generate ./my-app`
-- Re-run is a no-op when a config already exists: 
-  `circleci config generate`
-- ✓ Using existing config at .circleci/config.yml
+- Get the prompt as JSON: 
+  `circleci config generate --json`
+- Write a starter config from the local template: 
+  `circleci config generate --template`
 
 #### `circleci config pack <path>`
 
