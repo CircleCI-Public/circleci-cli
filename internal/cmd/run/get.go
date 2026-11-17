@@ -993,6 +993,18 @@ func deriveDisplayStatus(r runGetOutput) string {
 			return "failed"
 		}
 	}
+	allHeldOrEnded := true
+	anyHeld := false
+	for _, wf := range r.Workflows {
+		if wf.Phase == apiclient.PhaseHeld {
+			anyHeld = true
+		} else if wf.Phase != "ended" {
+			allHeldOrEnded = false
+		}
+	}
+	if anyHeld && allHeldOrEnded {
+		return apiclient.PhaseOutcomeStatus(apiclient.PhaseHeld, "", "")
+	}
 	for _, wf := range r.Workflows {
 		if wf.Phase != "ended" {
 			return "running"

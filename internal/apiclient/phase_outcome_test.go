@@ -50,6 +50,7 @@ func TestPhaseOutcome_StatusIsTextWithEmoji(t *testing.T) {
 	cases := []struct{ phase, outcome, current string }{
 		{"created", "", ""},
 		{"queued", "", ""},
+		{"held", "", ""},
 		{"started", "", ""},
 		{"started", "", "failed"},
 		{"ended", "succeeded", ""},
@@ -66,6 +67,15 @@ func TestPhaseOutcome_StatusIsTextWithEmoji(t *testing.T) {
 	}
 }
 
+// TestPhaseOutcome_Held verifies the "held" phase (an approval wait, reported
+// after circleci/query#1986) renders as a wait with its own glyph, not as the
+// raw phase name or as a running job.
+func TestPhaseOutcome_Held(t *testing.T) {
+	assert.Check(t, is.Equal(apiclient.PhaseOutcomeSymbol("held", "", ""), "‖"))
+	assert.Check(t, is.Equal(apiclient.PhaseOutcomeText("held", "", ""), "on hold"))
+	assert.Check(t, is.Equal(apiclient.PhaseOutcomeStatus("held", "", ""), "⏸️ on hold"))
+}
+
 // TestPhaseNotStarted checks the "has this work begun?" predicate: only
 // "started" and "ended" describe work that has produced something to look at, so
 // every other phase — including one this client has no glyph or wording for —
@@ -73,7 +83,7 @@ func TestPhaseOutcome_StatusIsTextWithEmoji(t *testing.T) {
 // neutral bullet, which reads like the running dot, so callers must be able to
 // tell it apart from a job that is genuinely running.
 func TestPhaseNotStarted(t *testing.T) {
-	notStarted := []string{"created", "queued", "pending", "blocked", "some_new_phase", ""}
+	notStarted := []string{"created", "queued", "held", "pending", "blocked", "some_new_phase", ""}
 	for _, phase := range notStarted {
 		assert.Check(t, apiclient.PhaseNotStarted(phase), "phase %q should count as not started", phase)
 	}

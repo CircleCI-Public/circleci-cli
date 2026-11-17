@@ -236,12 +236,16 @@ func (w jobWire) toJobV3() *JobV3 {
 const (
 	PhaseCreated = "created"
 	PhaseQueued  = "queued"
+	// PhaseHeld is a job, run or workflow that waits for approval. The API
+	// reports it only after circleci/query#1986. Before that, it reports
+	// "queued" (see circleci/query#1967).
+	PhaseHeld    = "held"
 	PhaseStarted = "started"
 	PhaseEnded   = "ended"
 )
 
 // PhaseNotStarted reports whether a phase means the work has not begun: the
-// "created" and "queued" phases, and — deliberately — any phase this client does
+// "created", "queued" and "held" phases, and — deliberately — any phase this client does
 // not recognise. Only "started" and "ended" describe work that has produced
 // something to look at, so an unfamiliar phase is presumed to be another
 // pre-start state rather than a synonym for one of those two. An unrecognised
@@ -287,6 +291,8 @@ func phaseOutcomeParts(phase, outcome, currentOutcome string) (emoji, text strin
 		return "⏳", "created"
 	case PhaseQueued:
 		return "⌛", "queued"
+	case PhaseHeld:
+		return "⏸️", "on hold"
 	case PhaseStarted:
 		switch currentOutcome {
 		case "failed":
@@ -318,6 +324,8 @@ func PhaseOutcomeSymbol(phase, outcome, currentOutcome string) string {
 	switch phase {
 	case PhaseCreated, PhaseQueued:
 		return "○"
+	case PhaseHeld:
+		return "‖"
 	case PhaseStarted:
 		switch currentOutcome {
 		case "failed":

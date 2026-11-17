@@ -67,6 +67,11 @@ func TestJobMayHaveArtifacts(t *testing.T) {
 			job:  jobOutput{ID: id, Type: "build", Phase: "queued"},
 			want: false,
 		},
+		{
+			name: "held job",
+			job:  jobOutput{ID: id, Type: "build", Phase: "held"},
+			want: false,
+		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {

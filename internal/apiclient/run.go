@@ -401,7 +401,7 @@ var RunStatuses = []string{
 // yields two empty strings, which filterParam then omits (no status filter).
 //
 // The pipeline status is an aggregate; a run carries phase ∈ {created, queued,
-// started, ended} and current_outcome. Terminal statuses are an "ended" phase
+// held, started, ended} and current_outcome. Terminal statuses are an "ended" phase
 // with the matching outcome; in-progress statuses are the "started" (or
 // "queued") phase, narrowed by current_outcome only where one distinguishes them
 // (a partially-failed run is "started"/"failed" → "failing"; a plainly-running
@@ -425,6 +425,9 @@ func StatusPhaseOutcome(status string) (phase, currentOutcome string) {
 	case StatusRunning:
 		return "started", ""
 	case StatusQueued:
+		// Once circleci/query#1986 deploys, an on-hold status maps to "held"
+		// and "queued" covers lock waits only. Do not send filter[phase]=held
+		// before then: the API answers it with 400.
 		return "queued", ""
 	default:
 		return "", ""
