@@ -127,20 +127,45 @@ func (c *Client) GetRunWorkflowsV3(ctx context.Context, runID uuid.UUID) ([]Work
 	return workflows, nil
 }
 
-// RerunWorkflow triggers a rerun of the given workflow. When fromFailed is
-// true only the failed jobs are rerun; otherwise all jobs restart from scratch.
+// RerunOptions selects what a workflow rerun reruns. The zero value reruns every
+// job from scratch.
+type RerunOptions struct {
+	// FromFailed reruns only the failed jobs (and their dependents).
+	FromFailed bool
+	// EnableSSH reruns Jobs with SSH access for the user who triggers the rerun.
+	// The API only accepts it together with Jobs.
+	EnableSSH bool
+	// Jobs limits the rerun to these job IDs. The API rejects it together with
+	// FromFailed.
+	Jobs []uuid.UUID
+}
+
+// rerunRequest is the v3 request body. The field names are the v3 ones —
+// "is_from_failed" and "is_ssh_enabled", not the v2 "from_failed" and
+// "enable_ssh" that the service's own internal client still uses. The v3
+// handler tolerates unknown fields rather than rejecting them, so sending a v2
+// name silently drops the option: it once reran everything from scratch, with a
+// 201 and a new workflow to make it look like it had worked.
+//
+// is_ssh_enabled and jobs are omitted when unset, so a plain rerun sends only
+// is_from_failed.
+type rerunRequest struct {
+	IsFromFailed bool        `json:"is_from_failed"`
+	IsSSHEnabled bool        `json:"is_ssh_enabled,omitempty"`
+	Jobs         []uuid.UUID `json:"jobs,omitempty"`
+}
+
+// RerunWorkflow triggers a rerun of the given workflow, as opts selects.
 //
 // It returns the id of the *new* workflow the rerun created, which is what the
 // caller needs to follow the run they just started — the id passed in belongs to
 // the old workflow and is of no further use.
-//
-// The request field is "is_from_failed". Not "from_failed": that is the name the
-// v2 endpoint and the service's own internal client use, and the v3 handler
-// tolerates unknown fields rather than rejecting them — so sending the v2 name
-// here silently reran everything from scratch, with a 201 and a new workflow to
-// make it look like it had worked.
-func (c *Client) RerunWorkflow(ctx context.Context, id string, fromFailed bool) (string, error) {
-	body := map[string]any{"is_from_failed": fromFailed}
+func (c *Client) RerunWorkflow(ctx context.Context, id string, opts RerunOptions) (string, error) {
+	body := rerunRequest{
+		IsFromFailed: opts.FromFailed,
+		IsSSHEnabled: opts.EnableSSH,
+		Jobs:         opts.Jobs,
+	}
 	var resp v3Entity[struct {
 		ID string `json:"id"`
 	}]
