@@ -41,6 +41,7 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/internal/cmdutil"
 	"github.com/CircleCI-Public/circleci-cli/internal/config"
 	"github.com/CircleCI-Public/circleci-cli/internal/configgen"
+	"github.com/CircleCI-Public/circleci-cli/internal/forgejoconn"
 	"github.com/CircleCI-Public/circleci-cli/internal/gitremote"
 	"github.com/CircleCI-Public/circleci-cli/internal/httpcl"
 	"github.com/CircleCI-Public/circleci-cli/internal/org"
@@ -73,6 +74,9 @@ const (
 	propSignup        = "onboard_signup_outcome"
 	propProjectSetup  = "onboard_project_setup_outcome"
 	propProjectFollow = "onboard_project_follow_outcome"
+	// propForgejo is how a remote on a host no registry integration claims was
+	// matched to Forgejo and connected. not_applicable when the host was claimed.
+	propForgejo = "onboard_forgejo_outcome"
 )
 
 const (
@@ -110,6 +114,14 @@ type Options struct {
 	// skipped with manual guidance. It is never prompted for — an opaque ID is not
 	// something a user can be expected to know.
 	RepoID string
+	// Provider names the integration a remote on a host no registry entry claims
+	// belongs to, e.g. "forgejo": one of the integrations connected in the
+	// terminal.
+	Provider string
+	// Forgejo carries the connection values for a Forgejo remote, each prompted
+	// for when empty and the session is interactive. Only read when the org has
+	// no Forgejo connection yet.
+	Forgejo forgejoconn.Options
 }
 
 // Run generates a starter config for a repository when it has none, and ensures
@@ -117,7 +129,7 @@ type Options struct {
 func Run(ctx context.Context, dir string, opts Options) error {
 	// Seed before the first thing that can fail, so even a run that resolves no
 	// mode at all still reports a complete set of steps.
-	for _, prop := range []string{propMode, propOrgType, propSignup, propProjectSetup, propProjectFollow} {
+	for _, prop := range []string{propMode, propOrgType, propSignup, propProjectSetup, propProjectFollow, propForgejo} {
 		cmdutil.SetTelemetryProp(ctx, prop, notReached)
 	}
 
@@ -283,6 +295,7 @@ func postSignupGuidance(ctx context.Context, dir string, opts Options) error {
 		// rather than being one the run fell short of.
 		if selectedOrg.VCSType != "circleci" {
 			cmdutil.SetTelemetryProp(ctx, propProjectSetup, notApplicable)
+			cmdutil.SetTelemetryProp(ctx, propForgejo, notApplicable)
 			followClassicProject(ctx, client, appURL, vcs, orgName, name)
 			return nil
 		}
@@ -626,7 +639,11 @@ func writeProjectRef(ctx context.Context, workDir string, proj *apiclient.Projec
 // rejected is a real error: it leaves the project half-configured, and a definition
 // with no trigger will never build.
 func setupFirstPipeline(ctx context.Context, client *apiclient.Client, appURL string, proj *apiclient.ProjectInfo, remote gitremote.RemoteRef, opts Options) error {
-	repoID, p := resolveRepoID(ctx, client, appURL, proj, remote, opts)
+	repoID, p, err := resolveRepoID(ctx, client, appURL, proj, remote, opts)
+	if err != nil {
+		cmdutil.SetTelemetryProp(ctx, propProjectSetup, "provider_connect_failed")
+		return err
+	}
 	if repoID == "" {
 		// No external ID, so there is nothing to attach a definition to.
 		cmdutil.SetTelemetryProp(ctx, propProjectSetup, "skipped_no_repo_id")
@@ -752,6 +769,9 @@ func ensureTrigger(
 // to the integration that owns the checkout's remote, then matches the remote
 // against the repositories that connection can reach. Any failure returns "" so
 // the caller degrades to manual guidance rather than prompting for an opaque ID.
+//
+// Only connecting a self-hosted integration returns an error: the user has been
+// asked for values by then, and a rejected one has to reach them.
 func resolveRepoID(
 	ctx context.Context,
 	client *apiclient.Client,
@@ -759,28 +779,34 @@ func resolveRepoID(
 	proj *apiclient.ProjectInfo,
 	remote gitremote.RemoteRef,
 	opts Options,
-) (string, provider.Provider) {
+) (string, provider.Provider, error) {
 	p, hasProvider := provider.ForHost(remote.Host)
+	if hasProvider {
+		cmdutil.SetTelemetryProp(ctx, propForgejo, notApplicable)
+	}
 	if opts.RepoID != "" {
-		return opts.RepoID, p
+		// Nothing is connected or looked up with an explicit ID.
+		cmdutil.SetTelemetryProp(ctx, propForgejo, notApplicable)
+		if !hasProvider && opts.Provider != "" {
+			p, _ = provider.Lookup(opts.Provider, provider.ConfigSource)
+		}
+		return opts.RepoID, p, nil
 	}
 	if proj.OrganizationID == "" {
-		return "", p
+		return "", p, nil
 	}
 	fullName := remote.FullName()
 	if fullName == "" {
 		iostream.ErrPrintf(ctx, "%s Could not read this repository's git remote, so the pipeline was not set up.\n",
 			iostream.SymbolWarn(ctx))
-		return "", p
+		return "", p, nil
 	}
-	// A host no integration claims cannot be resolved: sending it through one
-	// produces an install prompt that cannot help and a "grant access to this
-	// repository" message that can never be satisfied.
+	// A host no integration claims may be a self-hosted instance the org connects
+	// in the terminal. Anything else cannot be resolved: sending it through an
+	// integration produces an install prompt that cannot help and a "grant access
+	// to this repository" message that can never be satisfied.
 	if !hasProvider {
-		iostream.ErrPrintf(ctx, "%s %s is not on a provider CircleCI can look up, so its ID cannot be resolved automatically.\n",
-			iostream.SymbolWarn(ctx), fullName)
-		iostream.ErrPrintf(ctx, "  Re-run with --repo-id <id> to set up the pipeline.\n")
-		return "", p
+		return resolveSelfHosted(ctx, client, proj.OrganizationID, remote, opts)
 	}
 
 	// Where the provider returns the browser after an install. Landing on the
@@ -792,31 +818,130 @@ func resolveRepoID(
 	installed, err := providerconn.EnsureConnected(ctx, client, p, proj.OrganizationID, returnURL, opts.NoBrowser)
 	if err != nil {
 		iostream.ErrPrintf(ctx, "%s Could not check the %s installation: %s\n", iostream.SymbolWarn(ctx), p.Short, err)
-		return "", p
+		return "", p, nil
 	}
 	if !installed {
-		return "", p
+		return "", p, nil
 	}
 
-	id, err := providerconn.ResolveRepoID(ctx, client, p, proj.OrganizationID, fullName)
+	return findRepo(ctx, client, p, proj.OrganizationID, fullName), p, nil
+}
+
+// findRepo matches the remote against the repositories the org's connection to p
+// can reach, returning "" with the reason reported when it cannot.
+func findRepo(ctx context.Context, client *apiclient.Client, p provider.Provider, orgID, fullName string) string {
+	id, err := providerconn.ResolveRepoID(ctx, client, p, orgID, fullName)
 	if errors.Is(err, providerconn.ErrTooManyRepositories) {
 		iostream.ErrPrintf(ctx, "%s This organization has too many repositories to find %s automatically.\n",
 			iostream.SymbolWarn(ctx), fullName)
 		iostream.ErrPrintf(ctx, "  Re-run with --repo-id <id> to set up the pipeline.\n")
-		return "", p
+		return ""
 	}
 	if err != nil {
 		iostream.ErrPrintf(ctx, "%s Could not list %s repositories: %s\n", iostream.SymbolWarn(ctx), p.Short, err)
-		return "", p
+		return ""
 	}
 	if id == "" {
 		iostream.ErrPrintf(ctx, "%s %s can't access %s yet. Grant it access to this repository, then re-run.\n",
 			iostream.SymbolWarn(ctx), p.Short, fullName)
-		return "", p
+		return ""
 	}
 
 	iostream.Printf(ctx, "%s Found repository %s\n", iostream.SymbolOK(ctx), fullName)
-	return id, p
+	return id
+}
+
+// resolveSelfHosted resolves a remote on a host no registry integration claims.
+// It is Forgejo when --provider says so, when the org's Forgejo connection is to
+// the remote's host, or when an interactive user picks it; otherwise the user is
+// told how to set the pipeline up by hand.
+//
+// With no Forgejo connection the user connects one here; with one to another
+// instance it stops, since setup would refuse a second.
+func resolveSelfHosted(
+	ctx context.Context,
+	client *apiclient.Client,
+	orgID string,
+	remote gitremote.RemoteRef,
+	opts Options,
+) (string, provider.Provider, error) {
+	fullName := remote.FullName()
+	forgejo, _ := provider.Lookup(forgejoconn.ProviderName, provider.ConfigSource)
+
+	conns, err := client.ListProviderConnections(ctx, orgID)
+	if err != nil {
+		iostream.ErrPrintf(ctx, "%s Could not check this organization's connections: %s\n", iostream.SymbolWarn(ctx), err)
+		cmdutil.SetTelemetryProp(ctx, propForgejo, "connections_check_failed")
+		return "", provider.Provider{}, nil
+	}
+	conn, hasConn := forgejoconn.FindConnection(conns)
+	onHost := hasConn && forgejoconn.ServesHost(conn.ProviderURL, remote.Host)
+
+	if !onHost && opts.Provider != forgejo.Name {
+		outcome, picked := "not_detected", false
+		if iostream.IsInteractive(ctx) {
+			outcome = "declined"
+			if picked, err = pickSelfHosted(ctx, fullName); err != nil {
+				return "", provider.Provider{}, err
+			}
+		}
+		if !picked {
+			cmdutil.SetTelemetryProp(ctx, propForgejo, outcome)
+			printUnclaimedHost(ctx, fullName)
+			return "", provider.Provider{}, nil
+		}
+	}
+
+	switch {
+	case onHost:
+		iostream.Printf(ctx, "%s Using this organization's Forgejo connection to %s\n", iostream.SymbolOK(ctx), conn.ProviderURL)
+		cmdutil.SetTelemetryProp(ctx, propForgejo, "existing")
+	case hasConn:
+		iostream.ErrPrintf(ctx, "%s This organization is already connected to the Forgejo instance at %s, and can connect only one.\n",
+			iostream.SymbolWarn(ctx), conn.ProviderURL)
+		iostream.ErrPrintf(ctx, "  %s is on %s, so the pipeline was not set up.\n", fullName, remote.Host)
+		cmdutil.SetTelemetryProp(ctx, propForgejo, "other_instance")
+		return "", forgejo, nil
+	default:
+		if _, err := forgejoconn.Connect(ctx, client, orgID, remote, opts.Forgejo); err != nil {
+			cmdutil.SetTelemetryProp(ctx, propForgejo, "failed")
+			return "", forgejo, err
+		}
+		cmdutil.SetTelemetryProp(ctx, propForgejo, "connected")
+	}
+
+	return findRepo(ctx, client, forgejo, orgID, fullName), forgejo, nil
+}
+
+// pickSelfHosted asks which self-hosted integration hosts the repository. The
+// default is none of them, so a remote on some other host is one keypress from
+// the manual route.
+func pickSelfHosted(ctx context.Context, fullName string) (bool, error) {
+	forgejo, _ := provider.Lookup(forgejoconn.ProviderName, provider.ConfigSource)
+	idx, err := iostream.PromptSelectDefault(ctx,
+		fmt.Sprintf("Which provider hosts %s?", fullName),
+		[]string{forgejo.Short, "None of these"}, 1)
+	if err != nil {
+		return false, clierrors.New("onboard.provider_prompt_failed", "Provider selection failed", err.Error()).
+			WithExitCode(clierrors.ExitGeneralError)
+	}
+	if idx < 0 {
+		return false, clierrors.New("onboard.cancelled", "Onboarding cancelled", "No provider selected.").
+			WithExitCode(clierrors.ExitCancelled)
+	}
+	return idx == 0, nil
+}
+
+// printUnclaimedHost explains that the repository's ID cannot be looked up, and
+// how to set the pipeline up anyway.
+func printUnclaimedHost(ctx context.Context, fullName string) {
+	iostream.ErrPrintf(ctx, "%s %s is not on a provider CircleCI can look up, so its ID cannot be resolved automatically.\n",
+		iostream.SymbolWarn(ctx), fullName)
+	iostream.ErrPrintf(ctx, "  Re-run with --repo-id <id> to set up the pipeline.\n")
+	for _, name := range provider.Names(provider.ConfigSource, provider.Provider.ConnectsInTerminal) {
+		p, _ := provider.Lookup(name, provider.ConfigSource)
+		iostream.ErrPrintf(ctx, "  If it is on %s, re-run with --provider %s.\n", p.Short, p.Name)
+	}
 }
 
 // printPipelineReadyGuidance prints the happy-path next steps once the pipeline
