@@ -243,6 +243,10 @@ type CircleCI struct {
 	orgIDsBySlug map[string]string // org slug → org UUID
 	orgOrder     []string          // org UUIDs in registration order
 	orgSettings  map[string]any    // org UUID → attributes map
+	// orgManageable holds the org UUIDs GET /api/v3/orgs?filter[can_manage]=true
+	// lists: those the caller is an admin of.
+	orgManageable   map[string]bool
+	canManageStatus int // non-zero: every filter[can_manage] request answers this status
 
 	// Release state (GET /api/v3/tool/releases).
 	releaseTool        string    // tool name the fake answers for (default "circleci-cli")
@@ -380,6 +384,7 @@ func NewCircleCI(t *testing.T, tokens ...string) *CircleCI {
 		orgs:                              map[string]Org{},
 		orgIDsBySlug:                      map[string]string{},
 		orgSettings:                       map[string]any{},
+		orgManageable:                     map[string]bool{},
 		slackWorkspaces:                   map[string]SlackWorkspace{},
 		channelConfigs:                    map[string]ChannelConfigV3{},
 		notificationPrefs:                 map[string][]NotificationPreferenceV3{},
@@ -6106,14 +6111,29 @@ func (f *CircleCI) handleCompileConfig(w http.ResponseWriter, r *http.Request) {
 // The fake returns every org in one page — pagination is not simulated.
 func (f *CircleCI) handleListOrgs(w http.ResponseWriter, r *http.Request) {
 	slug := r.URL.Query().Get("filter[slug]")
+	canManage := r.URL.Query().Get("filter[can_manage]") == "true"
 
 	f.mu.RLock()
+	if canManage && f.canManageStatus != 0 {
+		status := f.canManageStatus
+		f.mu.RUnlock()
+		render.Status(r, status)
+		render.JSON(w, r, map[string]any{"message": http.StatusText(status)})
+		return
+	}
 	data := []map[string]any{}
-	if slug != "" {
+	switch {
+	case canManage:
+		for _, id := range f.orgOrder {
+			if f.orgManageable[id] {
+				data = append(data, orgEntity(f.orgs[id]))
+			}
+		}
+	case slug != "":
 		if id, ok := f.orgIDsBySlug[slug]; ok {
 			data = append(data, orgEntity(f.orgs[id]))
 		}
-	} else {
+	default:
 		for _, id := range f.orgOrder {
 			data = append(data, orgEntity(f.orgs[id]))
 		}
@@ -6158,6 +6178,22 @@ func defaultOrgSettingsAttrs() map[string]any {
 		"is_context_group_restriction_required": false,
 		"enable_resource_class_brownouts":       false,
 	}
+}
+
+// SetOrgManageable marks the org as one the caller can manage, so
+// GET /api/v3/orgs?filter[can_manage]=true lists it.
+func (f *CircleCI) SetOrgManageable(orgID string) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.orgManageable[orgID] = true
+}
+
+// SetCanManageStatus makes every GET /api/v3/orgs?filter[can_manage]=true
+// request fail with status — e.g. 400, as a server without the filter answers.
+func (f *CircleCI) SetCanManageStatus(status int) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.canManageStatus = status
 }
 
 // SetOrgSettings registers advanced settings for GET /api/v3/orgs/:id/settings.

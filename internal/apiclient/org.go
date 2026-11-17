@@ -86,16 +86,28 @@ const orgPageLimit = 50
 // The response carries no slug, and one cannot be derived: only a VCS-backed
 // org has a slug at all, so an org is identified here by its UUID.
 func (c *Client) ListOrgs(ctx context.Context) ([]Organization, error) {
+	return c.listOrgs(ctx)
+}
+
+// ListManageableOrgs returns the organizations the authenticated user can
+// manage — those they are an admin of — via
+// GET /api/v3/orgs?filter[can_manage]=true. Paginates automatically.
+func (c *Client) ListManageableOrgs(ctx context.Context) ([]Organization, error) {
+	return c.listOrgs(ctx, filterParam("can_manage", "true"))
+}
+
+func (c *Client) listOrgs(ctx context.Context, opts ...func(*httpcl.Request)) ([]Organization, error) {
 	var all []Organization
 	cursor := ""
 
 	for {
 		var env v3List[orgEntity]
-		_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodGet, "/api/v3/orgs",
+		reqOpts := append([]func(*httpcl.Request){
 			pageLimit(orgPageLimit),
 			pageCursor(cursor),
 			httpcl.JSONDecoder(&env),
-		))
+		}, opts...)
+		_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodGet, "/api/v3/orgs", reqOpts...))
 		if err != nil {
 			return nil, err
 		}
