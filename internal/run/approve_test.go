@@ -40,8 +40,8 @@ func TestIsPendingApproval(t *testing.T) {
 		job  apiclient.WorkflowJobV3
 		want bool
 	}{
-		{"approval started", apiclient.WorkflowJobV3{Type: "approval", Phase: "started", StartedAt: &startedAt}, true},
-		{"approval queued with started_at", apiclient.WorkflowJobV3{Type: "approval", Phase: "queued", StartedAt: &startedAt}, true},
+		{"approval started", apiclient.WorkflowJobV3{Type: "approval", Phase: "started", StartedAt: &startedAt}, false},
+		{"approval queued with started_at", apiclient.WorkflowJobV3{Type: "approval", Phase: "queued", StartedAt: &startedAt}, false},
 		{"approval queued without started_at", apiclient.WorkflowJobV3{Type: "approval", Phase: "queued"}, false},
 		{"approval held", apiclient.WorkflowJobV3{Type: "approval", Phase: "held"}, true},
 		{"build held", apiclient.WorkflowJobV3{Type: "build", Phase: "held"}, false},

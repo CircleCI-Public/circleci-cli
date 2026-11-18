@@ -67,8 +67,7 @@ func TestPhaseOutcome_StatusIsTextWithEmoji(t *testing.T) {
 	}
 }
 
-// TestPhaseOutcome_Held verifies the "held" phase (an approval wait, reported
-// after circleci/query#1986) renders as a wait with its own glyph, not as the
+// TestPhaseOutcome_Held verifies the "held" phase (an approval wait) renders as a wait with its own glyph, not as the
 // raw phase name or as a running job.
 func TestPhaseOutcome_Held(t *testing.T) {
 	assert.Check(t, is.Equal(apiclient.PhaseOutcomeSymbol("held", "", ""), "‖"))
@@ -106,6 +105,7 @@ func TestStatusPhaseOutcome(t *testing.T) {
 		{apiclient.StatusUnauthorized, "ended", "unauthorized"},
 		{apiclient.StatusFailing, "started", "failed"},
 		{apiclient.StatusRunning, "started", ""},
+		{apiclient.StatusOnHold, "held", ""},
 		{apiclient.StatusQueued, "queued", ""},
 		{"", "", ""},
 		{"bogus", "", ""},

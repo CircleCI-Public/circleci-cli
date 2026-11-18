@@ -49,11 +49,9 @@ func (a PendingApproval) Label() string {
 // PendingApprovals returns the approval jobs in a run that are on hold, in
 // workflow order. Ended workflows are skipped: nothing in them can be approved.
 //
-// The V3 jobs API reports an approval job that waits for approval in one of
-// three ways. After circleci/query#1986, the phase is "held". Before it, the
-// phase is "queued" with started_at set (circleci/query#1967), or "started" in
-// older data. An approval job that waits for its required jobs is "queued"
-// with no started_at, and cannot be approved until they have finished.
+// The V3 jobs API reports an approval job that waits for approval in the phase
+// "held". An approval job that waits for its required jobs is "queued", and
+// cannot be approved until they have finished.
 func PendingApprovals(ctx context.Context, client *apiclient.Client, runID uuid.UUID) ([]PendingApproval, error) {
 	workflows, err := client.GetRunWorkflowsV3(ctx, runID)
 	if err != nil {
@@ -85,19 +83,9 @@ func PendingApprovals(ctx context.Context, client *apiclient.Client, runID uuid.
 }
 
 // isPendingApproval reports whether a job is an approval job that waits to be
-// approved. See PendingApprovals for the phases that mean this.
+// approved: an approval job in the "held" phase.
 func isPendingApproval(j apiclient.WorkflowJobV3) bool {
-	if j.Type != apiclient.JobTypeApproval {
-		return false
-	}
-	switch j.Phase {
-	case apiclient.PhaseHeld, apiclient.PhaseStarted:
-		return true
-	case apiclient.PhaseQueued:
-		return j.StartedAt != nil
-	default:
-		return false
-	}
+	return j.Type == apiclient.JobTypeApproval && j.Phase == apiclient.PhaseHeld
 }
 
 // MatchApprovals returns the pending approvals that job identifies, by job name
