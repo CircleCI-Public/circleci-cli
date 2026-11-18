@@ -67,8 +67,7 @@ func TestPhaseOutcome_StatusIsTextWithEmoji(t *testing.T) {
 	}
 }
 
-// TestPhaseOutcome_Held verifies the "held" phase (an approval wait, reported
-// after circleci/query#1986) renders as a wait with its own glyph, not as the
+// TestPhaseOutcome_Held verifies the "held" phase (an approval wait) renders as a wait with its own glyph, not as the
 // raw phase name or as a running job.
 func TestPhaseOutcome_Held(t *testing.T) {
 	assert.Check(t, is.Equal(apiclient.PhaseOutcomeSymbol("held", "", ""), "‖"))
@@ -97,18 +96,64 @@ func TestPhaseNotStarted(t *testing.T) {
 // "ended" phase with the matching outcome, in-progress statuses to their
 // started/queued phase, and an empty or unknown status to no filter.
 func TestStatusPhaseOutcome(t *testing.T) {
-	cases := []struct{ status, phase, outcome string }{
-		{apiclient.StatusSuccess, "ended", "succeeded"},
-		{apiclient.StatusFailed, "ended", "failed"},
-		{apiclient.StatusCanceled, "ended", "canceled"},
-		{apiclient.StatusError, "ended", "errored"},
-		{apiclient.StatusNotRun, "ended", "not_run"},
-		{apiclient.StatusUnauthorized, "ended", "unauthorized"},
-		{apiclient.StatusFailing, "started", "failed"},
-		{apiclient.StatusRunning, "started", ""},
-		{apiclient.StatusQueued, "queued", ""},
-		{"", "", ""},
-		{"bogus", "", ""},
+	cases := []struct {
+		status  string
+		phase   string
+		outcome string
+	}{
+		{
+			status:  apiclient.StatusSuccess,
+			phase:   "ended",
+			outcome: "succeeded",
+		},
+		{
+			status:  apiclient.StatusFailed,
+			phase:   "ended",
+			outcome: "failed",
+		},
+		{
+			status:  apiclient.StatusCanceled,
+			phase:   "ended",
+			outcome: "canceled",
+		},
+		{
+			status:  apiclient.StatusError,
+			phase:   "ended",
+			outcome: "errored",
+		},
+		{
+			status:  apiclient.StatusNotRun,
+			phase:   "ended",
+			outcome: "not_run",
+		},
+		{
+			status:  apiclient.StatusUnauthorized,
+			phase:   "ended",
+			outcome: "unauthorized",
+		},
+		{
+			status:  apiclient.StatusFailing,
+			phase:   "started",
+			outcome: "failed",
+		},
+		{
+			status: apiclient.StatusRunning,
+			phase:  "started",
+		},
+		{
+			status: apiclient.StatusOnHold,
+			phase:  "held",
+		},
+		{
+			status: apiclient.StatusQueued,
+			phase:  "queued",
+		},
+		{
+			status: "",
+		},
+		{
+			status: "bogus",
+		},
 	}
 	for _, c := range cases {
 		phase, outcome := apiclient.StatusPhaseOutcome(c.status)

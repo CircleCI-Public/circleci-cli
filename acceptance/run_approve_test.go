@@ -46,11 +46,11 @@ const (
 	approveProjectID = "a0000000-0000-4000-8000-0000000a0001"
 )
 
-// approvalJob is an approval job in the given phase. A pending one is
-// "started" with a start time, as the real jobs API reports it.
+// approvalJob is an approval job in the given phase. A pending one is "held",
+// as the real jobs API reports it.
 func approvalJob(id, name, workflowID, phase string) fakes.JobV3 {
 	j := fakes.JobV3{ID: id, Name: name, Type: "approval", Phase: phase, WorkflowID: workflowID, ProjectID: approveProjectID}
-	if phase == "started" || phase == "ended" {
+	if phase == "held" || phase == "ended" {
 		j.StartedAt = "2020-01-01T12:00:00Z"
 	}
 	return j
@@ -73,7 +73,7 @@ func setupApproveFake(t *testing.T, workflows ...approveWorkflow) (*fakes.Circle
 
 	// An ended workflow is never searched, even if it held an approval.
 	ended := fakeWorkflowV3(approveEndedWf, "nightly", approveRunID, approveProjectID, "ended", "success")
-	fake.AddWorkflowJobsV3(approveEndedWf, approvalJob("d0000000-0000-4000-8000-0000000a00ff", "old-hold", approveEndedWf, "started"))
+	fake.AddWorkflowJobsV3(approveEndedWf, approvalJob("d0000000-0000-4000-8000-0000000a00ff", "old-hold", approveEndedWf, "held"))
 	wfs := make([]fakes.WorkflowV3, 0, 1+len(workflows))
 	wfs = append(wfs, ended)
 	for _, w := range workflows {
@@ -101,7 +101,7 @@ func releaseWorkflow() fakes.WorkflowV3 {
 func oneApprovalOnHold() approveWorkflow {
 	return approveWorkflow{deployWorkflow(), []fakes.JobV3{
 		{ID: "d0000000-0000-4000-8000-0000000a0010", Name: "build", Type: "build", Phase: "ended", Outcome: "success", StartedAt: "2020-01-01T12:00:00Z"},
-		approvalJob(approveDeployJob, "hold-deploy", approveDeployWf, "started"),
+		approvalJob(approveDeployJob, "hold-deploy", approveDeployWf, "held"),
 		approvalJob("d0000000-0000-4000-8000-0000000a0011", "hold-prod", approveDeployWf, "created"),
 	}}
 }
@@ -210,8 +210,8 @@ func TestRunApprove_NothingOnHold(t *testing.T) {
 // twoApprovalsOnHold has an approval on hold in each of two workflows.
 func twoApprovalsOnHold() []approveWorkflow {
 	return []approveWorkflow{
-		{deployWorkflow(), []fakes.JobV3{approvalJob(approveDeployJob, "hold-deploy", approveDeployWf, "started")}},
-		{releaseWorkflow(), []fakes.JobV3{approvalJob(approveGateJob, "release-gate", approveReleaseWf, "started")}},
+		{deployWorkflow(), []fakes.JobV3{approvalJob(approveDeployJob, "hold-deploy", approveDeployWf, "held")}},
+		{releaseWorkflow(), []fakes.JobV3{approvalJob(approveGateJob, "release-gate", approveReleaseWf, "held")}},
 	}
 }
 

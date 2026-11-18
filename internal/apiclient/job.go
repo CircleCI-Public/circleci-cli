@@ -236,9 +236,7 @@ func (w jobWire) toJobV3() *JobV3 {
 const (
 	PhaseCreated = "created"
 	PhaseQueued  = "queued"
-	// PhaseHeld is a job, run or workflow that waits for approval. The API
-	// reports it only after circleci/query#1986. Before that, it reports
-	// "queued" (see circleci/query#1967).
+	// PhaseHeld is a job, run or workflow that waits for approval.
 	PhaseHeld    = "held"
 	PhaseStarted = "started"
 	PhaseEnded   = "ended"

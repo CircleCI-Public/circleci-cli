@@ -92,3 +92,35 @@ func TestGetWorkflowJobsV3_QueuedJobPhase(t *testing.T) {
 	assert.Check(t, is.Equal(jobs[2].Phase, apiclient.PhaseEnded))
 	assert.Check(t, is.Equal(jobs[2].Status(), "✅ succeeded"))
 }
+
+// TestGetWorkflowJobsV3_HeldApprovalJob checks that a held approval job keeps
+// its "held" phase through the decode path, with or without started_at.
+func TestGetWorkflowJobsV3_HeldApprovalJob(t *testing.T) {
+	ctx := iostream.Testing(context.Background())
+	workflowID := uuid.MustParse("a2d4f75d-f6f9-46dc-8e7b-1ea85c40d0ed")
+
+	const body = `{"data":[
+		{"id":"4405c050-a8b8-474f-aa70-79efcf25bc4a",
+		 "attributes":{"number":1,"name":"hold","type":"approval","phase":"held"}},
+		{"id":"1a8727c9-ccf2-40f5-814c-7c1cd56c5677",
+		 "attributes":{"number":2,"name":"hold-started","type":"approval","phase":"held","started_at":"2026-08-07T12:09:59.650Z"}}
+	]}`
+
+	r := chi.NewMux()
+	r.Get("/api/v3/jobs", func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(body))
+	})
+	srv := httptest.NewServer(r)
+	t.Cleanup(srv.Close)
+
+	c := apiclient.New(apiclient.Config{BaseURL: srv.URL, Token: "t", Version: "1.2.3"})
+	jobs, err := c.GetWorkflowJobsV3(ctx, workflowID)
+	assert.NilError(t, err)
+	assert.Assert(t, is.Len(jobs, 2))
+	for _, j := range jobs {
+		assert.Check(t, is.Equal(j.Type, apiclient.JobTypeApproval), j.Name)
+		assert.Check(t, is.Equal(j.Phase, apiclient.PhaseHeld), j.Name)
+		assert.Check(t, is.Equal(j.Status(), "⏸️ on hold"), j.Name)
+	}
+}
