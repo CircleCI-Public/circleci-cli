@@ -1,0 +1,4 @@
+error: No branch to run for "gh/myorg/oauthrepo": this directory is not a checkout of it on a branch.
+
+Suggestions:
+  • Pass --branch <name> or --tag <name>

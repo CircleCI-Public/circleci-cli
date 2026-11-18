@@ -1,13 +1,13 @@
 Usage:  circleci pipeline run [flags]
 
 Flags:
-  -b, --branch string          Branch for config fetch and checkout (mutually exclusive with --tag)
-      --definition string      Pipeline definition name to run (mutually exclusive with --definition-id)
-      --definition-id string   Pipeline definition UUID to run (prompted interactively if omitted)
+  -b, --branch string          Branch to run (defaults to the checkout's current branch)
+      --definition string      Pipeline definition name; needed when the project has several
+      --definition-id string   Pipeline definition UUID, instead of --definition
   -h, --help                   help for run
       --jq string              Process values from the response using jq syntax
       --json                   Output as JSON
       --param stringArray      Pipeline parameter as key=value (repeatable)
       --project string         Project slug (e.g. gh/org/repo); defaults to git remote
-  -t, --tag string             Tag for config fetch and checkout (mutually exclusive with --branch)
+  -t, --tag string             Tag to run, instead of --branch
   

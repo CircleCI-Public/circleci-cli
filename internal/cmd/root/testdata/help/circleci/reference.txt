@@ -619,37 +619,36 @@ JSON fields: id, name, description, created_at, config_source.provider, config_s
 
 #### `circleci pipeline run [flags]`
 
-Trigger a new pipeline run
+Trigger a new run of a pipeline
 
-Trigger a pipeline run. In a terminal a missing definition or --branch/--tag
-is prompted for; in non-interactive mode both are optional.
+Trigger a run of a project's pipeline; works for OAuth, GitHub App and GitLab
+projects. Same as 'circleci run trigger'. A project with several pipelines
+needs --definition, which a terminal prompts for.
 
-A skipped pipeline (e.g. a [ci skip] commit message) exits 0 and prints why.
-
-JSON fields: id, state, number, created_at, triggered — or triggered, message when skipped.
+JSON fields: id, pipeline_id, project_id, created_at, branch, tag
 
 | Flag                     | Description                                                                       |
 | ------------------------ | --------------------------------------------------------------------------------- |
-| `-b, --branch string`    | Branch for config fetch and checkout (mutually exclusive with --tag)              |
-| `--definition string`    | Pipeline definition name to run (mutually exclusive with --definition-id)         |
-| `--definition-id string` | Pipeline definition UUID to run (prompted interactively if omitted)               |
+| `-b, --branch string`    | Branch to run (defaults to the checkout's current branch)                         |
+| `--definition string`    | Pipeline definition name; needed when the project has several                     |
+| `--definition-id string` | Pipeline definition UUID, instead of --definition                                 |
 | `--jq string`            | Process values from the response using jq syntax (see `circleci help formatting`) |
 | `--json`                 | Output as JSON                                                                    |
 | `--param stringArray`    | Pipeline parameter as key=value (repeatable)                                      |
 | `--project string`       | Project slug (e.g. gh/org/repo); defaults to git remote                           |
-| `-t, --tag string`       | Tag for config fetch and checkout (mutually exclusive with --branch)              |
+| `-t, --tag string`       | Tag to run, instead of --branch                                                   |
 
 
 **Examples:**
 
-- Trigger a pipeline interactively — pick definition and branch from menus: 
-  `circleci pipeline run --project gh/myorg/myrepo`
-- Trigger a definition, selected by name, on a branch non-interactively: 
+- Trigger a run on the current branch, picking the pipeline from a menu: 
+  `circleci pipeline run`
+- Trigger a pipeline, selected by name, on a branch: 
   `circleci pipeline run --project gh/myorg/myrepo --definition main-pipeline --branch main`
 - Trigger on a tag with parameters: 
   `circleci pipeline run --project gh/myorg/myrepo --definition-id 2338d0ae-5541-4bbf-88a2-55e9f7281f80 --tag v1.2.3 --param deploy_env=staging`
 - Output as JSON for scripting: 
-  `circleci pipeline run --project gh/myorg/myrepo --definition-id 2338d0ae-5541-4bbf-88a2-55e9f7281f80 --branch main --json`
+  `circleci pipeline run --definition main-pipeline --json`
 
 ### `circleci preflight <command>`
 
@@ -961,37 +960,36 @@ Use --current-branch or --branch/-b to filter runs to a specific branch.
 
 #### `circleci run trigger [flags]`
 
-Trigger a new run
+Trigger a new run of a pipeline
 
-Trigger a new run for a CircleCI project.
+Trigger a run of a project's pipeline; works for OAuth, GitHub App and GitLab
+projects. Same as 'circleci pipeline run'. A project with several pipelines
+needs --definition, which a terminal prompts for.
 
-The project and branch are inferred from the current git repository
-unless overridden with --project or --branch.
+JSON fields: id, pipeline_id, project_id, created_at, branch, tag
 
-Pass run parameters with --parameter. Values are parsed as
-booleans (true/false), integers, or strings.
-
-JSON fields: id, number, state, created_at
-
-| Flag                      | Description                                                                       |
-| ------------------------- | --------------------------------------------------------------------------------- |
-| `-b, --branch string`     | Branch to trigger (defaults to current branch)                                    |
-| `--jq string`             | Process values from the response using jq syntax (see `circleci help formatting`) |
-| `--json`                  | Output as JSON                                                                    |
-| `--parameter stringArray` | Run parameter as key=value (repeatable)                                           |
-| `--project string`        | Project slug (e.g. gh/org/repo); defaults to git remote                           |
+| Flag                     | Description                                                                       |
+| ------------------------ | --------------------------------------------------------------------------------- |
+| `-b, --branch string`    | Branch to run (defaults to the checkout's current branch)                         |
+| `--definition string`    | Pipeline definition name; needed when the project has several                     |
+| `--definition-id string` | Pipeline definition UUID, instead of --definition                                 |
+| `--jq string`            | Process values from the response using jq syntax (see `circleci help formatting`) |
+| `--json`                 | Output as JSON                                                                    |
+| `--param stringArray`    | Pipeline parameter as key=value (repeatable)                                      |
+| `--project string`       | Project slug (e.g. gh/org/repo); defaults to git remote                           |
+| `-t, --tag string`       | Tag to run, instead of --branch                                                   |
 
 
 **Examples:**
 
 - Trigger a run on the current branch: 
   `circleci run trigger`
-- Trigger on a specific branch: 
-  `circleci run trigger --branch main`
-- Trigger with run parameters: 
-  `circleci run trigger --parameter deploy_env=staging --parameter run_e2e=true`
-- Output the triggered run as JSON: 
-  `circleci run trigger --json`
+- Trigger a named pipeline on a branch: 
+  `circleci run trigger --definition main-pipeline --branch main`
+- Trigger with pipeline parameters: 
+  `circleci run trigger --param deploy_env=staging --param run_e2e=true`
+- Trigger on a tag and output the run as JSON: 
+  `circleci run trigger --project gh/myorg/myrepo --tag v1.2.3 --json`
 
 #### `circleci run watch [<run-id>] [flags]`
 

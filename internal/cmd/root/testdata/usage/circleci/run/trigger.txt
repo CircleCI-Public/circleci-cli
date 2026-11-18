@@ -1,10 +1,13 @@
 Usage:  circleci run trigger [flags]
 
 Flags:
-  -b, --branch string           Branch to trigger (defaults to current branch)
-  -h, --help                    help for trigger
-      --jq string               Process values from the response using jq syntax
-      --json                    Output as JSON
-      --parameter stringArray   Run parameter as key=value (repeatable)
-      --project string          Project slug (e.g. gh/org/repo); defaults to git remote
+  -b, --branch string          Branch to run (defaults to the checkout's current branch)
+      --definition string      Pipeline definition name; needed when the project has several
+      --definition-id string   Pipeline definition UUID, instead of --definition
+  -h, --help                   help for trigger
+      --jq string              Process values from the response using jq syntax
+      --json                   Output as JSON
+      --param stringArray      Pipeline parameter as key=value (repeatable)
+      --project string         Project slug (e.g. gh/org/repo); defaults to git remote
+  -t, --tag string             Tag to run, instead of --branch
   

@@ -13,9 +13,9 @@ Manage the pipeline definitions a run executes
 
 ## Targeted Commands
 
-| Command | Description                |
-| ------- | -------------------------- |
-| `run`   | Trigger a new pipeline run |
+| Command | Description                     |
+| ------- | ------------------------------- |
+| `run`   | Trigger a new run of a pipeline |
 
 ## Flags
 

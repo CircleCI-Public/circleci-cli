@@ -23,52 +23,42 @@
 package run
 
 import (
-	"context"
-
 	"github.com/MakeNowJust/heredoc"
 	"github.com/spf13/cobra"
 
-	clierrors "github.com/CircleCI-Public/circleci-cli/clikit/errors"
-	"github.com/CircleCI-Public/circleci-cli/clikit/iostream"
-	"github.com/CircleCI-Public/circleci-cli/internal/apiclient"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmdutil"
-	"github.com/CircleCI-Public/circleci-cli/internal/gitremote"
+	"github.com/CircleCI-Public/circleci-cli/internal/run"
 )
 
 func newTriggerCmd() *cobra.Command {
 	var (
-		projectSlug string
-		branch      string
-		params      []string
-		jsonOut     bool
+		opts    run.TriggerOptions
+		legacy  []string
+		jsonOut bool
 	)
 
 	cmd := &cobra.Command{
 		Use:   "trigger",
-		Short: "Trigger a new run",
+		Short: "Trigger a new run of a pipeline",
 		Long: heredoc.Doc(`
-			Trigger a new run for a CircleCI project.
+			Trigger a run of a project's pipeline; works for OAuth, GitHub App and GitLab
+			projects. Same as 'circleci pipeline run'. A project with several pipelines
+			needs --definition, which a terminal prompts for.
 
-			The project and branch are inferred from the current git repository
-			unless overridden with --project or --branch.
-
-			Pass run parameters with --parameter. Values are parsed as
-			booleans (true/false), integers, or strings.
-
-			JSON fields: id, number, state, created_at
+			JSON fields: ` + run.TriggerJSONFields + `
 		`),
 		Example: heredoc.Doc(`
 			# Trigger a run on the current branch
 			$ circleci run trigger
 
-			# Trigger on a specific branch
-			$ circleci run trigger --branch main
+			# Trigger a named pipeline on a branch
+			$ circleci run trigger --definition main-pipeline --branch main
 
-			# Trigger with run parameters
-			$ circleci run trigger --parameter deploy_env=staging --parameter run_e2e=true
+			# Trigger with pipeline parameters
+			$ circleci run trigger --param deploy_env=staging --param run_e2e=true
 
-			# Output the triggered run as JSON
-			$ circleci run trigger --json
+			# Trigger on a tag and output the run as JSON
+			$ circleci run trigger --project gh/myorg/myrepo --tag v1.2.3 --json
 		`),
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -77,64 +67,32 @@ func newTriggerCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			return runTrigger(ctx, client, projectSlug, branch, params, jsonOut)
+			opts.Params = append(opts.Params, legacy...)
+			res, err := run.Trigger(ctx, client, opts)
+			if err != nil {
+				return err
+			}
+			return run.PrintTriggered(ctx, res, jsonOut)
 		},
 	}
 
-	cmd.Flags().StringVar(&projectSlug, "project", "", "Project slug (e.g. gh/org/repo); defaults to git remote")
-	cmd.Flags().StringVarP(&branch, "branch", "b", "", "Branch to trigger (defaults to current branch)")
-	cmd.Flags().StringArrayVar(&params, "parameter", nil, "Run parameter as key=value (repeatable)")
+	AddTriggerFlags(cmd, &opts)
+	cmd.Flags().StringArrayVar(&legacy, "parameter", nil, "Pipeline parameter as key=value (repeatable)")
+	_ = cmd.Flags().MarkDeprecated("parameter", "use --param instead")
 	cmdutil.AddJSONFlag(cmd, &jsonOut)
 	cmdutil.AddJQFlag(cmd)
 
 	return cmd
 }
 
-type triggerJSONOutput struct {
-	ID        string `json:"id"`
-	Number    int64  `json:"number"`
-	State     string `json:"state"`
-	CreatedAt string `json:"created_at"`
-}
-
-func runTrigger(ctx context.Context, client *apiclient.Client, projectSlug, branch string, params []string, jsonOut bool) error {
-	effectiveBranch := branch
-	if projectSlug == "" || effectiveBranch == "" {
-		info, err := gitremote.Detect()
-		if err != nil {
-			return cmdutil.GitDetectErr(err, "Or specify the project and branch explicitly")
-		}
-		if projectSlug == "" {
-			projectSlug = info.Slug
-		}
-		if effectiveBranch == "" {
-			effectiveBranch = info.Branch
-		}
-	}
-
-	parsedParams, err := cmdutil.ParseParams(params)
-	if err != nil {
-		return clierrors.New("args.invalid_parameter", "Invalid run parameter",
-			err.Error()).
-			WithSuggestions("Parameters must be in key=value form, e.g. --parameter deploy_env=staging").
-			WithExitCode(clierrors.ExitBadArguments)
-	}
-
-	resp, err := client.TriggerPipeline(ctx, projectSlug, effectiveBranch, parsedParams)
-	if err != nil {
-		return apiErr(err, projectSlug)
-	}
-
-	if jsonOut {
-		out := triggerJSONOutput{
-			ID:        resp.ID,
-			Number:    resp.Number,
-			State:     resp.State,
-			CreatedAt: cmdutil.JSONTime(resp.CreatedAt),
-		}
-		return iostream.PrintJSON(ctx, out)
-	}
-
-	iostream.Printf(ctx, "Triggered run #%d (%s) on %s\n", resp.Number, resp.ID, effectiveBranch)
-	return nil
+// AddTriggerFlags registers the flags shared by `circleci run trigger` and
+// `circleci pipeline run`, so the two commands accept the same input.
+func AddTriggerFlags(cmd *cobra.Command, opts *run.TriggerOptions) {
+	f := cmd.Flags()
+	f.StringVar(&opts.ProjectSlug, "project", "", "Project slug (e.g. gh/org/repo); defaults to git remote")
+	f.StringVar(&opts.Definition, "definition", "", "Pipeline definition name; needed when the project has several")
+	f.StringVar(&opts.DefinitionID, "definition-id", "", "Pipeline definition UUID, instead of --definition")
+	f.StringVarP(&opts.Branch, "branch", "b", "", "Branch to run (defaults to the checkout's current branch)")
+	f.StringVarP(&opts.Tag, "tag", "t", "", "Tag to run, instead of --branch")
+	f.StringArrayVar(&opts.Params, "param", nil, "Pipeline parameter as key=value (repeatable)")
 }
