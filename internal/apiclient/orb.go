@@ -369,6 +369,7 @@ func (c *Client) CreateOrbPackage(ctx context.Context, req CreateOrbPackageReque
 func (c *Client) ValidateOrbYAML(ctx context.Context, yaml, orgID string) (*OrbValidation, error) {
 	var env v3Entity[orbValidateWire]
 	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodPost, "/api/v3/orb/packages/validate",
+		httpcl.Idempotent(),
 		httpcl.Body(orbYAMLBody{YAML: yaml, OrgID: orgID}),
 		httpcl.JSONDecoder(&env),
 	))

@@ -285,7 +285,9 @@ func TestFeedback_ServerError(t *testing.T) {
 	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 	assert.Check(t, !strings.Contains(result.Stderr, "circleci feedback"), "stderr: %s", result.Stderr)
 
-	t.Run("retries before giving up", func(t *testing.T) {
-		assert.Check(t, cmp.Len(fake.AllRequests(), 4))
+	// The report may have been stored before the 500, so sending it again
+	// could file it twice.
+	t.Run("does not resend the report", func(t *testing.T) {
+		assert.Check(t, cmp.Len(fake.AllRequests(), 1))
 	})
 }

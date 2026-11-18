@@ -116,6 +116,7 @@ func (c *Client) SearchTestFlakes(ctx context.Context, projectID uuid.UUID, maxP
 
 		var resp v3List[testFlakeWire]
 		_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodPost, "/api/v3/test-flakes/search",
+			httpcl.Idempotent(),
 			httpcl.Body(body),
 			httpcl.JSONDecoder(&resp),
 		))

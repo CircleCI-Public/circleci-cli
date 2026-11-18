@@ -44,6 +44,7 @@ type Request struct {
 	query       url.Values
 	routeParams []any
 	noTimeout   bool
+	idempotent  bool
 }
 
 // NewRequest creates a request with functional options.
@@ -150,6 +151,14 @@ func BytesDecoder(resp *[]byte) func(*Request) {
 // cancels them.
 func NoTimeout() func(*Request) {
 	return func(r *Request) { r.noTimeout = true }
+}
+
+// Idempotent marks a request as safe to send more than once, so it is retried
+// like a GET even though its method is POST or PATCH. Use it for a request
+// that only reads, such as a validation or a search. Without it, those methods
+// are never resent once the server may have acted on them (see retryPolicy).
+func Idempotent() func(*Request) {
+	return func(r *Request) { r.idempotent = true }
 }
 
 // Header sets a single request header.

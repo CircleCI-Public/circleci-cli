@@ -60,6 +60,7 @@ func (c *Client) CreatePolicyBundle(ctx context.Context, ownerID, policyCtx stri
 		_, err = c.main.Call(ctx, httpcl.NewRequest(http.MethodPost, "/api/v2/owner/%s/context/%s/policy-bundle",
 			httpcl.RouteParams(ownerID, policyCtx),
 			httpcl.QueryParam("dry", "true"),
+			httpcl.Idempotent(), // a dry run only diffs
 			httpcl.Body(body),
 			httpcl.JSONDecoder(&out),
 		))
