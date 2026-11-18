@@ -29,13 +29,13 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
-	"net"
 	"net/http"
+	"net/http/httptrace"
 	"net/url"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/hashicorp/go-retryablehttp"
@@ -184,10 +184,7 @@ func (c *Client) Call(ctx context.Context, r Request) (status int, err error) {
 		ctx, cancel = context.WithTimeout(ctx, c.timeout)
 		defer cancel()
 	}
-	// retryPolicy only sees the request's context, so tell it here.
-	if r.idempotent || idempotentMethod(r.method) {
-		ctx = context.WithValue(ctx, replayableKey{}, true)
-	}
+	ctx, at := trackAttempts(ctx, r.idempotent || idempotentMethod(r.method))
 
 	req, err := retryablehttp.NewRequestWithContext(ctx, r.method, u.String(), bodyReader)
 	if err != nil {
@@ -218,7 +215,7 @@ func (c *Client) Call(ctx context.Context, r Request) (status int, err error) {
 
 	resp, err := c.http.Do(req)
 	if err != nil {
-		return 0, err
+		return 0, at.unanswered(err)
 	}
 	defer func() {
 		_, _ = io.Copy(io.Discard, resp.Body)
@@ -251,9 +248,40 @@ func (c *Client) Call(ctx context.Context, r Request) (status int, err error) {
 	}
 }
 
-// replayableKey marks the context of a request that is safe to send again
-// after an attempt whose outcome is unknown.
-type replayableKey struct{}
+// attempt is what retryPolicy and Call know about the latest attempt at a
+// request.
+type attempt struct {
+	// replayable is whether the request is safe to send more than once.
+	replayable bool
+	// wrote is whether any of the request was written to the server, so it
+	// may have arrived. Nothing can have arrived while it is false.
+	wrote atomic.Bool
+}
+
+type attemptKey struct{}
+
+// trackAttempts returns ctx carrying a new attempt for retryPolicy, which sees
+// only the request's context. retryablehttp sends every attempt with that same
+// context, so the attempt always describes the latest one.
+func trackAttempts(ctx context.Context, replayable bool) (context.Context, *attempt) {
+	at := &attempt{replayable: replayable}
+	ctx = context.WithValue(ctx, attemptKey{}, at)
+	ctx = httptrace.WithClientTrace(ctx, &httptrace.ClientTrace{
+		GetConn:      func(string) { at.wrote.Store(false) }, // a new attempt starts
+		WroteHeaders: func() { at.wrote.Store(true) },
+	})
+	return ctx, at
+}
+
+// unanswered returns err, from a request that got no response, as an
+// UnknownOutcomeError when the server may have acted on it: the request is not
+// safe to repeat, and some of it was written.
+func (a *attempt) unanswered(err error) error {
+	if a.replayable || !a.wrote.Load() {
+		return err
+	}
+	return &UnknownOutcomeError{Err: err}
+}
 
 // idempotentMethod reports whether sending a request with this method twice
 // has the same effect as sending it once (RFC 9110, section 9.2.2).
@@ -266,26 +294,24 @@ func idempotentMethod(method string) bool {
 	return false
 }
 
-// retryPolicy decides whether a failed attempt is sent again. A replayable
-// request gets retryablehttp's default policy: connection errors, 429 and 5xx.
+// retryPolicy decides whether a failed attempt is sent again. retryablehttp's
+// default policy (connection errors, 429 and 5xx) applies to a request that is
+// safe to repeat, and to an attempt that failed before any of the request was
+// written, such as a refused connection or a failed TLS handshake.
 //
-// Any other request, such as a POST that triggers a pipeline, may already have
-// taken effect when the connection drops or a 5xx comes back, so sending it
-// again could do the same thing twice. It is retried only when the server
-// cannot have acted on it: the connection was never made, or the server
-// refused the request with 429.
+// Otherwise the server may already have acted on the request when the
+// connection drops or a 5xx comes back, and for a request such as a POST that
+// triggers a pipeline, sending it again could do the same thing twice. It is
+// retried only when the server refused it with 429.
 func retryPolicy(ctx context.Context, resp *http.Response, err error) (bool, error) {
-	if replayable, _ := ctx.Value(replayableKey{}).(bool); replayable {
+	at, _ := ctx.Value(attemptKey{}).(*attempt)
+	if at != nil && (at.replayable || (err != nil && !at.wrote.Load())) {
 		return retryablehttp.DefaultRetryPolicy(ctx, resp, err)
 	}
 	if ctx.Err() != nil {
 		return false, ctx.Err()
 	}
-	if err != nil {
-		opErr, ok := errors.AsType[*net.OpError](err)
-		return ok && opErr.Op == "dial", nil
-	}
-	return resp.StatusCode == http.StatusTooManyRequests, nil
+	return err == nil && resp.StatusCode == http.StatusTooManyRequests, nil
 }
 
 func UserAgent(goos, goarch, version, agent string) string {

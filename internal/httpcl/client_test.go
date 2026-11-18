@@ -27,6 +27,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -518,4 +519,163 @@ func (rt *refuseFirstDial) RoundTrip(r *http.Request) (*http.Response, error) {
 		return nil, &net.OpError{Op: "dial", Net: "tcp", Err: errors.New("connect: connection refused")}
 	}
 	return rt.next.RoundTrip(r)
+}
+
+// TestClient_Call_OutcomeUnknown checks which failures are reported as an
+// UnknownOutcomeError: a request that is not safe to repeat, sent but never
+// answered, which the server may or may not have acted on.
+func TestClient_Call_OutcomeUnknown(t *testing.T) {
+	drop := func(w http.ResponseWriter, r *http.Request) {
+		_, _ = io.Copy(io.Discard, r.Body)
+		panic(http.ErrAbortHandler)
+	}
+	hang := func(w http.ResponseWriter, r *http.Request) {
+		// Reading the body to the end is what lets the server notice the
+		// client hang up, which ends r.Context().
+		_, _ = io.Copy(io.Discard, r.Body)
+		<-r.Context().Done()
+	}
+	badGateway := func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusBadGateway)
+	}
+
+	tests := []struct {
+		name      string
+		method    string
+		opts      []func(*httpcl.Request)
+		handler   http.HandlerFunc
+		transport http.RoundTripper
+		want      bool
+		wantErrIs error
+	}{
+		{
+			name:    "POST whose connection drops",
+			method:  http.MethodPost,
+			handler: drop,
+			want:    true,
+		},
+		{
+			name:    "PATCH whose connection drops",
+			method:  http.MethodPatch,
+			handler: drop,
+			want:    true,
+		},
+		{
+			name:      "POST that gets no response in time",
+			method:    http.MethodPost,
+			handler:   hang,
+			want:      true,
+			wantErrIs: context.DeadlineExceeded,
+		},
+		{
+			name:      "POST whose connection is refused",
+			method:    http.MethodPost,
+			handler:   drop,
+			transport: &refuseFirstDial{next: http.DefaultTransport},
+			want:      false,
+		},
+		{
+			name:    "POST answered with a 502",
+			method:  http.MethodPost,
+			handler: badGateway,
+			want:    false,
+		},
+		{
+			name:    "POST marked idempotent whose connection drops",
+			method:  http.MethodPost,
+			opts:    []func(*httpcl.Request){httpcl.Idempotent()},
+			handler: drop,
+			want:    false,
+		},
+		{
+			name:    "GET whose connection drops",
+			method:  http.MethodGet,
+			handler: drop,
+			want:    false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			srv := httptest.NewServer(tt.handler)
+			t.Cleanup(srv.Close)
+
+			c := httpcl.New(httpcl.Config{
+				BaseURL:        srv.URL,
+				Timeout:        100 * time.Millisecond,
+				DisableRetries: true,
+				Transport:      tt.transport,
+			})
+			opts := append([]func(*httpcl.Request){httpcl.Body(map[string]string{"branch": "main"})}, tt.opts...)
+			_, err := c.Call(iostream.Testing(context.Background()), httpcl.NewRequest(tt.method, "/pipeline", opts...))
+
+			assert.Assert(t, err != nil)
+			assert.Check(t, cmp.Equal(httpcl.OutcomeUnknown(err), tt.want), "err: %v", err)
+			if tt.wantErrIs != nil {
+				assert.Check(t, cmp.ErrorIs(err, tt.wantErrIs))
+			}
+		})
+	}
+}
+
+// TestClient_Call_OutcomeKnownWhenNothingSent checks that a POST which fails
+// before the request is written is not reported as an unknown outcome, since
+// the server cannot have acted on it.
+func TestClient_Call_OutcomeKnownWhenNothingSent(t *testing.T) {
+	post := func(c *httpcl.Client) error {
+		_, err := c.Call(iostream.Testing(context.Background()), httpcl.NewRequest(http.MethodPost, "/pipeline",
+			httpcl.Body(map[string]string{"branch": "main"}),
+		))
+		return err
+	}
+
+	t.Run("the server's certificate is not trusted", func(t *testing.T) {
+		var reached atomic.Int32
+		srv := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			reached.Add(1)
+		}))
+		srv.Config.ErrorLog = log.New(io.Discard, "", 0) // the rejected handshake is expected
+		srv.StartTLS()
+		t.Cleanup(srv.Close)
+
+		// The client's default transport does not trust the test server's certificate.
+		err := post(httpcl.New(httpcl.Config{BaseURL: srv.URL}))
+
+		assert.Assert(t, err != nil)
+		assert.Check(t, !httpcl.OutcomeUnknown(err), "err: %v", err)
+		assert.Check(t, cmp.Equal(reached.Load(), int32(0)))
+	})
+
+	t.Run("the TLS handshake outlasts the timeout", func(t *testing.T) {
+		// A listener that accepts connections and never answers, so the
+		// handshake stalls before any of the request is written.
+		ln, err := net.Listen("tcp", "127.0.0.1:0")
+		assert.NilError(t, err)
+		t.Cleanup(func() { _ = ln.Close() })
+		go func() {
+			var conns []net.Conn
+			defer func() {
+				for _, conn := range conns {
+					_ = conn.Close()
+				}
+			}()
+			for {
+				conn, err := ln.Accept()
+				if err != nil {
+					return
+				}
+				conns = append(conns, conn) // held open, never answered
+			}
+		}()
+
+		err = post(httpcl.New(httpcl.Config{
+			BaseURL:        "https://" + ln.Addr().String(),
+			Timeout:        100 * time.Millisecond,
+			DisableRetries: true,
+		}))
+
+		assert.Assert(t, err != nil)
+		assert.Check(t, !httpcl.OutcomeUnknown(err), "err: %v", err)
+		assert.Check(t, cmp.ErrorIs(err, context.DeadlineExceeded))
+	})
 }

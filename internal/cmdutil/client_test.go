@@ -24,6 +24,7 @@ package cmdutil
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 	"slices"
 	"testing"
@@ -124,6 +125,18 @@ func TestAPIErr(t *testing.T) {
 		assert.Check(t, cmp.Equal(err.Code, "api.error"))
 		assert.Check(t, cmp.Equal(err.Message, "dial tcp: connection refused"))
 		assert.Check(t, !slices.Contains(err.Suggestions, FeedbackSuggestion))
+	})
+
+	t.Run("request sent but never answered says it may have taken effect", func(t *testing.T) {
+		cause := &httpcl.UnknownOutcomeError{Err: errors.New(`Post "https://circleci.com/api/v2/project/gh/o/r/pipeline": EOF`)}
+		err := APIErr(fmt.Errorf("trigger pipeline: %w", cause), "gh/o/r", "project.not_found", "No project found for %q")
+		assert.Check(t, cmp.Equal(err.Code, "api.outcome_unknown"))
+		assert.Check(t, cmp.Equal(err.Title, "Request outcome unknown"))
+		assert.Check(t, cmp.Equal(err.Message,
+			`trigger pipeline: Post "https://circleci.com/api/v2/project/gh/o/r/pipeline": EOF`+
+				"\nNo response arrived after the request was sent, so CircleCI may already have acted on it."))
+		assert.Check(t, cmp.DeepEqual(err.Suggestions, []string{"Check whether the request took effect before you send it again"}))
+		assert.Check(t, cmp.Equal(err.ExitCode, clierrors.ExitAPIError))
 	})
 
 	t.Run("5xx suggests sending feedback", func(t *testing.T) {

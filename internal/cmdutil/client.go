@@ -290,6 +290,23 @@ func APIErr(err error, subject, notFoundCode, notFoundMsg string, notFoundSugges
 		}
 		return cliErr
 	}
-	return clierrors.New("api.error", "CircleCI API error", err.Error()).
+	cliErr := clierrors.New("api.error", "CircleCI API error", err.Error()).
 		WithExitCode(clierrors.ExitAPIError)
+	return AddUnknownOutcomeHint(cliErr, err)
+}
+
+// AddUnknownOutcomeHint explains e when err is a request that was sent but never
+// answered (see httpcl.OutcomeUnknown): CircleCI may already have acted on it,
+// so sending it again blindly could, say, start a second pipeline. It gets its
+// own code so scripts and agents can tell this case apart. Otherwise it returns
+// e unchanged.
+func AddUnknownOutcomeHint(e *clierrors.CLIError, err error) *clierrors.CLIError {
+	if !httpcl.OutcomeUnknown(err) {
+		return e
+	}
+	cp := *e
+	cp.Code = "api.outcome_unknown"
+	cp.Title = "Request outcome unknown"
+	cp.Message += "\nNo response arrived after the request was sent, so CircleCI may already have acted on it."
+	return cp.WithSuggestions("Check whether the request took effect before you send it again")
 }
