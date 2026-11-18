@@ -62,6 +62,7 @@ func (c *Client) ConfigPrompt(ctx context.Context, req ConfigPromptRequest) (*Co
 		} `json:"attributes"`
 	}]
 	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodPost, "/api/v3/configs/generate-prompt",
+		httpcl.Idempotent(),
 		httpcl.Body(req),
 		httpcl.JSONDecoder(&resp),
 	))

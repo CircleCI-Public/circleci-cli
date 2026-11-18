@@ -29,8 +29,10 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"strings"
@@ -56,8 +58,10 @@ type Config struct {
 	UserAgent string
 	// Timeout is the per-request timeout. Defaults to 30s.
 	Timeout time.Duration
-	// DisableRetries disables automatic retries. By default requests are
-	// retried up to 3 times with exponential backoff.
+	// DisableRetries disables automatic retries. By default a failed request
+	// is retried up to 3 times with exponential backoff, subject to
+	// retryPolicy: a POST or PATCH is retried only when the server cannot have
+	// acted on it.
 	DisableRetries bool
 	// Transport overrides the HTTP transport (useful for testing).
 	Transport http.RoundTripper
@@ -87,6 +91,7 @@ func New(cfg Config) *Client {
 
 	rc := retryablehttp.NewClient()
 	rc.RetryMax = 3
+	rc.CheckRetry = retryPolicy
 	rc.ErrorHandler = retryablehttp.PassthroughErrorHandler
 	if cfg.DisableRetries {
 		rc.RetryMax = 0
@@ -179,6 +184,10 @@ func (c *Client) Call(ctx context.Context, r Request) (status int, err error) {
 		ctx, cancel = context.WithTimeout(ctx, c.timeout)
 		defer cancel()
 	}
+	// retryPolicy only sees the request's context, so tell it here.
+	if r.idempotent || idempotentMethod(r.method) {
+		ctx = context.WithValue(ctx, replayableKey{}, true)
+	}
 
 	req, err := retryablehttp.NewRequestWithContext(ctx, r.method, u.String(), bodyReader)
 	if err != nil {
@@ -240,6 +249,43 @@ func (c *Client) Call(ctx context.Context, r Request) (status int, err error) {
 		StatusCode: status,
 		Body:       body,
 	}
+}
+
+// replayableKey marks the context of a request that is safe to send again
+// after an attempt whose outcome is unknown.
+type replayableKey struct{}
+
+// idempotentMethod reports whether sending a request with this method twice
+// has the same effect as sending it once (RFC 9110, section 9.2.2).
+func idempotentMethod(method string) bool {
+	switch method {
+	case http.MethodGet, http.MethodHead, http.MethodOptions, http.MethodTrace,
+		http.MethodPut, http.MethodDelete:
+		return true
+	}
+	return false
+}
+
+// retryPolicy decides whether a failed attempt is sent again. A replayable
+// request gets retryablehttp's default policy: connection errors, 429 and 5xx.
+//
+// Any other request, such as a POST that triggers a pipeline, may already have
+// taken effect when the connection drops or a 5xx comes back, so sending it
+// again could do the same thing twice. It is retried only when the server
+// cannot have acted on it: the connection was never made, or the server
+// refused the request with 429.
+func retryPolicy(ctx context.Context, resp *http.Response, err error) (bool, error) {
+	if replayable, _ := ctx.Value(replayableKey{}).(bool); replayable {
+		return retryablehttp.DefaultRetryPolicy(ctx, resp, err)
+	}
+	if ctx.Err() != nil {
+		return false, ctx.Err()
+	}
+	if err != nil {
+		opErr, ok := errors.AsType[*net.OpError](err)
+		return ok && opErr.Op == "dial", nil
+	}
+	return resp.StatusCode == http.StatusTooManyRequests, nil
 }
 
 func UserAgent(goos, goarch, version, agent string) string {

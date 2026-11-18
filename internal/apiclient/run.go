@@ -311,6 +311,7 @@ func (c *Client) SearchRunsV3(ctx context.Context, params RunSearchParams) ([]Ru
 		}
 		var resp v3List[runWire]
 		_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodPost, "/api/v3/runs/search",
+			httpcl.Idempotent(),
 			httpcl.Body(body),
 			httpcl.JSONDecoder(&resp),
 		))

@@ -26,10 +26,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -354,4 +357,165 @@ func TestClient_Call_RouteParamEscaping(t *testing.T) {
 			assert.Check(t, cmp.Equal(actual, tt.expectedPath))
 		})
 	}
+}
+
+// TestClient_Call_Retries checks which failed attempts are sent again. A
+// request that may already have taken effect on the server, such as a POST that
+// triggers a pipeline, must not be replayed when its outcome is unknown, or one
+// call could do the thing twice.
+func TestClient_Call_Retries(t *testing.T) {
+	// dropConnection, as the first attempt's outcome, closes the connection
+	// after the server has read the request but before it answers.
+	const dropConnection = 0
+
+	tests := []struct {
+		name         string
+		method       string
+		opts         []func(*httpcl.Request)
+		first        int
+		wantAttempts int32
+		wantStatus   int
+		wantErr      bool
+	}{
+		{
+			name:         "POST is not resent when the connection drops",
+			method:       http.MethodPost,
+			first:        dropConnection,
+			wantAttempts: 1,
+			wantErr:      true,
+		},
+		{
+			name:         "PATCH is not resent when the connection drops",
+			method:       http.MethodPatch,
+			first:        dropConnection,
+			wantAttempts: 1,
+			wantErr:      true,
+		},
+		{
+			name:         "POST is not resent after a 502",
+			method:       http.MethodPost,
+			first:        http.StatusBadGateway,
+			wantAttempts: 1,
+			wantStatus:   http.StatusBadGateway,
+			wantErr:      true,
+		},
+		{
+			name:         "POST is not resent after a 503",
+			method:       http.MethodPost,
+			first:        http.StatusServiceUnavailable,
+			wantAttempts: 1,
+			wantStatus:   http.StatusServiceUnavailable,
+			wantErr:      true,
+		},
+		{
+			name:         "POST is resent after a 429",
+			method:       http.MethodPost,
+			first:        http.StatusTooManyRequests,
+			wantAttempts: 2,
+			wantStatus:   http.StatusCreated,
+		},
+		{
+			name:         "POST marked idempotent is resent when the connection drops",
+			method:       http.MethodPost,
+			opts:         []func(*httpcl.Request){httpcl.Idempotent()},
+			first:        dropConnection,
+			wantAttempts: 2,
+			wantStatus:   http.StatusCreated,
+		},
+		{
+			name:         "POST marked idempotent is resent after a 502",
+			method:       http.MethodPost,
+			opts:         []func(*httpcl.Request){httpcl.Idempotent()},
+			first:        http.StatusBadGateway,
+			wantAttempts: 2,
+			wantStatus:   http.StatusCreated,
+		},
+		{
+			name:         "GET is resent when the connection drops",
+			method:       http.MethodGet,
+			first:        dropConnection,
+			wantAttempts: 2,
+			wantStatus:   http.StatusCreated,
+		},
+		{
+			name:         "PUT is resent after a 502",
+			method:       http.MethodPut,
+			first:        http.StatusBadGateway,
+			wantAttempts: 2,
+			wantStatus:   http.StatusCreated,
+		},
+		{
+			name:         "DELETE is resent when the connection drops",
+			method:       http.MethodDelete,
+			first:        dropConnection,
+			wantAttempts: 2,
+			wantStatus:   http.StatusCreated,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var attempts atomic.Int32
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				// Read the whole request first, as a server acting on it would.
+				_, _ = io.Copy(io.Discard, r.Body)
+				if attempts.Add(1) > 1 {
+					w.WriteHeader(http.StatusCreated)
+					return
+				}
+				if tt.first == dropConnection {
+					panic(http.ErrAbortHandler)
+				}
+				w.WriteHeader(tt.first)
+			}))
+			t.Cleanup(srv.Close)
+
+			c := httpcl.New(httpcl.Config{BaseURL: srv.URL})
+			opts := append([]func(*httpcl.Request){httpcl.Body(map[string]string{"branch": "main"})}, tt.opts...)
+			status, err := c.Call(iostream.Testing(context.Background()), httpcl.NewRequest(tt.method, "/pipeline", opts...))
+
+			assert.Check(t, cmp.Equal(attempts.Load(), tt.wantAttempts))
+			assert.Check(t, cmp.Equal(status, tt.wantStatus))
+			assert.Check(t, cmp.Equal(err != nil, tt.wantErr), "err: %v", err)
+		})
+	}
+}
+
+// TestClient_Call_RetriesUnmadeConnection checks that a POST is still retried
+// when the connection could not be opened, since the server never saw it.
+func TestClient_Call_RetriesUnmadeConnection(t *testing.T) {
+	var reached atomic.Int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		reached.Add(1)
+		w.WriteHeader(http.StatusCreated)
+	}))
+	t.Cleanup(srv.Close)
+
+	rt := &refuseFirstDial{next: http.DefaultTransport}
+	c := httpcl.New(httpcl.Config{BaseURL: srv.URL, Transport: rt})
+	status, err := c.Call(iostream.Testing(context.Background()), httpcl.NewRequest(http.MethodPost, "/pipeline",
+		httpcl.Body(map[string]string{"branch": "main"}),
+	))
+
+	assert.Check(t, err)
+	assert.Check(t, cmp.Equal(status, http.StatusCreated))
+	assert.Check(t, cmp.Equal(rt.attempts.Load(), int32(2)))
+	assert.Check(t, cmp.Equal(reached.Load(), int32(1)))
+}
+
+// refuseFirstDial fails the first round trip the way a refused connection
+// does, and passes later ones to next.
+type refuseFirstDial struct {
+	attempts atomic.Int32
+	next     http.RoundTripper
+}
+
+func (rt *refuseFirstDial) RoundTrip(r *http.Request) (*http.Response, error) {
+	if rt.attempts.Add(1) == 1 {
+		if r.Body != nil {
+			_ = r.Body.Close()
+		}
+		return nil, &net.OpError{Op: "dial", Net: "tcp", Err: errors.New("connect: connection refused")}
+	}
+	return rt.next.RoundTrip(r)
 }

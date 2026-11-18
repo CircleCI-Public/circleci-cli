@@ -24,10 +24,13 @@ package acceptance_test
 
 import (
 	"context"
+	"io"
+	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -179,6 +182,40 @@ func TestAPI_RawBody_DefaultsToPOST(t *testing.T) {
 	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
 
 	assert.Equal(t, fake.LastRequest().Method, "POST")
+}
+
+// A POST whose response is lost may still have taken effect, so the CLI must
+// not send it again: for a pipeline trigger, that would start a second
+// pipeline.
+func TestAPI_Post_NotResentWhenResponseLost(t *testing.T) {
+	var posts atomic.Int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = io.Copy(io.Discard, r.Body)
+		if posts.Add(1) == 1 {
+			panic(http.ErrAbortHandler) // close the connection without answering
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusCreated)
+		_, _ = w.Write([]byte(`{"number":2}`))
+	}))
+	t.Cleanup(srv.Close)
+
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = srv.URL
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"api", "api/v2/project/gh/example/demo/pipeline", "-X", "POST", "-f", "branch=main"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Check(t, cmp.Equal(posts.Load(), int32(1)), "the POST must be sent exactly once")
+	assert.Check(t, cmp.Equal(result.ExitCode, 4)) // ExitAPIError
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	stderr := strings.ReplaceAll(result.Stderr, srv.URL, "<SERVER>")
+	assert.Check(t, golden.String(stderr, t.Name()+".stderr.txt"))
 }
 
 func TestAPI_RawBody_FromFile(t *testing.T) {

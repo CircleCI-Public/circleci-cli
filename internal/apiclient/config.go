@@ -132,6 +132,7 @@ func (c *Client) Compile(ctx context.Context, in CompileInput) (*CompileResult, 
 
 	var resp compileV3Response
 	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodPost, "/api/v3/configs/compile",
+		httpcl.Idempotent(),
 		httpcl.Body(req),
 		httpcl.JSONDecoder(&resp),
 	))
