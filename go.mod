@@ -6,7 +6,7 @@ require (
 	charm.land/bubbles/v2 v2.2.1
 	charm.land/bubbletea/v2 v2.0.10
 	charm.land/glamour/v2 v2.0.1
-	charm.land/lipgloss/v2 v2.0.7-0.20260911150816-6a419c6543d3
+	charm.land/lipgloss/v2 v2.1.1
 	github.com/CircleCI-Public/chunk-cli v0.7.178
 	github.com/CircleCI-Public/circle-policy-agent v0.0.779
 	github.com/CircleCI-Public/circleci-cli/clikit v0.0.0
@@ -140,6 +140,6 @@ require (
 	sigs.k8s.io/yaml v1.4.0 // indirect
 )
 
-replace charm.land/glamour/v2 => github.com/pete-woods/glamour/v2 v2.0.0-20260911153037-b9898ea48492
+replace charm.land/glamour/v2 => github.com/pete-woods/glamour/v2 v2.0.0-20261116122219-a441dd20418b
 
 replace github.com/CircleCI-Public/circleci-cli/clikit => ./clikit
