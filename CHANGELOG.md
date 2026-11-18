@@ -6,6 +6,30 @@ is added by its release PR (see [RELEASE.md](RELEASE.md)) and becomes its GitHub
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.16.0] - 2026-11-18
+
+### What's Changed
+* Record extension subcommand and exit code on command_invocation by @Fab10-CircleCi in https://github.com/CircleCI-Public/circleci-cli/pull/1964
+* Check pipeline create's GitHub Actions config path (AEX-133) by @joel-thompson in https://github.com/CircleCI-Public/circleci-cli/pull/1979
+* Move CLI provider lists into the provider registry (AEX-97) by @joel-thompson in https://github.com/CircleCI-Public/circleci-cli/pull/1985
+* Accept Forgejo in pipeline create and trigger create (AEX-97) by @joel-thompson in https://github.com/CircleCI-Public/circleci-cli/pull/1986
+* List an empty job's artifacts as empty instead of not found (AEX-99) by @joel-thompson in https://github.com/CircleCI-Public/circleci-cli/pull/1987
+* Add run artifacts and run list --status (AEX-99) by @joel-thompson in https://github.com/CircleCI-Public/circleci-cli/pull/1988
+* Let function commands run without login by @stiyyagura0901 in https://github.com/CircleCI-Public/circleci-cli/pull/1996
+* Show hostname, IP and last task time on runner instance list by @gcirclest in https://github.com/CircleCI-Public/circleci-cli/pull/1995
+* Add --ssh and --job to workflow rerun by @gcirclest in https://github.com/CircleCI-Public/circleci-cli/pull/1998
+* Add org get with admin status by @gcirclest in https://github.com/CircleCI-Public/circleci-cli/pull/1999
+* Print a prompt for your coding agent from config generate by @stiyyagura0901 in https://github.com/CircleCI-Public/circleci-cli/pull/1994
+* Add runner terms accept by @gcirclest in https://github.com/CircleCI-Public/circleci-cli/pull/2000
+* fix: treat held approval jobs as pending and render the held phase by @shawon-crosen in https://github.com/CircleCI-Public/circleci-cli/pull/2003
+* Print the ssh command after workflow rerun --ssh by @gcirclest in https://github.com/CircleCI-Public/circleci-cli/pull/2001
+* Repoint glamour replace at the rebased fork commit by @pete-woods in https://github.com/CircleCI-Public/circleci-cli/pull/2007
+* Bump github.com/go-chi/chi/v5 from 5.3.2 to 5.4.0 by @dependabot[bot] in https://github.com/CircleCI-Public/circleci-cli/pull/1956
+* Record when config validate shows the Functions tip by @stiyyagura0901 in https://github.com/CircleCI-Public/circleci-cli/pull/2004
+
+
+**Full Changelog**: https://github.com/CircleCI-Public/circleci-cli/compare/v1.15.0...v1.16.0
+
 ## [1.15.0] - 2026-11-10
 
 ### What's Changed
