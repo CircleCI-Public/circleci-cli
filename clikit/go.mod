@@ -6,7 +6,7 @@ require (
 	charm.land/bubbles/v2 v2.2.1
 	charm.land/bubbletea/v2 v2.0.10
 	charm.land/glamour/v2 v2.0.1
-	charm.land/lipgloss/v2 v2.0.7-0.20260911150816-6a419c6543d3
+	charm.land/lipgloss/v2 v2.1.1
 	charm.land/log/v2 v2.0.1
 	github.com/MakeNowJust/heredoc v1.0.0
 	github.com/NimbleMarkets/ntcharts/v2 v2.7.0
@@ -53,9 +53,9 @@ require (
 	github.com/yuin/goldmark v1.8.5 // indirect
 	github.com/yuin/goldmark-emoji v1.0.5 // indirect
 	golang.org/x/exp v0.0.0-20231006140011-7918f672742d // indirect
-	golang.org/x/net v0.55.0 // indirect
+	golang.org/x/net v0.56.0 // indirect
 	golang.org/x/sync v0.23.0 // indirect
 	golang.org/x/text v0.42.0 // indirect
 )
 
-replace charm.land/glamour/v2 => github.com/pete-woods/glamour/v2 v2.0.0-20260911153037-b9898ea48492
+replace charm.land/glamour/v2 => github.com/pete-woods/glamour/v2 v2.0.0-20261116122219-a441dd20418b
