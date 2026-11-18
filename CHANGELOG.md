@@ -6,6 +6,14 @@ is added by its release PR (see [RELEASE.md](RELEASE.md)) and becomes its GitHub
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.17.0] - 2026-11-18
+
+### What's Changed
+* Stop replaying POST and PATCH requests the server may have acted on by @EnoshAnwar in https://github.com/CircleCI-Public/circleci-cli/pull/2010
+
+
+**Full Changelog**: https://github.com/CircleCI-Public/circleci-cli/compare/v1.16.0...v1.17.0
+
 ## [1.16.0] - 2026-11-18
 
 ### What's Changed
