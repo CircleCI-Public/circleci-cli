@@ -100,11 +100,12 @@ var overBudget = map[string]int{
 }
 
 func TestUsage(t *testing.T) {
-	// Use temp XDG_DATA_HOME and PATH so extension discovery produces a stable, empty
+	// Use temp XDG_DATA_HOME, XDG_STATE_HOME and PATH so extension discovery produces a stable, empty
 	// set regardless of what extensions happen to be installed in the test
 	// environment.
 	fakeHome := t.TempDir()
 	t.Setenv("XDG_DATA_HOME", filepath.Join(fakeHome, ".local", "share"))
+	t.Setenv("XDG_STATE_HOME", filepath.Join(fakeHome, ".local", "state"))
 	t.Setenv("PATH", fakeHome)
 
 	// Avoid telemetry
@@ -125,11 +126,12 @@ func TestUsage(t *testing.T) {
 }
 
 func TestHelp(t *testing.T) {
-	// Use temp XDG_DATA_HOME and PATH so extension discovery produces a stable, empty
+	// Use temp XDG_DATA_HOME, XDG_STATE_HOME and PATH so extension discovery produces a stable, empty
 	// set regardless of what extensions happen to be installed in the test
 	// environment.
 	fakeHome := t.TempDir()
 	t.Setenv("XDG_DATA_HOME", filepath.Join(fakeHome, ".local", "share"))
+	t.Setenv("XDG_STATE_HOME", filepath.Join(fakeHome, ".local", "state"))
 	t.Setenv("PATH", fakeHome)
 
 	// Avoid telemetry

@@ -53,6 +53,10 @@ type Manifest struct {
 // extension provides reference documentation.
 const ReferenceAnnotation = "extension:reference"
 
+// NotInstalledAnnotation marks the placeholder command registered for an
+// official extension that is not installed.
+const NotInstalledAnnotation = "extension:not-installed"
+
 // Reference describes an extension command and, recursively, its subcommands.
 // It is owned by the extension and fetched from the extension registry's
 // release.json. When present, it enriches the CLI's generated reference docs;

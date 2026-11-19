@@ -140,6 +140,15 @@ func ShouldCheck(ctx context.Context, cfg *config.Config, version string) bool {
 	return true
 }
 
+// ShouldFetchReference reports whether the registry may be queried for the
+// command reference of an extension that is not installed. Unlike ShouldCheck
+// it allows non-interactive callers, because the MCP server — never a terminal,
+// always run by an agent — is the main one. It shares the update-check opt-out,
+// since both are background calls to the same registry.
+func ShouldFetchReference(cfg *config.Config) bool {
+	return os.Getenv("CI") == "" && cfg.IsUpdateCheck()
+}
+
 // Check returns a release worth telling the user about, or nil. It refreshes
 // from src at most once per CacheWindow, but evaluates notifyDelay against cached
 // state on every call — so a notice suppressed by the delay appears the moment

@@ -320,7 +320,7 @@ through `iostream.Streams`.
 | `CIRCLE_NO_INTERACTIVE` | Suppress all interactive prompts | `iostream` |
 | `CI` | Set by CI systems. Implies non-interactive (so: no prompts, no spinner) **and** disables telemetry | `iostream`, `config` |
 | `CIRCLE_SPINNER_DISABLED` | Replace the animated spinner with plain text | `iostream` |
-| `CIRCLE_NO_UPDATE_CHECK` | Disable checking for newer CLI and extension releases. Same as `setting set update-check off` | `config.IsUpdateCheck()` |
+| `CIRCLE_NO_UPDATE_CHECK` | Disable checking for newer CLI and extension releases, and fetching the command reference of official extensions not yet installed. Same as `setting set update-check off` | `config.IsUpdateCheck()` |
 | `CIRCLE_NO_PAGER` | Print long output inline instead of through a pager | `iostream` |
 | `PAGER` | Pager program for long output. Unset → built-in scrollable viewer; `cat` or empty → paging off | `iostream` |
 | `TZ` | Time zone for timestamps in human output. JSON is always UTC | Go runtime (`time.Local`), via `cmdutil.DisplayTime` |
@@ -336,7 +336,7 @@ through `iostream.Streams`.
 | `TERM` | `TERM=dumb` disables color — except inside CircleCI (see `CIRCLECI` above) | `iostream` |
 | `XDG_CONFIG_HOME` | Config dir base (default `~/.config`) → `<base>/circleci/config.yml` | `config` |
 | `XDG_DATA_HOME` | Data dir base (default `~/.local/share`) → `<base>/circleci/extensions` | `config` |
-| `XDG_STATE_HOME` | State dir base → `<base>/circleci/state.yml` (update-check bookkeeping). When unset: `%LocalAppData%\circleci` on Windows, else `~/.local/state/circleci` — mirrors GitHub CLI's `config.StateDir` | `config` |
+| `XDG_STATE_HOME` | State dir base → `<base>/circleci/state.yml` (update-check bookkeeping) and `<base>/circleci/extension-references/` (registry command references for official extensions not yet installed). When unset: `%LocalAppData%\circleci` on Windows, else `~/.local/state/circleci` — mirrors GitHub CLI's `config.StateDir` | `config` |
 
 **Set by the CLI for child processes — read these, don't set them:**
 

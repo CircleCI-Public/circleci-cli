@@ -34,6 +34,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/MakeNowJust/heredoc"
@@ -55,14 +56,12 @@ const (
 	// updateFetchTimeout bounds the registry call so a slow or unreachable registry
 	// delays the extension by at most this long.
 	updateFetchTimeout = 3 * time.Second
-)
 
-var officialExtDocs = map[string]extension.Reference{
-	Testsuite: {
-		Use:  "testsuite",
-		Long: "Reduce test execution time while maintaining test confidence with CircleCI's Smarter Testing.",
-	},
-}
+	// failedFetchRetry is how long a failed reference fetch holds off the next
+	// one. Shorter than update.CacheWindow, so a brief registry outage does not
+	// hide an extension's commands for a day.
+	failedFetchRetry = time.Hour
+)
 
 // RegisterExtensions registers extensions in the following order:
 //   - Managed extensions found in the extensions directory.
@@ -81,9 +80,8 @@ func RegisterExtensions(rootCmd *cobra.Command) {
 	managedExts, err := store.FindAll()
 	cobra.CheckErr(err)
 
-	officialInstalled := map[string]bool{}
-	for k := range officialExtDocs {
-		officialInstalled[k] = false
+	officialInstalled := map[string]bool{
+		Testsuite: false,
 	}
 
 	for _, ext := range managedExts {
@@ -99,7 +97,9 @@ func RegisterExtensions(rootCmd *cobra.Command) {
 
 	for extName, installed := range officialInstalled {
 		if !installed {
-			rootCmd.AddCommand(newPromptCmd(extName, officialExtDocs[extName]))
+			// Not installed, so this is the cached registry reference, if any.
+			ref, _ := extension.LookupReference("circleci-" + extName)
+			rootCmd.AddCommand(newPromptCmd(extName, ref))
 			assignedCommands[extName] = true
 		}
 	}
@@ -113,17 +113,29 @@ func RegisterExtensions(rootCmd *cobra.Command) {
 	}
 }
 
-func newPromptCmd(name string, ref extension.Reference) *cobra.Command {
+// promptLong describes an official extension that is not installed, opening
+// with the cached reference's description when there is one.
+func promptLong(name string, ref *extension.Reference) string {
+	long := heredoc.Docf(`
+		The CircleCI %q extension is not installed by default.
+
+		Install it with 'circleci extension install %s'.
+	`, name, name)
+	if ref != nil && strings.TrimSpace(ref.Long) != "" {
+		long = strings.TrimSpace(ref.Long) + "\n\n" + long
+	}
+	return long
+}
+
+func newPromptCmd(name string, ref *extension.Reference) *cobra.Command {
 	return &cobra.Command{
 		Use:   name,
 		Short: "Extension (circleci-" + name + ")",
-		Long: heredoc.Doc(fmt.Sprintf(`
-			%s
-
-			The CircleCI %q extension is not installed by default.
-
-			Install it with 'circleci extension install %s'.
-		`, ref.Long, name, name)),
+		Long:  promptLong(name, ref),
+		Annotations: map[string]string{
+			extension.ReferenceAnnotation:    "circleci-" + name,
+			extension.NotInstalledAnnotation: "true",
+		},
 		GroupID:            "extension",
 		DisableFlagParsing: true,
 		RunE: func(cmd *cobra.Command, args []string) error {

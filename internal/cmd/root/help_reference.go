@@ -30,7 +30,6 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/CircleCI-Public/circleci-cli/internal/config"
 	"github.com/CircleCI-Public/circleci-cli/internal/extension"
 )
 
@@ -66,17 +65,20 @@ func stringifyReference(cmd *cobra.Command) string {
 }
 
 func cmdRef(w io.Writer, cmd *cobra.Command, depth int) {
-	// Managed extensions can supply their own documentation.
-	// If extension.ReferenceAnnotation is set, the manifest contains
-	// a reference field, use that to build the reference instead.
+	// Extensions can supply their own documentation: the installed manifest's
+	// reference, or the registry's cached one when not installed. Without
+	// either, fall through to the base reference.
 	if binaryName, ok := cmd.Annotations[extension.ReferenceAnnotation]; ok {
-		extDir, err := config.ExtensionsDir()
-		if err == nil {
-			store := extension.NewStore(extDir)
-			if manifest, err := store.Get(binaryName); err == nil {
-				extensionCmdRef(w, cmd.CommandPath(), manifest.Ref, depth)
-				return
+		if ref, err := extension.LookupReference(binaryName); err == nil && ref != nil {
+			// A placeholder's Long adds how to install the extension to the
+			// reference's description, so the section says it isn't installed.
+			if cmd.Annotations[extension.NotInstalledAnnotation] == "true" {
+				withInstall := *ref
+				withInstall.Long = cmd.Long
+				ref = &withInstall
 			}
+			extensionCmdRef(w, cmd.CommandPath(), ref, depth)
+			return
 		}
 	}
 

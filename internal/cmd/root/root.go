@@ -318,7 +318,7 @@ func NewRootCmd(version string) *cobra.Command {
 			orig := sub.RunE
 			sub.RunE = func(cmd *cobra.Command, args []string) error {
 				_ = os.Setenv("CIRCLE_MCP", "1")
-				extension.PrepareForMCP(cmd.Root())
+				extension.PrepareForMCP(cmd.Context(), cmd.Root())
 				inlineArgumentDocs(cmd.Root())
 				return orig(cmd, args)
 			}
@@ -327,7 +327,7 @@ func NewRootCmd(version string) *cobra.Command {
 			// serve, or it stops being a faithful way to inspect them.
 			orig := sub.RunE
 			sub.RunE = func(cmd *cobra.Command, args []string) error {
-				extension.PrepareForMCP(cmd.Root())
+				extension.PrepareForMCP(cmd.Context(), cmd.Root())
 				inlineArgumentDocs(cmd.Root())
 				return orig(cmd, args)
 			}

@@ -99,3 +99,18 @@ func TestIsExtensionCmd(t *testing.T) {
 	assert.Check(t, !IsExtensionCmd(other), "disabling flag parsing alone does not make an extension")
 	assert.Check(t, !IsExtensionCmd(root))
 }
+
+func TestPromptLong(t *testing.T) {
+	const install = "The CircleCI \"testsuite\" extension is not installed by default."
+
+	t.Run("opens with the reference description", func(t *testing.T) {
+		long := promptLong(Testsuite, &extension.Reference{Long: "From the registry.\n"})
+		assert.Check(t, cmp.Contains(long, "From the registry.\n\n"+install))
+	})
+
+	t.Run("only the install text without a description", func(t *testing.T) {
+		for _, ref := range []*extension.Reference{nil, {Long: "  "}} {
+			assert.Check(t, cmp.Equal(promptLong(Testsuite, ref)[:len(install)], install), "ref %+v", ref)
+		}
+	})
+}

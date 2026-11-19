@@ -1,0 +1,5 @@
+A test extension with enriched command documentation.
+
+The CircleCI "testsuite" extension is not installed by default.
+
+Install it with 'circleci extension install testsuite'.

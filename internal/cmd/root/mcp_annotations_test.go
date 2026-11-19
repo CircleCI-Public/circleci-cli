@@ -40,6 +40,7 @@ import (
 func TestDestructiveHintHasForceFlag(t *testing.T) {
 	fakeHome := t.TempDir()
 	t.Setenv("XDG_DATA_HOME", filepath.Join(fakeHome, ".local", "share"))
+	t.Setenv("XDG_STATE_HOME", filepath.Join(fakeHome, ".local", "state"))
 	t.Setenv("PATH", fakeHome)
 	t.Setenv("DO_NOT_TRACK", "1")
 
@@ -67,6 +68,7 @@ func TestDestructiveHintHasForceFlag(t *testing.T) {
 func TestForceFlagHasDestructiveHint(t *testing.T) {
 	fakeHome := t.TempDir()
 	t.Setenv("XDG_DATA_HOME", filepath.Join(fakeHome, ".local", "share"))
+	t.Setenv("XDG_STATE_HOME", filepath.Join(fakeHome, ".local", "state"))
 	t.Setenv("PATH", fakeHome)
 	t.Setenv("DO_NOT_TRACK", "1")
 

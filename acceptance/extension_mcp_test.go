@@ -117,6 +117,81 @@ func TestMCPToolsExtensionSubcommands(t *testing.T) {
 	})
 }
 
+func TestMCPToolsOfficialExtensionFromCachedReference(t *testing.T) {
+	registry := fakes.NewExtensionRegistry(t)
+	env := testenv.New(t)
+	env.Token = testToken
+	env.ExtensionRegistryURL = registry.URL()
+
+	withExtension(t, registry, "testsuite", testReference())
+
+	t.Run("mcp tools documents the uninstalled extension", func(t *testing.T) {
+		tools := runMCPTools(t, env)
+		tool, ok := tools["circleci_testsuite_do"]
+		assert.Assert(t, ok, "subcommand tool not exported for the uninstalled extension")
+		assert.Check(t, cmp.DeepEqual(tool.flagNames(), []string{"mode", "parallel", "verbose"}))
+		assert.Check(t, golden.String(tools["circleci_testsuite"].Description, t.Name()+".txt"))
+	})
+
+	t.Run("help reference uses the cached reference", func(t *testing.T) {
+		result := binary.RunCLI(t, binary.RunOpts{
+			Binary:  binaryPath,
+			Args:    []string{"help", "reference"},
+			Env:     env.Environ(),
+			WorkDir: t.TempDir(),
+		})
+		assert.Check(t, cmp.Equal(result.ExitCode, 0))
+		section := findSection(t, result.Stdout, "### `circleci testsuite <command>`")
+		assert.Check(t, golden.String(section, t.Name()+".txt"))
+	})
+
+	t.Run("the cache is reused without fetching again", func(t *testing.T) {
+		registry.RequestRecorder.Reset()
+		tools := runMCPTools(t, env)
+		_, ok := tools["circleci_testsuite_do"]
+		assert.Check(t, ok)
+		assert.Check(t, cmp.Len(registry.RequestRecorder.AllRequests(), 0))
+	})
+}
+
+func TestMCPToolsOfficialExtensionRegistryUnavailable(t *testing.T) {
+	// The fake registry serves no testsuite, so the reference fetch fails.
+	registry := fakes.NewExtensionRegistry(t)
+	env := testenv.New(t)
+	env.Token = testToken
+	env.ExtensionRegistryURL = registry.URL()
+
+	t.Run("the extension tool is still exported", func(t *testing.T) {
+		tools := runMCPTools(t, env)
+		_, ok := tools["circleci_testsuite"]
+		assert.Check(t, ok)
+		_, ok = tools["circleci_testsuite_do"]
+		assert.Check(t, !ok, "no subcommand tools without a reference")
+		assert.Check(t, cmp.Len(registry.RequestRecorder.AllRequests(), 1))
+	})
+
+	t.Run("a failed fetch is not retried straight away", func(t *testing.T) {
+		registry.RequestRecorder.Reset()
+		runMCPTools(t, env)
+		assert.Check(t, cmp.Len(registry.RequestRecorder.AllRequests(), 0))
+	})
+}
+
+func TestMCPToolsOfficialExtensionUpdateCheckDisabled(t *testing.T) {
+	registry := fakes.NewExtensionRegistry(t)
+	env := testenv.New(t)
+	env.Token = testToken
+	env.ExtensionRegistryURL = registry.URL()
+	env.Extra["CIRCLE_NO_UPDATE_CHECK"] = "1"
+
+	withExtension(t, registry, "testsuite", testReference())
+	tools := runMCPTools(t, env)
+
+	_, ok := tools["circleci_testsuite_do"]
+	assert.Check(t, !ok, "the reference must not be fetched when update checks are off")
+	assert.Check(t, cmp.Len(registry.RequestRecorder.AllRequests(), 0))
+}
+
 // TestMCPCallExtensionSubcommandTool drives a real `mcp start` server and calls
 // a generated subcommand tool, checking the extension receives the subcommand,
 // its flag and its argument.

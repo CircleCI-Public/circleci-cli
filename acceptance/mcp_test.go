@@ -43,6 +43,7 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/internal/telemetry"
 	"github.com/CircleCI-Public/circleci-cli/internal/testing/binary"
 	testenv "github.com/CircleCI-Public/circleci-cli/internal/testing/env"
+	"github.com/CircleCI-Public/circleci-cli/internal/testing/fakes"
 	"github.com/CircleCI-Public/circleci-cli/internal/testing/fakesegment"
 )
 
@@ -72,6 +73,7 @@ func newMCPEnv(t *testing.T) *testenv.TestEnv {
 	t.Helper()
 	env := testenv.New(t)
 	env.Token = testToken
+	env.ExtensionRegistryURL = fakes.NewExtensionRegistry(t).URL()
 	return env
 }
 
@@ -164,7 +166,7 @@ func TestMCPTools_DestructiveHints(t *testing.T) {
 func TestMCPServerAttributesToolCallsAsMCP(t *testing.T) {
 	ctx := iostream.Testing(context.Background())
 
-	env := testenv.New(t)
+	env := newMCPEnv(t)
 	env.Telemetry = true
 	fs := fakesegment.New(ctx, telemetry.SegmentKey)
 	fsSrv := httptest.NewServer(fs)

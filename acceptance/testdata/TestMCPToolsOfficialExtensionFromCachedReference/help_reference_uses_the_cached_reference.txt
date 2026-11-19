@@ -1,0 +1,27 @@
+### `circleci testsuite <command>`
+
+A test extension with enriched command documentation.
+
+The CircleCI "testsuite" extension is not installed by default.
+
+Install it with 'circleci extension install testsuite'.
+
+| Flag        | Description            |
+| ----------- | ---------------------- |
+| `--verbose` | Enable verbose logging |
+
+
+#### `circleci testsuite do <name> [flags]`
+
+Do a thing with the given name.
+
+| Flag                 | Description                  |
+| -------------------- | ---------------------------- |
+| `-p, --parallel int` | Parallel workers (default 4) |
+| `--mode fast\|slow`  | How to do it (default fast)  |
+
+
+**Arguments:**
+
+`<name>` The name to operate on.
+
