@@ -29,10 +29,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"net/url"
-	"os"
 	"path"
 	"strings"
 
@@ -257,27 +255,15 @@ func run(ctx context.Context, client *apiclient.Client, thepath, method string, 
 // string is used verbatim; @file reads from a file and @- reads from stdin.
 // The result must be valid JSON, since it is sent with Content-Type: application/json.
 func resolveBody(ctx context.Context, data string) ([]byte, error) {
-	var body []byte
-
+	body, err := cmdutil.ReadFlagValue(ctx, data)
 	switch {
-	case data == "@-":
-		b, err := io.ReadAll(iostream.In(ctx))
-		if err != nil {
-			return nil, clierrors.New("api.data_read_failed", "Failed to read body from stdin", err.Error()).
-				WithExitCode(clierrors.ExitGeneralError)
-		}
-		body = b
-	case strings.HasPrefix(data, "@"):
-		file := data[1:]
-		b, err := os.ReadFile(file) //#nosec:G304 // file is a user-supplied -d @file flag value, not arbitrary external input
-		if err != nil {
-			return nil, clierrors.New("api.data_read_failed", "Failed to read body file",
-				fmt.Sprintf("Could not read %q: %v", file, err)).
-				WithExitCode(clierrors.ExitBadArguments)
-		}
-		body = b
-	default:
-		body = []byte(data)
+	case err != nil && data == "@-":
+		return nil, clierrors.New("api.data_read_failed", "Failed to read body from stdin", err.Error()).
+			WithExitCode(clierrors.ExitGeneralError)
+	case err != nil:
+		return nil, clierrors.New("api.data_read_failed", "Failed to read body file",
+			fmt.Sprintf("Could not read %q: %v", data[1:], err)).
+			WithExitCode(clierrors.ExitBadArguments)
 	}
 
 	if !json.Valid(body) {

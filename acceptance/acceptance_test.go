@@ -69,6 +69,10 @@ func normalizeAppHost(s, fakeURL string) string {
 	return osc8IDPattern.ReplaceAllString(s, "8;id=link;")
 }
 
+func normalizeFileNotFound(s string) string {
+	return strings.ReplaceAll(s, "The system cannot find the file specified.", "no such file or directory")
+}
+
 // ignoreCommonHeaders excludes headers that are set uniformly by the API client
 // (and therefore uninteresting to a per-command mutation assertion) so that
 // request comparisons can focus on Method, URL, Authorization, User-Agent, and

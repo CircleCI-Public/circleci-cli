@@ -268,6 +268,24 @@ func TestAPI_RawBody_FromStdin(t *testing.T) {
 	assert.Equal(t, *fake.LastRequest().Body, body)
 }
 
+func TestAPI_RawBody_FileMissing(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"api", "-X", "POST", "api/v3/runs/search", "-d", "@missing.json"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 2))
+	assert.Check(t, golden.String(normalizeFileNotFound(result.Stderr), t.Name()+".stderr.txt"))
+}
+
 func TestAPI_RawBody_InvalidJSON(t *testing.T) {
 	env := testenv.New(t)
 	env.Token = testToken
