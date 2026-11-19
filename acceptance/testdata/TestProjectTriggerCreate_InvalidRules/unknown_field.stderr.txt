@@ -1,0 +1,4 @@
+error: --rules holds a malformed rule: unknown field "eventType".
+
+Suggestions:
+  • Pass a JSON array such as [{"event_type":"push","event_ref":"push_ref","rule":"event.branch starts-with \"release/\""}]

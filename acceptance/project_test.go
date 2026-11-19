@@ -26,6 +26,8 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/url"
+	"os"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"testing"
@@ -1317,6 +1319,384 @@ func TestProjectTriggerUpdate_NotFound(t *testing.T) {
 
 	assert.Check(t, cmp.Equal(result.ExitCode, 5)) // ExitNotFound
 	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+}
+
+// --- project trigger --rules ---
+
+const (
+	triggerRules     = `[{"event_type":"pull_request","event_ref":"pr_head_ref","rule":"event.action == \"labeled\""}]`
+	triggerRegexRule = `[{"event_type":"push","event_ref":"push_ref","rule":"event.ref =~ \"^refs/heads/release-\\d+$\""}]`
+	triggerEmptyRule = `[{"event_type":"push","event_ref":"push_ref","rule":""}]`
+)
+
+func setupRulesTriggerFake(t *testing.T) (*fakes.CircleCI, *testenv.TestEnv) {
+	t.Helper()
+	var rules []any
+	err := json.Unmarshal([]byte(triggerRules), &rules)
+	assert.NilError(t, err)
+	fixture := map[string]any{
+		"id": triggerID,
+		"attributes": map[string]any{
+			"created_at":  "2026-01-01T00:00:00Z",
+			"is_disabled": false,
+			"event": map[string]any{
+				"type":   "vcs",
+				"vcs":    map[string]any{"provider": "github_app", "repo_id": triggerRepoID},
+				"filter": map[string]any{"rules": rules},
+			},
+		},
+		"references": map[string]any{
+			"project":  map[string]any{"id": triggerProjectID},
+			"pipeline": map[string]any{"id": triggerPipelineDefID},
+		},
+	}
+	fake, env := setupProjectFake(t)
+	fake.SetCreateTriggerResponse(triggerProjectID, triggerPipelineDefID, fixture)
+	fake.AddTrigger(triggerProjectID, triggerPipelineDefID, fixture)
+	return fake, env
+}
+
+// emptyFakeEnv points the CLI at a fake holding no data, so a request made
+// before a validation error fails the test with a not-found exit instead.
+func emptyFakeEnv(t *testing.T) *testenv.TestEnv {
+	t.Helper()
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fakes.NewCircleCI(t).URL()
+	return env
+}
+
+func createTriggerBodyWithRules(rules string) string {
+	return `{"data":{"attributes":{"is_disabled":false,"event":{"type":"vcs","vcs":{"provider":"github_app","repo_id":"` + triggerRepoID + `"},"filter":{"rules":` + rules + `}}},"references":{"pipeline":{"id":"` + triggerPipelineDefID + `"}}}}`
+}
+
+var wantRulesJSON = []any{map[string]any{
+	"event_type": "pull_request",
+	"event_ref":  "pr_head_ref",
+	"rule":       `event.action == "labeled"`,
+}}
+
+func TestProjectTriggerCreate_Rules(t *testing.T) {
+	fake, env := setupRulesTriggerFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary: binaryPath,
+		Args: []string{
+			"project", "trigger", "create",
+			"--project", "gh/myorg/alpha",
+			"--pipeline-definition-id", triggerPipelineDefID,
+			"--repo-id", triggerRepoID,
+			"--rules", triggerRules,
+			"--json",
+		},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Assert(t, cmp.Equal(result.ExitCode, 0), "stderr: %s", result.Stderr)
+
+	t.Run("sends the rules and no preset", func(t *testing.T) {
+		req := fake.LastRequest()
+		assert.Assert(t, req != nil)
+		assert.Check(t, cmp.Equal(*req.Body, createTriggerBodyWithRules(triggerRules)))
+	})
+
+	t.Run("outputs the rules", func(t *testing.T) {
+		var out map[string]any
+		err := json.Unmarshal([]byte(result.Stdout), &out)
+		assert.NilError(t, err)
+		assert.Check(t, cmp.DeepEqual(out["rules"], wantRulesJSON))
+	})
+}
+
+func TestProjectTriggerCreate_RulesFromFile(t *testing.T) {
+	fake, env := setupRulesTriggerFake(t)
+	path := filepath.Join(t.TempDir(), "rules.json")
+	err := os.WriteFile(path, []byte(triggerRegexRule), 0o600)
+	assert.NilError(t, err)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary: binaryPath,
+		Args: []string{
+			"project", "trigger", "create",
+			"--project", "gh/myorg/alpha",
+			"--pipeline-definition-id", triggerPipelineDefID,
+			"--repo-id", triggerRepoID,
+			"--rules", "@" + path,
+		},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Assert(t, cmp.Equal(result.ExitCode, 0), "stderr: %s", result.Stderr)
+	req := fake.LastRequest()
+	assert.Assert(t, req != nil)
+	assert.Check(t, cmp.Equal(*req.Body, createTriggerBodyWithRules(triggerRegexRule)))
+}
+
+func TestProjectTriggerCreate_RulesFromStdin(t *testing.T) {
+	fake, env := setupRulesTriggerFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary: binaryPath,
+		Args: []string{
+			"project", "trigger", "create",
+			"--project", "gh/myorg/alpha",
+			"--pipeline-definition-id", triggerPipelineDefID,
+			"--repo-id", triggerRepoID,
+			"--rules", "@-",
+		},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+		Stdin:   strings.NewReader("\n  " + triggerEmptyRule + "\n"),
+	})
+
+	assert.Assert(t, cmp.Equal(result.ExitCode, 0), "stderr: %s", result.Stderr)
+	req := fake.LastRequest()
+	assert.Assert(t, req != nil)
+	assert.Check(t, cmp.Equal(*req.Body, createTriggerBodyWithRules(triggerEmptyRule)))
+}
+
+func TestProjectTriggerCreate_InvalidRules(t *testing.T) {
+	tests := []struct {
+		name  string
+		extra []string
+	}{
+		{
+			name:  "with event preset",
+			extra: []string{"--rules", triggerRules, "--event-preset", "all-pushes"},
+		},
+		{
+			name:  "invalid JSON",
+			extra: []string{"--rules", `[{"event_type":`},
+		},
+		{
+			name:  "not an array",
+			extra: []string{"--rules", `{"rule":"true"}`},
+		},
+		{
+			name:  "empty array",
+			extra: []string{"--rules", `[]`},
+		},
+		{
+			name:  "unknown field",
+			extra: []string{"--rules", `[{"eventType":"push","rule":""}]`},
+		},
+		{
+			name:  "missing file",
+			extra: []string{"--rules", "@no-such-rules.json"},
+		},
+		{
+			name:  "webhook provider",
+			extra: []string{"--rules", triggerRules, "--provider", "webhook"},
+		},
+		{
+			name:  "schedule provider",
+			extra: []string{"--rules", triggerRules, "--provider", "schedule"},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			env := emptyFakeEnv(t)
+
+			args := []string{
+				"project", "trigger", "create",
+				"--project", "gh/myorg/alpha",
+				"--pipeline-definition-id", triggerPipelineDefID,
+				"--repo-id", triggerRepoID,
+			}
+			result := binary.RunCLI(t, binary.RunOpts{
+				Binary:  binaryPath,
+				Args:    append(args, tc.extra...),
+				Env:     env.Environ(),
+				WorkDir: t.TempDir(),
+			})
+
+			assert.Check(t, cmp.Equal(result.ExitCode, 2))
+			assert.Check(t, golden.String(normalizeFileNotFound(result.Stderr), t.Name()+".stderr.txt"))
+		})
+	}
+}
+
+func TestProjectTriggerUpdate_Rules(t *testing.T) {
+	fake, env := setupRulesTriggerFake(t)
+	path := filepath.Join(t.TempDir(), "rules.json")
+	err := os.WriteFile(path, []byte(triggerRules), 0o600)
+	assert.NilError(t, err)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"project", "trigger", "update", triggerID, "--rules", "@" + path, "--json"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Assert(t, cmp.Equal(result.ExitCode, 0), "stderr: %s", result.Stderr)
+
+	t.Run("sends only the rules", func(t *testing.T) {
+		req := fake.LastRequest()
+		assert.Assert(t, req != nil)
+		assert.Check(t, cmp.Equal(*req.Body, `{"event":{"filter":{"rules":`+triggerRules+`}}}`))
+	})
+
+	t.Run("outputs the rules", func(t *testing.T) {
+		var out map[string]any
+		err := json.Unmarshal([]byte(result.Stdout), &out)
+		assert.NilError(t, err)
+		assert.Check(t, cmp.DeepEqual(out["rules"], wantRulesJSON))
+	})
+}
+
+func TestProjectTriggerUpdate_RulesFromStdin(t *testing.T) {
+	fake, env := setupRulesTriggerFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"project", "trigger", "update", triggerID, "--rules", "@-"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+		Stdin:   strings.NewReader(triggerRules),
+	})
+
+	assert.Assert(t, cmp.Equal(result.ExitCode, 0), "stderr: %s", result.Stderr)
+	req := fake.LastRequest()
+	assert.Assert(t, req != nil)
+	assert.Check(t, cmp.Equal(*req.Body, `{"event":{"filter":{"rules":`+triggerRules+`}}}`))
+}
+
+func TestProjectTriggerUpdate_InvalidRules(t *testing.T) {
+	tests := []struct {
+		name     string
+		rules    string
+		wantCode string
+	}{
+		{
+			name:     "empty array",
+			rules:    `[]`,
+			wantCode: "args.invalid_rules",
+		},
+		{
+			name:     "missing file",
+			rules:    "@no-such-rules.json",
+			wantCode: "args.rules_read_failed",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			env := emptyFakeEnv(t)
+
+			result := binary.RunCLI(t, binary.RunOpts{
+				Binary:  binaryPath,
+				Args:    []string{"project", "trigger", "update", triggerID, "--rules", tc.rules, "--json"},
+				Env:     env.Environ(),
+				WorkDir: t.TempDir(),
+			})
+
+			assert.Check(t, cmp.Equal(result.ExitCode, 2))
+			var errOut map[string]any
+			err := json.Unmarshal([]byte(result.Stderr), &errOut)
+			assert.NilError(t, err, "stderr: %s", result.Stderr)
+			assert.Check(t, cmp.Equal(errOut["code"], tc.wantCode))
+		})
+	}
+}
+
+func TestProjectTriggerUpdate_RulesOnNonRepoTrigger(t *testing.T) {
+	tests := []struct {
+		name  string
+		event map[string]any
+	}{
+		{
+			name:  "webhook",
+			event: map[string]any{"type": "webhook", "webhook": map[string]any{"name": "deploy", "source": "jira"}},
+		},
+		{
+			name:  "schedule",
+			event: map[string]any{"type": "schedule", "schedule": map[string]any{"name": "nightly", "cron_expression": "0 0 * * *"}},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			fake, env := setupProjectFake(t)
+			fake.AddTrigger(triggerProjectID, triggerPipelineDefID, map[string]any{
+				"id": triggerID,
+				"attributes": map[string]any{
+					"created_at":  "2026-01-01T00:00:00Z",
+					"is_disabled": false,
+					"event":       tc.event,
+				},
+				"references": map[string]any{
+					"project":  map[string]any{"id": triggerProjectID},
+					"pipeline": map[string]any{"id": triggerPipelineDefID},
+				},
+			})
+
+			result := binary.RunCLI(t, binary.RunOpts{
+				Binary:  binaryPath,
+				Args:    []string{"project", "trigger", "update", triggerID, "--rules", triggerRules, "--json"},
+				Env:     env.Environ(),
+				WorkDir: t.TempDir(),
+			})
+
+			assert.Check(t, cmp.Equal(result.ExitCode, 2))
+			var errOut map[string]any
+			err := json.Unmarshal([]byte(result.Stderr), &errOut)
+			assert.NilError(t, err, "stderr: %s", result.Stderr)
+			assert.Check(t, cmp.Equal(errOut["code"], "args.invalid_rules"))
+		})
+	}
+}
+
+func TestProjectTriggerUpdate_RulesOnProjectScopedTrigger(t *testing.T) {
+	fake, env := setupRulesTriggerFake(t)
+	fake.SetTriggerProjectScoped(triggerID, triggerProjectID)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"project", "trigger", "update", triggerID, "--project", "gh/myorg/alpha", "--rules", triggerRules, "--json"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 0), "stderr: %s", result.Stderr)
+	var out map[string]any
+	err := json.Unmarshal([]byte(result.Stdout), &out)
+	assert.NilError(t, err)
+	assert.Check(t, cmp.DeepEqual(out["rules"], wantRulesJSON))
+}
+
+func TestProjectTriggerUpdate_RulesNotFound(t *testing.T) {
+	_, env := setupRulesTriggerFake(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"project", "trigger", "update", "no-such-trigger", "--rules", triggerRules, "--json"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 5)) // ExitNotFound
+	var errOut map[string]any
+	err := json.Unmarshal([]byte(result.Stderr), &errOut)
+	assert.NilError(t, err, "stderr: %s", result.Stderr)
+	assert.Check(t, cmp.Equal(errOut["code"], "trigger.not_found"))
+}
+
+func TestProjectTriggerUpdate_RulesWithEventPreset(t *testing.T) {
+	env := emptyFakeEnv(t)
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"project", "trigger", "update", triggerID, "--rules", triggerRules, "--event-preset", "only-tags"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 2))
+	assert.Check(t, cmp.Contains(result.Stderr, "none of the others can be"))
 }
 
 // --- project trigger delete ---

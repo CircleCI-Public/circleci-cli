@@ -50,6 +50,15 @@ every event the provider sends.
 | `pr-comment-equals-run-ci` | A pull request comment of exactly "run ci" |
 | `pushes-to-merge-queues` | Pushes to a GitHub merge queue |
 
+## Custom rules
+
+For events no preset covers, `--rules` takes the API's rule array instead of
+`--event-preset`: inline JSON, `@file`, or `@-` for stdin. Each rule has an
+`event_type`, an `event_ref` and a `rule` expression, for example
+`[{"event_type":"push","event_ref":"push_ref","rule":"event.branch starts-with \"release/\""}]`.
+On `update`, `--rules` replaces every existing rule and any preset. The API
+checks the expressions and reports any it rejects.
+
 
 ## Examples
 ### Build every push to a GitHub App repository

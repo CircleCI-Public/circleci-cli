@@ -1,0 +1,4 @@
+error: Provider "webhook" has no repository events for --rules to filter.
+
+Suggestions:
+  • Use --rules with one of: github_app, github_server, github_oauth, origin, forgejo
