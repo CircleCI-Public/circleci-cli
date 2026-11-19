@@ -1,0 +1,11 @@
+Usage:  circleci runner init [<namespace>/<name>] [flags]
+
+Flags:
+      --description string   description of the resource class
+  -f, --force                accept the runner terms without a confirmation prompt
+  -h, --help                 help for init
+      --jq string            Process values from the response using jq syntax
+      --json                 Output as JSON
+      --org string           Organization slug (e.g. gh/myorg) or UUID; defaults to git remote
+      --platform string      where the agent will run: debian|rpm|macos|windows|docker|kubernetes (prompts when unset)
+  

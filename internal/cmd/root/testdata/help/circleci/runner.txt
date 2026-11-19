@@ -8,6 +8,7 @@ Manage self-hosted runners
 
 | Command | Description                                    |
 | ------- | ---------------------------------------------- |
+| `init`  | Set up a self-hosted runner, step by step      |
 | `open`  | Open the runners inventory page in the browser |
 
 ## Targeted Commands

@@ -1,0 +1,39 @@
+Set up a self-hosted runner, step by step
+
+## Usage
+
+`circleci runner init [<namespace>/<name>] [flags]`
+
+## Arguments
+
+`<namespace>/<name>` is the resource class to create, in an existing namespace; prompted for if omitted.
+
+## Flags
+
+| Flag                   | Description                                                                                    |
+| ---------------------- | ---------------------------------------------------------------------------------------------- |
+| `--description string` | description of the resource class                                                              |
+| `-f, --force`          | accept the runner terms without a confirmation prompt                                          |
+| `--jq string`          | Process values from the response using jq syntax (see `circleci help formatting`)              |
+| `--json`               | Output as JSON                                                                                 |
+| `--org string`         | Organization slug (e.g. gh/myorg) or UUID; defaults to git remote                              |
+| `--platform string`    | where the agent will run: debian\|rpm\|macos\|windows\|docker\|kubernetes (prompts when unset) |
+
+Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `circleci --help`.
+
+## Examples
+
+- Walk through setup, answering prompts: 
+  `circleci runner init`
+- Set up a Linux runner for an org: 
+  `circleci runner init my-org/linux-runner --platform debian --org gh/my-org`
+- Capture the token and steps for automation: 
+  `circleci runner init my-org/ci --platform docker --force --json`
+
+## Details
+
+Accept the runner terms if needed, create a resource class and token, then print
+install steps for your platform. Nothing is installed for you.
+JSON fields: org_id, terms_already_accepted, resource_class_id, resource_class,
+token_id, token, platform, steps, job_config, docs_url
+

@@ -1,0 +1,37 @@
+
+Token for my-org/new-runner (save this — it will not be shown again):
+fake-runner-token-value
+
+Install container runner on Kubernetes
+
+1. Add the container-agent Helm repository
+   $ helm repo add container-agent https://packagecloud.io/circleci/container-agent/helm
+   $ helm repo update
+   $ kubectl create namespace circleci
+
+2. Generate the Helm values
+   $ export RUNNER_AUTH_TOKEN="<the token printed above>"
+   $ circleci runner config my-org/new-runner --product container --token "$RUNNER_AUTH_TOKEN" --output values.yaml
+   On CircleCI server, also set agent.runnerAPI in values.yaml to your server's URL.
+
+3. Install container runner
+   $ helm install container-agent container-agent/container-agent -n circleci -f values.yaml
+
+Then run a job on it, in .circleci/config.yml:
+
+version: 2.1
+
+jobs:
+  runner:
+    docker:
+      - image: cimg/base:current
+    resource_class: my-org/new-runner
+    steps:
+      - run: echo "Hi I'm on Runners!"
+
+workflows:
+  build-workflow:
+    jobs:
+      - runner
+
+Docs: https://circleci.com/docs/runner/container-runner-installation/
