@@ -26,10 +26,12 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"net/http/httptest"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"testing"
 
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -48,13 +50,33 @@ import (
 // "circleci mcp tools".
 type mcpTool struct {
 	Name        string         `json:"name"`
+	Description string         `json:"description"`
 	Annotations map[string]any `json:"annotations"`
+	InputSchema struct {
+		Properties struct {
+			Flags struct {
+				Properties map[string]any `json:"properties"`
+			} `json:"flags"`
+		} `json:"properties"`
+	} `json:"inputSchema"`
 }
 
-func runMCPTools(t *testing.T) []mcpTool {
+// flagNames returns the sorted names of the flags in the tool's input schema.
+func (m mcpTool) flagNames() []string {
+	names := slices.Collect(maps.Keys(m.InputSchema.Properties.Flags.Properties))
+	slices.Sort(names)
+	return names
+}
+
+func newMCPEnv(t *testing.T) *testenv.TestEnv {
 	t.Helper()
 	env := testenv.New(t)
 	env.Token = testToken
+	return env
+}
+
+func runMCPTools(t *testing.T, env *testenv.TestEnv) map[string]mcpTool {
+	t.Helper()
 	workDir := t.TempDir()
 
 	result := binary.RunCLI(t, binary.RunOpts{
@@ -70,19 +92,19 @@ func runMCPTools(t *testing.T) []mcpTool {
 
 	var tools []mcpTool
 	assert.NilError(t, json.Unmarshal(data, &tools))
-	return tools
+
+	byName := make(map[string]mcpTool, len(tools))
+	for _, tool := range tools {
+		byName[tool.Name] = tool
+	}
+	return byName
 }
 
 // TestMCPTools_DestructiveHints verifies that all known destructive commands
 // are exported with destructiveHint: true, and that a sampling of read-only
 // commands are not marked destructive.
 func TestMCPTools_DestructiveHints(t *testing.T) {
-	tools := runMCPTools(t)
-
-	byName := make(map[string]mcpTool, len(tools))
-	for _, tool := range tools {
-		byName[tool.Name] = tool
-	}
+	byName := runMCPTools(t, newMCPEnv(t))
 
 	wantDestructive := []string{
 		"circleci_certificate_delete",

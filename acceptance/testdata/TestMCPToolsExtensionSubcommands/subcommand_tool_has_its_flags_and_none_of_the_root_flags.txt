@@ -1,0 +1,4 @@
+Do a thing with the given name.
+
+Arguments:
+`<name>` The name to operate on.

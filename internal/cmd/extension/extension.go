@@ -206,6 +206,7 @@ func newManagedCmd(ext extension.Manifest) *cobra.Command {
 		}
 
 		cmd.Annotations[extension.ReferenceAnnotation] = ext.BinaryName
+		cmd.Long = ext.Ref.Long
 	}
 
 	return cmd
