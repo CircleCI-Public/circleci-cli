@@ -1,0 +1,4 @@
+error: The pipeline or project for "gh/myorg/myrepo" was not found.
+
+Suggestions:
+  • Run 'circleci pipeline list' to see the project's pipelines

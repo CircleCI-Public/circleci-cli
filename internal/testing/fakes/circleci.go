@@ -67,9 +67,6 @@ type CircleCI struct {
 	testFlakes                        map[string][]TestFlake  // project ID → v3 test-flake occurrences
 	testFlakesUnavailable             map[string]bool         // project ID → test-flakes/search answers 404
 	staticFiles                       map[string]string       // path → body content, for artifact downloads
-	triggerResponses                  map[string]any          // project slug → trigger response body
-	triggerPipelineRunResponses       map[string]any          // project slug → trigger run response body
-	triggerPipelineRunStatuses        map[string]int          // project slug → HTTP status (default 201)
 	pipelineDefinitions               map[string][]any        // projectID → list of v3 pipeline entities
 	createPipelineDefinitionResponses map[string]any          // projectID → v3 pipeline entity
 	createTriggerResponses            map[string]any          // "projectID/pipelineID" → v3 trigger entity
@@ -303,9 +300,6 @@ func NewCircleCI(t *testing.T, tokens ...string) *CircleCI {
 		testFlakes:                        map[string][]TestFlake{},
 		testFlakesUnavailable:             map[string]bool{},
 		staticFiles:                       map[string]string{},
-		triggerResponses:                  map[string]any{},
-		triggerPipelineRunResponses:       map[string]any{},
-		triggerPipelineRunStatuses:        map[string]int{},
 		pipelineDefinitions:               map[string][]any{},
 		createPipelineDefinitionResponses: map[string]any{},
 		createTriggerResponses:            map[string]any{},
@@ -420,8 +414,6 @@ func NewCircleCI(t *testing.T, tokens ...string) *CircleCI {
 	r.Get("/api/v2/project/{vcs}/{org}/{repo}/pipeline", f.handleListProjectPipelines)
 	r.Get("/api/v2/project/{vcs}/{org}/{repo}/pipeline/{number}", f.handleGetPipelineByNumber)
 	r.Get("/api/v2/project/{vcs}/{org}/{repo}/{jobNumber}/artifacts", f.handleGetJobArtifacts)
-	r.Post("/api/v2/project/{vcs}/{org}/{repo}/pipeline", f.handleTriggerPipeline)
-	r.Post("/api/v2/project/{vcs}/{org}/{repo}/pipeline/run", f.handleTriggerPipelineRun)
 	// Project / env-var routes. These API calls do not URL-encode slashes in the
 	// project slug, so we match three separate path segments rather than {slug}.
 	r.Get("/api/v1.1/projects", f.handleListProjects)
@@ -521,6 +513,7 @@ func NewCircleCI(t *testing.T, tokens ...string) *CircleCI {
 	r.Get("/api/v3/runs", f.handleListMyRunsV3)
 	r.Get("/api/v3/runs/{id}", f.handleGetRunV3)
 	r.Post("/api/v3/runs/search", f.handleSearchRunsV3)
+	r.Post("/api/v3/runs", f.handleCreateRunV3)
 	r.Post("/api/v3/test-flakes/search", f.handleSearchTestFlakes)
 	// Runner (v3) routes. GET /runner/agents lists agents under exactly one of
 	// filter[org_id]=, filter[resource_class]= or filter[namespace]=.
@@ -1111,33 +1104,6 @@ func (f *CircleCI) AddJobStderr(id string, execution, stepNum int, content []byt
 	f.jobStderr[fmt.Sprintf("%s/%d/%d", id, execution, stepNum)] = content
 }
 
-// SetTriggerResponse registers the response body returned when POST
-// /api/v2/project/<slug>/pipeline is called. slug should be in "vcs/org/repo" form.
-func (f *CircleCI) SetTriggerResponse(slug string, resp any) {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	f.triggerResponses[slug] = resp
-}
-
-// SetTriggerPipelineRunResponse registers the response body returned when POST
-// /api/v2/project/<slug>/pipeline/run is called with a 201 status.
-// slug should be in "vcs/org/repo" form.
-func (f *CircleCI) SetTriggerPipelineRunResponse(slug string, resp any) {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	f.triggerPipelineRunResponses[slug] = resp
-	f.triggerPipelineRunStatuses[slug] = http.StatusCreated
-}
-
-// SetTriggerPipelineRunSkipped registers a "not triggered" response (200) for
-// POST /api/v2/project/<slug>/pipeline/run.
-func (f *CircleCI) SetTriggerPipelineRunSkipped(slug, message string) {
-	f.mu.Lock()
-	defer f.mu.Unlock()
-	f.triggerPipelineRunResponses[slug] = map[string]any{"message": message}
-	f.triggerPipelineRunStatuses[slug] = http.StatusOK
-}
-
 // AddStaticFile registers a path that serves static content for artifact
 // download tests. Must be called before any requests are made to the server
 // (i.e. before RunCLI). The path should be relative, e.g. "/artifacts/foo.html".
@@ -1328,37 +1294,6 @@ func (f *CircleCI) handleListProjectPipelines(w http.ResponseWriter, r *http.Req
 	f.mu.RUnlock()
 
 	render.JSON(w, r, map[string]any{"items": items, "next_page_token": nil})
-}
-
-func (f *CircleCI) handleTriggerPipeline(w http.ResponseWriter, r *http.Request) {
-	slug := chi.URLParam(r, "vcs") + "/" + chi.URLParam(r, "org") + "/" + chi.URLParam(r, "repo")
-	f.mu.RLock()
-	resp, ok := f.triggerResponses[slug]
-	f.mu.RUnlock()
-
-	if !ok {
-		render.Status(r, http.StatusNotFound)
-		render.JSON(w, r, map[string]any{"message": "project not found"})
-		return
-	}
-	render.Status(r, http.StatusCreated)
-	render.JSON(w, r, resp)
-}
-
-func (f *CircleCI) handleTriggerPipelineRun(w http.ResponseWriter, r *http.Request) {
-	slug := chi.URLParam(r, "vcs") + "/" + chi.URLParam(r, "org") + "/" + chi.URLParam(r, "repo")
-	f.mu.RLock()
-	resp, ok := f.triggerPipelineRunResponses[slug]
-	status := f.triggerPipelineRunStatuses[slug]
-	f.mu.RUnlock()
-
-	if !ok {
-		render.Status(r, http.StatusNotFound)
-		render.JSON(w, r, map[string]any{"message": "project not found"})
-		return
-	}
-	render.Status(r, status)
-	render.JSON(w, r, resp)
 }
 
 func (f *CircleCI) handleGetJobV3(w http.ResponseWriter, r *http.Request) {
@@ -3858,6 +3793,43 @@ func (f *CircleCI) handleDeleteContextRestriction(w http.ResponseWriter, r *http
 	}
 	render.Status(r, http.StatusNoContent)
 	render.NoContent(w, r)
+}
+
+// CreatedRunID is the UUID the fake gives every run fired through
+// POST /api/v3/runs.
+const CreatedRunID = "c0000000-0000-4000-8000-0000000c0001"
+
+// handleCreateRunV3 serves POST /api/v3/runs. Like the real endpoint, it
+// resolves the pipeline within filter[project_id], so a run of a pipeline the
+// project does not have (see AddPipelineDefinition) is a 404.
+func (f *CircleCI) handleCreateRunV3(w http.ResponseWriter, r *http.Request) {
+	projectID := r.URL.Query().Get("filter[project_id]")
+	pipelineID := v3BodyRefID(r, "pipeline")
+
+	f.mu.RLock()
+	found := false
+	for _, d := range f.pipelineDefinitions[projectID] {
+		if m, ok := d.(map[string]any); ok && m["id"] == pipelineID {
+			found = true
+		}
+	}
+	f.mu.RUnlock()
+
+	if !found {
+		render.Status(r, http.StatusNotFound)
+		render.JSON(w, r, map[string]any{"error": map[string]any{"title": "Not Found", "detail": "pipeline not found"}})
+		return
+	}
+	render.Status(r, http.StatusCreated)
+	render.JSON(w, r, map[string]any{"data": map[string]any{
+		"id":         CreatedRunID,
+		"attributes": map[string]any{"created_at": "2024-06-01T00:00:00Z"},
+		"references": map[string]any{
+			"pipeline": map[string]any{"id": pipelineID},
+			"project":  map[string]any{"id": projectID},
+			"user":     map[string]any{"id": "c0000000-0000-4000-8000-0000000c0002"},
+		},
+	}})
 }
 
 func (f *CircleCI) handleListPipelineDefinitions(w http.ResponseWriter, r *http.Request) {

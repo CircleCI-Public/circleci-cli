@@ -19,7 +19,7 @@ Trigger, watch, approve and cancel runs, and list artifacts
 | `cancel`    | Cancel a run                                          |
 | `get`       | Get a run's status                                    |
 | `open`      | Open the current project's runs page in the browser   |
-| `trigger`   | Trigger a new run                                     |
+| `trigger`   | Trigger a new run of a pipeline                       |
 | `watch`     | Watch a run until it completes                        |
 
 ## Flags

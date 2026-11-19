@@ -455,3 +455,89 @@ func BuildRunFilter(branch, status string) string {
 	}
 	return strings.Join(parts, " and ")
 }
+
+// CreateRunInput configures a run fired by CreateRunV3. Exactly one of Branch
+// and Tag must be set: the endpoint rejects a run with no checkout ref. The ref
+// is sent as both the checkout and the config ref, because a classic OAuth
+// pipeline requires the two to match.
+type CreateRunInput struct {
+	ProjectID  uuid.UUID
+	PipelineID string
+	Branch     string
+	Tag        string
+	Parameters map[string]any
+}
+
+// CreatedRun is the run returned by CreateRunV3. PipelineID is a string, like
+// PipelineDefinition.ID, so it round-trips whatever the pipelines listing gave.
+type CreatedRun struct {
+	ID         uuid.UUID
+	PipelineID string
+	ProjectID  uuid.UUID
+	CreatedAt  time.Time
+}
+
+// runRefWire is a branch or tag reference in a run create body.
+type runRefWire struct {
+	Branch string `json:"branch,omitempty"`
+	Tag    string `json:"tag,omitempty"`
+}
+
+type createRunAttrsWire struct {
+	Checkout   *runRefWire    `json:"checkout,omitempty"`
+	Config     *runRefWire    `json:"config,omitempty"`
+	Parameters map[string]any `json:"parameters,omitempty"`
+}
+
+type createRunRefsWire struct {
+	Pipeline entityRef `json:"pipeline"`
+}
+
+type createRunDataWire struct {
+	Attributes createRunAttrsWire `json:"attributes"`
+	References createRunRefsWire  `json:"references"`
+}
+
+type createdRunWire struct {
+	ID         uuid.UUID `json:"id"`
+	Attributes struct {
+		CreatedAt *time.Time `json:"created_at"`
+	} `json:"attributes"`
+	References struct {
+		Pipeline entityRef `json:"pipeline"`
+		Project  struct {
+			ID uuid.UUID `json:"id"`
+		} `json:"project"`
+	} `json:"references"`
+}
+
+// CreateRunV3 fires a run of a pipeline via POST /api/v3/runs. The project is
+// always sent as filter[project_id]: the endpoint needs it to resolve a
+// project's synthetic OAuth pipeline, which has no stored row of its own.
+func (c *Client) CreateRunV3(ctx context.Context, input CreateRunInput) (*CreatedRun, error) {
+	ref := &runRefWire{Branch: input.Branch, Tag: input.Tag}
+	attrs := createRunAttrsWire{Checkout: ref, Config: ref, Parameters: input.Parameters}
+	body := v3Entity[createRunDataWire]{Data: createRunDataWire{
+		Attributes: attrs,
+		References: createRunRefsWire{Pipeline: entityRef{ID: input.PipelineID}},
+	}}
+
+	var resp v3Entity[createdRunWire]
+	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodPost, "/api/v3/runs",
+		filterParam("project_id", input.ProjectID.String()),
+		httpcl.Body(body),
+		httpcl.JSONDecoder(&resp),
+	))
+	if err != nil {
+		return nil, err
+	}
+	run := &CreatedRun{
+		ID:         resp.Data.ID,
+		PipelineID: resp.Data.References.Pipeline.ID,
+		ProjectID:  resp.Data.References.Project.ID,
+	}
+	if t := resp.Data.Attributes.CreatedAt; t != nil {
+		run.CreatedAt = *t
+	}
+	return run, nil
+}

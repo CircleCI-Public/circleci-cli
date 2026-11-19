@@ -1,4 +1,4 @@
-Trigger a new pipeline run
+Trigger a new run of a pipeline
 
 ## Usage
 
@@ -8,34 +8,33 @@ Trigger a new pipeline run
 
 | Flag                     | Description                                                                       |
 | ------------------------ | --------------------------------------------------------------------------------- |
-| `-b, --branch string`    | Branch for config fetch and checkout (mutually exclusive with --tag)              |
-| `--definition string`    | Pipeline definition name to run (mutually exclusive with --definition-id)         |
-| `--definition-id string` | Pipeline definition UUID to run (prompted interactively if omitted)               |
+| `-b, --branch string`    | Branch to run (defaults to the checkout's current branch)                         |
+| `--definition string`    | Pipeline definition name; needed when the project has several                     |
+| `--definition-id string` | Pipeline definition UUID, instead of --definition                                 |
 | `--jq string`            | Process values from the response using jq syntax (see `circleci help formatting`) |
 | `--json`                 | Output as JSON                                                                    |
 | `--param stringArray`    | Pipeline parameter as key=value (repeatable)                                      |
 | `--project string`       | Project slug (e.g. gh/org/repo); defaults to git remote                           |
-| `-t, --tag string`       | Tag for config fetch and checkout (mutually exclusive with --branch)              |
+| `-t, --tag string`       | Tag to run, instead of --branch                                                   |
 
 Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `circleci --help`.
 
 ## Examples
 
-- Trigger a pipeline interactively — pick definition and branch from menus: 
-  `circleci pipeline run --project gh/myorg/myrepo`
-- Trigger a definition, selected by name, on a branch non-interactively: 
+- Trigger a run on the current branch, picking the pipeline from a menu: 
+  `circleci pipeline run`
+- Trigger a pipeline, selected by name, on a branch: 
   `circleci pipeline run --project gh/myorg/myrepo --definition main-pipeline --branch main`
 - Trigger on a tag with parameters: 
   `circleci pipeline run --project gh/myorg/myrepo --definition-id 2338d0ae-5541-4bbf-88a2-55e9f7281f80 --tag v1.2.3 --param deploy_env=staging`
 - Output as JSON for scripting: 
-  `circleci pipeline run --project gh/myorg/myrepo --definition-id 2338d0ae-5541-4bbf-88a2-55e9f7281f80 --branch main --json`
+  `circleci pipeline run --definition main-pipeline --json`
 
 ## Details
 
-Trigger a pipeline run. In a terminal a missing definition or --branch/--tag
-is prompted for; in non-interactive mode both are optional.
+Trigger a run of a project's pipeline; works for OAuth, GitHub App and GitLab
+projects. Same as 'circleci run trigger'. A project with several pipelines
+needs --definition, which a terminal prompts for.
 
-A skipped pipeline (e.g. a [ci skip] commit message) exits 0 and prints why.
-
-JSON fields: id, state, number, created_at, triggered — or triggered, message when skipped.
+JSON fields: id, pipeline_id, project_id, created_at, branch, tag
 

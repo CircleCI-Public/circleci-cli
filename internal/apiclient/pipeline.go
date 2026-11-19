@@ -119,34 +119,3 @@ func (c *Client) GetPipelineByNumber(ctx context.Context, projectSlug string, nu
 	}
 	return &p, nil
 }
-
-// TriggerResponse is the response body from triggering a pipeline.
-type TriggerResponse struct {
-	ID        string    `json:"id"`
-	State     string    `json:"state"`
-	Number    int64     `json:"number"`
-	CreatedAt time.Time `json:"created_at"`
-}
-
-// TriggerPipeline triggers a new pipeline for the given project and branch.
-// params may be nil or empty if no pipeline parameters are needed.
-func (c *Client) TriggerPipeline(ctx context.Context, projectSlug, branch string, params map[string]any) (*TriggerResponse, error) {
-	body := map[string]any{}
-	if branch != "" {
-		body["branch"] = branch
-	}
-	if len(params) > 0 {
-		body["parameters"] = params
-	}
-
-	var resp TriggerResponse
-	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodPost, "/api/v2/project/%s/pipeline",
-		httpcl.RouteParams(httpcl.PathSegments(projectSlug)),
-		httpcl.Body(body),
-		httpcl.JSONDecoder(&resp),
-	))
-	if err != nil {
-		return nil, err
-	}
-	return &resp, nil
-}

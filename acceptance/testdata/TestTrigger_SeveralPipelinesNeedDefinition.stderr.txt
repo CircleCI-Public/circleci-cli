@@ -1,0 +1,6 @@
+error: This project has 2 pipeline definitions:
+  main-pipeline  (pdef-uuid-0001)
+  nightly  (pdef-uuid-0002)
+
+Suggestions:
+  • Pass one of these names to --definition, or a UUID to --definition-id
