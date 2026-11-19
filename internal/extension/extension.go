@@ -26,9 +26,12 @@ import (
 	"context"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path/filepath"
 	"runtime"
 	"strings"
+	"syscall"
+	"time"
 
 	"github.com/CircleCI-Public/circleci-cli/clikit/iostream"
 	"github.com/CircleCI-Public/circleci-cli/internal/apiclient"
@@ -44,9 +47,12 @@ type Unmanaged struct {
 // Run executes the extension binary with args, injecting CircleCI environment
 // variables.
 //
-// The current process is replaced by the extension via syscall exec on Unix;
-// on Windows the extension is run as a child process and its exit code is
-// propagated.
+// The extension is run as a child process and its exit code is propagated via
+// *ErrExited.
+//
+// On SIGINT or SIGTERM the CLI keeps waiting so the extension can shut down
+// cleanly, and kills it if it is still running after shutdownGrace or on a
+// second signal. See superviseShutdown for which signals are forwarded.
 //
 // If the extension binary is not found, ErrExtensionBinaryNotFound is returned
 // and the caller should prompt the user to reinstall the extension.
@@ -63,13 +69,34 @@ func (ext *Unmanaged) Run(ctx context.Context, client *apiclient.Client, args []
 
 	env := buildEnv(ctx, client)
 
-	cmd := exec.CommandContext(ctx, path, args...) //#nosec:G204,G702 // path comes from FindAllOnPATH, args are user-supplied CLI args for the extension
+	// Not CommandContext: the context is cancelled by the first signal, which
+	// would SIGKILL the extension before it can clean up.
+	cmd := exec.Command(path, args...) //#nosec:G204,G702 // path comes from FindAllOnPATH, args are user-supplied CLI args for the extension
 	cmd.Stdin = iostream.In(ctx)
 	cmd.Stdout = iostream.Out(ctx)
 	cmd.Stderr = iostream.Err(ctx)
 	cmd.Env = env
 
-	if err := cmd.Run(); err != nil {
+	// Registered before Start so no signal is missed.
+	sigs := make(chan os.Signal, 2)
+	signal.Notify(sigs, os.Interrupt, syscall.SIGTERM)
+	defer signal.Stop(sigs)
+
+	if err := cmd.Start(); err != nil {
+		return err
+	}
+
+	done := make(chan struct{})
+	supervised := make(chan struct{})
+	go func() {
+		defer close(supervised)
+		superviseShutdown(cmd.Process, sigs, done, shutdownGrace)
+	}()
+	err = cmd.Wait()
+	close(done)
+	<-supervised
+
+	if err != nil {
 		if cmd.ProcessState != nil {
 			return &ErrExited{Code: cmd.ProcessState.ExitCode()}
 		}
@@ -77,6 +104,39 @@ func (ext *Unmanaged) Run(ctx context.Context, client *apiclient.Client, args []
 		return err
 	}
 	return nil
+}
+
+// shutdownGrace is how long an extension gets to exit after the first
+// SIGINT/SIGTERM before it is killed. A variable so tests can shorten it.
+var shutdownGrace = 5 * time.Second
+
+// superviseShutdown kills p if it outlives grace after the first signal on
+// sigs, or on a second signal. It returns once done is closed or p is killed.
+//
+// Only SIGTERM is forwarded to p. A terminal Ctrl+C already reaches the whole
+// foreground process group, so a forwarded SIGINT would arrive as a second
+// Ctrl+C and trip "press again to force quit" handling or interrupt cleanup
+// (e.g. a second KeyboardInterrupt in Python). On Windows nothing is
+// forwarded, as Process.Signal cannot send these signals.
+func superviseShutdown(p *os.Process, sigs <-chan os.Signal, done <-chan struct{}, grace time.Duration) {
+	select {
+	case sig := <-sigs:
+		if sig == syscall.SIGTERM && runtime.GOOS != "windows" {
+			_ = p.Signal(sig)
+		}
+	case <-done:
+		return
+	}
+
+	timer := time.NewTimer(grace)
+	defer timer.Stop()
+	select {
+	case <-timer.C:
+	case <-sigs:
+	case <-done:
+		return
+	}
+	_ = p.Kill()
 }
 
 // FindAllOnPATH scans PATH for executables named "circleci-<name>" and returns the
