@@ -233,8 +233,9 @@ func run(ctx context.Context, client *apiclient.Client, thepath, method string, 
 
 	status, err := client.Do(ctx, method, thepath, opts...)
 	if err != nil {
-		return clierrors.New("api.request_failed", "Request failed", err.Error()).
+		cliErr := clierrors.New("api.request_failed", "Request failed", err.Error()).
 			WithExitCode(clierrors.ExitAPIError)
+		return cmdutil.AddUnknownOutcomeHint(cliErr, err)
 	}
 
 	// At the moment we are assuming all API calls return plain JSON.

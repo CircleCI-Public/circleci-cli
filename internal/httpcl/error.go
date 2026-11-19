@@ -53,3 +53,22 @@ func HasStatusCode(err error, codes ...int) bool {
 	}
 	return false
 }
+
+// UnknownOutcomeError reports that a request which is not safe to repeat
+// failed after it was sent, for example because the connection dropped or no
+// response arrived in time. The server may or may not have acted on it, so the
+// caller should check before sending it again. Its message is the underlying
+// error's.
+type UnknownOutcomeError struct {
+	Err error
+}
+
+func (e *UnknownOutcomeError) Error() string { return e.Err.Error() }
+
+func (e *UnknownOutcomeError) Unwrap() error { return e.Err }
+
+// OutcomeUnknown reports whether err is, or wraps, an *UnknownOutcomeError.
+func OutcomeUnknown(err error) bool {
+	_, ok := errors.AsType[*UnknownOutcomeError](err)
+	return ok
+}

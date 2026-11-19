@@ -24,9 +24,14 @@ package acceptance_test
 
 import (
 	"encoding/json"
+	"io"
 	"net/http"
+	"net/http/httptest"
+	"net/http/httputil"
 	"net/url"
 	"runtime"
+	"strings"
+	"sync/atomic"
 	"testing"
 
 	"gotest.tools/v3/assert"
@@ -341,4 +346,77 @@ func TestTrigger_Interactive_SelectDefinition(t *testing.T) {
 		assert.Check(t, cmp.Contains(*fake.LastRequest().Body, `"pipeline":{"id":"pdef-uuid-0002"}`))
 		assert.Check(t, cmp.Contains(*fake.LastRequest().Body, `"checkout":{"branch":"feature/x"}`))
 	})
+}
+
+// dropRunCreation stands in front of fake: it closes the connection on the
+// POST that creates a run without answering, as if the response were lost, and
+// passes every other request through. It returns the URL to point the CLI at
+// and a count of the POSTs it dropped.
+func dropRunCreation(t *testing.T, fake *fakes.CircleCI) (string, *atomic.Int32) {
+	t.Helper()
+	target, err := url.Parse(fake.URL())
+	assert.NilError(t, err)
+	proxy := httputil.NewSingleHostReverseProxy(target)
+
+	var posts atomic.Int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost && r.URL.Path == "/api/v3/runs" {
+			_, _ = io.Copy(io.Discard, r.Body)
+			posts.Add(1)
+			panic(http.ErrAbortHandler) // close the connection without answering
+		}
+		proxy.ServeHTTP(w, r)
+	}))
+	t.Cleanup(srv.Close)
+	return srv.URL, &posts
+}
+
+// A trigger whose response is lost may still have started a run, so the error
+// says so rather than leaving the caller to trigger it again blindly.
+func TestTrigger_ResponseLost(t *testing.T) {
+	for _, c := range triggerCommands {
+		t.Run(c.name, func(t *testing.T) {
+			fake, env := setupRunTriggerFake(t)
+			srvURL, posts := dropRunCreation(t, fake)
+			env.CircleCIURL = srvURL
+
+			result := execTrigger(t, env, c.args, "--project", triggerOneSlug, "--branch", "main")
+
+			assert.Check(t, cmp.Equal(posts.Load(), int32(1)), "the trigger must be sent exactly once")
+			assert.Check(t, cmp.Equal(result.ExitCode, 4)) // ExitAPIError
+			assert.Check(t, golden.String(result.Stdout, "TestTrigger_ResponseLost.txt"))
+			stderr := strings.ReplaceAll(result.Stderr, srvURL, "<SERVER>")
+			assert.Check(t, golden.String(stderr, "TestTrigger_ResponseLost.stderr.txt"))
+		})
+	}
+}
+
+// With --json the lost-response error carries its own code, so a script or
+// agent can tell it apart without matching the message.
+func TestTrigger_ResponseLost_JSON(t *testing.T) {
+	for _, c := range triggerCommands {
+		t.Run(c.name, func(t *testing.T) {
+			fake, env := setupRunTriggerFake(t)
+			srvURL, _ := dropRunCreation(t, fake)
+			env.CircleCIURL = srvURL
+
+			result := execTrigger(t, env, c.args, "--project", triggerOneSlug, "--branch", "main", "--json")
+
+			assert.Check(t, cmp.Equal(result.ExitCode, 4)) // ExitAPIError
+			assert.Check(t, cmp.Equal(result.Stdout, ""))
+
+			var errOut map[string]any
+			assert.NilError(t, json.Unmarshal([]byte(result.Stderr), &errOut), "stderr should be JSON: %s", result.Stderr)
+			assert.Check(t, cmp.DeepEqual(errOut, map[string]any{
+				"error": true,
+				"code":  "api.outcome_unknown",
+				"message": `Post "` + srvURL + `/api/v3/runs?filter%5Bproject_id%5D=` + triggerOneProjectID + `": EOF` +
+					"\nNo response arrived after the request was sent, so CircleCI may already have acted on it.",
+				"exit_code": float64(4),
+				"suggestions": []any{
+					"Check whether the request took effect before you send it again",
+				},
+			}))
+		})
+	}
 }
