@@ -19,6 +19,7 @@ Create a new project trigger
 | `--provider string`               | Event source provider (one of: github_app, github_server, github_oauth, origin, forgejo, webhook, schedule) (default "github_app")                                                                                                                                                                                                                      |
 | `--repo-full-name string`         | Repository owner/name (required for origin; enough on its own for forgejo)                                                                                                                                                                                                                                                                              |
 | `--repo-id string`                | Repository external ID (required for github_app, github_server, github_oauth, origin)                                                                                                                                                                                                                                                                   |
+| `--rules string`                  | custom trigger rules as a JSON array, or @file, or @- for stdin                                                                                                                                                                                                                                                                                         |
 
 Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `circleci --help`.
 
@@ -34,9 +35,8 @@ Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `ci
 ## Details
 
 Create a new trigger for a CircleCI project, connecting an event source to a
-pipeline definition so that matching events start a pipeline run. Required
-values prompt in a terminal. Run `circleci help triggers` for what each
-provider and event preset means.
+pipeline definition so that matching events start a pipeline run. Run
+`circleci help triggers` for what each provider and event preset means.
 
-JSON fields: id, created_at, event_name, event_preset, config_ref, checkout_ref, disabled
+JSON fields: id, created_at, event_name, event_preset, config_ref, checkout_ref, disabled, rules[].event_type/event_ref/rule
 

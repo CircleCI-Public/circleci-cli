@@ -23,7 +23,9 @@
 package project
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"strings"
 
@@ -310,6 +312,7 @@ func newTriggerCreateCmd() *cobra.Command {
 		repoID               string
 		repoFullName         string
 		eventPreset          string
+		rulesValue           string
 		configRef            string
 		checkoutRef          string
 		jsonOut              bool
@@ -320,11 +323,10 @@ func newTriggerCreateCmd() *cobra.Command {
 		Short: "Create a new project trigger",
 		Long: heredoc.Docf(`
 			Create a new trigger for a CircleCI project, connecting an event source to a
-			pipeline definition so that matching events start a pipeline run. Required
-			values prompt in a terminal. Run %[1]scircleci help triggers%[1]s for what each
-			provider and event preset means.
+			pipeline definition so that matching events start a pipeline run. Run
+			%[1]scircleci help triggers%[1]s for what each provider and event preset means.
 
-			JSON fields: id, created_at, event_name, event_preset, config_ref, checkout_ref, disabled
+			JSON fields: id, created_at, event_name, event_preset, config_ref, checkout_ref, disabled, rules[].event_type/event_ref/rule
 		`, "`"),
 		Example: heredoc.Doc(`
 			# Create a GitHub App trigger (provider defaults to github_app)
@@ -349,11 +351,18 @@ func newTriggerCreateCmd() *cobra.Command {
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			ctx := cmd.Context()
+			var rules []apiclient.TriggerRule
+			if cmd.Flags().Changed("rules") {
+				var err error
+				if rules, err = parseTriggerRules(ctx, rulesValue); err != nil {
+					return err
+				}
+			}
 			client, err := cmdutil.LoadClient(ctx)
 			if err != nil {
 				return err
 			}
-			return runTriggerCreate(ctx, client, projectSlug, projectID, pipelineDefinitionID, providerName, repoID, repoFullName, eventPreset, configRef, checkoutRef, jsonOut)
+			return runTriggerCreate(ctx, client, projectSlug, projectID, pipelineDefinitionID, providerName, repoID, repoFullName, eventPreset, rules, configRef, checkoutRef, jsonOut)
 		},
 	}
 
@@ -368,8 +377,10 @@ func newTriggerCreateCmd() *cobra.Command {
 		provider.List(provider.TriggerSource, provider.Provider.NeedsFullName),
 		provider.List(provider.TriggerSource, provider.Provider.FullNameIsEnough)))
 	cmd.Flags().StringVar(&eventPreset, "event-preset", "", fmt.Sprintf("Event preset for filtering trigger events (one of: %s)", strings.Join(validEventPresets, ", ")))
+	cmd.Flags().StringVar(&rulesValue, "rules", "", rulesFlagUsage)
 	cmd.Flags().StringVar(&configRef, "config-ref", "", "Git ref for fetching config (only needed when config repo differs from event source repo)")
 	cmd.Flags().StringVar(&checkoutRef, "checkout-ref", "", "Git ref for checking out code (only needed when checkout repo differs from event source repo)")
+	cmd.MarkFlagsMutuallyExclusive("event-preset", "rules")
 	cmdutil.AddJSONFlag(cmd, &jsonOut)
 	cmdutil.AddJQFlag(cmd)
 
@@ -377,24 +388,31 @@ func newTriggerCreateCmd() *cobra.Command {
 }
 
 type triggerCreateOutput struct {
-	ID          string `json:"id"`
-	CreatedAt   string `json:"created_at"`
-	EventName   string `json:"event_name,omitempty"`
-	EventPreset string `json:"event_preset,omitempty"`
-	ConfigRef   string `json:"config_ref,omitempty"`
-	CheckoutRef string `json:"checkout_ref,omitempty"`
-	Disabled    bool   `json:"disabled"`
+	ID          string                  `json:"id"`
+	CreatedAt   string                  `json:"created_at"`
+	EventName   string                  `json:"event_name,omitempty"`
+	EventPreset string                  `json:"event_preset,omitempty"`
+	ConfigRef   string                  `json:"config_ref,omitempty"`
+	CheckoutRef string                  `json:"checkout_ref,omitempty"`
+	Disabled    bool                    `json:"disabled"`
+	Rules       []apiclient.TriggerRule `json:"rules,omitempty"`
 }
 
 func runTriggerCreate(
 	ctx context.Context,
 	client *apiclient.Client,
-	projectSlug, projectID, pipelineDefinitionID, providerName, repoID, repoFullName, eventPreset, configRef, checkoutRef string,
+	projectSlug, projectID, pipelineDefinitionID, providerName, repoID, repoFullName, eventPreset string,
+	rules []apiclient.TriggerRule,
+	configRef, checkoutRef string,
 	jsonOut bool,
 ) error {
 	p, err := validateProvider(providerName)
 	if err != nil {
 		return err
+	}
+	if rules != nil && !p.HasRepo() {
+		return rulesNeedRepoErr(p).
+			WithSuggestions("Use --rules with one of: " + provider.List(provider.TriggerSource, provider.Provider.HasRepo))
 	}
 
 	resolvedProjectID, err := resolveProjectID(ctx, client, projectSlug, projectID)
@@ -492,6 +510,7 @@ func runTriggerCreate(
 		RepoID:               repoID,
 		RepoFullName:         repoFullName,
 		EventPreset:          eventPreset,
+		Rules:                rules,
 		ConfigRef:            configRef,
 		CheckoutRef:          checkoutRef,
 	})
@@ -510,6 +529,7 @@ func runTriggerCreate(
 		ConfigRef:   resp.ConfigRef,
 		CheckoutRef: resp.CheckoutRef,
 		Disabled:    resp.Disabled,
+		Rules:       resp.Rules,
 	}
 
 	if jsonOut {
@@ -529,6 +549,7 @@ func newTriggerUpdateCmd() *cobra.Command {
 		enable      bool
 		disable     bool
 		eventPreset string
+		rulesValue  string
 		configRef   string
 		checkoutRef string
 		jsonOut     bool
@@ -543,7 +564,7 @@ func newTriggerUpdateCmd() *cobra.Command {
 			change it, delete the trigger and create a new one. Run %[1]scircleci help triggers%[1]s
 			for what each event preset means.
 
-			JSON fields: id, created_at, event_name, event_preset, config_ref, checkout_ref, disabled
+			JSON fields: id, created_at, event_name, event_preset, config_ref, checkout_ref, disabled, rules[].event_type/event_ref/rule
 		`, "`"),
 		Example: heredoc.Doc(`
 			# Pause a trigger without deleting it
@@ -567,6 +588,12 @@ func newTriggerUpdateCmd() *cobra.Command {
 			}
 			if flags.Changed("event-preset") {
 				input.EventPreset = &eventPreset
+			}
+			if flags.Changed("rules") {
+				var err error
+				if input.Rules, err = parseTriggerRules(cmd.Context(), rulesValue); err != nil {
+					return err
+				}
 			}
 			if flags.Changed("config-ref") {
 				input.ConfigRef = &configRef
@@ -592,9 +619,11 @@ func newTriggerUpdateCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&enable, "enable", false, "resume the trigger so matching events start pipelines")
 	cmd.Flags().BoolVar(&disable, "disable", false, "pause the trigger without deleting it")
 	cmd.Flags().StringVar(&eventPreset, "event-preset", "", fmt.Sprintf("event preset for filtering trigger events (one of: %s)", strings.Join(validEventPresets, ", ")))
+	cmd.Flags().StringVar(&rulesValue, "rules", "", rulesFlagUsage+"; replaces every existing rule and any preset")
 	cmd.Flags().StringVar(&configRef, "config-ref", "", "git ref for fetching config (only when the config repo differs from the event source repo)")
 	cmd.Flags().StringVar(&checkoutRef, "checkout-ref", "", "git ref for checking out code (only when the checkout repo differs from the event source repo)")
 	cmd.MarkFlagsMutuallyExclusive("enable", "disable")
+	cmd.MarkFlagsMutuallyExclusive("event-preset", "rules")
 	cmdutil.AddJSONFlag(cmd, &jsonOut)
 	cmdutil.AddJQFlag(cmd)
 
@@ -604,10 +633,10 @@ func newTriggerUpdateCmd() *cobra.Command {
 // validateTriggerUpdate rejects an update that changes nothing, or that names an
 // unknown event preset, before any request is made.
 func validateTriggerUpdate(input apiclient.UpdateTriggerInput) error {
-	if input.Disabled == nil && input.EventPreset == nil && input.ConfigRef == nil && input.CheckoutRef == nil {
+	if input.Disabled == nil && input.EventPreset == nil && input.Rules == nil && input.ConfigRef == nil && input.CheckoutRef == nil {
 		return clierrors.New("args.nothing_to_update", "Nothing to update",
 			"No changes were requested.").
-			WithSuggestions("Pass at least one of --enable, --disable, --event-preset, --config-ref or --checkout-ref").
+			WithSuggestions("Pass at least one of --enable, --disable, --event-preset, --rules, --config-ref or --checkout-ref").
 			WithExitCode(clierrors.ExitBadArguments)
 	}
 	if input.EventPreset != nil && *input.EventPreset != "" {
@@ -625,10 +654,20 @@ func runTriggerUpdate(ctx context.Context, client *apiclient.Client, triggerID, 
 		return err
 	}
 
+	if input.Rules != nil {
+		current, err := client.GetTrigger(ctx, triggerID, input.ProjectID)
+		if err != nil {
+			return triggerAPIErr(err, triggerID)
+		}
+		if p, ok := provider.Lookup(current.EventSource.Provider, provider.TriggerSource); ok && !p.HasRepo() {
+			return rulesNeedRepoErr(p).
+				WithSuggestions("Drop --rules; a trigger's event source cannot be changed")
+		}
+	}
+
 	resp, err := client.UpdateTrigger(ctx, triggerID, input)
 	if err != nil {
-		return cmdutil.APIErr(err, triggerID, "trigger.not_found", "No trigger found with ID %q.",
-			"Run 'circleci project trigger list --pipeline-definition-id <id>' to see trigger IDs")
+		return triggerAPIErr(err, triggerID)
 	}
 
 	out := triggerCreateOutput{
@@ -639,6 +678,7 @@ func runTriggerUpdate(ctx context.Context, client *apiclient.Client, triggerID, 
 		ConfigRef:   resp.ConfigRef,
 		CheckoutRef: resp.CheckoutRef,
 		Disabled:    resp.Disabled,
+		Rules:       resp.Rules,
 	}
 
 	if jsonOut {
@@ -647,6 +687,17 @@ func runTriggerUpdate(ctx context.Context, client *apiclient.Client, triggerID, 
 
 	iostream.Printf(ctx, "%s Updated trigger %s\n", iostream.SymbolOK(ctx), out.ID)
 	return nil
+}
+
+func triggerAPIErr(err error, triggerID string) error {
+	return cmdutil.APIErr(err, triggerID, "trigger.not_found", "No trigger found with ID %q.",
+		"Run 'circleci project trigger list --pipeline-definition-id <id>' to see trigger IDs")
+}
+
+func rulesNeedRepoErr(p provider.Provider) *clierrors.CLIError {
+	return clierrors.New("args.invalid_rules", "--rules needs a repository provider",
+		fmt.Sprintf("Provider %q has no repository events for --rules to filter.", p.Name)).
+		WithExitCode(clierrors.ExitBadArguments)
 }
 
 // --- trigger delete ---
@@ -720,8 +771,7 @@ func runTriggerDelete(ctx context.Context, client *apiclient.Client, triggerID, 
 	}
 
 	if err := client.DeleteTrigger(ctx, triggerID, resolvedProjectID); err != nil {
-		return cmdutil.APIErr(err, triggerID, "trigger.not_found", "No trigger found with ID %q.",
-			"Run 'circleci project trigger list --pipeline-definition-id <id>' to see trigger IDs")
+		return triggerAPIErr(err, triggerID)
 	}
 
 	iostream.Printf(ctx, "%s Deleted trigger %s\n", iostream.SymbolOK(ctx), triggerID)
@@ -769,5 +819,41 @@ func validateEventPreset(v string) *clierrors.CLIError {
 	return clierrors.New("args.invalid_event_preset", "Invalid --event-preset value",
 		fmt.Sprintf("%q is not a valid event preset.", v)).
 		WithSuggestions("Valid values: " + strings.Join(validEventPresets, ", ")).
+		WithExitCode(clierrors.ExitBadArguments)
+}
+
+const rulesFlagUsage = "custom trigger rules as a JSON array, or @file, or @- for stdin"
+
+func parseTriggerRules(ctx context.Context, v string) ([]apiclient.TriggerRule, error) {
+	raw, err := cmdutil.ReadFlagValue(ctx, v)
+	if err != nil {
+		return nil, clierrors.New("args.rules_read_failed", "Failed to read --rules",
+			fmt.Sprintf("Could not read --rules %s: %v", v, err)).
+			WithSuggestions("Pass the rules inline, as @<file>, or as @- to read them from stdin").
+			WithExitCode(clierrors.ExitBadArguments)
+	}
+
+	raw = bytes.TrimSpace(raw)
+	if !json.Valid(raw) {
+		return nil, invalidRulesErr("--rules is not valid JSON.")
+	}
+	if raw[0] != '[' {
+		return nil, invalidRulesErr("--rules must be a JSON array of rules.")
+	}
+	dec := json.NewDecoder(bytes.NewReader(raw))
+	dec.DisallowUnknownFields()
+	var rules []apiclient.TriggerRule
+	if err := dec.Decode(&rules); err != nil {
+		return nil, invalidRulesErr(fmt.Sprintf("--rules holds a malformed rule: %s.", strings.TrimPrefix(err.Error(), "json: ")))
+	}
+	if len(rules) == 0 {
+		return nil, invalidRulesErr("--rules must hold at least one rule.")
+	}
+	return rules, nil
+}
+
+func invalidRulesErr(msg string) error {
+	return clierrors.New("args.invalid_rules", "Invalid --rules value", msg).
+		WithSuggestions(`Pass a JSON array such as [{"event_type":"push","event_ref":"push_ref","rule":"event.branch starts-with \"release/\""}]`).
 		WithExitCode(clierrors.ExitBadArguments)
 }

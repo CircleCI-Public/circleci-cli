@@ -72,6 +72,7 @@ type CircleCI struct {
 	createTriggerResponses            map[string]any          // "projectID/pipelineID" → v3 trigger entity
 	listTriggerResponses              map[string][]any        // "projectID/pipelineID" → list of v3 trigger entities
 	triggersByID                      map[string]any          // trigger id → v3 trigger entity, for update/delete
+	projectScopedTriggers             map[string]string       // trigger id → the only filter[project_id] that reaches it
 
 	// GitHub App state.
 	providerConnections     map[string][]string       // orgID → connected providers
@@ -305,6 +306,7 @@ func NewCircleCI(t *testing.T, tokens ...string) *CircleCI {
 		createTriggerResponses:            map[string]any{},
 		listTriggerResponses:              map[string][]any{},
 		triggersByID:                      map[string]any{},
+		projectScopedTriggers:             map[string]string{},
 		providerConnections:               map[string][]string{},
 		providerRepos:                     map[string][]ProviderRepo{},
 		rerunResponses:                    map[string]int{},
@@ -444,6 +446,7 @@ func NewCircleCI(t *testing.T, tokens ...string) *CircleCI {
 	r.Post("/api/v3/pipelines", f.handleCreatePipelineDefinition)
 	r.Get("/api/v3/triggers", f.handleListTriggers)
 	r.Post("/api/v3/triggers", f.handleCreateTrigger)
+	r.Get("/api/v3/triggers/{id}", f.handleUpdateTrigger)
 	r.Post("/api/v3/triggers/{id}/update", f.handleUpdateTrigger)
 	r.Delete("/api/v3/triggers/{id}", f.handleDeleteTrigger)
 	// GitHub App routes.
@@ -3125,6 +3128,14 @@ func (f *CircleCI) AddTrigger(projectID, pipelineDefinitionID string, trigger an
 	}
 }
 
+// SetTriggerProjectScoped makes a registered trigger reachable by id only with
+// filter[project_id]=projectID, as a project's synthetic OAuth trigger is.
+func (f *CircleCI) SetTriggerProjectScoped(id, projectID string) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.projectScopedTriggers[id] = projectID
+}
+
 // SetCreateTriggerResponse registers the entity returned when POST
 // /api/v3/triggers is called for this project and pipeline. Pass nil to simulate
 // a 404.
@@ -3899,11 +3910,15 @@ func (f *CircleCI) handleCreateTrigger(w http.ResponseWriter, r *http.Request) {
 	render.JSON(w, r, map[string]any{"data": resp})
 }
 
-// handleUpdateTrigger answers POST /api/v3/triggers/{id}/update with the registered
-// entity unchanged; tests assert on the recorded request body instead.
+// handleUpdateTrigger answers GET /api/v3/triggers/{id} and POST
+// /api/v3/triggers/{id}/update with the registered entity unchanged.
 func (f *CircleCI) handleUpdateTrigger(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
 	f.mu.RLock()
-	resp, ok := f.triggersByID[chi.URLParam(r, "id")]
+	resp, ok := f.triggersByID[id]
+	if scope, scoped := f.projectScopedTriggers[id]; scoped && r.URL.Query().Get("filter[project_id]") != scope {
+		ok = false
+	}
 	f.mu.RUnlock()
 
 	if !ok {
