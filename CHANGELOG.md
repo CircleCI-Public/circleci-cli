@@ -6,6 +6,19 @@ is added by its release PR (see [RELEASE.md](RELEASE.md)) and becomes its GitHub
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.18.0] - 2026-11-19
+
+### What's Changed
+* Move run trigger and pipeline run onto the v3 runs API by @gcirclest in https://github.com/CircleCI-Public/circleci-cli/pull/2006
+* Add test step using testsuite to generated config by @morganmahan in https://github.com/CircleCI-Public/circleci-cli/pull/2008
+* Say when a failed request may still have taken effect by @EnoshAnwar in https://github.com/CircleCI-Public/circleci-cli/pull/2013
+* CF2-993: Let extensions shut down cleanly on Ctrl+C / SIGTERM by @joaquin-sm-cci in https://github.com/CircleCI-Public/circleci-cli/pull/1983
+
+### New Contributors
+* @morganmahan made their first contribution in https://github.com/CircleCI-Public/circleci-cli/pull/2008
+
+**Full Changelog**: https://github.com/CircleCI-Public/circleci-cli/compare/v1.17.0...v1.18.0
+
 ## [1.17.0] - 2026-11-18
 
 ### What's Changed
