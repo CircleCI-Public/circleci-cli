@@ -23,9 +23,13 @@
 package extension
 
 import (
+	"context"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/spf13/cobra"
+	"gopkg.in/yaml.v3"
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/assert/cmp"
 
@@ -113,4 +117,35 @@ func TestPromptLong(t *testing.T) {
 			assert.Check(t, cmp.Equal(promptLong(Testsuite, ref)[:len(install)], install), "ref %+v", ref)
 		}
 	})
+}
+
+func TestPrepareForMCPInstructions(t *testing.T) {
+	dataHome := t.TempDir()
+	t.Setenv("XDG_DATA_HOME", dataHome)
+	t.Setenv("XDG_STATE_HOME", t.TempDir())
+
+	root := &cobra.Command{Use: "circleci"}
+	for name, instructions := range map[string]string{
+		"blank":   " \n\t ",
+		"none":    "",
+		"padded":  "\n  Use the padded tools.  \n",
+		"written": "Use the written tools.",
+	} {
+		binaryName := "circleci-" + name
+		manifest := extension.Manifest{Name: name, BinaryName: binaryName, Ref: &extension.Reference{Instructions: instructions}}
+		b, err := yaml.Marshal(manifest)
+		assert.NilError(t, err)
+		dir := filepath.Join(dataHome, "circleci", "extensions", binaryName)
+		assert.NilError(t, os.MkdirAll(dir, 0o700))
+		assert.NilError(t, os.WriteFile(filepath.Join(dir, "manifest.yml"), b, 0o600))
+
+		root.AddCommand(&cobra.Command{
+			Use:         name,
+			Annotations: map[string]string{extension.ReferenceAnnotation: binaryName},
+		})
+	}
+
+	// Installed extensions are read from their manifests, so no config is needed.
+	got := PrepareForMCP(context.Background(), root)
+	assert.Check(t, cmp.DeepEqual(got, []string{"Use the padded tools.", "Use the written tools."}))
 }

@@ -47,7 +47,10 @@ var validReferenceName = regexp.MustCompile(`^[a-z][a-z0-9-]{0,31}$`)
 // installed, then gives every extension command with a reference one child per
 // documented subcommand, so the server exposes each as its own tool with typed
 // flags rather than one tool taking opaque args.
-func PrepareForMCP(ctx context.Context, root *cobra.Command) {
+//
+// It returns the MCP instructions of the extensions it prepared, in command
+// order, leaving out those whose reference has none.
+func PrepareForMCP(ctx context.Context, root *cobra.Command) (instructions []string) {
 	for _, cmd := range root.Commands() {
 		binaryName, ok := cmd.Annotations[extension.ReferenceAnnotation]
 		// A command that already has children was prepared by an earlier call.
@@ -71,7 +74,12 @@ func PrepareForMCP(ctx context.Context, root *cobra.Command) {
 		}
 
 		addReferenceCmds(cmd, ref)
+
+		if text := strings.TrimSpace(ref.Instructions); text != "" {
+			instructions = append(instructions, text)
+		}
 	}
+	return instructions
 }
 
 // IsExtensionCmd reports whether cmd runs an extension: a top-level extension
@@ -177,9 +185,6 @@ func addReferenceFlags(cmd *cobra.Command, flags []extension.ReferenceFlag) {
 		}
 
 		if f.Type == "" {
-			// shortcut: a bool defaulting to true cannot be turned off through MCP,
-			// since the server drops false flags; no extension declares one yet —
-			// pass such a flag as --name=false when one does.
 			cmd.Flags().Bool(f.Name, f.Default == "true", f.Usage)
 			continue
 		}

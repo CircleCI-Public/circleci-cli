@@ -205,6 +205,8 @@ func TestMCPCallExtensionSubcommandTool(t *testing.T) {
 	installExtensionWithRef(t, registry, env, "testextension", testReference())
 
 	session := startMCPServer(ctx, t, env)
+	assert.Check(t, cmp.Equal(session.InitializeResult().Instructions, ""),
+		"an extension whose reference has no instructions sends none")
 
 	res, err := session.CallTool(ctx, &mcp.CallToolParams{
 		Name: "circleci_testextension_do",
@@ -242,6 +244,29 @@ func installExtensionWithRef(t *testing.T, registry *fakes.ExtensionRegistry, en
 	assert.Assert(t, cmp.Equal(result.ExitCode, 0))
 
 	writeCLIConfig(t, env, "user_id: "+testUserID+"\n")
+}
+
+// TestMCPServerInstructionsFromReferences checks the server sends the
+// instructions each extension's reference supplies, joined in command order:
+// here an installed extension's and a cached one for uninstalled testsuite.
+func TestMCPServerInstructionsFromReferences(t *testing.T) {
+	ctx := iostream.Testing(context.Background())
+
+	registry := fakes.NewExtensionRegistry(t)
+	env := testenv.New(t)
+	env.Token = testToken
+	env.ExtensionRegistryURL = registry.URL()
+
+	installed := testReference()
+	installed.Instructions = "Use the testextension tools."
+	installExtensionWithRef(t, registry, env, "testextension", installed)
+	withExtension(t, registry, "testsuite", &extension.Reference{
+		Instructions: "Use the testsuite tools.",
+		Subcommands:  []extension.ReferenceSub{{Name: "doctor"}},
+	})
+
+	session := startMCPServer(ctx, t, env)
+	assert.Check(t, golden.String(session.InitializeResult().Instructions, t.Name()+".txt"))
 }
 
 // startMCPServer runs `mcp start` over stdio and returns a connected client

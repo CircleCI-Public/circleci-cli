@@ -28,6 +28,7 @@ import (
 	"time"
 
 	"charm.land/glamour/v2"
+	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/njayp/ophis"
 	"github.com/shirou/gopsutil/v4/host"
 	"github.com/spf13/cobra"
@@ -298,6 +299,7 @@ func NewRootCmd(version string) *cobra.Command {
 			{CmdSelector: extension.IsExtensionCmd, InheritedFlagSelector: ophis.NoFlags},
 			{},
 		},
+		ServerOptions: &mcp.ServerOptions{},
 	}
 	mcpCmd := ophis.Command(mcpCfg)
 	mcpCmd.Short = "Run the CLI as an MCP server for AI tools"
@@ -318,7 +320,9 @@ func NewRootCmd(version string) *cobra.Command {
 			orig := sub.RunE
 			sub.RunE = func(cmd *cobra.Command, args []string) error {
 				_ = os.Setenv("CIRCLE_MCP", "1")
-				extension.PrepareForMCP(cmd.Context(), cmd.Root())
+				// Each extension owns the instructions for its own tools.
+				instructions := extension.PrepareForMCP(cmd.Context(), cmd.Root())
+				mcpCfg.ServerOptions.Instructions = strings.Join(instructions, "\n\n")
 				inlineArgumentDocs(cmd.Root())
 				return orig(cmd, args)
 			}
