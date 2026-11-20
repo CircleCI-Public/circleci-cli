@@ -1,0 +1,4 @@
+error: API returned 400: Bad Request: Rerun requests are disabled
+
+Suggestions:
+  • Reruns are switched off for this organization. An org admin can turn them back on under Organization Settings > Advanced.
