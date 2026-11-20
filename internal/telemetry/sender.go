@@ -160,6 +160,14 @@ func (c *Sender) Close() error {
 // Callers should provide a real user id where possible.
 var AnonymousID = uuid.MustParse("66f35d3e-40f6-4ade-909b-a6314990de53")
 
+// anonymousID returns the device ID, or "" for the nil UUID.
+func anonymousID(id uuid.UUID) string {
+	if id == uuid.Nil {
+		return ""
+	}
+	return id.String()
+}
+
 // Track sends an analytics event.
 func (c *Sender) Track(eventName string, props map[string]any) error {
 	if c == nil {
@@ -177,6 +185,7 @@ func (c *Sender) Track(eventName string, props map[string]any) error {
 		Properties: p,
 
 		UserId:       c.meta.UserID.String(),
+		AnonymousId:  anonymousID(c.meta.InstanceID),
 		Context:      c.meta.toContext(),
 		Integrations: analytics.NewIntegrations().Enable("Amplitude"),
 	})

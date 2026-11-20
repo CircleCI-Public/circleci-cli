@@ -463,11 +463,12 @@ func TestAPI_Telemetry(t *testing.T) {
 				SentAt: now,
 				Messages: []analytics.Track{
 					{
-						Type:      "track",
-						MessageId: "ignored",
-						Timestamp: now,
-						UserId:    telemetry.AnonymousID.String(),
-						Event:     "command_invocation",
+						Type:        "track",
+						MessageId:   "ignored",
+						Timestamp:   now,
+						UserId:      telemetry.AnonymousID.String(),
+						AnonymousId: cfg.DeviceID().String(),
+						Event:       "command_invocation",
 						Properties: analytics.Properties{
 							"command":   "circleci api",
 							"flags":     "debug,insecure-storage,theme",

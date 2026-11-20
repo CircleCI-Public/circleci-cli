@@ -130,11 +130,12 @@ func TestClient_Track_with_user_id(t *testing.T) {
 				SentAt: sent,
 				Messages: []analytics.Track{
 					{
-						Type:      "track",
-						MessageId: "ignored",
-						Timestamp: sent,
-						UserId:    userID.String(),
-						Event:     "myevent",
+						Type:        "track",
+						MessageId:   "ignored",
+						Timestamp:   sent,
+						UserId:      userID.String(),
+						AnonymousId: instanceID.String(),
+						Event:       "myevent",
 						Properties: analytics.Properties{
 							"foo": "bar",
 							"baz": float64(42),
@@ -224,11 +225,12 @@ func TestClient_Track_without_userid(t *testing.T) {
 				SentAt: sent,
 				Messages: []analytics.Track{
 					{
-						Type:      "track",
-						MessageId: "ignored",
-						Timestamp: sent,
-						UserId:    telemetry.AnonymousID.String(),
-						Event:     "user-event",
+						Type:        "track",
+						MessageId:   "ignored",
+						Timestamp:   sent,
+						UserId:      telemetry.AnonymousID.String(),
+						AnonymousId: instanceID.String(),
+						Event:       "user-event",
 						Properties: analytics.Properties{
 							"foo": "bar",
 							"baz": float64(84),
@@ -256,4 +258,45 @@ func TestClient_Track_without_userid(t *testing.T) {
 		}, fakesegment.CompareTrack, fakesegment.CompareTime))
 	})
 
+}
+
+func TestClient_Track_without_instance_id(t *testing.T) {
+	ctx := iostream.Testing(context.Background())
+
+	fs := fakesegment.New(ctx, goodWriteKey)
+	srv := httptest.NewServer(fs)
+	t.Cleanup(srv.Close)
+
+	ac, err := telemetry.NewSender(ctx, telemetry.Config{
+		Send:     true,
+		Log:      true,
+		Endpoint: srv.URL,
+		WriteKey: goodWriteKey,
+		Binary:   testBinaryPath,
+		Metadata: telemetry.Meta{
+			Version: "1.2.3",
+		},
+	})
+	assert.NilError(t, err)
+
+	err = ac.Track("user-event", map[string]any{"foo": "bar"})
+	assert.NilError(t, err)
+
+	// Close will flush the events
+	err = ac.Close()
+	assert.NilError(t, err)
+
+	poll.WaitOn(t, func(t poll.LogT) poll.Result {
+		if len(fs.Batches()) == 0 {
+			return poll.Continue("waiting for a batch")
+		}
+		return poll.Success()
+	})
+
+	batches := fs.Batches()
+	assert.Assert(t, cmp.Len(batches, 1))
+	assert.Assert(t, cmp.Len(batches[0].Messages, 1))
+	msg := batches[0].Messages[0]
+	assert.Check(t, cmp.Equal(msg.AnonymousId, ""))
+	assert.Check(t, cmp.Equal(msg.UserId, telemetry.AnonymousID.String()))
 }
