@@ -417,7 +417,7 @@ func watchState(state runGetOutput) ui.RunWatchState {
 				Symbol: apiclient.PhaseOutcomeSymbol(j.Phase, j.Outcome, j.CurrentOutcome),
 				Status: apiclient.PhaseOutcomeText(j.Phase, j.Outcome, j.CurrentOutcome),
 				Type:   j.Type,
-				Failed: j.Outcome == "failed",
+				Failed: j.failed(),
 			})
 		}
 		out.Workflows = append(out.Workflows, row)

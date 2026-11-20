@@ -1,0 +1,22 @@
+# Run
+- ID: `5034460f-c7c4-4c43-9457-de07e2029e7b`
+- Branch: main
+- Commit: abc1234
+- Subject: Fix the widget
+- Author: Ada Lovelace
+- URL: http://app.circleci.test/pipeline/5034460f-c7c4-4c43-9457-de07e2029e7b
+- Status: failed
+- Created: 2020-01-01 12:00:00 UTC
+
+## Workflows
+### build
+- ID: `b0000000-0000-4000-8000-000000000001`
+- Status: ❌ failed
+- Duration: 2m34s
+- Rerun failed jobs: `circleci workflow rerun b0000000-0000-4000-8000-000000000001 --from-failed`
+#### Jobs
+| Name      | Status       | Type  | ID                                     |
+| --------- | ------------ | ----- | -------------------------------------- |
+| run-tests | ❌ failed    | build | `d0000000-0000-4000-8000-000000000001` |
+| lint      | ✅ succeeded | build | `d0000000-0000-4000-8000-000000000002` |
+
