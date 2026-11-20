@@ -104,15 +104,7 @@ func newTermsAcceptCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			label := orgRef
-			if label == "" {
-				// The org came from the current project, so name it by the
-				// project's org slug (gh/myorg) rather than its UUID.
-				label = orgID.String()
-				if slug, err := cmdutil.ResolveOrgSlug("", "circleci runner terms accept"); err == nil && slug != "" {
-					label = slug
-				}
-			}
+			label := orgLabel(orgRef, orgID, "circleci runner terms accept")
 			return runTermsAccept(ctx, client, orgID, label, force, jsonOut)
 		},
 	}
@@ -145,7 +137,24 @@ func runTermsAccept(ctx context.Context, client *apiclient.Client, orgID uuid.UU
 		return nil
 	}
 
-	if !force && !jsonOut {
+	settings, err = confirmAndAcceptTerms(ctx, client, orgID, label, force, jsonOut)
+	if err != nil {
+		return err
+	}
+
+	if jsonOut {
+		return iostream.PrintJSON(ctx, termsAcceptOutput{OrgID: orgID.String(), Accepted: settings.RunnerTOSAccepted})
+	}
+	iostream.Printf(ctx, "%s Accepted the self-hosted runner terms for %s\n", iostream.SymbolOK(ctx), label)
+	iostream.ErrPrintf(ctx, "\nNext, create a resource class: circleci runner resource-class create <namespace>/<name>\n")
+	return nil
+}
+
+// confirmAndAcceptTerms shows the terms link, asks the user to confirm (unless
+// force), then records the acceptance. The caller has already established that
+// the terms are not yet accepted. quiet suppresses the link for --json runs.
+func confirmAndAcceptTerms(ctx context.Context, client *apiclient.Client, orgID uuid.UUID, label string, force, quiet bool) (*apiclient.OrgSettingsAttributes, error) {
+	if !force && !quiet {
 		iostream.ErrPrintf(ctx, "CircleCI's self-hosted runner terms: %s\n", runnerTermsURL)
 	}
 	if err := cmdutil.ConfirmOrForce(ctx, iostream.Get(ctx), force,
@@ -157,21 +166,27 @@ func runTermsAccept(ctx context.Context, client *apiclient.Client, orgID uuid.UU
 			fmt.Sprintf("Accepting the self-hosted runner terms (%s) on behalf of %s needs confirmation.", runnerTermsURL, label)).
 			WithExitCode(clierrors.ExitCancelled),
 	); err != nil {
-		return err
+		return nil, err
 	}
 
 	accepted := true
-	settings, err = client.UpdateOrgSettings(ctx, orgID, apiclient.OrgSettingsUpdate{RunnerTOSAccepted: &accepted})
+	settings, err := client.UpdateOrgSettings(ctx, orgID, apiclient.OrgSettingsUpdate{RunnerTOSAccepted: &accepted})
 	if err != nil {
-		return termsErr(err, orgID, label)
+		return nil, termsErr(err, orgID, label)
 	}
+	return settings, nil
+}
 
-	if jsonOut {
-		return iostream.PrintJSON(ctx, termsAcceptOutput{OrgID: orgID.String(), Accepted: settings.RunnerTOSAccepted})
+// orgLabel names an organization for humans: the --org value as given, else the
+// current project's org slug (gh/myorg), else its UUID.
+func orgLabel(orgRef string, orgID uuid.UUID, cmdName string) string {
+	if orgRef != "" {
+		return orgRef
 	}
-	iostream.Printf(ctx, "%s Accepted the self-hosted runner terms for %s\n", iostream.SymbolOK(ctx), label)
-	iostream.ErrPrintf(ctx, "\nNext, create a resource class: circleci runner resource-class create <namespace>/<name>\n")
-	return nil
+	if slug, err := cmdutil.ResolveOrgSlug("", cmdName); err == nil && slug != "" {
+		return slug
+	}
+	return orgID.String()
 }
 
 func termsErr(err error, orgID uuid.UUID, label string) error {

@@ -1,0 +1,3 @@
+✓ Accepted the self-hosted runner terms for gh/my-org
+✓ Created resource class my-org/new-runner
+✓ Created a token for my-org/new-runner

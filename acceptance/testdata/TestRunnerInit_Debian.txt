@@ -1,0 +1,39 @@
+
+Token for my-org/new-runner (save this — it will not be shown again):
+fake-runner-token-value
+
+Install machine runner 3 on Debian or Ubuntu
+
+1. Add the CircleCI package repository
+   $ curl -s https://packagecloud.io/install/repositories/circleci/runner/script.deb.sh?any=true | sudo bash
+
+2. Install the runner
+   $ sudo apt-get install -y circleci-runner
+
+3. Put the token in the runner config
+   $ export RUNNER_AUTH_TOKEN="<the token printed above>"
+   $ sudo sed -i "s/<< AUTH_TOKEN >>/$RUNNER_AUTH_TOKEN/g" /etc/circleci-runner/circleci-runner-config.yaml
+   On CircleCI server, point the agent at your server: set the url field under api: in the config, or CIRCLECI_RUNNER_API_URL in the environment.
+
+4. Start the runner and check it is running
+   $ sudo systemctl enable circleci-runner && sudo systemctl start circleci-runner
+   $ sudo systemctl status circleci-runner
+   Logs: journalctl -u circleci-runner -f
+
+Then run a job on it, in .circleci/config.yml:
+
+version: 2.1
+
+jobs:
+  runner:
+    machine: true
+    resource_class: my-org/new-runner
+    steps:
+      - run: echo "Hi I'm on Runners!"
+
+workflows:
+  build-workflow:
+    jobs:
+      - runner
+
+Docs: https://circleci.com/docs/runner/install-machine-runner-3-on-linux/

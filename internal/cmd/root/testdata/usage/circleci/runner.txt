@@ -3,6 +3,7 @@ Usage:  circleci runner <command> [flags]
 Available commands:
   config
   fleet
+  init
   instance
   open
   resource-class

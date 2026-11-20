@@ -52,6 +52,7 @@ func NewRunnerCmd() *cobra.Command {
 	}
 
 	cmdutil.AddGroup(cmd, "General commands",
+		newInitCmd(),
 		newOpenCmd(),
 	)
 	cmdutil.AddGroup(cmd, "Targeted commands",
