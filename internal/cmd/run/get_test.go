@@ -27,6 +27,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/google/uuid"
 	"gotest.tools/v3/assert"
 	is "gotest.tools/v3/assert/cmp"
 
@@ -269,4 +270,38 @@ func TestCommitSubject(t *testing.T) {
 	long := commitSubject(&apiclient.RunV3{Commit: &apiclient.RunCommit{Subject: strings.Repeat("x", 100)}})
 	assert.Check(t, strings.HasSuffix(long, "…"), "long subjects are truncated: %q", long)
 	assert.Check(t, len([]rune(long)) <= 51, "truncated to the cap plus ellipsis: %q", long)
+}
+
+func TestBuildOutput_RerunCommand(t *testing.T) {
+	wfID := uuid.MustParse("5034460f-c7c4-4c43-9457-de07e2029e7b")
+	want := "circleci workflow rerun " + wfID.String() + " --from-failed"
+	tests := []struct {
+		name  string
+		phase string
+		jobs  []apiclient.WorkflowJobV3
+		want  string
+	}{
+		{name: "ended with a failed job", phase: "ended", want: want,
+			jobs: []apiclient.WorkflowJobV3{{Phase: "ended", Outcome: "failed"}}},
+		{name: "ended with an infrastructure failure", phase: "ended", want: want,
+			jobs: []apiclient.WorkflowJobV3{{Phase: "ended", Outcome: "infrastructure_fail"}}},
+		{name: "ended with a timed out job", phase: "ended", want: want,
+			jobs: []apiclient.WorkflowJobV3{{Phase: "ended", Outcome: "timedout"}}},
+		{name: "ended job reporting only current_outcome", phase: "ended", want: want,
+			jobs: []apiclient.WorkflowJobV3{{Phase: "ended", CurrentOutcome: "errored"}}},
+		{name: "still running with a failed job", phase: "started",
+			jobs: []apiclient.WorkflowJobV3{{Phase: "ended", Outcome: "failed"}, {Phase: "started"}}},
+		{name: "ended with every job succeeded", phase: "ended",
+			jobs: []apiclient.WorkflowJobV3{{Phase: "ended", Outcome: "succeeded"}}},
+		{name: "ended with a canceled job", phase: "ended",
+			jobs: []apiclient.WorkflowJobV3{{Phase: "ended", Outcome: "canceled"}}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			out := buildOutput(&apiclient.RunV3{},
+				[]apiclient.WorkflowV3{{ID: wfID, Phase: tt.phase}},
+				[][]apiclient.WorkflowJobV3{tt.jobs})
+			assert.Check(t, is.Equal(out.Workflows[0].RerunCommand, tt.want))
+		})
+	}
 }

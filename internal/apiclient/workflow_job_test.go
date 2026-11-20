@@ -20,35 +20,33 @@
 //
 // SPDX-License-Identifier: MIT
 
-package preflight
+package apiclient
 
 import (
 	"testing"
 
 	"gotest.tools/v3/assert"
 	"gotest.tools/v3/assert/cmp"
-
-	"github.com/CircleCI-Public/circleci-cli/internal/apiclient"
 )
 
-func TestJobFailed(t *testing.T) {
+func TestWorkflowJobV3_Failed(t *testing.T) {
 	tests := []struct {
 		name string
-		job  apiclient.WorkflowJobV3
+		job  WorkflowJobV3
 		want bool
 	}{
-		{name: "failed", job: apiclient.WorkflowJobV3{Phase: apiclient.PhaseEnded, Outcome: "failed"}, want: true},
-		{name: "errored", job: apiclient.WorkflowJobV3{Phase: apiclient.PhaseEnded, Outcome: "errored"}, want: true},
-		{name: "infrastructure failure", job: apiclient.WorkflowJobV3{Phase: apiclient.PhaseEnded, Outcome: "infrastructure_fail"}, want: true},
-		{name: "timed out", job: apiclient.WorkflowJobV3{Phase: apiclient.PhaseEnded, Outcome: "timedout"}, want: true},
-		{name: "succeeded", job: apiclient.WorkflowJobV3{Phase: apiclient.PhaseEnded, Outcome: "succeeded"}},
-		{name: "canceled", job: apiclient.WorkflowJobV3{Phase: apiclient.PhaseEnded, Outcome: "canceled"}},
-		{name: "ended with only current_outcome", job: apiclient.WorkflowJobV3{Phase: apiclient.PhaseEnded, CurrentOutcome: "failed"}, want: true},
-		{name: "still running with a failing current_outcome", job: apiclient.WorkflowJobV3{Phase: apiclient.PhaseStarted, CurrentOutcome: "failed"}},
+		{name: "failed", job: WorkflowJobV3{Phase: PhaseEnded, Outcome: "failed"}, want: true},
+		{name: "errored", job: WorkflowJobV3{Phase: PhaseEnded, Outcome: "errored"}, want: true},
+		{name: "infrastructure failure", job: WorkflowJobV3{Phase: PhaseEnded, Outcome: "infrastructure_fail"}, want: true},
+		{name: "timed out", job: WorkflowJobV3{Phase: PhaseEnded, Outcome: "timedout"}, want: true},
+		{name: "succeeded", job: WorkflowJobV3{Phase: PhaseEnded, Outcome: "succeeded"}},
+		{name: "canceled", job: WorkflowJobV3{Phase: PhaseEnded, Outcome: "canceled"}},
+		{name: "ended with only current_outcome", job: WorkflowJobV3{Phase: PhaseEnded, CurrentOutcome: "failed"}, want: true},
+		{name: "still running with a failing current_outcome", job: WorkflowJobV3{Phase: PhaseStarted, CurrentOutcome: "failed"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Check(t, cmp.Equal(jobFailed(tt.job), tt.want))
+			assert.Check(t, cmp.Equal(tt.job.Failed(), tt.want))
 		})
 	}
 }

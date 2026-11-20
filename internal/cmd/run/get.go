@@ -28,6 +28,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -98,7 +99,7 @@ func newGetCmd() *cobra.Command {
 
 			JSON fields: id, phase, outcome, current_outcome, branch, tag, revision, repository_url,
 			commit.subject/url/author_name/author_login, created_at, errors[].type/message,
-			warnings[].type/message/description/url, workflows[].id/name/phase/outcome/current_outcome/duration/
+			warnings[].type/message/description/url, workflows[].id/name/phase/outcome/current_outcome/duration/rerun_command/
 			jobs[].id/name/phase/outcome/current_outcome/type
 		`),
 		Example: heredoc.Doc(`
@@ -198,13 +199,17 @@ func commitOutputFrom(c *apiclient.RunCommit) *commitOutput {
 }
 
 type workflowOutput struct {
-	ID             uuid.UUID   `json:"id"`
-	Name           string      `json:"name"`
-	Phase          string      `json:"phase"`
-	Outcome        string      `json:"outcome,omitempty"`
-	CurrentOutcome string      `json:"current_outcome,omitempty"`
-	Duration       string      `json:"duration,omitempty"`
-	Jobs           []jobOutput `json:"jobs"`
+	ID             uuid.UUID `json:"id"`
+	Name           string    `json:"name"`
+	Phase          string    `json:"phase"`
+	Outcome        string    `json:"outcome,omitempty"`
+	CurrentOutcome string    `json:"current_outcome,omitempty"`
+	Duration       string    `json:"duration,omitempty"`
+	// RerunCommand is the command that reruns only this workflow's failed
+	// jobs. It is set only for an ended workflow with a failed job, so its
+	// presence is itself the signal that a rerun is possible.
+	RerunCommand string      `json:"rerun_command,omitempty"`
+	Jobs         []jobOutput `json:"jobs"`
 }
 
 type jobOutput struct {
@@ -214,6 +219,11 @@ type jobOutput struct {
 	Outcome        string    `json:"outcome,omitempty"`
 	CurrentOutcome string    `json:"current_outcome,omitempty"`
 	Type           string    `json:"type,omitempty"`
+}
+
+// failed reports whether the job ended in failure; see WorkflowJobV3.Failed.
+func (j jobOutput) failed() bool {
+	return apiclient.WorkflowJobV3{Phase: j.Phase, Outcome: j.Outcome, CurrentOutcome: j.CurrentOutcome}.Failed()
 }
 
 func runGet(ctx context.Context, client *apiclient.Client, args []string, projectSlug, branch string, jsonOut, mine, noInteractive, failureReport bool) error {
@@ -929,6 +939,10 @@ func buildOutput(r *apiclient.RunV3, workflows []apiclient.WorkflowV3, wfJobs []
 		if w.EndedAt != nil {
 			dur = ui.FormatElapsed(w.EndedAt.Sub(w.CreatedAt))
 		}
+		var rerun string
+		if w.Phase == apiclient.PhaseEnded && slices.ContainsFunc(wfJobs[i], apiclient.WorkflowJobV3.Failed) {
+			rerun = rerunFromFailedCommand(w.ID)
+		}
 		wflows[i] = workflowOutput{
 			ID:             w.ID,
 			Name:           w.Name,
@@ -936,6 +950,7 @@ func buildOutput(r *apiclient.RunV3, workflows []apiclient.WorkflowV3, wfJobs []
 			Outcome:        w.Outcome,
 			CurrentOutcome: w.CurrentOutcome,
 			Duration:       dur,
+			RerunCommand:   rerun,
 			Jobs:           jobs,
 		}
 	}
@@ -1087,6 +1102,9 @@ func runMarkdown(r runGetOutput, u string) string {
 			_, _ = fmt.Fprintf(&md, "- Status: %s\n", apiclient.PhaseOutcomeStatus(w.Phase, w.Outcome, w.CurrentOutcome))
 			if w.Duration != "" {
 				_, _ = fmt.Fprintf(&md, "- Duration: %s\n", w.Duration)
+			}
+			if w.RerunCommand != "" {
+				_, _ = fmt.Fprintf(&md, "- Rerun failed jobs: `%s`\n", w.RerunCommand)
 			}
 			md.WriteString("#### Jobs\n")
 			mdTable := mdtable.New("Name", "Status", "Type", "ID")
