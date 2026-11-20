@@ -1,0 +1,11 @@
+{
+  "extension": "config-optimize",
+  "short_names": [
+    "jobs_analyzed",
+    "jobs_with_suggestions",
+    "no_suggestion_reason",
+    "suggestions",
+    "validation_outcome",
+    "validation_pairs"
+  ]
+}

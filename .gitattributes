@@ -7,3 +7,4 @@
 **/testdata/**/*.jsonl text eol=lf
 **/testdata/**/*.yml text eol=lf
 **/testdata/**/*.yaml text eol=lf
+internal/extschema/schema.json text eol=lf
