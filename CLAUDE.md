@@ -221,6 +221,8 @@ internal/
 ├── configgen/            Renders pipeline YAML from a reposcan.Result and writes it to disk.
 ├── deployinit/           Scans and patches .circleci/config.yml to add deploy marker steps.
 ├── extension/            Plugin mechanism — discovers circleci-* binaries on PATH.
+├── extsocket/            Private Unix socket the CLI listens on before an extension starts,
+│                         and reads one bounded JSON payload from after it exits.
 ├── githubapp/            CircleCI GitHub App install detection + browser install flow.
 ├── gitremote/            Resolves project slug + branch. Prefers .circleci/info.yml, then
 │                         falls back to parsing the git remote URL.
