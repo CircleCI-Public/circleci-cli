@@ -24,12 +24,17 @@
 package cmdonboard
 
 import (
+	"fmt"
+	"slices"
+
 	"github.com/MakeNowJust/heredoc"
 	"github.com/spf13/cobra"
 
 	clierrors "github.com/CircleCI-Public/circleci-cli/clikit/errors"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmdutil"
+	"github.com/CircleCI-Public/circleci-cli/internal/forgejoconn"
 	"github.com/CircleCI-Public/circleci-cli/internal/onboarder"
+	"github.com/CircleCI-Public/circleci-cli/internal/provider"
 )
 
 // NewOnboardCmd returns the "circleci onboard" command.
@@ -40,6 +45,8 @@ func NewOnboardCmd() *cobra.Command {
 		signup    bool
 		org       string
 		repoID    string
+		prov      string
+		forgejo   forgejoconn.Options
 	)
 
 	cmd := &cobra.Command{
@@ -52,22 +59,17 @@ func NewOnboardCmd() *cobra.Command {
 			`, "`"),
 		},
 		Long: heredoc.Doc(`
-			Prompts for repo setup or signup unless --scan or --signup is given. Writes a
-			starter config if none exists, creates and follows the project, adds a trigger.
-			--org is required when you belong to several orgs and cannot be prompted.
+			Writes a starter config if none exists, creates and follows the project, adds a trigger.
 		`),
 		Example: heredoc.Doc(`
-			# Interactive mode: choose repo setup or signup
-			$ circleci onboard
-
 			# Set up the current directory (skip the choice prompt)
 			$ circleci onboard --scan
 
 			# Set up in a named org (required when you belong to several)
 			$ circleci onboard --scan --org gh/acme
 
-			# Sign up for CircleCI (no repo needed)
-			$ circleci onboard --signup
+			# Connect a self-hosted Forgejo repo without prompts
+			$ circleci onboard --scan --provider forgejo --connection-audience u:1:ab12 --checkout-audience u:1:cd34
 		`),
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -77,6 +79,13 @@ func NewOnboardCmd() *cobra.Command {
 				return clierrors.New("onboard.invalid_args", "Invalid arguments",
 					"--scan and --signup are mutually exclusive").
 					WithExitCode(clierrors.ExitBadArguments)
+			}
+
+			if err := validateProvider(prov); err != nil {
+				return err
+			}
+			if _, err := forgejoconn.ParseHeaders(forgejo.Headers); err != nil {
+				return err
 			}
 
 			dir := "."
@@ -93,6 +102,8 @@ func NewOnboardCmd() *cobra.Command {
 				Signup:        signup,
 				Org:           org,
 				RepoID:        repoID,
+				Provider:      prov,
+				Forgejo:       forgejo,
 			})
 		},
 	}
@@ -102,5 +113,27 @@ func NewOnboardCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&signup, "signup", false, "Skip prompt: sign up for CircleCI")
 	cmdutil.AddOrgFlag(cmd, &org, cmdutil.OrgFlag{Purpose: "to set the project up in"})
 	cmd.Flags().StringVar(&repoID, "repo-id", "", "Repository ID, if it cannot be resolved from the git remote")
+	cmd.Flags().StringVar(&prov, "provider", "", "Provider of a self-hosted remote: "+provider.List(provider.ConfigSource, provider.Provider.ConnectsInTerminal))
+	cmd.Flags().StringVar(&forgejo.URL, "provider-url", "", "Forgejo instance URL (default: https://<remote host>)")
+	cmd.Flags().StringVar(&forgejo.Owner, "owner", "", "Forgejo org or user that owns the repo (default: remote owner)")
+	cmd.Flags().StringVar(&forgejo.ConnectionAudience, "connection-audience", "", "Audience of the bot's CircleCI connection integration")
+	cmd.Flags().StringVar(&forgejo.CheckoutAudience, "checkout-audience", "", "Audience of the bot's CircleCI checkout integration")
+	cmd.Flags().StringArrayVarP(&forgejo.Headers, "header", "H", nil, fmt.Sprintf("Request header for Forgejo, \"Name: Value\" (repeatable, max %d)", forgejoconn.MaxRequestHeaders))
 	return cmd
+}
+
+// validateProvider accepts only the integrations onboard connects in the
+// terminal: the others are recognised from the remote's host.
+func validateProvider(v string) error {
+	valid := provider.Names(provider.ConfigSource, provider.Provider.ConnectsInTerminal)
+	if v == "" || slices.Contains(valid, v) {
+		return nil
+	}
+	return clierrors.New("args.invalid_provider", "Invalid --provider value",
+		fmt.Sprintf("%q is not a provider onboard can connect.", v)).
+		WithSuggestions(
+			"Valid values: "+provider.List(provider.ConfigSource, provider.Provider.ConnectsInTerminal),
+			"Omit --provider for a remote on a host CircleCI recognises, such as github.com",
+		).
+		WithExitCode(clierrors.ExitBadArguments)
 }
