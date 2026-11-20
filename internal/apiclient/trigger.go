@@ -68,6 +68,16 @@ type Trigger struct {
 	ConfigRef   string             `json:"config_ref,omitempty"`
 	CheckoutRef string             `json:"checkout_ref,omitempty"`
 	Disabled    bool               `json:"disabled"`
+	Rules       []TriggerRule      `json:"rules,omitempty"`
+}
+
+// TriggerRule is one custom trigger rule: an expression evaluated against
+// events of EventType. Rule is always sent, because an empty rule is valid for
+// a push.
+type TriggerRule struct {
+	EventType string `json:"event_type,omitempty"`
+	EventRef  string `json:"event_ref,omitempty"`
+	Rule      string `json:"rule"`
 }
 
 // event.type values on the v3 triggers endpoints. Every provider that is not a
@@ -87,7 +97,8 @@ type triggerRefAttrs struct {
 // Preset is the trigger-level event key shared by all of its rules; it is absent
 // for a trigger whose rules match no preset.
 type triggerFilterAttrs struct {
-	Preset string `json:"preset,omitempty"`
+	Preset string        `json:"preset,omitempty"`
+	Rules  []TriggerRule `json:"rules,omitempty"`
 }
 
 // triggerEventAttrs is a tagged union on Type: exactly one of VCS/Webhook/Schedule
@@ -183,6 +194,7 @@ type CreateTriggerInput struct {
 	RepoID               string
 	RepoFullName         string
 	EventPreset          string
+	Rules                []TriggerRule
 	ConfigRef            string
 	CheckoutRef          string
 }
@@ -205,8 +217,8 @@ func (c *Client) CreateTrigger(ctx context.Context, input CreateTriggerInput) (*
 			RepoID:       input.RepoID,
 			RepoFullName: input.RepoFullName,
 		}
-		if input.EventPreset != "" {
-			event.Filter = &triggerFilterAttrs{Preset: input.EventPreset}
+		if input.EventPreset != "" || input.Rules != nil {
+			event.Filter = &triggerFilterAttrs{Preset: input.EventPreset, Rules: input.Rules}
 		}
 	}
 
@@ -245,6 +257,7 @@ type UpdateTriggerInput struct {
 
 	Disabled    *bool
 	EventPreset *string
+	Rules       []TriggerRule
 	ConfigRef   *string
 	CheckoutRef *string
 }
@@ -269,8 +282,12 @@ type triggerUpdateEvent struct {
 // the trigger as it now stands.
 func (c *Client) UpdateTrigger(ctx context.Context, id string, input UpdateTriggerInput) (*Trigger, error) {
 	body := triggerUpdateBody{IsDisabled: input.Disabled}
-	if input.EventPreset != nil {
-		body.Event = &triggerUpdateEvent{Filter: &triggerFilterAttrs{Preset: *input.EventPreset}}
+	if input.EventPreset != nil || input.Rules != nil {
+		filter := &triggerFilterAttrs{Rules: input.Rules}
+		if input.EventPreset != nil {
+			filter.Preset = *input.EventPreset
+		}
+		body.Event = &triggerUpdateEvent{Filter: filter}
 	}
 	if input.ConfigRef != nil {
 		body.Config = &triggerRefAttrs{Ref: *input.ConfigRef}
@@ -284,6 +301,22 @@ func (c *Client) UpdateTrigger(ctx context.Context, id string, input UpdateTrigg
 		httpcl.RouteParams(id),
 		filterParam("project_id", input.ProjectID),
 		httpcl.Body(body),
+		httpcl.JSONDecoder(&resp),
+	))
+	if err != nil {
+		return nil, err
+	}
+	trig := resp.Data.toTrigger()
+	return &trig, nil
+}
+
+// GetTrigger fetches one trigger via GET /api/v3/triggers/{id}. projectID is
+// optional; it is only required to reach a project's synthetic OAuth trigger.
+func (c *Client) GetTrigger(ctx context.Context, id, projectID string) (*Trigger, error) {
+	var resp v3Entity[triggerEntity]
+	_, err := c.main.Call(ctx, httpcl.NewRequest(http.MethodGet, "/api/v3/triggers/%s",
+		httpcl.RouteParams(id),
+		filterParam("project_id", projectID),
 		httpcl.JSONDecoder(&resp),
 	))
 	if err != nil {
@@ -339,6 +372,7 @@ func (e triggerEntity) toTrigger() Trigger {
 	}
 	if event.Filter != nil {
 		t.EventPreset = event.Filter.Preset
+		t.Rules = event.Filter.Rules
 	}
 
 	switch {
