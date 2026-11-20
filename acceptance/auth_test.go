@@ -204,3 +204,38 @@ func TestAuthLogoutJSON(t *testing.T) {
 		"path":    cfgPath,
 	}))
 }
+
+// TestAuthLogout_ConfigFlag checks that logout removes the token from the file
+// named by -c, not the default config (issue #1901).
+func TestAuthLogout_ConfigFlag(t *testing.T) {
+	_, env := setupAuthFake(t)
+	dir := t.TempDir()
+	probe := filepath.Join(dir, "probe.yml")
+	defaultPath := filepath.Join(env.ConfigDir(), "circleci", "config.yml")
+
+	assert.Assert(t, t.Run("config", func(t *testing.T) {
+		writeConfigFile(t, defaultPath, "token: default-token\n")
+		writeConfigFile(t, probe, "token: probe-token\n")
+	}))
+
+	assert.Assert(t, t.Run("logout", func(t *testing.T) {
+		result := binary.RunCLI(t, binary.RunOpts{
+			Binary:  binaryPath,
+			Args:    []string{"-c", "probe.yml", "auth", "logout"},
+			Env:     env.Environ(),
+			WorkDir: dir,
+		})
+		assert.Check(t, cmp.Equal(result.ExitCode, 0))
+		assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+		assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+	}))
+
+	t.Run("probe cleared", func(t *testing.T) {
+		_, ok := readConfigFile(t, probe)["token"]
+		assert.Check(t, !ok, "token should be removed from the -c file")
+	})
+
+	t.Run("default untouched", func(t *testing.T) {
+		assert.Check(t, cmp.Equal(readConfigFile(t, defaultPath)["token"], "default-token"))
+	})
+}

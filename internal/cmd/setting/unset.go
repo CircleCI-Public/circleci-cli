@@ -63,7 +63,7 @@ func newUnsetCmd() *cobra.Command {
 
 			switch args[0] {
 			case "token":
-				res, err := config.DeleteToken(ctx, secureStorage)
+				res, err := config.DeleteToken(ctx, configPath, secureStorage)
 				if err != nil {
 					return clierrors.New("setting.unset_failed", "Failed to remove token", err.Error()).
 						WithExitCode(clierrors.ExitGeneralError)

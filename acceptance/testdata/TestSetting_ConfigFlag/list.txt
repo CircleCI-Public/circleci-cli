@@ -1,0 +1,12 @@
+# Settings
+- Path: probe.yml
+- Keyring: false
+
+| Name         | Value                   |
+| ------------ | ----------------------- |
+| host         | https://example.invalid |
+| token        | prob...oken             |
+| telemetry    | false                   |
+| theme        | dracula                 |
+| update-check | false                   |
+
