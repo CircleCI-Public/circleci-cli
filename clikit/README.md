@@ -47,3 +47,4 @@ ctx := iostream.New(context.Background(), iostream.Options{
 | `jsoncolor`     | ANSI-colorised, indented JSON writer                                                                                                                                     |
 | `browser`       | Open a URL, or print it when there is no browser                                                                                                                         |
 | `closer`        | `io.Closer` error handling for deferred `Close()`                                                                                                                        |
+| `telemetry`     | Send an extension's typed telemetry attributes to the CLI over the `CIRCLE_TELEMETRY_SOCKET` Unix socket. Best effort: a failure never reaches the extension |
