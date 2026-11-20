@@ -194,11 +194,12 @@ func TestSettingList_TextOutput(t *testing.T) {
 					SentAt: now,
 					Messages: []analytics.Track{
 						{
-							Type:      "track",
-							MessageId: "ignored",
-							Timestamp: now,
-							UserId:    telemetry.AnonymousID.String(),
-							Event:     "command_invocation",
+							Type:        "track",
+							MessageId:   "ignored",
+							Timestamp:   now,
+							UserId:      telemetry.AnonymousID.String(),
+							AnonymousId: cfg.DeviceID().String(),
+							Event:       "command_invocation",
 							Properties: analytics.Properties{
 								"command":   "circleci setting list",
 								"flags":     "debug,insecure-storage,theme",
@@ -266,11 +267,12 @@ func TestSettingList_TextOutput_Color(t *testing.T) {
 					SentAt: now,
 					Messages: []analytics.Track{
 						{
-							Type:      "track",
-							MessageId: "ignored",
-							Timestamp: now,
-							UserId:    telemetry.AnonymousID.String(),
-							Event:     "command_invocation",
+							Type:        "track",
+							MessageId:   "ignored",
+							Timestamp:   now,
+							UserId:      telemetry.AnonymousID.String(),
+							AnonymousId: cfg.DeviceID().String(),
+							Event:       "command_invocation",
 							Properties: analytics.Properties{
 								"command":   "circleci setting list",
 								"flags":     "insecure-storage,theme",
