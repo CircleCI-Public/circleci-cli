@@ -126,7 +126,7 @@ internal/                 Everything else (below).
 
 A **separate Go module** (`github.com/CircleCI-Public/circleci-cli/clikit`) holding what an
 extension needs to look like the CLI: `iostream`, `errors`, `ui`, `ui/components`, `ui/theme`,
-`mdtable`, `jq`, `jsoncolor`, `browser`, `closer`. It is `go get`-able, so it cannot live under
+`mdtable`, `jq`, `jsoncolor`, `browser`, `closer`, `telemetry`. It is `go get`-able, so it cannot live under
 `internal/` and must not import from it — the dependency only ever runs CLI → clikit.
 
 The root `go.mod` carries `replace github.com/CircleCI-Public/circleci-cli/clikit => ./clikit`, so
