@@ -53,6 +53,10 @@ type Manifest struct {
 // extension provides reference documentation.
 const ReferenceAnnotation = "extension:reference"
 
+// NotInstalledAnnotation marks the placeholder command registered for an
+// official extension that is not installed.
+const NotInstalledAnnotation = "extension:not-installed"
+
 // Reference describes an extension command and, recursively, its subcommands.
 // It is owned by the extension and fetched from the extension registry's
 // release.json. When present, it enriches the CLI's generated reference docs;
@@ -64,6 +68,9 @@ type Reference struct {
 	Args        []ReferenceArg  `json:"args,omitempty" yaml:"args,omitempty"`
 	Flags       []ReferenceFlag `json:"flags,omitempty" yaml:"flags,omitempty"`
 	Subcommands []ReferenceSub  `json:"subcommands,omitempty" yaml:"subcommands,omitempty"`
+	// Instructions tell an MCP client how to use the extension's tools. The
+	// server sends them when it serves those tools; empty means none.
+	Instructions string `json:"instructions,omitempty" yaml:"instructions,omitempty"`
 }
 
 type ReferenceSub struct {

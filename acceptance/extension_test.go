@@ -637,7 +637,7 @@ func findSection(t *testing.T, doc, heading string) string {
 		}
 
 		if found {
-			if headingLevel(l) == lvl {
+			if l := headingLevel(l); l > 0 && l <= lvl {
 				break
 			}
 			sb.WriteString(l)

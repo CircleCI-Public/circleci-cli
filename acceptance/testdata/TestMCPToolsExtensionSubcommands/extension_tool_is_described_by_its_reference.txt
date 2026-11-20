@@ -1,0 +1,1 @@
+A test extension with enriched command documentation.

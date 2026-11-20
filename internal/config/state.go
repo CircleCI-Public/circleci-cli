@@ -71,6 +71,16 @@ func StatePath() (string, error) {
 	return filepath.Join(dir, "state.yml"), nil
 }
 
+// ExtensionReferencesDir returns the directory caching the registry's command
+// reference for official extensions that are not installed yet.
+func ExtensionReferencesDir() (string, error) {
+	dir, err := StateDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(dir, "extension-references"), nil
+}
+
 // LockPath returns the advisory-lock companion path for a config or state file
 // (path + ".lock"). Exported so callers outside this package can take the same
 // lock LoadState / SaveState use — e.g. tests that pre-acquire it.

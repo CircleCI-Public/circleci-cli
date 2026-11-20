@@ -28,6 +28,7 @@ import (
 	"time"
 
 	"charm.land/glamour/v2"
+	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/njayp/ophis"
 	"github.com/shirou/gopsutil/v4/host"
 	"github.com/spf13/cobra"
@@ -290,7 +291,17 @@ func NewRootCmd(version string) *cobra.Command {
 
 	// Wire in MCP commands. ophis sets its own terse Short; override it so the
 	// root command table explains what the command actually does.
-	mcpCmd := ophis.Command(nil)
+	mcpCfg := &ophis.Config{
+		Selectors: []ophis.Selector{
+			// An extension command hands everything after the extension name to
+			// the extension, and the server puts flags before args, so a root
+			// flag on an extension tool would reach the extension and be rejected.
+			{CmdSelector: extension.IsExtensionCmd, InheritedFlagSelector: ophis.NoFlags},
+			{},
+		},
+		ServerOptions: &mcp.ServerOptions{},
+	}
+	mcpCmd := ophis.Command(mcpCfg)
 	mcpCmd.Short = "Run the CLI as an MCP server for AI tools"
 	mcpCmd.GroupID = "user"
 	cmd.AddCommand(mcpCmd)
@@ -309,6 +320,9 @@ func NewRootCmd(version string) *cobra.Command {
 			orig := sub.RunE
 			sub.RunE = func(cmd *cobra.Command, args []string) error {
 				_ = os.Setenv("CIRCLE_MCP", "1")
+				// Each extension owns the instructions for its own tools.
+				instructions := extension.PrepareForMCP(cmd.Context(), cmd.Root())
+				mcpCfg.ServerOptions.Instructions = strings.Join(instructions, "\n\n")
 				inlineArgumentDocs(cmd.Root())
 				return orig(cmd, args)
 			}
@@ -317,6 +331,7 @@ func NewRootCmd(version string) *cobra.Command {
 			// serve, or it stops being a faithful way to inspect them.
 			orig := sub.RunE
 			sub.RunE = func(cmd *cobra.Command, args []string) error {
+				extension.PrepareForMCP(cmd.Context(), cmd.Root())
 				inlineArgumentDocs(cmd.Root())
 				return orig(cmd, args)
 			}
