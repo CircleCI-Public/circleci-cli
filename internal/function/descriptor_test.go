@@ -107,6 +107,60 @@ func TestFlags(t *testing.T) {
 	}
 }
 
+func TestOutputs(t *testing.T) {
+	t.Run("A published descriptor yields its outputs", func(t *testing.T) {
+		outputs := function.Outputs(map[string]any{
+			"outputs": []any{
+				map[string]any{
+					"name": "digest", "type": "string", "secret": true,
+					"description": "Digest of the pushed image.",
+				},
+				map[string]any{"name": "tags", "type": "list"},
+				map[string]any{"name": "pushed", "type": "bool", "secret": false},
+			},
+		})
+		assert.Check(t, cmp.DeepEqual(outputs, []function.Output{
+			{Name: "digest", Type: "string", Description: "Digest of the pushed image.", Secret: true},
+			{Name: "tags", Type: "list"},
+			{Name: "pushed", Type: "bool"},
+		}))
+	})
+
+	t.Run("The outputs of a command are not the function's", func(t *testing.T) {
+		outputs := function.Outputs(map[string]any{
+			"default": "build",
+			"commands": map[string]any{
+				"build": map[string]any{
+					"outputs": []any{map[string]any{"name": "digest", "type": "string"}},
+				},
+			},
+		})
+		assert.Check(t, cmp.Len(outputs, 0))
+	})
+
+	for what, content := range map[string]map[string]any{
+		"nil content":          nil,
+		"no outputs key":       {"name": "setup-go"},
+		"outputs is a string":  {"outputs": "nope"},
+		"entry not a map":      {"outputs": []any{"digest"}},
+		"entry has no name":    {"outputs": []any{map[string]any{"type": "string"}}},
+		"entry has no type":    {"outputs": []any{map[string]any{"name": "digest"}}},
+		"name is not a string": {"outputs": []any{map[string]any{"name": 42, "type": "string"}}},
+		"type is not a string": {"outputs": []any{map[string]any{"name": "digest", "type": true}}},
+	} {
+		t.Run(what, func(t *testing.T) {
+			assert.Check(t, cmp.Len(function.Outputs(content), 0))
+		})
+	}
+
+	t.Run("A secret that is not a bool is not secret", func(t *testing.T) {
+		outputs := function.Outputs(map[string]any{
+			"outputs": []any{map[string]any{"name": "digest", "type": "string", "secret": "true"}},
+		})
+		assert.Check(t, cmp.DeepEqual(outputs, []function.Output{{Name: "digest", Type: "string"}}))
+	})
+}
+
 // A function with no flags to show publishes a bare step, which has no key to
 // rename.
 func TestExampleStepBare(t *testing.T) {
