@@ -30,7 +30,7 @@ const containerHeader = `# Helm values for container runner (container-agent cha
 #
 # Contains a runner token in plain text. Do not commit it. To keep the token out
 # of Helm values, put it in a Kubernetes Secret and set agent.customSecret:
-# https://circleci.com/docs/guides/execution-runner/container-runner/#custom-secret
+# https://circleci.com/docs/runner/container-runner/#custom-secret
 `
 
 const orchestratorHeader = `# Helm values for machine runner orchestrator (machine-runner-orchestrator chart),

@@ -106,7 +106,7 @@ func adminRequiredErr(subject string) *clierrors.CLIError {
 			"Ask an organization admin to make the change, or to grant you the admin role",
 			"Confirm which account the CLI is using with: circleci auth me",
 		).
-		WithRef("https://circleci.com/docs/guides/execution-runner/runner-overview/").
+		WithRef("https://circleci.com/docs/runner/runner-overview/").
 		WithExitCode(clierrors.ExitAPIError)
 }
 
@@ -130,6 +130,6 @@ func runnerNotEnabledErr() *clierrors.CLIError {
 			"Confirm your token can view or administer self-hosted runners",
 			"Confirm the token belongs to the organization that owns the resource class",
 		).
-		WithRef("https://circleci.com/docs/guides/execution-runner/runner-overview/").
+		WithRef("https://circleci.com/docs/runner/runner-overview/").
 		WithExitCode(clierrors.ExitAPIError)
 }

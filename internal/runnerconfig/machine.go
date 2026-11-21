@@ -32,7 +32,7 @@ const machineHeader = `# Machine runner 3 agent configuration (circleci-runner 3
 #
 # Start the agent with: circleci-runner machine -c <path to this file>
 # Contains a runner token in plain text. Do not commit it.
-# Reference: https://circleci.com/docs/guides/execution-runner/machine-runner-3-configuration-reference/
+# Reference: https://circleci.com/docs/runner/machine-runner-3-configuration-reference/
 `
 
 // machineConfig is the subset of the agent's schema a working install needs.
