@@ -34,7 +34,6 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/clikit/iostream"
 	"github.com/CircleCI-Public/circleci-cli/clikit/mdtable"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmdutil"
-	"github.com/CircleCI-Public/circleci-cli/internal/config"
 )
 
 func newListCmd() *cobra.Command {
@@ -65,7 +64,7 @@ func newListCmd() *cobra.Command {
 
 			secureStorage := cmdutil.IsSecureStorage(cmd)
 
-			return runList(ctx, secureStorage, jsonOut)
+			return runList(ctx, secureStorage, cmdutil.ConfigPath(cmd), jsonOut)
 		},
 	}
 
@@ -74,10 +73,8 @@ func newListCmd() *cobra.Command {
 	return cmd
 }
 
-func runList(ctx context.Context, secureStorage bool, jsonOut bool) error {
+func runList(ctx context.Context, secureStorage bool, path string, jsonOut bool) error {
 	cfg := cmdutil.GetConfig(ctx)
-
-	path, _ := config.Path()
 
 	tokenSet := cfg.EffectiveToken() != ""
 
