@@ -254,6 +254,7 @@ tasks:
     desc: Install known official extensions
     cmds:
       - go run ./cmd/circleci extension install testsuite
+      - go run ./cmd/circleci extension install configoptimizer
 
   docs:reference:
     desc: Generate the reference page from the live command tree
