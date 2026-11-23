@@ -97,7 +97,7 @@ func watch(ctx context.Context, opts watchOptions) (watchResult, error) {
 				if j.Phase == apiclient.PhaseEnded {
 					wp.Done++
 				}
-				if !jobFailed(j) || seen[j.ID] {
+				if !j.Failed() || seen[j.ID] {
 					continue
 				}
 				seen[j.ID] = true
@@ -192,22 +192,6 @@ func describeFailure(ctx context.Context, opts watchOptions, wf apiclient.Workfl
 		}
 	})
 	return f
-}
-
-// jobFailed reports whether a job ended in failure: failed, errored, an
-// infrastructure failure or a timeout. Like runs, an ended job may report only
-// current_outcome, so that is read when outcome is empty.
-func jobFailed(j apiclient.WorkflowJobV3) bool {
-	outcome := j.Outcome
-	if outcome == "" && j.Phase == apiclient.PhaseEnded {
-		outcome = j.CurrentOutcome
-	}
-	switch outcome {
-	case "failed", "errored", "infrastructure_fail", "timedout":
-		return true
-	default:
-		return false
-	}
 }
 
 // runOutcome reduces an ended run to succeeded, failed or canceled. The V3 runs

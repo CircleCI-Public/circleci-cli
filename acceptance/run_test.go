@@ -260,6 +260,71 @@ func TestRunGet_ByID_JSON(t *testing.T) {
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".json"))
 }
 
+// addFailedRun registers an ended run whose workflow has one failed and one
+// succeeded job, the shape that offers a rerun.
+func addFailedRun(fake *fakes.CircleCI) (runID, wfID string) {
+	runID, wfID = getRunID, testWfID
+	failed := fakeJobV3("d0000000-0000-4000-8000-000000000001", "run-tests", wfID, runTestProjectID)
+	failed.Outcome = "failed"
+	fake.AddRunV3(runID, runTestProjectID, fakeRunV3(runID, runTestProjectID, "ended", "failed", "main", "abc1234def5678"))
+	fake.AddRunWorkflowsV3(runID, fakeWorkflowV3(wfID, "build", runID, runTestProjectID, "ended", "failed"))
+	fake.AddWorkflowJobsV3(wfID, failed,
+		fakeJobV3("d0000000-0000-4000-8000-000000000002", "lint", wfID, runTestProjectID))
+	return runID, wfID
+}
+
+func TestRunGet_FailedWorkflow_OffersRerun(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	runID, wfID := addFailedRun(fake)
+
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+
+	t.Run("human output names the rerun command", func(t *testing.T) {
+		result := binary.RunCLI(t, binary.RunOpts{
+			Binary:  binaryPath,
+			Args:    []string{"run", "get", runID},
+			Env:     env.Environ(),
+			WorkDir: t.TempDir(),
+		})
+		assert.Check(t, cmp.Equal(result.ExitCode, 0))
+		assert.Check(t, golden.String(normalizeAppHost(result.Stdout, fake.URL()), t.Name()+".txt"))
+	})
+
+	t.Run("json carries rerun_command on the failed workflow", func(t *testing.T) {
+		result := binary.RunCLI(t, binary.RunOpts{
+			Binary:  binaryPath,
+			Args:    []string{"run", "get", "--json", "--jq", ".workflows[0].rerun_command", runID},
+			Env:     env.Environ(),
+			WorkDir: t.TempDir(),
+		})
+		assert.Check(t, cmp.Equal(result.ExitCode, 0))
+		assert.Check(t, cmp.Equal(strings.TrimSpace(result.Stdout), "circleci workflow rerun "+wfID+" --from-failed"))
+	})
+}
+
+func TestRunGet_SucceededWorkflow_NoRerun(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	runID, wfID := getRunID, testWfID
+	fake.AddRunV3(runID, runTestProjectID, fakeRunV3(runID, runTestProjectID, "ended", "succeeded", "main", "abc1234def5678"))
+	fake.AddRunWorkflowsV3(runID, fakeWorkflowV3(wfID, "build", runID, runTestProjectID, "ended", "succeeded"))
+	fake.AddWorkflowJobsV3(wfID, fakeJobV3("d0000000-0000-4000-8000-000000000001", "run-tests", wfID, runTestProjectID))
+
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"run", "get", "--json", "--jq", `.workflows[0] | has("rerun_command")`, runID},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+	assert.Check(t, cmp.Equal(result.ExitCode, 0))
+	assert.Check(t, cmp.Equal(strings.TrimSpace(result.Stdout), "false"))
+}
+
 func TestRunGet_ByID_JQ(t *testing.T) {
 	fake := fakes.NewCircleCI(t)
 	runID := getRunID

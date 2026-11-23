@@ -248,6 +248,23 @@ type WorkflowJobV3 struct {
 	EndedAt        *time.Time `json:"ended_at,omitempty"`
 }
 
+// Failed reports whether the job ended in failure: failed, errored, an
+// infrastructure failure or a timeout. Like runs, an ended job may report only
+// current_outcome, so that is read when outcome is empty. A job still running
+// is not failed, whatever its current_outcome says.
+func (w WorkflowJobV3) Failed() bool {
+	outcome := w.Outcome
+	if outcome == "" && w.Phase == PhaseEnded {
+		outcome = w.CurrentOutcome
+	}
+	switch outcome {
+	case "failed", "errored", "infrastructure_fail", "timedout":
+		return true
+	default:
+		return false
+	}
+}
+
 // Status derives a display status from phase and outcome.
 func (w WorkflowJobV3) Status() string {
 	return PhaseOutcomeStatus(w.Phase, w.Outcome, w.CurrentOutcome)
