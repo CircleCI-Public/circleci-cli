@@ -5737,7 +5737,7 @@ Supported keys:
 
 ## Extension Commands
 
-### `circleci configoptimizer configoptimizer`
+### `circleci configoptimizer`
 
 Lower the credit spend of a CircleCI config with changes proven safe
 
@@ -5746,7 +5746,7 @@ proven safe. Works on one config at a time.
 
 Data goes to stdout; everything else goes to stderr.
 
-#### `circleci configoptimizer analyze analyze [<config>]`
+#### `circleci configoptimizer analyze [<config>]`
 
 Report cost findings for a config, without writing anything
 
@@ -5778,7 +5778,7 @@ or missing_required_input; the exit code is 0 for all four.
 | `-v, --verbose`                | also list report-only and suppressed findings, with their evidence        |
 
 
-#### `circleci configoptimizer apply apply [<config>]`
+#### `circleci configoptimizer apply [<config>]`
 
 Apply the safe changes and write the optimized config
 
@@ -5804,7 +5804,7 @@ and summary.rejected; dispositions include applied and rejected
 | `-v, --verbose`                | also list report-only and suppressed findings, with their evidence                         |
 
 
-#### `circleci configoptimizer optimize optimize [<config>]`
+#### `circleci configoptimizer optimize [<config>]`
 
 Validate the safe changes with paired real runs (experimental)
 
@@ -5836,7 +5836,7 @@ comparison. A change has cpu_demand, cpu_demand_reason, expected_slowdown (wall 
 | `-y, --yes`                    | with --run, do not ask before pushing                                                                   |
 
 
-#### `circleci configoptimizer version version`
+#### `circleci configoptimizer version`
 
 Print version information
 
