@@ -223,6 +223,8 @@ internal/
 ├── extension/            Plugin mechanism — discovers circleci-* binaries on PATH.
 ├── extschema/            Schema for each extension's telemetry attributes: checks a payload,
 │                         exports schema.json for the extension release gate.
+├── extsocket/            Private Unix socket the CLI listens on before an extension starts,
+│                         and reads one bounded JSON payload from after it exits.
 ├── githubapp/            CircleCI GitHub App install detection + browser install flow.
 ├── gitremote/            Resolves project slug + branch. Prefers .circleci/info.yml, then
 │                         falls back to parsing the git remote URL.
