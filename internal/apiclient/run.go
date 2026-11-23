@@ -425,10 +425,9 @@ func StatusPhaseOutcome(status string) (phase, currentOutcome string) {
 		return "started", "failed"
 	case StatusRunning:
 		return "started", ""
+	case StatusOnHold:
+		return PhaseHeld, ""
 	case StatusQueued:
-		// Once circleci/query#1986 deploys, an on-hold status maps to "held"
-		// and "queued" covers lock waits only. Do not send filter[phase]=held
-		// before then: the API answers it with 400.
 		return "queued", ""
 	default:
 		return "", ""

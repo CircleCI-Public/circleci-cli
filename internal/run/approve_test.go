@@ -40,13 +40,66 @@ func TestIsPendingApproval(t *testing.T) {
 		job  apiclient.WorkflowJobV3
 		want bool
 	}{
-		{"approval started", apiclient.WorkflowJobV3{Type: "approval", Phase: "started", StartedAt: &startedAt}, true},
-		{"approval queued with started_at", apiclient.WorkflowJobV3{Type: "approval", Phase: "queued", StartedAt: &startedAt}, true},
-		{"approval queued without started_at", apiclient.WorkflowJobV3{Type: "approval", Phase: "queued"}, false},
-		{"approval held", apiclient.WorkflowJobV3{Type: "approval", Phase: "held"}, true},
-		{"build held", apiclient.WorkflowJobV3{Type: "build", Phase: "held"}, false},
-		{"build queued with started_at", apiclient.WorkflowJobV3{Type: "build", Phase: "queued", StartedAt: &startedAt}, false},
-		{"approval ended", apiclient.WorkflowJobV3{Type: "approval", Phase: "ended", StartedAt: &startedAt}, false},
+		{
+			name: "approval started",
+			job: apiclient.WorkflowJobV3{
+				Type:      "approval",
+				Phase:     "started",
+				StartedAt: &startedAt,
+			},
+			want: false,
+		},
+		{
+			name: "approval queued with started_at",
+			job: apiclient.WorkflowJobV3{
+				Type:      "approval",
+				Phase:     "queued",
+				StartedAt: &startedAt,
+			},
+			want: false,
+		},
+		{
+			name: "approval queued without started_at",
+			job: apiclient.WorkflowJobV3{
+				Type:  "approval",
+				Phase: "queued",
+			},
+			want: false,
+		},
+		{
+			name: "approval held",
+			job: apiclient.WorkflowJobV3{
+				Type:  "approval",
+				Phase: "held",
+			},
+			want: true,
+		},
+		{
+			name: "build held",
+			job: apiclient.WorkflowJobV3{
+				Type:  "build",
+				Phase: "held",
+			},
+			want: false,
+		},
+		{
+			name: "build queued with started_at",
+			job: apiclient.WorkflowJobV3{
+				Type:      "build",
+				Phase:     "queued",
+				StartedAt: &startedAt,
+			},
+			want: false,
+		},
+		{
+			name: "approval ended",
+			job: apiclient.WorkflowJobV3{
+				Type:      "approval",
+				Phase:     "ended",
+				StartedAt: &startedAt,
+			},
+			want: false,
+		},
 	}
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
