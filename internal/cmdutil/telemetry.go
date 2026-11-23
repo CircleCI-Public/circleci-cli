@@ -100,6 +100,38 @@ func SetTelemetryProp(ctx context.Context, key, value string) {
 	}
 }
 
+// SetInt attaches an integer property to the current invocation's
+// command_invocation event. key must be a string literal at the call site.
+// Zero is a value, not an absent one. Like SetTelemetryProp, it drops the value
+// under a context without telemetry.
+func SetInt(ctx context.Context, key string, value int) {
+	if p := getTelemetryProps(ctx); p != nil {
+		p.set(key, value)
+	}
+}
+
+// SetBool attaches a boolean property. The same rules apply as for SetInt: key
+// is a string literal, false is a value, and a context without telemetry drops
+// it.
+func SetBool(ctx context.Context, key string, value bool) {
+	if p := getTelemetryProps(ctx); p != nil {
+		p.set(key, value)
+	}
+}
+
+// SetEnum attaches a string property that must be one of allowed. A value
+// outside allowed, or an empty allowed, records nothing. key and allowed must
+// be string literals at the call site. A context without telemetry drops the
+// value.
+func SetEnum(ctx context.Context, key, value string, allowed ...string) {
+	if !slices.Contains(allowed, value) {
+		return
+	}
+	if p := getTelemetryProps(ctx); p != nil {
+		p.set(key, value)
+	}
+}
+
 func DisableEverything(cmd *cobra.Command) {
 	if cmd.Annotations == nil {
 		cmd.Annotations = map[string]string{}
