@@ -2,4 +2,4 @@ error: CircleCI rejected the feedback report.
 Validation Error: Field 'message' failed 'max=2000' validation.
 
 Suggestions:
-  • Upgrade to the latest version: https://circleci.com/docs/local-cli/
+  • Upgrade to the latest version: https://circleci.com/docs/guides/toolkit/circleci-cli/

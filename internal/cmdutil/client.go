@@ -238,7 +238,7 @@ func APIErr(err error, subject, notFoundCode, notFoundMsg string, notFoundSugges
 			}
 		}
 		return clierrors.New("api.gone", "CLI out of date", detail).
-			WithSuggestions("Upgrade to the latest version: https://circleci.com/docs/local-cli/").
+			WithSuggestions("Upgrade to the latest version: https://circleci.com/docs/guides/toolkit/circleci-cli/").
 			WithExitCode(clierrors.ExitAPIError)
 	}
 	if httpcl.HasStatusCode(err, http.StatusUnauthorized) {

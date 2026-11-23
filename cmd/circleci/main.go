@@ -102,7 +102,7 @@ func run() int {
 				}
 			}
 			err = clierrors.New("api.gone", "CLI out of date", detail).
-				WithSuggestions("Upgrade to the latest version: https://circleci.com/docs/local-cli/").
+				WithSuggestions("Upgrade to the latest version: https://circleci.com/docs/guides/toolkit/circleci-cli/").
 				WithExitCode(clierrors.ExitAPIError)
 		}
 		// Converted only after the rewrites above, which need the original error.

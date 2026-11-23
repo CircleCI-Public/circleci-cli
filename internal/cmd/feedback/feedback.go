@@ -221,7 +221,7 @@ func feedbackErr(err error) *clierrors.CLIError {
 		// validate has already applied the API's limits, so a rejection means this
 		// CLI and the API disagree about the request, not that the input is wrong.
 		return clierrors.New("feedback.rejected", "Feedback rejected", msg).
-			WithSuggestions("Upgrade to the latest version: https://circleci.com/docs/local-cli/").
+			WithSuggestions("Upgrade to the latest version: https://circleci.com/docs/guides/toolkit/circleci-cli/").
 			WithExitCode(clierrors.ExitAPIError)
 	}
 	if he, ok := errors.AsType[*httpcl.HTTPError](err); ok && he.StatusCode >= http.StatusInternalServerError {
