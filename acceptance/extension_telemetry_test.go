@@ -25,6 +25,7 @@ package acceptance_test
 import (
 	"context"
 	"net/http/httptest"
+	"path/filepath"
 	"runtime"
 	"testing"
 
@@ -34,6 +35,7 @@ import (
 	"gotest.tools/v3/poll"
 
 	"github.com/CircleCI-Public/circleci-cli/clikit/iostream"
+	"github.com/CircleCI-Public/circleci-cli/internal/config"
 	"github.com/CircleCI-Public/circleci-cli/internal/extension"
 	"github.com/CircleCI-Public/circleci-cli/internal/telemetry"
 	"github.com/CircleCI-Public/circleci-cli/internal/testing/binary"
@@ -78,9 +80,9 @@ func TestExtensionTelemetry(t *testing.T) {
 		assert.Assert(t, cmp.Equal(result.ExitCode, 0))
 	}))
 
-	// run executes the extension with telemetry on and returns the properties of
-	// its command_invocation event.
-	run := func(t *testing.T, args ...string) (binary.CLIResult, analytics.Properties) {
+	// run executes the extension with telemetry on and returns its
+	// command_invocation event.
+	run := func(t *testing.T, args ...string) (binary.CLIResult, analytics.Track) {
 		t.Helper()
 		env.Telemetry = true
 		fs := fakesegment.New(ctx, telemetry.SegmentKey)
@@ -95,37 +97,45 @@ func TestExtensionTelemetry(t *testing.T) {
 			WorkDir: t.TempDir(),
 		})
 
-		var props analytics.Properties
+		var event analytics.Track
 		poll.WaitOn(t, func(t poll.LogT) poll.Result {
 			for _, batch := range fs.Batches() {
 				for _, msg := range batch.Messages {
 					if msg.Event == "command_invocation" {
-						props = msg.Properties
+						event = msg
 						return poll.Success()
 					}
 				}
 			}
 			return poll.Continue("no command_invocation event yet")
 		})
-		return result, props
+		return result, event
 	}
 
 	t.Run("records a declared subcommand path", func(t *testing.T) {
-		result, props := run(t, "setup", "guide", "--json")
+		result, msg := run(t, "setup", "guide", "--json")
+		props := msg.Properties
 		assert.Check(t, cmp.Equal(result.ExitCode, 0))
 		assert.Check(t, cmp.Equal(props["command"], "circleci "+extName))
 		assert.Check(t, cmp.Equal(props["extension_subcommand"], "setup guide"))
 		assert.Check(t, cmp.Equal(props["exit_code"], float64(0)))
+
+		cfg, err := config.Load(ctx, filepath.Join(env.ConfigDir(), "circleci", "config.yml"), false)
+		assert.NilError(t, err)
+		assert.Check(t, cmp.Equal(msg.AnonymousId, cfg.DeviceID().String()))
+		assert.Check(t, cmp.Equal(msg.UserId, telemetry.AnonymousID.String()))
 	})
 
 	t.Run("records no subcommand when the first arg is a value", func(t *testing.T) {
-		_, props := run(t, "ci tests", "--doctor")
+		_, msg := run(t, "ci tests", "--doctor")
+		props := msg.Properties
 		_, ok := props["extension_subcommand"]
 		assert.Check(t, !ok, "an undeclared arg must not be recorded: %v", props)
 	})
 
 	t.Run("records the extension's own exit code", func(t *testing.T) {
-		result, props := run(t, "exit", "3")
+		result, msg := run(t, "exit", "3")
+		props := msg.Properties
 		assert.Check(t, cmp.Equal(result.ExitCode, 3))
 		assert.Check(t, cmp.Equal(props["extension_subcommand"], "exit"))
 		assert.Check(t, cmp.Equal(props["exit_code"], float64(result.ExitCode)))

@@ -71,9 +71,10 @@ func TestRecordTelemetry(t *testing.T) {
 		now := time.Now()
 		assert.Check(t, cmp.DeepEqual(recorder.Tracks(), []analytics.Track{
 			{
-				Timestamp: now,
-				UserId:    userID,
-				Event:     "command_invocation",
+				Timestamp:   now,
+				UserId:      userID,
+				AnonymousId: instanceID,
+				Event:       "command_invocation",
 				Properties: analytics.Properties{
 					"command":   "circleci banana list",
 					"flags":     "bool-flag,string-flag",
@@ -126,9 +127,10 @@ func TestRecordTelemetry(t *testing.T) {
 		now := time.Now()
 		assert.Check(t, cmp.DeepEqual(recorder.Tracks(), []analytics.Track{
 			{
-				Timestamp: now,
-				UserId:    userID,
-				Event:     "command_invocation",
+				Timestamp:   now,
+				UserId:      userID,
+				AnonymousId: instanceID,
+				Event:       "command_invocation",
 				Properties: analytics.Properties{
 					"command":    "fail",
 					"flags":      "",
@@ -267,9 +269,10 @@ func TestRecordTelemetry(t *testing.T) {
 		now := time.Now()
 		assert.Check(t, cmp.DeepEqual(recorder.Tracks(), []analytics.Track{
 			{
-				Timestamp: now,
-				UserId:    userID,
-				Event:     "command_invocation",
+				Timestamp:   now,
+				UserId:      userID,
+				AnonymousId: instanceID,
+				Event:       "command_invocation",
 				Properties: analytics.Properties{
 					"command":   "test",
 					"flags":     "alpha,middle,zebra",
@@ -309,9 +312,10 @@ func TestRecordTelemetry(t *testing.T) {
 		now := time.Now()
 		assert.Check(t, cmp.DeepEqual(recorder.Tracks(), []analytics.Track{
 			{
-				Timestamp: now,
-				UserId:    userID,
-				Event:     "command_invocation",
+				Timestamp:   now,
+				UserId:      userID,
+				AnonymousId: instanceID,
+				Event:       "command_invocation",
 				Properties: analytics.Properties{
 					"command":   "test",
 					"flags":     "",
@@ -486,9 +490,10 @@ func TestRecordTelemetry(t *testing.T) {
 		now := time.Now()
 		assert.Check(t, cmp.DeepEqual(recorder.Tracks(), []analytics.Track{
 			{
-				Timestamp: now,
-				UserId:    userID,
-				Event:     "command_invocation",
+				Timestamp:   now,
+				UserId:      userID,
+				AnonymousId: instanceID,
+				Event:       "command_invocation",
 				Properties: analytics.Properties{
 					"command":   "api",
 					"flags":     "",
@@ -537,9 +542,10 @@ func TestRecordTelemetryForSubcommands(t *testing.T) {
 		now := time.Now()
 		assert.Check(t, cmp.DeepEqual(recorder.Tracks(), []analytics.Track{
 			{
-				Timestamp: now,
-				UserId:    userID,
-				Event:     "command_invocation",
+				Timestamp:   now,
+				UserId:      userID,
+				AnonymousId: instanceID,
+				Event:       "command_invocation",
 				Properties: analytics.Properties{
 					"command":   "circleci subcommand list",
 					"flags":     "",
