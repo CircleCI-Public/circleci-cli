@@ -5737,6 +5737,119 @@ Supported keys:
 
 ## Extension Commands
 
+### `circleci configoptimizer configoptimizer`
+
+Lower the credit spend of a CircleCI config with changes proven safe
+
+Lower the credit spend of a CircleCI config, using only changes that are
+proven safe. Works on one config at a time.
+
+Data goes to stdout; everything else goes to stderr.
+
+#### `circleci configoptimizer analyze analyze [<config>]`
+
+Report cost findings for a config, without writing anything
+
+Compile a config with 'circleci config process', run the cost modules on the
+result, and report what could change. Nothing is written. <config> is a path
+(default .circleci/config.yml), or - for stdin. Exits 7 if the config does not
+compile. Credits use CircleCI's public rates (credits per minute, not money) for
+Docker, remote Docker, Linux VM, Arm VM, macOS, Windows and Docker Arm jobs;
+only Docker x86 jobs are resized. The resource-class check fetches each job's
+CPU and memory over the last 40 runs (within 30 days) from the CircleCI API, for
+the checkout's project. Without a token or a project, or if the API fails, it
+reports the usage as missing and why; the rest runs.
+
+JSON fields: schema_version, command, tool (name, version, commit), input
+(path, sha256, credit_rates, usage: source api, file or unavailable, with
+reason and message), expansion, compiler, modules, summary (result,
+missing_inputs, counts; by_hand counts report_only findings with a change),
+findings (id, module, verdict, disposition, reason, mutability, target,
+impact, confidence, evidence, suggestion: op, value, note, change from →
+to, metrics, keys), prefilter (experimental).
+summary.result is candidate_produced, no_candidate, all_candidates_rejected
+or missing_required_input; the exit code is 0 for all four.
+
+| Flag                           | Description                                                               |
+| ------------------------------ | ------------------------------------------------------------------------- |
+| `--json`                       | output as JSON (fields listed above)                                      |
+| `--only stringSlice`           | comma-separated `MODULES` to run: dlc, cache, resourceclass (default all) |
+| `--pipeline-parameters string` | YAML `FILE` of pipeline parameters to compile with                        |
+| `-v, --verbose`                | also list report-only and suppressed findings, with their evidence        |
+
+
+#### `circleci configoptimizer apply apply [<config>]`
+
+Apply the safe changes and write the optimized config
+
+Analyze a config, then apply each safe change one at a time, recompiling
+after each and keeping it only if the compiled config changed exactly as
+planned. <config> is a path (default .circleci/config.yml), or - for
+stdin. The config goes to stdout, -o FILE, or back to <config> with
+--in-place; the report goes to stderr. Exits 7 if a change was rejected.
+Usage for the resource-class check is fetched, or reported missing, as in analyze.
+
+JSON fields (needs -o or --in-place): as analyze, plus summary.applied
+and summary.rejected; dispositions include applied and rejected
+
+| Flag                           | Description                                                                                |
+| ------------------------------ | ------------------------------------------------------------------------------------------ |
+| `-f, --force`                  | overwrite -o FILE; skip the clean-worktree and metadata checks                             |
+| `--in-place`                   | replace <config>; needs a clean git worktree                                               |
+| `--include-cpu-demand`         | also apply downsizes whose CPU demand exceeds the smaller class (may be over 1.20x slower) |
+| `--json`                       | print the report as JSON on stdout (fields listed above)                                   |
+| `--only stringSlice`           | comma-separated `MODULES` to run: dlc, cache, resourceclass (default all)                  |
+| `-o, --output string`          | write the optimized config to `FILE`                                                       |
+| `--pipeline-parameters string` | YAML `FILE` of pipeline parameters to compile with                                         |
+| `-v, --verbose`                | also list report-only and suppressed findings, with their evidence                         |
+
+
+#### `circleci configoptimizer optimize optimize [<config>]`
+
+Validate the safe changes with paired real runs (experimental)
+
+Show the changes a trial would test, how many pipelines it needs, and any reason it
+would refuse; nothing is pushed. With --run, after you confirm or with --yes, it
+pushes your current and optimized configs to the branch try-configoptimizer and runs
+up to 28 pipelines. They spend your organization's credits and use its concurrency and
+runners. Then it deletes the branch and reports which config is cheaper. --run needs
+a personal API token in CIRCLE_TOKEN. Exits 0 cheaper; 1 internal error; 2 bad flags
+or input; 3 no token; 4 API or git failure; 6 cancelled; 7 refused or not proven
+cheaper; 8 timeout.
+
+JSON fields: schema_version, command, plan (changes, held_back, refusals, pipelines,
+pipeline_credits, estimated_credits), trial (status: decided,
+stopped_before_validation, stopped_undecided, refused, failed, cancelled),
+comparison. A change has cpu_demand, cpu_demand_reason, expected_slowdown (wall clock).
+
+| Flag                           | Description                                                                                             |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------- |
+| `--capture string`             | with --run, save the runs' API answers in `DIR` as a run bundle                                         |
+| `--cleanup`                    | only delete a trial branch a previous run left behind                                                   |
+| `--include-cpu-demand`         | also trial downsizes whose CPU demand exceeds the smaller class (may be over 1.20x slower; not checked) |
+| `--json`                       | print the report as JSON on stdout (fields listed above)                                                |
+| `--only stringSlice`           | comma-separated `MODULES` to run: dlc, cache, resourceclass (default all)                               |
+| `-o, --output string`          | with --run, write the candidate config to `FILE` if proven cheaper                                      |
+| `--pipeline-parameters string` | YAML `FILE` of pipeline parameters to compile with                                                      |
+| `--run`                        | push the trial branch and run the paired pipelines                                                      |
+| `--run-timeout duration`       | how long one pipeline may run (default 45m0s)                                                           |
+| `-y, --yes`                    | with --run, do not ask before pushing                                                                   |
+
+
+#### `circleci configoptimizer version version`
+
+Print version information
+
+Print the version and commit hash this binary was built from.
+
+JSON fields: version (release tag, or "dev" for unreleased builds), commit
+(full git hash, or "unknown"), modified (true when built from a dirty tree)
+
+| Flag     | Description                                        |
+| -------- | -------------------------------------------------- |
+| `--json` | output as JSON (fields: version, commit, modified) |
+
+
 ### `circleci extension <command>`
 
 Manage CLI extensions
