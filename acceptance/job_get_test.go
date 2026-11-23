@@ -196,3 +196,50 @@ func TestJobGet_Warnings(t *testing.T) {
 		assert.Check(t, golden.String(result.Stdout, t.Name()+".json"))
 	})
 }
+
+func TestJobGet_Errors(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	fake.AddJobV3(fakes.JobV3{
+		ID:         testJobID,
+		Name:       "run-unit-tests",
+		Type:       "build",
+		Phase:      "ended",
+		Outcome:    "failed",
+		StartedAt:  "2026-05-19T20:29:13.938Z",
+		EndedAt:    "2026-05-19T20:29:13.938Z",
+		ProjectID:  testProjectID,
+		PipelineID: "682142f3-f35d-4c94-adf7-d855321716e4",
+		WorkflowID: "c266c3a7-0dad-459a-aa7b-dd13e005b9a0",
+		Errors: []fakes.JobError{
+			{Type: "free-plan-no-credits-available", Message: "This job has been blocked because no credits are available on your plan. Please upgrade to continue building."},
+		},
+	})
+
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+
+	t.Run("human", func(t *testing.T) {
+		result := binary.RunCLI(t, binary.RunOpts{
+			Binary:  binaryPath,
+			Args:    []string{"job", "get", testJobID},
+			Env:     env.Environ(),
+			WorkDir: t.TempDir(),
+		})
+
+		assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+		assert.Check(t, golden.String(normalizeAppHost(result.Stdout, fake.URL()), t.Name()+".txt"))
+	})
+
+	t.Run("json", func(t *testing.T) {
+		result := binary.RunCLI(t, binary.RunOpts{
+			Binary:  binaryPath,
+			Args:    []string{"job", "get", testJobID, "--json"},
+			Env:     env.Environ(),
+			WorkDir: t.TempDir(),
+		})
+
+		assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
+		assert.Check(t, golden.String(result.Stdout, t.Name()+".json"))
+	})
+}

@@ -56,7 +56,7 @@ func newGetCmd() *cobra.Command {
 			Job IDs are shown in the output of 'circleci workflow get' and
 			'circleci run get --json'.
 
-			JSON fields: id, name, type, status, started_at, stopped_at, project_id, pipeline_id, workflow_id, warnings[].type/message/description/url, executions[].index/steps[].name/type/status/duration/exit_code
+			JSON fields: id, name, type, status, started_at, stopped_at, project_id, pipeline_id, workflow_id, errors[].type/message, warnings[].type/message/description/url, executions[].index/steps[].name/type/status/duration/exit_code
 		`),
 		Example: heredoc.Doc(`
 			# Get job details by UUID
@@ -144,6 +144,14 @@ func jobMarkdown(j *apiclient.JobV3, u string) string {
 	}
 	_, _ = fmt.Fprintf(&md, "- Workflow: `%s`\n", j.WorkflowID)
 	_, _ = fmt.Fprintf(&md, "- Run: `%s`\n", j.PipelineID)
+
+	if len(j.Errors) > 0 {
+		md.WriteString("\n## Errors\n")
+		for _, e := range j.Errors {
+			_, _ = fmt.Fprintf(&md, "- %s\n", strings.TrimSpace(e.Message))
+			_, _ = fmt.Fprintf(&md, "  code: %s\n", e.Type)
+		}
+	}
 
 	if len(j.Warnings) > 0 {
 		md.WriteString("\n## Warnings\n")

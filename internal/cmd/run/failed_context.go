@@ -53,6 +53,12 @@ type reportJob struct {
 	hasFailedTest bool
 }
 
+// blockedJob is a job that has errors but no failed steps.
+type blockedJob struct {
+	name   string
+	errors []apiclient.JobError
+}
+
 // FailureReport prints condensed output for every failed step in the run,
 // organised as workflow → job → execution → step headers, followed by next
 // steps. It is the output path for --failure-report (on "run get" and
@@ -72,33 +78,11 @@ func FailureReport(ctx context.Context, client *apiclient.Client, r *apiclient.R
 
 	var out strings.Builder
 
-	// The run's own errors first: a config the platform would not compile has no
-	// failed step to report, so without these the report for a dynamic-config run
-	// whose continued config was rejected would be empty.
-	if len(r.Errors) > 0 {
-		out.WriteString("## run errors\n\n")
-		for _, e := range r.Errors {
-			fmt.Fprintf(&out, "- %s: %s\n", e.Type, strings.TrimSpace(e.Message))
-		}
-		out.WriteString("\n")
-	}
-
-	if len(r.Warnings) > 0 {
-		out.WriteString("## run warnings\n\n")
-		for _, w := range r.Warnings {
-			fmt.Fprintf(&out, "- \u26a0 %s\n", strings.TrimSpace(w.Message))
-			if w.Description != "" {
-				fmt.Fprintf(&out, "  %s\n", w.Description)
-			}
-			if w.URL != "" {
-				fmt.Fprintf(&out, "  \u2192 %s\n", w.URL)
-			}
-		}
-		out.WriteString("\n")
-	}
+	writeRunNotices(&out, r)
 
 	var failedWorkflows []apiclient.WorkflowV3
 	var failedJobs []reportJob
+	var blocked []blockedJob
 	for _, wf := range workflows {
 		wfWritten := false
 
@@ -134,6 +118,11 @@ func FailureReport(ctx context.Context, client *apiclient.Client, r *apiclient.R
 				}
 			}
 			if len(failed) == 0 {
+				// A job blocked before it started (no credits, resource class not in
+				// plan) has no steps; its errors are the only explanation.
+				if len(jobDetail.Errors) > 0 {
+					blocked = append(blocked, blockedJob{name: j.Name, errors: jobDetail.Errors})
+				}
 				continue
 			}
 
@@ -188,12 +177,56 @@ func FailureReport(ctx context.Context, client *apiclient.Client, r *apiclient.R
 		}
 	}
 
+	writeBlockedJobs(&out, blocked)
+
 	writeNextSteps(ctx, client, &out, r, failedWorkflows, failedJobs)
 
 	if out.Len() > 0 {
 		iostream.Print(ctx, out.String())
 	}
 	return nil
+}
+
+// writeRunNotices writes the run's own errors and warnings.
+func writeRunNotices(out *strings.Builder, r *apiclient.RunV3) {
+	// The run's own errors first: a config the platform would not compile has no
+	// failed step to report, so without these the report for a dynamic-config run
+	// whose continued config was rejected would be empty.
+	if len(r.Errors) > 0 {
+		out.WriteString("## run errors\n\n")
+		for _, e := range r.Errors {
+			fmt.Fprintf(out, "- %s: %s\n", e.Type, strings.TrimSpace(e.Message))
+		}
+		out.WriteString("\n")
+	}
+
+	if len(r.Warnings) > 0 {
+		out.WriteString("## run warnings\n\n")
+		for _, w := range r.Warnings {
+			fmt.Fprintf(out, "- \u26a0 %s\n", strings.TrimSpace(w.Message))
+			if w.Description != "" {
+				fmt.Fprintf(out, "  %s\n", w.Description)
+			}
+			if w.URL != "" {
+				fmt.Fprintf(out, "  \u2192 %s\n", w.URL)
+			}
+		}
+		out.WriteString("\n")
+	}
+}
+
+// writeBlockedJobs writes the jobs that never started and say why.
+func writeBlockedJobs(out *strings.Builder, blocked []blockedJob) {
+	if len(blocked) == 0 {
+		return
+	}
+	out.WriteString("## blocked jobs\n\n")
+	for _, b := range blocked {
+		for _, e := range b.errors {
+			fmt.Fprintf(out, "- %s: %s\n  code: %s\n", b.name, strings.TrimSpace(e.Message), e.Type)
+		}
+	}
+	out.WriteString("\n")
 }
 
 // writeNextSteps closes a report that found failures (run errors or failed
