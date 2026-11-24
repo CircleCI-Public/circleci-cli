@@ -348,6 +348,7 @@ through `iostream.Streams`.
 |---|---|
 | `CIRCLE_MCP` | Set to `1` on the `mcp start`/`mcp stream` server so `agent.Detect()` reports `mcp/<agent>` in every tool-call subprocess. Scoped to the server commands so `mcp <editor> enable` isn't misattributed |
 | `CIRCLE_TOKEN`, `CIRCLE_HOST`, `CIRCLE_TELEMETRY_ENABLED`, `CIRCLE_DEVICE_ID`, `CIRCLE_USER_ID`, `CIRCLE_VCS_TYPE`, `CIRCLE_PROJECT_USERNAME`, `CIRCLE_PROJECT_REPONAME`, `CIRCLE_PROJECT_ID`, `CIRCLE_BRANCH`, `CIRCLE_DEFAULT_BRANCH` | Passed to extension subprocesses (`internal/extension/manifest.go`). Project/branch values are best-effort — absent outside a linked checkout; `CIRCLE_USER_ID` is absent when logged out |
+| `CIRCLE_TELEMETRY_SOCKET` | Path of the Unix socket where an extension with a registered attribute schema reports its telemetry attributes. Set only when telemetry is on and the extension has a schema; an inherited value is removed otherwise. Never logged (`internal/extension/telemetry.go`) |
 | `__CIRCLE_TELEMETRY_WRITE_KEY`, `__CIRCLE_TELEMETRY_ENDPOINT` | Passed to the hidden `receive-telemetry` subprocess. Double-underscore = internal, never user-set |
 
 **Development and test overrides — not documented to users:**
