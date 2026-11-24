@@ -606,7 +606,7 @@ Display the status and steps of a CircleCI job.
 Job IDs are shown in the output of 'circleci workflow get' and
 'circleci run get --json'.
 
-JSON fields: id, name, type, status, started_at, stopped_at, project_id, pipeline_id, workflow_id, warnings[].type/message/description/url, executions[].index/steps[].name/type/status/duration/exit_code
+JSON fields: id, name, type, status, started_at, stopped_at, project_id, pipeline_id, workflow_id, errors[].type/message, warnings[].type/message/description/url, executions[].index/steps[].name/type/status/duration/exit_code
 
 | Flag          | Description                                                                       |
 | ------------- | --------------------------------------------------------------------------------- |
@@ -4368,11 +4368,10 @@ connected via the CircleCI GitHub App are supported.
 Create a new project trigger
 
 Create a new trigger for a CircleCI project, connecting an event source to a
-pipeline definition so that matching events start a pipeline run. Required
-values prompt in a terminal. Run `circleci help triggers` for what each
-provider and event preset means.
+pipeline definition so that matching events start a pipeline run. Run
+`circleci help triggers` for what each provider and event preset means.
 
-JSON fields: id, created_at, event_name, event_preset, config_ref, checkout_ref, disabled
+JSON fields: id, created_at, event_name, event_preset, config_ref, checkout_ref, disabled, rules[].event_type/event_ref/rule
 
 | Flag                              | Description                                                                                                                                                                                                                                                                                                                                             |
 | --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -4387,6 +4386,7 @@ JSON fields: id, created_at, event_name, event_preset, config_ref, checkout_ref,
 | `--provider string`               | Event source provider (one of: github_app, github_server, github_oauth, origin, forgejo, webhook, schedule) (default "github_app")                                                                                                                                                                                                                      |
 | `--repo-full-name string`         | Repository owner/name (required for origin; enough on its own for forgejo)                                                                                                                                                                                                                                                                              |
 | `--repo-id string`                | Repository external ID (required for github_app, github_server, github_oauth, origin)                                                                                                                                                                                                                                                                   |
+| `--rules string`                  | custom trigger rules as a JSON array, or @file, or @- for stdin                                                                                                                                                                                                                                                                                         |
 
 
 **Examples:**
@@ -4470,7 +4470,7 @@ source (provider and repository) is fixed when the trigger is created; to
 change it, delete the trigger and create a new one. Run `circleci help triggers`
 for what each event preset means.
 
-JSON fields: id, created_at, event_name, event_preset, config_ref, checkout_ref, disabled
+JSON fields: id, created_at, event_name, event_preset, config_ref, checkout_ref, disabled, rules[].event_type/event_ref/rule
 
 | Flag                    | Description                                                                                                                                                                                                                                                                                                                                             |
 | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -4483,6 +4483,7 @@ JSON fields: id, created_at, event_name, event_preset, config_ref, checkout_ref,
 | `--json`                | Output as JSON                                                                                                                                                                                                                                                                                                                                          |
 | `--project string`      | project slug (e.g. gh/org/repo); only needed for a project's OAuth trigger                                                                                                                                                                                                                                                                              |
 | `--project-id string`   | project UUID (overrides --project)                                                                                                                                                                                                                                                                                                                      |
+| `--rules string`        | custom trigger rules as a JSON array, or @file, or @- for stdin; replaces every existing rule and any preset                                                                                                                                                                                                                                            |
 
 
 **Examples:**
