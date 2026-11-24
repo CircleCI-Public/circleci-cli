@@ -23,6 +23,7 @@ checked-out branch (override with `--project` and `--branch`). With
 | `-m, --mine`          | Filter to runs owned by you.                                                      |
 | `--no-interactive`    | Skip the interactive picker and resolve the latest run directly                   |
 | `--project string`    | Project slug (e.g. gh/org/repo); used for latest-run lookup                       |
+| `--timing`            | Print every job's duration, slowest first; intended for agent consumption         |
 
 Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `circleci --help`.
 
@@ -38,16 +39,16 @@ Global flags: `-c, --config`, `--debug`, `--no-color`, `-q, --quiet` — see `ci
   `circleci run get --json`
 - Get only your runs: 
   `circleci run get --mine`
-- Skip the picker and resolve the latest run directly: 
-  `circleci run get --no-interactive`
+- Which jobs are slowest in the latest run: 
+  `circleci run get --timing`
 
 ## Details
 
-Display the status of a CircleCI run and its workflows. With no run in an
-interactive terminal, a picker walks you through the recent runs.
+Display the status of a CircleCI run and its workflows, with every job's duration.
+With no run in an interactive terminal, a picker walks you through the recent runs.
 
 JSON fields: id, phase, outcome, current_outcome, branch, tag, revision, repository_url,
 commit.subject/url/author_name/author_login, created_at, errors[].type/message,
 warnings[].type/message/description/url, workflows[].id/name/phase/outcome/current_outcome/duration/rerun_command/
-jobs[].id/name/phase/outcome/current_outcome/type
+jobs[].id/name/phase/outcome/current_outcome/type/started_at/stopped_at/duration
 

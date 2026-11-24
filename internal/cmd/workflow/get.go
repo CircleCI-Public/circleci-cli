@@ -36,6 +36,7 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/clikit/mdtable"
 	"github.com/CircleCI-Public/circleci-cli/internal/apiclient"
 	"github.com/CircleCI-Public/circleci-cli/internal/cmdutil"
+	"github.com/CircleCI-Public/circleci-cli/internal/ui"
 )
 
 func newGetCmd() *cobra.Command {
@@ -55,7 +56,8 @@ func newGetCmd() *cobra.Command {
 
 			Workflow IDs are shown in the output of 'circleci run get'.
 
-			JSON fields: id, name, phase, outcome, current_outcome, run_id, created_at, ended_at, jobs[].id/name/phase/outcome/current_outcome/type
+			JSON fields: id, name, phase, outcome, current_outcome, run_id, created_at, ended_at,
+			jobs[].id/name/phase/outcome/current_outcome/type/started_at/stopped_at/duration
 		`),
 		Example: heredoc.Doc(`
 			# Get workflow details
@@ -105,6 +107,37 @@ type jobOutput struct {
 	Outcome        string    `json:"outcome,omitempty"`
 	CurrentOutcome string    `json:"current_outcome,omitempty"`
 	Type           string    `json:"type,omitempty"`
+	// StartedAt, StoppedAt and Duration come from the jobs listing, so the
+	// workflow's per-job timing needs no "job get" per job. All three are omitted
+	// for a job that has not started; StoppedAt and Duration for one still
+	// running. The names match "circleci job get --json".
+	StartedAt *time.Time `json:"started_at,omitempty"`
+	StoppedAt *time.Time `json:"stopped_at,omitempty"`
+	Duration  string     `json:"duration,omitempty"`
+}
+
+// jobOutputFrom adapts a listed workflow job to the JSON output shape.
+func jobOutputFrom(j apiclient.WorkflowJobV3) jobOutput {
+	out := jobOutput{
+		ID:             j.ID,
+		Name:           j.Name,
+		Phase:          j.Phase,
+		Outcome:        j.Outcome,
+		CurrentOutcome: j.CurrentOutcome,
+		Type:           j.Type,
+	}
+	if j.StartedAt != nil {
+		started := j.StartedAt.UTC()
+		out.StartedAt = &started
+	}
+	if j.EndedAt != nil {
+		stopped := j.EndedAt.UTC()
+		out.StoppedAt = &stopped
+	}
+	if d, ok := j.Duration(); ok {
+		out.Duration = ui.FormatElapsed(d)
+	}
+	return out
 }
 
 // Get renders a workflow's details exactly as "circleci workflow get" does.
@@ -167,14 +200,7 @@ func fetchWorkflowOutput(ctx context.Context, client *apiclient.Client, id uuid.
 		out.EndedAt = &ended
 	}
 	for _, j := range jobs {
-		out.Jobs = append(out.Jobs, jobOutput{
-			ID:             j.ID,
-			Name:           j.Name,
-			Phase:          j.Phase,
-			Outcome:        j.Outcome,
-			CurrentOutcome: j.CurrentOutcome,
-			Type:           j.Type,
-		})
+		out.Jobs = append(out.Jobs, jobOutputFrom(j))
 	}
 	return out, nil
 }
@@ -219,9 +245,9 @@ func workflowMarkdown(w workflowGetOutput, u string) string {
 
 	if len(w.Jobs) > 0 {
 		_, _ = fmt.Fprintf(&md, "\n## Jobs\n")
-		table := mdtable.New("Name", "Status", "Type", "ID")
+		table := mdtable.New("Name", "Status", "Duration", "Type", "ID")
 		for _, j := range w.Jobs {
-			table.Row(j.Name, apiclient.PhaseOutcomeStatus(j.Phase, j.Outcome, j.CurrentOutcome), j.Type, "`"+j.ID.String()+"`")
+			table.Row(j.Name, apiclient.PhaseOutcomeStatus(j.Phase, j.Outcome, j.CurrentOutcome), j.Duration, j.Type, "`"+j.ID.String()+"`")
 		}
 		md.WriteString(table.Render())
 	}

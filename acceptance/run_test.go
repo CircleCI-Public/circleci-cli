@@ -125,15 +125,18 @@ func fakeRun(id string, number int, state, slug, branch string) fakes.PipelineV2
 }
 
 func fakeJobV3(id, name, workflowID, projectID string) fakes.JobV3 {
-	now := time.Now().UTC().Format(time.RFC3339)
+	// Fixed stamps, five seconds after the fake run's creation and a minute
+	// apart, so the started_at/stopped_at/duration that run get and workflow
+	// get print for the job are stable in goldens.
+	started := time.Date(2020, 1, 1, 12, 0, 5, 0, time.UTC)
 	return fakes.JobV3{
 		ID:         id,
 		Name:       name,
 		Type:       "build",
 		Phase:      "ended",
 		Outcome:    "succeeded",
-		StartedAt:  now,
-		EndedAt:    now,
+		StartedAt:  started.Format(v3TimeFormat),
+		EndedAt:    started.Add(time.Minute).Format(v3TimeFormat),
 		WorkflowID: workflowID,
 		ProjectID:  projectID,
 	}

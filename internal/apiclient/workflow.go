@@ -270,6 +270,17 @@ func (w WorkflowJobV3) Status() string {
 	return PhaseOutcomeStatus(w.Phase, w.Outcome, w.CurrentOutcome)
 }
 
+// Duration is how long the job ran, from started_at to ended_at. The bool is
+// false until the job has both: a job still running, or one that never started
+// (an approval job, a job not run), has no duration yet. A negative span, which
+// two clocks can produce, reads as zero rather than as a duration in the past.
+func (w WorkflowJobV3) Duration() (time.Duration, bool) {
+	if w.StartedAt == nil || w.EndedAt == nil {
+		return 0, false
+	}
+	return max(w.EndedAt.Sub(*w.StartedAt), 0), true
+}
+
 func (w workflowJobWire) toDomain() WorkflowJobV3 {
 	a := w.Attributes
 	return WorkflowJobV3{

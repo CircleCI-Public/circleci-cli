@@ -14,8 +14,8 @@
 - Status: ✅ succeeded
 - Duration: 2m34s
 #### Jobs
-| Name      | Status       | Type  | ID                                     |
-| --------- | ------------ | ----- | -------------------------------------- |
-| run-tests | ✅ succeeded | build | `d0000000-0000-4000-8000-000000000001` |
-| deploy    | ✅ succeeded | build | `d0000000-0000-4000-8000-000000000002` |
+| Name      | Status       | Duration | Type  | ID                                     |
+| --------- | ------------ | -------- | ----- | -------------------------------------- |
+| run-tests | ✅ succeeded | 1m0s     | build | `d0000000-0000-4000-8000-000000000001` |
+| deploy    | ✅ succeeded | 1m0s     | build | `d0000000-0000-4000-8000-000000000002` |
 
