@@ -885,7 +885,14 @@ type JobV3 struct {
 	PipelineID string
 	UserID     string
 	Executions [][]JobStep // parallel_executions, one inner slice of steps per execution
+	Errors     []JobError
 	Warnings   []JobWarning
+}
+
+// JobError is an error attached to a JobV3, e.g. the reason a job is blocked.
+type JobError struct {
+	Type    string
+	Message string
 }
 
 // JobWarning is a non-fatal warning attached to a JobV3, e.g. an image
@@ -956,6 +963,13 @@ func jobV3Entity(j JobV3) map[string]any {
 			execs = append(execs, map[string]any{"steps": rendered})
 		}
 		attrs["parallel_executions"] = execs
+	}
+	if len(j.Errors) > 0 {
+		errs := make([]any, 0, len(j.Errors))
+		for _, e := range j.Errors {
+			errs = append(errs, map[string]any{"type": e.Type, "message": e.Message})
+		}
+		attrs["errors"] = errs
 	}
 	if len(j.Warnings) > 0 {
 		warns := make([]any, 0, len(j.Warnings))

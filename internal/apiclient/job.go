@@ -78,6 +78,7 @@ type jobAttributesWire struct {
 	StartedAt          time.Time               `json:"started_at"`
 	EndedAt            *time.Time              `json:"ended_at"`
 	ParallelExecutions []parallelExecutionWire `json:"parallel_executions"`
+	Errors             []runErrorWire          `json:"errors,omitempty"`
 	Warnings           []runWarningWire        `json:"warnings,omitempty"`
 }
 
@@ -133,7 +134,16 @@ type JobV3 struct {
 	ProjectID  uuid.UUID        `json:"project_id"`
 	PipelineID uuid.UUID        `json:"pipeline_id"`
 	WorkflowID uuid.UUID        `json:"workflow_id"`
+	Errors     []JobError       `json:"errors,omitempty"`
 	Warnings   []JobWarning     `json:"warnings,omitempty"`
+}
+
+// JobError holds an error the V3 API attaches to a job, such as the
+// free-plan-no-credits-available reason a job is blocked with. A blocked job
+// never starts, so it has no steps and this is the only explanation for it.
+type JobError struct {
+	Type    string `json:"type"`
+	Message string `json:"message"`
 }
 
 // JobWarning holds a non-fatal warning the V3 API attaches to a job, such as
@@ -200,6 +210,9 @@ func (w jobWire) toJobV3() *JobV3 {
 		ProjectID:  w.References.Project.ID,
 		PipelineID: w.References.Pipeline.ID,
 		WorkflowID: w.References.Workflow.ID,
+	}
+	for _, e := range a.Errors {
+		j.Errors = append(j.Errors, JobError(e))
 	}
 	for _, w := range a.Warnings {
 		j.Warnings = append(j.Warnings, JobWarning{

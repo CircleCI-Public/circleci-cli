@@ -425,3 +425,40 @@ func TestRunGet_FailedContext_NextSteps_Caps(t *testing.T) {
 	assert.Check(t, cmp.Equal(result.Stderr, ""))
 	assert.Check(t, cmp.Equal(testsRequests(fake), failedJobs), "one tests read per failed job, past the cap too")
 }
+
+// TestRunGet_FailedContext_BlockedJobs lists a job that never started — it has
+// errors but no steps — under "blocked jobs", and still skips a downstream job
+// the API cannot serve (404) without hiding the blocked job's reason.
+func TestRunGet_FailedContext_BlockedJobs(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	fake.AddRunV3(fcRunID, runTestProjectID, fakeRunV3(fcRunID, runTestProjectID, "ended", "failed", "main", "abc1234def5678"))
+	fake.AddRunWorkflowsV3(fcRunID, fakeWorkflowV3(fcWfID, "build", fcRunID, runTestProjectID, "ended", "failed"))
+	fake.AddWorkflowJobsV3(fcWfID,
+		fakeJobV3(fcJob1ID, "run-tests", fcWfID, runTestProjectID),
+		fakeJobV3(fcJob4ID, "deploy", fcWfID, runTestProjectID), // never ran: 404
+	)
+
+	now := time.Date(2020, 1, 1, 12, 0, 0, 0, time.UTC).Format(v3TimeFormat)
+	fake.AddJobV3(fakes.JobV3{
+		ID: fcJob1ID, Name: "run-tests", Type: "build", Phase: "ended", Outcome: "failed",
+		StartedAt: now, EndedAt: now, WorkflowID: fcWfID, ProjectID: runTestProjectID,
+		Errors: []fakes.JobError{
+			{Type: "free-plan-no-credits-available", Message: "This job has been blocked because no credits are available on your plan. Please upgrade to continue building."},
+		},
+	})
+
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"run", "get", fcRunID, "--failure-report"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 0))
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, cmp.Equal(result.Stderr, ""))
+}
