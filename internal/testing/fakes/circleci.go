@@ -29,6 +29,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"maps"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -78,6 +79,8 @@ type CircleCI struct {
 	providerConnections     map[string][]string       // orgID → connected providers
 	providerRepos           map[string][]ProviderRepo // orgID → repositories the connection can reach
 	connectionSetupResp     any                       // response body for POST /provider/connections/setup
+	connectionSetupQueue    []SetupResponse           // scripted setup responses, served in order
+	providerConnectionURLs  map[string]string         // orgID+"/"+provider → provider_url
 	rerunResponses          map[string]int            // workflow id → HTTP status to return
 	rerunNewIDs             map[string]string         // workflow id → id of the workflow its rerun creates
 	rerunFromFailed         map[string]bool           // workflow id → is_from_failed as the request actually set it
@@ -309,6 +312,7 @@ func NewCircleCI(t *testing.T, tokens ...string) *CircleCI {
 		projectScopedTriggers:             map[string]string{},
 		providerConnections:               map[string][]string{},
 		providerRepos:                     map[string][]ProviderRepo{},
+		providerConnectionURLs:            map[string]string{},
 		rerunResponses:                    map[string]int{},
 		rerunNewIDs:                       map[string]string{},
 		rerunFromFailed:                   map[string]bool{},
@@ -4020,6 +4024,30 @@ func (f *CircleCI) SetProviderConnected(orgID, provider string, connected bool) 
 	f.providerConnections[orgID] = providers
 }
 
+// SetProviderConnectionURL lists a connection for the org and provider whose
+// provider_url is url, which is how a self-hosted instance is identified.
+func (f *CircleCI) SetProviderConnectionURL(orgID, provider, url string) {
+	f.SetProviderConnected(orgID, provider, true)
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.providerConnectionURLs[orgID+"/"+provider] = url
+}
+
+// SetupResponse is one scripted answer to POST /api/v3/provider/connections/setup.
+type SetupResponse struct {
+	Status int
+	Body   any
+}
+
+// QueueProviderConnectionSetupResponses scripts the answers to successive setup
+// calls. Each call takes the next one; the last is repeated once the queue is
+// down to it.
+func (f *CircleCI) QueueProviderConnectionSetupResponses(resps ...SetupResponse) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.connectionSetupQueue = append(f.connectionSetupQueue, resps...)
+}
+
 // ProviderRepo is a stored repository an org's provider connection can reach,
 // served by the provider repositories endpoint. DefaultBranch renders only when
 // set, and Provider defaults to github_app.
@@ -4076,28 +4104,43 @@ func (f *CircleCI) handleListProviderConnections(w http.ResponseWriter, r *http.
 	orgID := r.URL.Query().Get("filter[org_id]")
 	f.mu.RLock()
 	providers := slices.Clone(f.providerConnections[orgID])
+	urls := maps.Clone(f.providerConnectionURLs)
 	f.mu.RUnlock()
 
 	// An org with no connections is an empty collection, not a 404.
 	data := make([]any, 0, len(providers))
 	for i, p := range providers {
+		attrs := map[string]any{
+			"provider":             p,
+			"external_id":          "12345678",
+			"login":                "my-org",
+			"repository_selection": "all",
+		}
+		if u, ok := urls[orgID+"/"+p]; ok {
+			attrs["provider_url"] = u
+		}
 		data = append(data, map[string]any{
-			"id": fmt.Sprintf("conn-uuid-%d", i+1),
-			"attributes": map[string]any{
-				"provider":             p,
-				"external_id":          "12345678",
-				"login":                "my-org",
-				"repository_selection": "all",
-			},
+			"id":         fmt.Sprintf("conn-uuid-%d", i+1),
+			"attributes": attrs,
 		})
 	}
 	renderV3Collection(w, r, data)
 }
 
 func (f *CircleCI) handleSetupProviderConnection(w http.ResponseWriter, r *http.Request) {
-	f.mu.RLock()
+	f.mu.Lock()
 	resp := f.connectionSetupResp
-	f.mu.RUnlock()
+	if len(f.connectionSetupQueue) > 0 {
+		next := f.connectionSetupQueue[0]
+		if len(f.connectionSetupQueue) > 1 {
+			f.connectionSetupQueue = f.connectionSetupQueue[1:]
+		}
+		f.mu.Unlock()
+		render.Status(r, next.Status)
+		render.JSON(w, r, next.Body)
+		return
+	}
+	f.mu.Unlock()
 
 	if resp == nil {
 		resp = map[string]any{"data": map[string]any{

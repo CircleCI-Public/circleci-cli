@@ -73,6 +73,12 @@ func TestRegistryIsUsable(t *testing.T) {
 			if p.Repo != NoRepo {
 				assert.Check(t, p.RepoIDExample != "", "RepoIDExample is the repo id prompt placeholder")
 			}
+			if p.TerminalConnect {
+				assert.Check(t, p.Short != "", "Short names the integration in prompts and progress output")
+				assert.Check(t, cmp.Len(p.Hosts, 0), "a terminal-connected integration is matched by its connection, not by host")
+				assert.Check(t, p.Install == "" && p.InstalledPath == "", "there is no browser install to describe")
+				return
+			}
 			onboarding := p.Short != "" || p.Install != "" || p.InstalledPath != ""
 			if len(p.Hosts) == 0 {
 				// Without hosts onboarding never offers the entry, so its onboarding
@@ -143,6 +149,12 @@ func TestNames(t *testing.T) {
 			role:    TriggerSource,
 			filters: []func(Provider) bool{Provider.NeedsFullName},
 			want:    []string{"origin"},
+		},
+		{
+			name:    "config connected in the terminal",
+			role:    ConfigSource,
+			filters: []func(Provider) bool{Provider.ConnectsInTerminal},
+			want:    []string{"forgejo"},
 		},
 		{
 			name:    "trigger by full name alone",

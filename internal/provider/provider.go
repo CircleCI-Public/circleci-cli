@@ -90,6 +90,10 @@ type Provider struct {
 	// the app URL. It confirms the install and points the user back at their
 	// terminal, so it names the integration the user just installed.
 	InstalledPath string
+	// TerminalConnect marks a self-hosted integration onboarding connects in the
+	// terminal, from values the user supplies, rather than through a browser
+	// install. It has no Hosts: a self-hosted instance can be on any.
+	TerminalConnect bool
 }
 
 // Has reports whether p may be sent in the source field r.
@@ -104,6 +108,10 @@ func (p Provider) NeedsRepoID() bool { return p.Repo == RepoID || p.Repo == Repo
 // FullNameIsEnough reports whether a source of p may name its repository by
 // owner/name alone, with no external id.
 func (p Provider) FullNameIsEnough() bool { return p.Repo == RepoIDOrFullName }
+
+// ConnectsInTerminal reports whether onboarding connects p in the terminal, from
+// values the user supplies.
+func (p Provider) ConnectsInTerminal() bool { return p.TerminalConnect }
 
 // NeedsFullName reports whether a source of p must name the repository's
 // owner/name as well as its id.
@@ -153,10 +161,12 @@ var registry = []Provider{
 	},
 	{
 		// Usually self-hosted, so it has no hosts to recognise a remote by.
-		Name:          "forgejo",
-		Roles:         ConfigSource | CheckoutSource | TriggerSource,
-		Repo:          RepoIDOrFullName,
-		RepoIDExample: "e.g. 12345",
+		Name:            "forgejo",
+		Roles:           ConfigSource | CheckoutSource | TriggerSource,
+		Repo:            RepoIDOrFullName,
+		RepoIDExample:   "e.g. 12345",
+		Short:           "Forgejo",
+		TerminalConnect: true,
 	},
 	{
 		Name:  "webhook",

@@ -1,0 +1,18 @@
+Connect Forgejo to CircleCI. Needs Forgejo 16 or later.
+
+✓ Connected Forgejo at https://forgejo.example.com for acme
+
+Add the webhook in Forgejo. Pipelines won't start without it.
+  Open the acme organization's Settings → Webhooks → Add webhook → Forgejo:
+    https://forgejo.example.com/org/acme/settings/hooks
+  Target URL:
+    https://internal.circleci.com/private/soc/forgejo/webhook/conn-forgejo-1
+  Secret: paste the secret shown below
+  Trigger on: Custom events…
+    Repository events → Push
+    Pull request events → Modification, Synchronized
+  Then select Add webhook. To check it, push a commit and look under Recent Deliveries.
+
+Secret (save this — it will not be shown again):
+whsec-shown-once
+

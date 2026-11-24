@@ -1207,6 +1207,7 @@ func TestOnboard_PostSignup_FirstPipeline_UnclaimedHost(t *testing.T) {
 	assert.Equal(t, result.ExitCode, 0, "stderr: %s", result.Stderr)
 	assert.Check(t, cmp.Contains(result.Stderr, "is not on a provider CircleCI can look up"))
 	assert.Check(t, cmp.Contains(result.Stderr, "--repo-id"))
+	assert.Check(t, cmp.Contains(result.Stderr, "If it is on Forgejo, re-run with --provider forgejo."))
 	assert.Check(t, !strings.Contains(result.Stdout, "Pipeline definition created"),
 		"no definition should be created without a resolved repository")
 }
@@ -1235,6 +1236,7 @@ func TestOnboard_Telemetry(t *testing.T) {
 			"onboard_signup_outcome":         "already_authenticated",
 			"onboard_project_setup_outcome":  "created",
 			"onboard_project_follow_outcome": "followed",
+			"onboard_forgejo_outcome":        "not_applicable",
 		}))
 	})
 
@@ -1263,6 +1265,7 @@ func TestOnboard_Telemetry(t *testing.T) {
 			"onboard_signup_outcome":         "already_authenticated",
 			"onboard_project_setup_outcome":  "not_applicable",
 			"onboard_project_follow_outcome": "followed",
+			"onboard_forgejo_outcome":        "not_applicable",
 		}))
 	})
 
@@ -1288,6 +1291,7 @@ func TestOnboard_Telemetry(t *testing.T) {
 			"onboard_signup_outcome":         "not_reached",
 			"onboard_project_setup_outcome":  "not_reached",
 			"onboard_project_follow_outcome": "not_reached",
+			"onboard_forgejo_outcome":        "not_reached",
 		}))
 	})
 }
