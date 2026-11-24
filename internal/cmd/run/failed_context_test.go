@@ -38,6 +38,51 @@ import (
 	"github.com/CircleCI-Public/circleci-cli/internal/apiclient"
 )
 
+// TestStepFailed covers which step outcomes the report shows: every outcome
+// that ends the job unsuccessfully, including the ones that leave no exit code,
+// and neither spelling of a timeout is missed.
+func TestStepFailed(t *testing.T) {
+	for outcome, want := range map[string]bool{
+		"failed":              true,
+		"timed_out":           true,
+		"timedout":            true,
+		"infrastructure_fail": true,
+		"errored":             true,
+		"succeeded":           false,
+		"canceled":            false,
+		"not_run":             false,
+		"":                    false,
+	} {
+		assert.Check(t, is.Equal(stepFailed(outcome), want), "outcome %q", outcome)
+	}
+}
+
+// TestStepHeaderSuffix checks the header keeps its "[exit: N]" form for a plain
+// failure and names the outcome when there is no exit code to show.
+func TestStepHeaderSuffix(t *testing.T) {
+	exit := 1
+	assert.Check(t, is.Equal(stepHeaderSuffix(apiclient.JobV3Step{Outcome: "failed", ExitCode: &exit}), " [exit: 1]"))
+	assert.Check(t, is.Equal(stepHeaderSuffix(apiclient.JobV3Step{Outcome: "failed"}), ""))
+	assert.Check(t, is.Equal(stepHeaderSuffix(apiclient.JobV3Step{Outcome: "timed_out"}), " [timed_out]"))
+	assert.Check(t, is.Equal(stepHeaderSuffix(apiclient.JobV3Step{Outcome: "infrastructure_fail", ExitCode: &exit}), " [exit: 1] [infrastructure_fail]"))
+}
+
+// TestFallbackTail checks the full-stdout fallback keeps short output whole,
+// terminates it, and for long output keeps only the tail behind a note that
+// says how much was cut and where to read it all.
+func TestFallbackTail(t *testing.T) {
+	jobID := uuid.MustParse("d0000000-0000-4000-8000-0000000000f1")
+
+	assert.Check(t, is.Equal(string(fallbackTail([]byte("a\nb\n"), 3, jobID, 103)), "a\nb\n"))
+	assert.Check(t, is.Equal(string(fallbackTail([]byte("a\nb"), 3, jobID, 103)), "a\nb\n"), "unterminated output gets a newline")
+	assert.Check(t, is.Equal(string(fallbackTail(nil, 3, jobID, 103)), ""))
+	assert.Check(t, is.Equal(string(fallbackTail([]byte("\n\nlate\n"), 3, jobID, 103)), "late\n"), "leading blank lines are dropped")
+
+	got := string(fallbackTail([]byte("1\n2\n3\n4\n5\n"), 2, jobID, 103))
+	want := "(3 earlier lines omitted; full output: circleci job output get d0000000-0000-4000-8000-0000000000f1 --step-num 103)\n4\n5\n"
+	assert.Check(t, is.Equal(got, want))
+}
+
 // TestFailureReportNextSteps verifies the report's closing section lists what
 // fits the failures it found, and caps the per-job and per-workflow lines.
 func TestFailureReportNextSteps(t *testing.T) {

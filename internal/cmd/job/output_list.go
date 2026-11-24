@@ -317,7 +317,7 @@ func outputListMarkdown(data *jobOutputList, tail int) string {
 		// Embed only the tail in the rendered view; glamour cannot handle a huge
 		// code block. The full output is always available via --json or the
 		// per-step "job output get" command named in the notice.
-		output, omitted := tailLines(s.Output, tail)
+		output, omitted := TailLines(s.Output, tail)
 		if omitted > 0 {
 			_, _ = fmt.Fprintf(&md, "\n_… %d earlier lines hidden; run `circleci job output get %s --step-num %d` for the full output._\n",
 				omitted, data.ID, s.Num)
@@ -333,11 +333,11 @@ func outputListMarkdown(data *jobOutputList, tail int) string {
 	return md.String()
 }
 
-// tailLines returns the last limit lines of s along with the number of lines
+// TailLines returns the last limit lines of s along with the number of lines
 // hidden from the front. s is expected to be newline-terminated; if it has
 // limit or fewer lines it is returned unchanged with omitted == 0. A limit of
 // zero or less means no limit.
-func tailLines(s string, limit int) (tail string, omitted int) {
+func TailLines(s string, limit int) (tail string, omitted int) {
 	total := strings.Count(s, "\n")
 	if limit <= 0 || total <= limit {
 		return s, 0

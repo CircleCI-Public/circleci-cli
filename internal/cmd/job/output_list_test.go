@@ -34,21 +34,21 @@ import (
 func TestTailLines(t *testing.T) {
 	t.Run("fewer than max returned unchanged", func(t *testing.T) {
 		in := "a\nb\nc\n"
-		tail, omitted := tailLines(in, 200)
+		tail, omitted := TailLines(in, 200)
 		assert.Check(t, cmp.Equal(tail, in))
 		assert.Check(t, cmp.Equal(omitted, 0))
 	})
 
 	t.Run("exactly max returned unchanged", func(t *testing.T) {
 		in := "a\nb\nc\n"
-		tail, omitted := tailLines(in, 3)
+		tail, omitted := TailLines(in, 3)
 		assert.Check(t, cmp.Equal(tail, in))
 		assert.Check(t, cmp.Equal(omitted, 0))
 	})
 
 	t.Run("more than max keeps the tail", func(t *testing.T) {
 		in := "a\nb\nc\nd\ne\n"
-		tail, omitted := tailLines(in, 2)
+		tail, omitted := TailLines(in, 2)
 		assert.Check(t, cmp.Equal(tail, "d\ne\n"))
 		assert.Check(t, cmp.Equal(omitted, 3))
 	})
@@ -58,7 +58,7 @@ func TestTailLines(t *testing.T) {
 		for i := 0; i < 1000; i++ {
 			fmt.Fprintf(&b, "line %d\n", i)
 		}
-		tail, omitted := tailLines(b.String(), 200)
+		tail, omitted := TailLines(b.String(), 200)
 		assert.Check(t, cmp.Equal(omitted, 800))
 		assert.Check(t, cmp.Equal(strings.Count(tail, "\n"), 200))
 		assert.Check(t, cmp.Equal(strings.HasPrefix(tail, "line 800\n"), true))
