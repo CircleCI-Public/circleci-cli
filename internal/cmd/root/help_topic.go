@@ -312,6 +312,15 @@ var helpTopics = []helpTopic{
 			| %[1]sonly-merged-or-closed-prs%[1]s | Pull requests being merged or closed |
 			| %[1]spr-comment-equals-run-ci%[1]s | A pull request comment of exactly "run ci" |
 			| %[1]spushes-to-merge-queues%[1]s | Pushes to a GitHub merge queue |
+
+			## Custom rules
+
+			For events no preset covers, %[1]s--rules%[1]s takes the API's rule array instead of
+			%[1]s--event-preset%[1]s: inline JSON, %[1]s@file%[1]s, or %[1]s@-%[1]s for stdin. Each rule has an
+			%[1]sevent_type%[1]s, an %[1]sevent_ref%[1]s and a %[1]srule%[1]s expression, for example
+			%[1]s[{"event_type":"push","event_ref":"push_ref","rule":"event.branch starts-with \"release/\""}]%[1]s.
+			On %[1]supdate%[1]s, %[1]s--rules%[1]s replaces every existing rule and any preset. The API
+			checks the expressions and reports any it rejects.
 		`, "`"),
 		example: heredoc.Docf(`
 			### Build every push to a GitHub App repository

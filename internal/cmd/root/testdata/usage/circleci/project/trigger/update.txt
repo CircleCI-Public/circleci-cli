@@ -11,4 +11,5 @@ Flags:
       --json                  Output as JSON
       --project string        project slug (e.g. gh/org/repo); only needed for a project's OAuth trigger
       --project-id string     project UUID (overrides --project)
+      --rules string          custom trigger rules as a JSON array, or @file, or @- for stdin; replaces every existing rule and any preset
   

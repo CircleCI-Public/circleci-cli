@@ -1,0 +1,4 @@
+error: Could not read --rules @no-such-rules.json: open no-such-rules.json: no such file or directory
+
+Suggestions:
+  • Pass the rules inline, as @<file>, or as @- to read them from stdin
