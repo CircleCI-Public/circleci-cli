@@ -67,43 +67,43 @@ func (ext *Unmanaged) Run(ctx context.Context, client *apiclient.Client, args []
 		}
 	}
 
-	env := buildEnv(ctx, client)
+	return runWithTelemetry(ctx, "", "", buildEnv(ctx, client), func(env []string) error {
+		// Not CommandContext: the context is cancelled by the first signal, which
+		// would SIGKILL the extension before it can clean up.
+		cmd := exec.Command(path, args...) //#nosec:G204,G702 // path comes from FindAllOnPATH, args are user-supplied CLI args for the extension
+		cmd.Stdin = iostream.In(ctx)
+		cmd.Stdout = iostream.Out(ctx)
+		cmd.Stderr = iostream.Err(ctx)
+		cmd.Env = env
 
-	// Not CommandContext: the context is cancelled by the first signal, which
-	// would SIGKILL the extension before it can clean up.
-	cmd := exec.Command(path, args...) //#nosec:G204,G702 // path comes from FindAllOnPATH, args are user-supplied CLI args for the extension
-	cmd.Stdin = iostream.In(ctx)
-	cmd.Stdout = iostream.Out(ctx)
-	cmd.Stderr = iostream.Err(ctx)
-	cmd.Env = env
+		// Registered before Start so no signal is missed.
+		sigs := make(chan os.Signal, 2)
+		signal.Notify(sigs, os.Interrupt, syscall.SIGTERM)
+		defer signal.Stop(sigs)
 
-	// Registered before Start so no signal is missed.
-	sigs := make(chan os.Signal, 2)
-	signal.Notify(sigs, os.Interrupt, syscall.SIGTERM)
-	defer signal.Stop(sigs)
-
-	if err := cmd.Start(); err != nil {
-		return err
-	}
-
-	done := make(chan struct{})
-	supervised := make(chan struct{})
-	go func() {
-		defer close(supervised)
-		superviseShutdown(cmd.Process, sigs, done, shutdownGrace)
-	}()
-	err = cmd.Wait()
-	close(done)
-	<-supervised
-
-	if err != nil {
-		if cmd.ProcessState != nil {
-			return &ErrExited{Code: cmd.ProcessState.ExitCode()}
+		if err := cmd.Start(); err != nil {
+			return err
 		}
 
-		return err
-	}
-	return nil
+		done := make(chan struct{})
+		supervised := make(chan struct{})
+		go func() {
+			defer close(supervised)
+			superviseShutdown(cmd.Process, sigs, done, shutdownGrace)
+		}()
+		err := cmd.Wait()
+		close(done)
+		<-supervised
+
+		if err != nil {
+			if cmd.ProcessState != nil {
+				return &ErrExited{Code: cmd.ProcessState.ExitCode()}
+			}
+
+			return err
+		}
+		return nil
+	})
 }
 
 // shutdownGrace is how long an extension gets to exit after the first

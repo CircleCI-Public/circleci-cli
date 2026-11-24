@@ -473,6 +473,7 @@ func TestAPI_Telemetry(t *testing.T) {
 							"flags":     "debug,insecure-storage,theme",
 							"exit_code": float64(clierrors.ExitSuccess),
 							"api_path":  apiPath,
+							"app_name":  "circleci-cli",
 						},
 						Context: &analytics.Context{
 							App: analytics.AppInfo{Name: "circleci-cli", Version: "dev"},
@@ -543,6 +544,7 @@ func TestAPI_Telemetry_CommandFailure(t *testing.T) {
 						"exit_code":  float64(result.ExitCode),
 						"error_code": "api.request_failed",
 						"api_path":   apiPath,
+						"app_name":   "circleci-cli",
 					}))
 				}
 			}

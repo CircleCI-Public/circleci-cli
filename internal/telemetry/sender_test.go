@@ -116,6 +116,8 @@ func TestClient_Track_with_user_id(t *testing.T) {
 	err = ac.Track("myevent", map[string]any{
 		"foo": "bar",
 		"baz": 42,
+		// A caller must not be able to overwrite app_name.
+		"app_name": "spoofed",
 	})
 	assert.NilError(t, err)
 
@@ -136,8 +138,9 @@ func TestClient_Track_with_user_id(t *testing.T) {
 						UserId:    userID.String(),
 						Event:     "myevent",
 						Properties: analytics.Properties{
-							"foo": "bar",
-							"baz": float64(42),
+							"foo":      "bar",
+							"baz":      float64(42),
+							"app_name": "circleci-cli",
 						},
 						Context: &analytics.Context{
 							App: analytics.AppInfo{Name: "circleci-cli", Version: "1.2.3"},
@@ -230,8 +233,9 @@ func TestClient_Track_without_userid(t *testing.T) {
 						UserId:    telemetry.AnonymousID.String(),
 						Event:     "user-event",
 						Properties: analytics.Properties{
-							"foo": "bar",
-							"baz": float64(84),
+							"foo":      "bar",
+							"baz":      float64(84),
+							"app_name": "circleci-cli",
 						},
 						Context: &analytics.Context{
 							App: analytics.AppInfo{Name: "circleci-cli", Version: "1.2.3"},
