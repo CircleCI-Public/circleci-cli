@@ -6,8 +6,8 @@ Get job details
 
 ## Arguments
 
-`<job-id>` is the UUID of the job to look up. Job UUIDs are shown in
-the output of `circleci workflow get` and `circleci run get --json`.
+`<job-id>` is the UUID of the job to look up, or the job's URL copied
+from the CircleCI app. UUIDs are shown by `circleci workflow get`.
 
 ## Flags
 
