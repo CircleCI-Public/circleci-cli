@@ -60,12 +60,12 @@ func TestExportIsStable(t *testing.T) {
 // TestDeclarationMatchesSchema fails when the schema and the extension's
 // declaration name different short names.
 func TestDeclarationMatchesSchema(t *testing.T) {
-	raw, err := os.ReadFile("testdata/config-optimize.declaration.json")
+	raw, err := os.ReadFile("testdata/configoptimizer.declaration.json")
 	assert.NilError(t, err)
 	var decl struct {
 		ShortNames []string `json:"short_names"`
 	}
 	err = json.Unmarshal(raw, &decl)
 	assert.NilError(t, err)
-	assert.Check(t, cmp.DeepEqual(sortedCopy(decl.ShortNames), extschema.ShortNames("config-optimize")))
+	assert.Check(t, cmp.DeepEqual(sortedCopy(decl.ShortNames), extschema.ShortNames("configoptimizer")))
 }

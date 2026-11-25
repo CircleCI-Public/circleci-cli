@@ -82,17 +82,17 @@ func TestExtensionTelemetry(t *testing.T) {
 		assert.Assert(t, cmp.Equal(result.ExitCode, 0))
 	}))
 
-	const schemaExt = "config-optimize"
+	const schemaExt = "configoptimizer"
 	registry.WithExtension(t,
 		extension.Manifest{
 			Name:       schemaExt,
-			BinaryName: "circleci-" + schemaExt,
+			BinaryName: "circleci-configoptimizer",
 			Version:    "1.2.3",
 			Path:       testBinaryPath,
 		},
 		fakes.ExtensionMeta{Arch: runtime.GOARCH, Sys: runtime.GOOS},
 	)
-	assert.Assert(t, t.Run("install config-optimize", func(t *testing.T) {
+	assert.Assert(t, t.Run("install configoptimizer", func(t *testing.T) {
 		result := binary.RunCLI(t, binary.RunOpts{
 			Binary:  binaryPath,
 			Args:    []string{"extension", "install", schemaExt},

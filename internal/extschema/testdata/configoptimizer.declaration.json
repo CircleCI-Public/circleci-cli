@@ -1,5 +1,5 @@
 {
-  "extension": "config-optimize",
+  "extension": "configoptimizer",
   "short_names": [
     "jobs_analyzed",
     "jobs_with_suggestions",

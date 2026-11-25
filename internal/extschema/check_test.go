@@ -84,7 +84,7 @@ func TestCheck(t *testing.T) {
 	}{
 		{
 			name:      "worked example",
-			extension: "config-optimize",
+			extension: "configoptimizer",
 			version:   1,
 			attrs:     valid,
 			want:      extschema.Accepted,
@@ -92,14 +92,14 @@ func TestCheck(t *testing.T) {
 		},
 		{
 			name:      "nil attributes",
-			extension: "config-optimize",
+			extension: "configoptimizer",
 			version:   1,
 			want:      extschema.Accepted,
 			wantProps: none,
 		},
 		{
 			name:      "empty attributes",
-			extension: "config-optimize",
+			extension: "configoptimizer",
 			version:   1,
 			attrs:     attrs(),
 			want:      extschema.Accepted,
@@ -107,14 +107,14 @@ func TestCheck(t *testing.T) {
 		},
 		{
 			name:      "version 0",
-			extension: "config-optimize",
+			extension: "configoptimizer",
 			attrs:     valid,
 			want:      extschema.Rejected,
 			wantProps: none,
 		},
 		{
 			name:      "version 2",
-			extension: "config-optimize",
+			extension: "configoptimizer",
 			version:   2,
 			attrs:     valid,
 			want:      extschema.Rejected,
@@ -130,7 +130,7 @@ func TestCheck(t *testing.T) {
 		},
 		{
 			name:      "exactly 20 attributes",
-			extension: "config-optimize",
+			extension: "configoptimizer",
 			version:   1,
 			attrs:     with(valid, manyUnknown(17)...),
 			want:      extschema.PartiallyAccepted,
@@ -138,7 +138,7 @@ func TestCheck(t *testing.T) {
 		},
 		{
 			name:      "21 attributes",
-			extension: "config-optimize",
+			extension: "configoptimizer",
 			version:   1,
 			attrs:     with(valid, manyUnknown(18)...),
 			want:      extschema.Rejected,
@@ -146,7 +146,7 @@ func TestCheck(t *testing.T) {
 		},
 		{
 			name:      "uppercase name alone",
-			extension: "config-optimize",
+			extension: "configoptimizer",
 			version:   1,
 			attrs:     attrs("Bad-Name", "1"),
 			want:      extschema.Rejected,
@@ -154,7 +154,7 @@ func TestCheck(t *testing.T) {
 		},
 		{
 			name:      "33 character name alone",
-			extension: "config-optimize",
+			extension: "configoptimizer",
 			version:   1,
 			attrs:     attrs(strings.Repeat("a", 33), "1"),
 			want:      extschema.Rejected,
@@ -162,7 +162,7 @@ func TestCheck(t *testing.T) {
 		},
 		{
 			name:      "empty name alone",
-			extension: "config-optimize",
+			extension: "configoptimizer",
 			version:   1,
 			attrs:     attrs("", "1"),
 			want:      extschema.Rejected,
@@ -170,7 +170,7 @@ func TestCheck(t *testing.T) {
 		},
 		{
 			name:      "unknown well formed name alone",
-			extension: "config-optimize",
+			extension: "configoptimizer",
 			version:   1,
 			attrs:     attrs("made_up", "1"),
 			want:      extschema.Rejected,
@@ -178,7 +178,7 @@ func TestCheck(t *testing.T) {
 		},
 		{
 			name:      "bad names beside valid",
-			extension: "config-optimize",
+			extension: "configoptimizer",
 			version:   1,
 			attrs:     with(valid, "Bad-Name", "1", strings.Repeat("a", 33), "1", "", "1", "made_up", "1"),
 			want:      extschema.PartiallyAccepted,
@@ -186,7 +186,7 @@ func TestCheck(t *testing.T) {
 		},
 		{
 			name:      "float 3.5",
-			extension: "config-optimize",
+			extension: "configoptimizer",
 			version:   1,
 			attrs:     attrs("jobs_analyzed", "3.5"),
 			want:      extschema.Rejected,
@@ -194,7 +194,7 @@ func TestCheck(t *testing.T) {
 		},
 		{
 			name:      "float 3.0",
-			extension: "config-optimize",
+			extension: "configoptimizer",
 			version:   1,
 			attrs:     attrs("jobs_analyzed", "3.0"),
 			want:      extschema.Rejected,
@@ -202,7 +202,7 @@ func TestCheck(t *testing.T) {
 		},
 		{
 			name:      "exponent 1e2",
-			extension: "config-optimize",
+			extension: "configoptimizer",
 			version:   1,
 			attrs:     attrs("jobs_analyzed", "1e2"),
 			want:      extschema.Rejected,
@@ -210,7 +210,7 @@ func TestCheck(t *testing.T) {
 		},
 		{
 			name:      "negative zero",
-			extension: "config-optimize",
+			extension: "configoptimizer",
 			version:   1,
 			attrs:     attrs("jobs_analyzed", "-0"),
 			want:      extschema.Rejected,
@@ -218,7 +218,7 @@ func TestCheck(t *testing.T) {
 		},
 		{
 			name:      "negative one",
-			extension: "config-optimize",
+			extension: "configoptimizer",
 			version:   1,
 			attrs:     attrs("jobs_analyzed", "-1"),
 			want:      extschema.Rejected,
@@ -226,7 +226,7 @@ func TestCheck(t *testing.T) {
 		},
 		{
 			name:      "leading zero",
-			extension: "config-optimize",
+			extension: "configoptimizer",
 			version:   1,
 			attrs:     attrs("jobs_analyzed", "01"),
 			want:      extschema.Rejected,
@@ -234,7 +234,7 @@ func TestCheck(t *testing.T) {
 		},
 		{
 			name:      "leading plus",
-			extension: "config-optimize",
+			extension: "configoptimizer",
 			version:   1,
 			attrs:     attrs("jobs_analyzed", "+1"),
 			want:      extschema.Rejected,
@@ -242,7 +242,7 @@ func TestCheck(t *testing.T) {
 		},
 		{
 			name:      "string",
-			extension: "config-optimize",
+			extension: "configoptimizer",
 			version:   1,
 			attrs:     attrs("jobs_analyzed", `"3"`),
 			want:      extschema.Rejected,
@@ -250,7 +250,7 @@ func TestCheck(t *testing.T) {
 		},
 		{
 			name:      "null",
-			extension: "config-optimize",
+			extension: "configoptimizer",
 			version:   1,
 			attrs:     attrs("jobs_analyzed", "null"),
 			want:      extschema.Rejected,
@@ -258,7 +258,7 @@ func TestCheck(t *testing.T) {
 		},
 		{
 			name:      "bool",
-			extension: "config-optimize",
+			extension: "configoptimizer",
 			version:   1,
 			attrs:     attrs("jobs_analyzed", "true"),
 			want:      extschema.Rejected,
@@ -266,7 +266,7 @@ func TestCheck(t *testing.T) {
 		},
 		{
 			name:      "overflow",
-			extension: "config-optimize",
+			extension: "configoptimizer",
 			version:   1,
 			attrs:     attrs("jobs_analyzed", "99999999999999999999"),
 			want:      extschema.Rejected,
@@ -274,7 +274,7 @@ func TestCheck(t *testing.T) {
 		},
 		{
 			name:      "lower bound 0",
-			extension: "config-optimize",
+			extension: "configoptimizer",
 			version:   1,
 			attrs:     attrs("jobs_analyzed", "0"),
 			want:      extschema.Accepted,
@@ -282,7 +282,7 @@ func TestCheck(t *testing.T) {
 		},
 		{
 			name:      "upper bound 10000",
-			extension: "config-optimize",
+			extension: "configoptimizer",
 			version:   1,
 			attrs:     attrs("jobs_analyzed", "10000"),
 			want:      extschema.Accepted,
@@ -290,7 +290,7 @@ func TestCheck(t *testing.T) {
 		},
 		{
 			name:      "above upper bound 10001",
-			extension: "config-optimize",
+			extension: "configoptimizer",
 			version:   1,
 			attrs:     attrs("jobs_analyzed", "10001"),
 			want:      extschema.Rejected,
@@ -298,7 +298,7 @@ func TestCheck(t *testing.T) {
 		},
 		{
 			name:      "validation_pairs 100",
-			extension: "config-optimize",
+			extension: "configoptimizer",
 			version:   1,
 			attrs:     attrs("validation_pairs", "100"),
 			want:      extschema.Accepted,
@@ -306,7 +306,7 @@ func TestCheck(t *testing.T) {
 		},
 		{
 			name:      "validation_pairs 101",
-			extension: "config-optimize",
+			extension: "configoptimizer",
 			version:   1,
 			attrs:     attrs("validation_pairs", "101"),
 			want:      extschema.Rejected,
@@ -314,7 +314,7 @@ func TestCheck(t *testing.T) {
 		},
 		{
 			name:      "no_suggestion_reason valid",
-			extension: "config-optimize",
+			extension: "configoptimizer",
 			version:   1,
 			attrs:     attrs("no_suggestion_reason", `"memory_bound"`, "suggestions", "0", "jobs_with_suggestions", "0"),
 			want:      extschema.Accepted,
@@ -326,7 +326,7 @@ func TestCheck(t *testing.T) {
 		},
 		{
 			name:      "no_suggestion_reason unknown value",
-			extension: "config-optimize",
+			extension: "configoptimizer",
 			version:   1,
 			attrs:     attrs("no_suggestion_reason", `"nope"`, "suggestions", "0"),
 			want:      extschema.PartiallyAccepted,
@@ -334,7 +334,7 @@ func TestCheck(t *testing.T) {
 		},
 		{
 			name:      "validation_outcome valid",
-			extension: "config-optimize",
+			extension: "configoptimizer",
 			version:   1,
 			attrs:     attrs("validation_outcome", `"inconclusive"`),
 			want:      extschema.Accepted,
@@ -342,7 +342,7 @@ func TestCheck(t *testing.T) {
 		},
 		{
 			name:      "validation_outcome wrong case",
-			extension: "config-optimize",
+			extension: "configoptimizer",
 			version:   1,
 			attrs:     attrs("validation_outcome", `"Inconclusive"`),
 			want:      extschema.Rejected,
@@ -350,7 +350,7 @@ func TestCheck(t *testing.T) {
 		},
 		{
 			name:      "validation_outcome null",
-			extension: "config-optimize",
+			extension: "configoptimizer",
 			version:   1,
 			attrs:     attrs("validation_outcome", "null"),
 			want:      extschema.Rejected,
@@ -358,7 +358,7 @@ func TestCheck(t *testing.T) {
 		},
 		{
 			name:      "validation_outcome number",
-			extension: "config-optimize",
+			extension: "configoptimizer",
 			version:   1,
 			attrs:     attrs("validation_outcome", "1"),
 			want:      extschema.Rejected,
@@ -366,7 +366,7 @@ func TestCheck(t *testing.T) {
 		},
 		{
 			name:      "more with suggestions than analyzed",
-			extension: "config-optimize",
+			extension: "configoptimizer",
 			version:   1,
 			attrs:     attrs("jobs_analyzed", "10", "jobs_with_suggestions", "20"),
 			want:      extschema.Rejected,
@@ -374,7 +374,7 @@ func TestCheck(t *testing.T) {
 		},
 		{
 			name:      "more with suggestions than analyzed beside a third",
-			extension: "config-optimize",
+			extension: "configoptimizer",
 			version:   1,
 			attrs:     attrs("jobs_analyzed", "10", "jobs_with_suggestions", "20", "validation_pairs", "5"),
 			want:      extschema.PartiallyAccepted,
@@ -382,7 +382,7 @@ func TestCheck(t *testing.T) {
 		},
 		{
 			name:      "suggestions without jobs",
-			extension: "config-optimize",
+			extension: "configoptimizer",
 			version:   1,
 			attrs:     attrs("suggestions", "3", "jobs_with_suggestions", "0"),
 			want:      extschema.Rejected,
@@ -390,7 +390,7 @@ func TestCheck(t *testing.T) {
 		},
 		{
 			name:      "jobs without suggestions",
-			extension: "config-optimize",
+			extension: "configoptimizer",
 			version:   1,
 			attrs:     attrs("suggestions", "0", "jobs_with_suggestions", "2"),
 			want:      extschema.Rejected,
@@ -398,7 +398,7 @@ func TestCheck(t *testing.T) {
 		},
 		{
 			name:      "suggestions 0 alone",
-			extension: "config-optimize",
+			extension: "configoptimizer",
 			version:   1,
 			attrs:     attrs("suggestions", "0"),
 			want:      extschema.Accepted,
@@ -406,7 +406,7 @@ func TestCheck(t *testing.T) {
 		},
 		{
 			name:      "reason with suggestions 3",
-			extension: "config-optimize",
+			extension: "configoptimizer",
 			version:   1,
 			attrs:     attrs("no_suggestion_reason", `"memory_bound"`, "suggestions", "3"),
 			want:      extschema.PartiallyAccepted,
@@ -414,7 +414,7 @@ func TestCheck(t *testing.T) {
 		},
 		{
 			name:      "reason with suggestions absent",
-			extension: "config-optimize",
+			extension: "configoptimizer",
 			version:   1,
 			attrs:     attrs("no_suggestion_reason", `"memory_bound"`),
 			want:      extschema.Rejected,
@@ -422,7 +422,7 @@ func TestCheck(t *testing.T) {
 		},
 		{
 			name:      "reason with suggestions absent beside a third",
-			extension: "config-optimize",
+			extension: "configoptimizer",
 			version:   1,
 			attrs:     attrs("no_suggestion_reason", `"memory_bound"`, "validation_pairs", "5"),
 			want:      extschema.PartiallyAccepted,
@@ -430,7 +430,7 @@ func TestCheck(t *testing.T) {
 		},
 		{
 			name:      "reason with suggestions 0",
-			extension: "config-optimize",
+			extension: "configoptimizer",
 			version:   1,
 			attrs:     attrs("no_suggestion_reason", `"memory_bound"`, "suggestions", "0"),
 			want:      extschema.Accepted,
@@ -438,7 +438,7 @@ func TestCheck(t *testing.T) {
 		},
 		{
 			name:      "reason with suggestions out of range",
-			extension: "config-optimize",
+			extension: "configoptimizer",
 			version:   1,
 			attrs:     attrs("no_suggestion_reason", `"memory_bound"`, "suggestions", "99999"),
 			want:      extschema.Rejected,
@@ -446,7 +446,7 @@ func TestCheck(t *testing.T) {
 		},
 		{
 			name:      "reason with suggestions dropped by the jobs check",
-			extension: "config-optimize",
+			extension: "configoptimizer",
 			version:   1,
 			attrs:     attrs("suggestions", "5", "jobs_with_suggestions", "0", "no_suggestion_reason", `"saving_too_small"`),
 			want:      extschema.Rejected,
@@ -454,7 +454,7 @@ func TestCheck(t *testing.T) {
 		},
 		{
 			name:      "reason with suggestions dropped by the jobs check beside a third",
-			extension: "config-optimize",
+			extension: "configoptimizer",
 			version:   1,
 			attrs: attrs(
 				"suggestions", "5", "jobs_with_suggestions", "0", "no_suggestion_reason", `"saving_too_small"`,
@@ -464,7 +464,7 @@ func TestCheck(t *testing.T) {
 		},
 		{
 			name:      "reason with suggestions 0 dropped by the jobs check",
-			extension: "config-optimize",
+			extension: "configoptimizer",
 			version:   1,
 			attrs: attrs(
 				"suggestions", "0", "jobs_with_suggestions", "2", "no_suggestion_reason", `"saving_too_small"`,
@@ -474,7 +474,7 @@ func TestCheck(t *testing.T) {
 		},
 		{
 			name:      "order independence",
-			extension: "config-optimize",
+			extension: "configoptimizer",
 			version:   1,
 			attrs:     attrs("suggestions", "0", "jobs_with_suggestions", "5", "jobs_analyzed", "2"),
 			want:      extschema.Rejected,
@@ -495,7 +495,7 @@ func TestCheck(t *testing.T) {
 }
 
 func TestCheckAcceptedOrder(t *testing.T) {
-	res := extschema.Check("config-optimize", 1, map[string]json.RawMessage{
+	res := extschema.Check("configoptimizer", 1, map[string]json.RawMessage{
 		"suggestions":           json.RawMessage(`3`),
 		"jobs_analyzed":         json.RawMessage(`10`),
 		"jobs_with_suggestions": json.RawMessage(`2`),
@@ -517,7 +517,7 @@ func TestHas(t *testing.T) {
 		want      bool
 	}{
 		{
-			extension: "config-optimize",
+			extension: "configoptimizer",
 			want:      true,
 		},
 		{

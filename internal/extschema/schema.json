@@ -1,7 +1,7 @@
 {
   "extensions": [
     {
-      "name": "config-optimize",
+      "name": "configoptimizer",
       "version": 1,
       "max_attributes": 20,
       "attributes": [

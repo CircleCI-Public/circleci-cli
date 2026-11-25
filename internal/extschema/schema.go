@@ -70,7 +70,7 @@ const maxAttributes = 20
 // Property names are literals, never built at runtime, so the review of
 // telemetry events can read them.
 var specs = []extSpec{{
-	name:    "config-optimize",
+	name:    "configoptimizer",
 	version: 1,
 	cross:   crossCheckConfigOptimize,
 	attrs: []attrSpec{

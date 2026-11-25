@@ -115,7 +115,7 @@ func TestAcceptedProperties(t *testing.T) {
 	}{
 		{
 			name:    "a name in the schema",
-			ext:     "config-optimize",
+			ext:     "configoptimizer",
 			version: "1.2.3",
 			attrs:   `{"suggestions":3}`,
 			want: map[string]any{
@@ -126,7 +126,7 @@ func TestAcceptedProperties(t *testing.T) {
 		},
 		{
 			name:    "a name not in the schema",
-			ext:     "config-optimize",
+			ext:     "configoptimizer",
 			version: "1.2.3",
 			attrs:   `{"nope":3}`,
 			want: map[string]any{
@@ -136,7 +136,7 @@ func TestAcceptedProperties(t *testing.T) {
 		},
 		{
 			name:    "a name not in the schema beside a valid one",
-			ext:     "config-optimize",
+			ext:     "configoptimizer",
 			version: "1.2.3",
 			attrs:   `{"nope":3,"suggestions":0}`,
 			want: map[string]any{
