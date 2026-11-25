@@ -6,6 +6,26 @@ is added by its release PR (see [RELEASE.md](RELEASE.md)) and becomes its GitHub
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.19.0] - 2026-11-25
+
+### What's Changed
+* Expose extensions to generated MCP by @liamclarkedev in https://github.com/CircleCI-Public/circleci-cli/pull/2016
+* Show the rerun-failed command in run get by @gcirclest in https://github.com/CircleCI-Public/circleci-cli/pull/2018
+* Document the configoptimizer extension in the command reference by @cloverfern in https://github.com/CircleCI-Public/circleci-cli/pull/2025
+* fix: filter on_hold runs by the held phase and drop the pre-held approval fallbacks by @shawon-crosen in https://github.com/CircleCI-Public/circleci-cli/pull/2011
+* Show job errors in job get and run get --failure-report by @gcirclest in https://github.com/CircleCI-Public/circleci-cli/pull/2028
+* SC-113: Add --rules to project trigger create and update by @Crevitus in https://github.com/CircleCI-Public/circleci-cli/pull/2019
+* Connect a Forgejo repo in circleci onboard (AEX-97) by @joel-thompson in https://github.com/CircleCI-Public/circleci-cli/pull/1997
+* Accept CircleCI URLs in run get and the job commands (AEX-80) by @alexandrahsu-eng in https://github.com/CircleCI-Public/circleci-cli/pull/1965
+* Show the backend reason when a workflow rerun is refused by @alexandrahsu-eng in https://github.com/CircleCI-Public/circleci-cli/pull/1957
+* Add per-job timing to run get and workflow get, and run get --timing (AEX-101) by @alexandrahsu-eng in https://github.com/CircleCI-Public/circleci-cli/pull/2030
+
+### New Contributors
+* @Crevitus made their first contribution in https://github.com/CircleCI-Public/circleci-cli/pull/2019
+* @alexandrahsu-eng made their first contribution in https://github.com/CircleCI-Public/circleci-cli/pull/1965
+
+**Full Changelog**: https://github.com/CircleCI-Public/circleci-cli/compare/v1.18.0...v1.19.0
+
 ## [1.18.0] - 2026-11-19
 
 ### What's Changed
