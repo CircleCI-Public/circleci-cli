@@ -1,0 +1,14 @@
+## job timing: 4 jobs, wall clock 12m12s, run created 2020-01-01 12:00:00 UTC
+
+| Job         | Workflow | Status    | Duration | Started | ID                                   |
+| ----------- | -------- | --------- | -------- | ------- | ------------------------------------ |
+| test        | build    | failed    | 12m0s    | +12s    | d0000000-0000-4000-8000-0000000000e2 |
+| lint        | build    | succeeded | 1m0s     | +10s    | d0000000-0000-4000-8000-0000000000e1 |
+| build-image | build    | running   | ~        | +1m15s  | d0000000-0000-4000-8000-0000000000e3 |
+| hold        | deploy   | on hold   |          |         | d0000000-0000-4000-8000-0000000000e4 |
+
+## next steps
+
+- Wall clock is run creation to the last job end; the 2 finished jobs add up to 13m0s.
+- Step timings for the slowest job "test": circleci job get d0000000-0000-4000-8000-0000000000e2
+- CPU and memory of the slowest job against its resource class: circleci job resource-usage get d0000000-0000-4000-8000-0000000000e2

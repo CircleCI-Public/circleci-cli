@@ -15,8 +15,8 @@
 - Duration: 2m34s
 - Rerun failed jobs: `circleci workflow rerun b0000000-0000-4000-8000-000000000001 --from-failed`
 #### Jobs
-| Name      | Status       | Type  | ID                                     |
-| --------- | ------------ | ----- | -------------------------------------- |
-| run-tests | ❌ failed    | build | `d0000000-0000-4000-8000-000000000001` |
-| lint      | ✅ succeeded | build | `d0000000-0000-4000-8000-000000000002` |
+| Name      | Status       | Duration | Type  | ID                                     |
+| --------- | ------------ | -------- | ----- | -------------------------------------- |
+| run-tests | ❌ failed    | 1m0s     | build | `d0000000-0000-4000-8000-000000000001` |
+| lint      | ✅ succeeded | 1m0s     | build | `d0000000-0000-4000-8000-000000000002` |
 

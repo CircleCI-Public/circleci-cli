@@ -76,6 +76,7 @@ func newGetCmd() *cobra.Command {
 		mine          bool
 		noInteractive bool
 		failureReport bool
+		timing        bool
 	)
 
 	cmd := &cobra.Command{
@@ -91,13 +92,13 @@ func newGetCmd() *cobra.Command {
 			`, "`"),
 		},
 		Long: heredoc.Doc(`
-			Display the status of a CircleCI run and its workflows. With no run in an
-			interactive terminal, a picker walks you through the recent runs.
+			Display the status of a CircleCI run and its workflows, with every job's duration.
+			With no run in an interactive terminal, a picker walks you through the recent runs.
 
 			JSON fields: id, phase, outcome, current_outcome, branch, tag, revision, repository_url,
 			commit.subject/url/author_name/author_login, created_at, errors[].type/message,
 			warnings[].type/message/description/url, workflows[].id/name/phase/outcome/current_outcome/duration/rerun_command/
-			jobs[].id/name/phase/outcome/current_outcome/type
+			jobs[].id/name/phase/outcome/current_outcome/type/started_at/stopped_at/duration
 		`),
 		Example: heredoc.Doc(`
 			# Get the latest run for the current branch
@@ -115,8 +116,8 @@ func newGetCmd() *cobra.Command {
 			# Get only your runs
 			$ circleci run get --mine
 
-			# Skip the picker and resolve the latest run directly
-			$ circleci run get --no-interactive
+			# Which jobs are slowest in the latest run
+			$ circleci run get --timing
 		`),
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -127,11 +128,17 @@ func newGetCmd() *cobra.Command {
 					"--failure-report prints plain-text output for agent consumption and does not support JSON formatting.").
 					WithExitCode(clierrors.ExitBadArguments)
 			}
+			if timing && (jsonOut || cmd.Flags().Changed("jq")) {
+				return clierrors.New("run.timing_no_json",
+					"--timing cannot be combined with --json or --jq",
+					"--timing prints plain-text output for agent consumption. For the same per-job timing as JSON, use --json: each jobs[] entry carries started_at, stopped_at and duration.").
+					WithExitCode(clierrors.ExitBadArguments)
+			}
 			client, err := cmdutil.LoadClient(ctx)
 			if err != nil {
 				return err
 			}
-			return runGet(ctx, client, args, projectSlug, branch, jsonOut, mine, noInteractive, failureReport)
+			return runGet(ctx, client, args, projectSlug, branch, jsonOut, mine, noInteractive, failureReport, timing)
 		},
 	}
 
@@ -140,6 +147,8 @@ func newGetCmd() *cobra.Command {
 	cmd.Flags().BoolVarP(&mine, "mine", "m", false, "Filter to runs owned by you.")
 	cmd.Flags().BoolVar(&noInteractive, "no-interactive", false, "Skip the interactive picker and resolve the latest run directly")
 	cmd.Flags().BoolVar(&failureReport, "failure-report", false, "Print condensed output for every failed step; intended for agent consumption")
+	cmd.Flags().BoolVar(&timing, "timing", false, "Print every job's duration, slowest first; intended for agent consumption")
+	cmd.MarkFlagsMutuallyExclusive("failure-report", "timing")
 	cmdutil.AddJSONFlag(cmd, &jsonOut)
 	cmdutil.AddJQFlag(cmd)
 
@@ -219,6 +228,37 @@ type jobOutput struct {
 	Outcome        string    `json:"outcome,omitempty"`
 	CurrentOutcome string    `json:"current_outcome,omitempty"`
 	Type           string    `json:"type,omitempty"`
+	// StartedAt, StoppedAt and Duration come from the workflow jobs listing, so
+	// a run's per-job timing is available without a "job get" per job. All three
+	// are omitted for a job that has not started; StoppedAt and Duration for one
+	// still running. The names match "circleci job get --json".
+	StartedAt *time.Time `json:"started_at,omitempty"`
+	StoppedAt *time.Time `json:"stopped_at,omitempty"`
+	Duration  string     `json:"duration,omitempty"`
+}
+
+// jobOutputFrom adapts a listed workflow job to the JSON output shape.
+func jobOutputFrom(j apiclient.WorkflowJobV3) jobOutput {
+	out := jobOutput{
+		ID:             j.ID,
+		Name:           j.Name,
+		Phase:          j.Phase,
+		Outcome:        j.Outcome,
+		CurrentOutcome: j.CurrentOutcome,
+		Type:           j.Type,
+	}
+	if j.StartedAt != nil {
+		started := j.StartedAt.UTC()
+		out.StartedAt = &started
+	}
+	if j.EndedAt != nil {
+		stopped := j.EndedAt.UTC()
+		out.StoppedAt = &stopped
+	}
+	if d, ok := j.Duration(); ok {
+		out.Duration = ui.FormatElapsed(d)
+	}
+	return out
 }
 
 // failed reports whether the job ended in failure; see WorkflowJobV3.Failed.
@@ -226,13 +266,13 @@ func (j jobOutput) failed() bool {
 	return apiclient.WorkflowJobV3{Phase: j.Phase, Outcome: j.Outcome, CurrentOutcome: j.CurrentOutcome}.Failed()
 }
 
-func runGet(ctx context.Context, client *apiclient.Client, args []string, projectSlug, branch string, jsonOut, mine, noInteractive, failureReport bool) error {
-	// --failure-report always bypasses the TUI — it is an output-mode flag.
-	// With no run ID and an interactive terminal, walk the user through a series
-	// of pickers (run → workflow → job) instead of silently resolving the latest
-	// run. JSON output stays non-interactive so scripting is unaffected, and
-	// --no-interactive forces the same direct latest-run lookup in a TTY.
-	if len(args) == 0 && !jsonOut && !noInteractive && !failureReport && iostream.IsInteractive(ctx) {
+func runGet(ctx context.Context, client *apiclient.Client, args []string, projectSlug, branch string, jsonOut, mine, noInteractive, failureReport, timing bool) error {
+	// --failure-report and --timing always bypass the TUI — they are output-mode
+	// flags. With no run ID and an interactive terminal, walk the user through a
+	// series of pickers (run → workflow → job) instead of silently resolving the
+	// latest run. JSON output stays non-interactive so scripting is unaffected,
+	// and --no-interactive forces the same direct latest-run lookup in a TTY.
+	if len(args) == 0 && !jsonOut && !noInteractive && !failureReport && !timing && iostream.IsInteractive(ctx) {
 		return runGetInteractive(ctx, client, projectSlug, branch, mine)
 	}
 
@@ -261,6 +301,9 @@ func runGet(ctx context.Context, client *apiclient.Client, args []string, projec
 
 	if failureReport {
 		return FailureReport(ctx, client, r)
+	}
+	if timing {
+		return TimingReport(ctx, client, r)
 	}
 	return displayRun(ctx, client, r, jsonOut)
 }
@@ -927,14 +970,7 @@ func buildOutput(r *apiclient.RunV3, workflows []apiclient.WorkflowV3, wfJobs []
 		wj := wfJobs[i]
 		jobs := make([]jobOutput, 0, len(wj))
 		for _, j := range wj {
-			jobs = append(jobs, jobOutput{
-				ID:             j.ID,
-				Name:           j.Name,
-				Phase:          j.Phase,
-				Outcome:        j.Outcome,
-				CurrentOutcome: j.CurrentOutcome,
-				Type:           j.Type,
-			})
+			jobs = append(jobs, jobOutputFrom(j))
 		}
 		var dur string
 		if w.EndedAt != nil {
@@ -1108,9 +1144,9 @@ func runMarkdown(r runGetOutput, u string) string {
 				_, _ = fmt.Fprintf(&md, "- Rerun failed jobs: `%s`\n", w.RerunCommand)
 			}
 			md.WriteString("#### Jobs\n")
-			mdTable := mdtable.New("Name", "Status", "Type", "ID")
+			mdTable := mdtable.New("Name", "Status", "Duration", "Type", "ID")
 			for _, j := range w.Jobs {
-				mdTable.Row(j.Name, apiclient.PhaseOutcomeStatus(j.Phase, j.Outcome, j.CurrentOutcome), j.Type, "`"+j.ID.String()+"`")
+				mdTable.Row(j.Name, apiclient.PhaseOutcomeStatus(j.Phase, j.Outcome, j.CurrentOutcome), j.Duration, j.Type, "`"+j.ID.String()+"`")
 			}
 			md.WriteString(mdTable.Render())
 		}
