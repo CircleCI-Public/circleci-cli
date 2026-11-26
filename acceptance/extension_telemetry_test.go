@@ -104,7 +104,7 @@ func TestExtensionTelemetry(t *testing.T) {
 
 	// runIn executes the extension with telemetry on, in the given test
 	// environment, and returns the properties of its command_invocation event and
-	// the directory used as TMPDIR for the run, a fresh one when tmp is empty.
+	// the run's temporary directory, a fresh one when tmp is empty.
 	// extDir, when set, is put on PATH so an extension the CLI does not manage can
 	// be found.
 	runIn := func(
@@ -119,7 +119,7 @@ func TestExtensionTelemetry(t *testing.T) {
 		if tmp == "" {
 			tmp = shortTempDir(t)
 		}
-		setExtra(t, env, "TMPDIR", tmp)
+		setExtra(t, env, tempDirVar(), tmp)
 
 		environ := env.Environ()
 		if extDir != "" {
@@ -182,21 +182,12 @@ func TestExtensionTelemetry(t *testing.T) {
 		assert.Check(t, cmp.Equal(props["error_code"], "extension.exited"))
 	})
 
-	// The handoff uses a Unix socket and TMPDIR, which Windows does not read.
-	unixOnly := func(t *testing.T) {
-		t.Helper()
-		if runtime.GOOS == "windows" {
-			t.Skip("the telemetry socket tests set TMPDIR, which Windows does not read")
-		}
-	}
-
 	const (
 		onePayload = `{"version":1,"attributes":{"suggestions":3}}`
 		okPayload  = `{"version":1,"attributes":{"suggestions":3,"jobs_analyzed":10,"jobs_with_suggestions":2}}`
 	)
 
 	t.Run("accepted", func(t *testing.T) {
-		unixOnly(t)
 		setExtra(t, env, "CIRCLE_DEBUG", "1")
 		result, props, tmp := runExt(t, schemaExt, "telemetry", "send", okPayload)
 		assert.Check(t, cmp.Equal(result.ExitCode, 0))
@@ -218,7 +209,6 @@ func TestExtensionTelemetry(t *testing.T) {
 	})
 
 	t.Run("exits non-zero", func(t *testing.T) {
-		unixOnly(t)
 		result, props, tmp := runExt(t, schemaExt, "telemetry", "send-fail", onePayload)
 		assert.Check(t, cmp.Equal(result.ExitCode, 3))
 		assert.Check(t, cmp.Equal(props["exit_code"], float64(result.ExitCode)))
@@ -228,7 +218,6 @@ func TestExtensionTelemetry(t *testing.T) {
 	})
 
 	t.Run("killed", func(t *testing.T) {
-		unixOnly(t)
 		result, props, tmp := runExt(t, schemaExt, "telemetry", "send-kill", onePayload)
 		assert.Check(t, cmp.Equal(result.ExitCode, killedExitCode))
 		assert.Check(t, cmp.Equal(props["extension_attributes_status"], "accepted"))
@@ -237,7 +226,6 @@ func TestExtensionTelemetry(t *testing.T) {
 	})
 
 	t.Run("setup failed", func(t *testing.T) {
-		unixOnly(t)
 		long := filepath.Join(shortTempDir(t), strings.Repeat("d", 120))
 		err := os.MkdirAll(long, 0o700)
 		assert.NilError(t, err)
@@ -251,7 +239,9 @@ func TestExtensionTelemetry(t *testing.T) {
 	})
 
 	t.Run("holds connection", func(t *testing.T) {
-		unixOnly(t)
+		if runtime.GOOS == "windows" {
+			t.Skip("Windows cannot pass the held connection to a child process")
+		}
 		start := time.Now()
 		result, props, tmp := runExt(t, schemaExt, "telemetry", "hold")
 		assert.Check(t, cmp.Equal(result.ExitCode, 0))
@@ -343,7 +333,6 @@ func TestExtensionTelemetry(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			unixOnly(t)
 			result, props, tmp := runExt(t, schemaExt, tc.args...)
 			assert.Check(t, cmp.Equal(result.ExitCode, 0))
 			assert.Check(t, cmp.Equal(props["extension_attributes_status"], tc.status))
@@ -357,7 +346,6 @@ func TestExtensionTelemetry(t *testing.T) {
 	}
 
 	t.Run("extension without schema", func(t *testing.T) {
-		unixOnly(t)
 		result, props, tmp := runExt(t, extName, "telemetry", "send", onePayload)
 		assert.Check(t, cmp.Equal(result.ExitCode, 0))
 		assert.Check(t, cmp.Equal(props["extension_attributes_status"], "not_supported"))
@@ -368,7 +356,6 @@ func TestExtensionTelemetry(t *testing.T) {
 	})
 
 	t.Run("unmanaged", func(t *testing.T) {
-		unixOnly(t)
 		// A fresh environment, where testextension is not installed, so the CLI
 		// finds only the binary on PATH.
 		unmanaged := testenv.New(t)
@@ -383,7 +370,6 @@ func TestExtensionTelemetry(t *testing.T) {
 	})
 
 	t.Run("inherited variable", func(t *testing.T) {
-		unixOnly(t)
 		setExtra(t, env, "CIRCLE_TELEMETRY_SOCKET", "/tmp/inherited.sock")
 		result, props, _ := runExt(t, extName, "telemetry", "none")
 		assert.Check(t, cmp.Equal(result.ExitCode, 0))
@@ -394,12 +380,11 @@ func TestExtensionTelemetry(t *testing.T) {
 
 	// With telemetry off no event arrives, so this cannot use runExt.
 	t.Run("telemetry off", func(t *testing.T) {
-		unixOnly(t)
 		telemetryWas := env.Telemetry
 		t.Cleanup(func() { env.Telemetry = telemetryWas })
 		env.Telemetry = false
 		tmp := t.TempDir()
-		setExtra(t, env, "TMPDIR", tmp)
+		setExtra(t, env, tempDirVar(), tmp)
 		setExtra(t, env, "CIRCLE_TELEMETRY_SOCKET", "/tmp/inherited.sock")
 
 		result := binary.RunCLI(t, binary.RunOpts{
@@ -478,3 +463,11 @@ func dirEntries(t *testing.T, dir string) []string {
 // killedExitCode is the exit code the CLI returns when the extension is killed:
 // the process has no exit status, so *ErrExited carries -1 and the CLI exits 1.
 const killedExitCode = 1
+
+// tempDirVar is the variable os.TempDir reads.
+func tempDirVar() string {
+	if runtime.GOOS == "windows" {
+		return "TMP"
+	}
+	return "TMPDIR"
+}
