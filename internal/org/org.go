@@ -28,6 +28,8 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/google/uuid"
+
 	clierrors "github.com/CircleCI-Public/circleci-cli/clikit/errors"
 	"github.com/CircleCI-Public/circleci-cli/clikit/iostream"
 	"github.com/CircleCI-Public/circleci-cli/internal/apiclient"
@@ -43,6 +45,34 @@ func List(ctx context.Context, client *apiclient.Client) ([]apiclient.Collaborat
 		)
 	}
 	return collabs, nil
+}
+
+// SlugsByID maps organization UUID to slug for every organization the
+// authenticated user belongs to.
+//
+// GET /api/v3/orgs — the canonical list, and what ListOrgs returns — carries no
+// slug, and a slug cannot be derived from a UUID, so it has to come from the v2
+// collaborations endpoint. Every organization has one, VCS-backed or not.
+//
+// Callers that only decorate output with the slug should treat an error as "no
+// slugs available" and print what they have, rather than failing a listing over
+// a supplementary lookup.
+func SlugsByID(ctx context.Context, client *apiclient.Client) (map[string]string, error) {
+	collabs, err := List(ctx, client)
+	if err != nil {
+		return nil, err
+	}
+	slugs := make(map[string]string, len(collabs))
+	for _, c := range collabs {
+		// Key on the parsed UUID so the map is keyed the same way a caller
+		// holding a uuid.UUID would look it up, whatever case the API used.
+		id, err := uuid.Parse(c.ID)
+		if err != nil || c.Slug == "" {
+			continue
+		}
+		slugs[id.String()] = c.Slug
+	}
+	return slugs, nil
 }
 
 // Require fetches the user's organizations and returns an actionable error
