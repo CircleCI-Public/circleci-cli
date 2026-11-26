@@ -279,6 +279,52 @@ func TestRunGet_FailedContext_JobNotFound(t *testing.T) {
 	assert.Check(t, cmp.Equal(result.Stderr, ""))
 }
 
+// TestRunGet_FailedContext_TimedOutStep reports a step the platform ended for
+// exceeding no_output_timeout. Such a step has outcome "timed_out" and no exit
+// code while its job, workflow and run are plain "failed"; before stepFailed
+// the report skipped it and printed nothing for the run. The header names the
+// outcome in place of the missing exit code, and because the condensed
+// endpoint has nothing for such a step, the output comes from the full
+// stdout and stderr.
+func TestRunGet_FailedContext_TimedOutStep(t *testing.T) {
+	fake := fakes.NewCircleCI(t)
+	fake.AddRunV3(fcRunID, runTestProjectID, fakeRunV3(fcRunID, runTestProjectID, "ended", "failed", "main", "abc1234def5678"))
+	fake.AddRunWorkflowsV3(fcRunID, fakeWorkflowV3(fcWfID, "build", fcRunID, runTestProjectID, "ended", "failed"))
+	fake.AddWorkflowJobsV3(fcWfID, fakeJobV3(fcJob1ID, "test", fcWfID, runTestProjectID))
+
+	now := time.Date(2020, 1, 1, 12, 0, 0, 0, time.UTC).Format(v3TimeFormat)
+	fake.AddJobV3(fakes.JobV3{
+		ID: fcJob1ID, Name: "test", Type: "build", Phase: "ended", Outcome: "failed",
+		StartedAt: now, EndedAt: now, WorkflowID: fcWfID, ProjectID: runTestProjectID,
+		Executions: [][]fakes.JobStep{{
+			{Name: "Spin up environment", Type: "spinup_environment", Num: 0, Phase: "ended", Outcome: "succeeded", StartedAt: now, EndedAt: now},
+			{Name: "Install test dependencies", Type: "run", Num: 102, Phase: "ended", Outcome: "succeeded", ExitCode: new(0), StartedAt: now, EndedAt: now},
+			{Name: "Run pytest with JUnit output", Type: "run", Num: 103, Phase: "ended", Outcome: "timed_out", StartedAt: now, EndedAt: now},
+			{Name: "Uploading test results", Type: "store_test_results", Num: 104, Phase: "ended", Outcome: "succeeded", StartedAt: now, EndedAt: now},
+		}},
+	})
+	// As the real API behaves: condensed stdout and full stdout are both empty
+	// for a timed-out step and the reason is only on its stderr.
+	fake.AddJobStdoutCondensed(fcJob1ID, 0, 103, nil)
+	fake.AddJobStdout(fcJob1ID, 0, 103, nil)
+	fake.AddJobStderr(fcJob1ID, 0, 103, []byte("\nToo long with no output (exceeded 15s): context deadline exceeded\n"))
+
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"run", "get", fcRunID, "--failure-report"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+
+	assert.Check(t, cmp.Equal(result.ExitCode, 0))
+	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
+	assert.Check(t, cmp.Equal(result.Stderr, ""))
+}
+
 // TestRunGet_FailedContext_WorkflowsNotFound exits 0 with no output when the
 // run's workflows have not materialised yet (404).
 func TestRunGet_FailedContext_WorkflowsNotFound(t *testing.T) {

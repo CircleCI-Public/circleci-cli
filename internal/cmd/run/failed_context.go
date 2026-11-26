@@ -35,7 +35,9 @@ import (
 
 	"github.com/CircleCI-Public/circleci-cli/clikit/iostream"
 	"github.com/CircleCI-Public/circleci-cli/internal/apiclient"
+	"github.com/CircleCI-Public/circleci-cli/internal/cmd/job"
 	"github.com/CircleCI-Public/circleci-cli/internal/httpcl"
+	"github.com/CircleCI-Public/circleci-cli/internal/termrender"
 )
 
 // maxTestFetches bounds how many failed jobs' test results are read at once.
@@ -109,7 +111,7 @@ func FailureReport(ctx context.Context, client *apiclient.Client, r *apiclient.R
 			for _, exec := range jobDetail.Executions {
 				var failedSteps []apiclient.JobV3Step
 				for _, step := range exec.Steps {
-					if step.Outcome == "failed" {
+					if stepFailed(step.Outcome) {
 						failedSteps = append(failedSteps, step)
 					}
 				}
@@ -148,26 +150,18 @@ func FailureReport(ctx context.Context, client *apiclient.Client, r *apiclient.R
 				}
 
 				for _, step := range fe.steps {
-					if step.ExitCode != nil {
-						fmt.Fprintf(&out, "#### step %d: %s [exit: %d]\n\n", step.Num, step.Name, *step.ExitCode)
-					} else {
-						fmt.Fprintf(&out, "#### step %d: %s\n\n", step.Num, step.Name)
-					}
+					fmt.Fprintf(&out, "#### step %d: %s%s\n\n", step.Num, step.Name, stepHeaderSuffix(step))
 
-					condensed, err := client.GetJobStdoutCondensed(ctx, j.ID, fe.exec.Index, step.Num)
+					output, err := stepOutput(ctx, client, j.ID, fe.exec.Index, step)
 					if err != nil {
-						if httpcl.HasStatusCode(err, http.StatusNotFound) {
-							condensed = nil
-						} else {
-							return apiErr(err, fmt.Sprintf("step %d of job %s", step.Num, j.ID))
-						}
+						return apiErr(err, fmt.Sprintf("step %d of job %s", step.Num, j.ID))
 					}
 
-					if len(bytes.TrimSpace(condensed)) == 0 {
+					if len(bytes.TrimSpace(output)) == 0 {
 						out.WriteString("(no output)\n\n")
 					} else {
-						out.Write(condensed)
-						if !bytes.HasSuffix(condensed, []byte("\n")) {
+						out.Write(output)
+						if !bytes.HasSuffix(output, []byte("\n")) {
 							out.WriteString("\n")
 						}
 						out.WriteString("\n")
@@ -185,6 +179,95 @@ func FailureReport(ctx context.Context, client *apiclient.Client, r *apiclient.R
 		iostream.Print(ctx, out.String())
 	}
 	return nil
+}
+
+// stepFailed reports whether a step's outcome ended its job unsuccessfully, so
+// the report should show the step. Plain "failed" is the exit-code case; the
+// others end the step without an exit code. The platform spells a timed-out
+// step "timed_out" (the 2026-11-24 fixture run in the AEX-171 notes) where
+// WorkflowJobV3.Failed spells the job "timedout", so both are accepted. Steps
+// that succeeded, were canceled or never ran are not failures to report.
+func stepFailed(outcome string) bool {
+	switch outcome {
+	case "failed", "timed_out", "timedout", "infrastructure_fail", "errored":
+		return true
+	default:
+		return false
+	}
+}
+
+// fallbackTailLines caps how much of a step's full output the report shows when
+// it has to fall back from the condensed endpoint: the end of the log is where
+// the reason it stopped is, and a timed-out step can have been printing for a
+// long time before it went quiet.
+const fallbackTailLines = 40
+
+// stepOutput reads the output the report shows for a failed step. The
+// condensed endpoint is the first choice: it is filtered server-side to the
+// error-relevant lines. It returns nothing for a step the platform ended rather
+// than the command: for a timed-out step (observed 2026-11-24) the condensed
+// stdout and the full stdout are both empty and the reason, "Too long with no
+// output (exceeded 15s)", is on the step's stderr. So for any outcome other
+// than a plain "failed", an empty condensed response falls back to the tail of
+// the full stdout and stderr together, the same two streams "job output get"
+// prints, rendered to plain text. A plain "failed" step keeps the condensed
+// output alone, empty or not. A 404 from any endpoint counts as no output.
+func stepOutput(ctx context.Context, client *apiclient.Client, jobID uuid.UUID, execution int, step apiclient.JobV3Step) ([]byte, error) {
+	condensed, err := client.GetJobStdoutCondensed(ctx, jobID, execution, step.Num)
+	if err != nil && !httpcl.HasStatusCode(err, http.StatusNotFound) {
+		return nil, err
+	}
+	if len(bytes.TrimSpace(condensed)) > 0 || step.Outcome == "failed" {
+		return condensed, nil
+	}
+
+	var full bytes.Buffer
+	for _, read := range []func(context.Context, uuid.UUID, int, int) ([]byte, error){
+		client.GetJobStdout, client.GetJobStderr,
+	} {
+		raw, err := read(ctx, jobID, execution, step.Num)
+		if err != nil {
+			if httpcl.HasStatusCode(err, http.StatusNotFound) {
+				continue
+			}
+			return nil, err
+		}
+		// Plain text for the report: strip ANSI styling and collapse redraws.
+		_ = termrender.Render(&full, bytes.NewReader(raw))
+	}
+	return fallbackTail(full.Bytes(), fallbackTailLines, jobID, step.Num), nil
+}
+
+// fallbackTail is the last limit lines of a step's full output, preceded by a
+// note of how many lines were cut and the command that shows them all. Leading
+// blank lines go (a timeout message arrives after one); output of limit or
+// fewer lines is otherwise returned as it is.
+func fallbackTail(full []byte, limit int, jobID uuid.UUID, stepNum int) []byte {
+	s := strings.TrimLeft(string(full), "\r\n")
+	if len(s) > 0 && !strings.HasSuffix(s, "\n") {
+		s += "\n"
+	}
+	tail, omitted := job.TailLines(s, limit)
+	if omitted == 0 {
+		return []byte(tail)
+	}
+	return []byte(fmt.Sprintf("(%d earlier lines omitted; full output: circleci job output get %s --step-num %d)\n%s",
+		omitted, jobID, stepNum, tail))
+}
+
+// stepHeaderSuffix is what follows the step name in its report header: the
+// exit code when the step has one, and the outcome when it is anything other
+// than a plain failure, so a step with no exit code still says why it ended
+// (e.g. " [timed_out]").
+func stepHeaderSuffix(step apiclient.JobV3Step) string {
+	var b strings.Builder
+	if step.ExitCode != nil {
+		fmt.Fprintf(&b, " [exit: %d]", *step.ExitCode)
+	}
+	if step.Outcome != "failed" {
+		fmt.Fprintf(&b, " [%s]", step.Outcome)
+	}
+	return b.String()
 }
 
 // writeRunNotices writes the run's own errors and warnings.
