@@ -259,6 +259,87 @@ var helpTopics = []helpTopic{
 		`),
 	},
 	{
+		name:  "extension-telemetry",
+		short: "How extensions report telemetry attributes to the CLI",
+		long: heredoc.Docf(`
+			An extension can report a few attributes about its own run. The CLI adds them to the
+			%[1]scommand_invocation%[1]s event it already sends for that run. This page is the contract for
+			extension authors.
+
+			## How it works
+
+			When telemetry is on and the CLI has a registered schema for the extension, the CLI opens a
+			Unix socket and puts its path in the %[1]sCIRCLE_TELEMETRY_SOCKET%[1]s environment variable. The
+			extension connects to that socket, writes one JSON payload and closes the connection. The
+			CLI reads the payload after the extension exits and adds the attributes it accepts to the
+			event.
+
+			When the variable is not set, the extension reports nothing and must still work. It is not
+			set when telemetry is off, and when the extension has no registered schema. Never treat a
+			missing variable, or a failed write, as an error.
+
+			## Payload
+
+			The payload is one JSON object:
+
+			%[1]s%[1]s%[1]sjson
+			{"version":1,"attributes":{"suggestions":0,"no_suggestion_reason":"saving_too_small"}}
+			%[1]s%[1]s%[1]s
+
+			* %[1]sversion%[1]s is the integer 1. Any other value rejects the whole payload.
+			* %[1]sattributes%[1]s maps each short attribute name to its value.
+			* A value is a whole number, a boolean or one of the enum strings the schema lists for
+			  that attribute. A number must not be negative and must be within the schema bounds.
+			  A value that fails its check is dropped.
+
+			## Limits
+
+			* At most 20 attributes. This counts every attribute in the payload, including unknown names.
+			* At most 8 KB for the whole payload.
+			* An attribute name matches %[1]s^[a-z][a-z0-9_]{0,31}$%[1]s.
+			* The CLI waits for the payload for a short time after the extension exits: 1 second at
+			  most. An extension that keeps the connection open, or sends nothing, does not hold up the CLI.
+
+			A payload over a limit is dropped as a whole. The CLI never changes its output or its exit
+			code because of a payload.
+
+			## Adding attributes
+
+			The CLI decides which attributes it accepts, so the CLI changes first and the extension
+			ships second.
+
+			1. Send a change to the schema in %[1]sinternal/extschema/schema.go%[1]s in the circleci-cli
+			   repository. Add an entry to the extension's %[1]sattrs%[1]s list with its short name, its
+			   property name (it starts with %[1]sext_%[1]s), its kind (int, enum or bool) and the bounds or
+			   the allowed values. Add the extension to %[1]sspecs%[1]s if it has no schema yet. Then
+			   refresh %[1]sinternal/extschema/schema.json%[1]s with %[1]stask test -- ./internal/extschema/... -update%[1]s.
+			2. Release the CLI.
+			3. Ship the extension version that reports the attribute.
+
+			An attribute that is not in the CLI's schema is dropped, so an extension that ships first
+			loses its data until the CLI catches up.
+
+			## Status
+
+			Every extension run sets %[1]sextension_attributes_status%[1]s on the event, so you can see
+			what became of the payload.
+
+			| Status | Meaning |
+			|---|---|
+			| %[1]saccepted%[1]s | The payload was valid and every attribute in it was accepted. This includes an empty %[1]sattributes%[1]s object |
+			| %[1]spartially_accepted%[1]s | Some attributes were accepted and some were dropped |
+			| %[1]srejected%[1]s | The payload was read, but nothing was accepted: an unsupported %[1]sversion%[1]s, more than 20 attributes, or no valid attribute |
+			| %[1]snot_supported%[1]s | The extension has no registered schema, or it never connected to the socket |
+			| %[1]sno_payload%[1]s | The extension connected and closed without sending data |
+			| %[1]sread_failed%[1]s | The payload could not be read: invalid JSON, over 8 KB, a broken connection, or no data within the wait |
+			| %[1]ssetup_failed%[1]s | The CLI could not open the socket, so the extension ran without the variable |
+
+			The event also carries %[1]sextension_version%[1]s, the installed version of the extension. The
+			CLI sends it only when it is a valid semantic version with three numbers, such as %[1]s1.2.3%[1]s or
+			%[1]s1.2.3-rc.1%[1]s, and omits it otherwise.
+		`, "`"),
+	},
+	{
 		name:  "triggers",
 		short: "Event source providers and event presets for project triggers",
 		long: heredoc.Docf(`

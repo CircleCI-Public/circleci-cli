@@ -115,22 +115,22 @@ func (ext *Manifest) Run(ctx context.Context, client *apiclient.Client, args []s
 		}
 	}
 
-	env := buildEnv(ctx, client)
+	return runWithTelemetry(ctx, ext.Name, ext.Version, buildEnv(ctx, client), func(env []string) error {
+		cmd := exec.CommandContext(ctx, path, args...) //#nosec:G204,G702 // path comes from LookPath, args are user-supplied CLI args for the extension
+		cmd.Stdin = iostream.In(ctx)
+		cmd.Stdout = iostream.Out(ctx)
+		cmd.Stderr = iostream.Err(ctx)
+		cmd.Env = env
 
-	cmd := exec.CommandContext(ctx, path, args...) //#nosec:G204,G702 // path comes from LookPath, args are user-supplied CLI args for the extension
-	cmd.Stdin = iostream.In(ctx)
-	cmd.Stdout = iostream.Out(ctx)
-	cmd.Stderr = iostream.Err(ctx)
-	cmd.Env = env
+		if err := cmd.Run(); err != nil {
+			if cmd.ProcessState != nil {
+				return &ErrExited{Code: cmd.ProcessState.ExitCode()}
+			}
 
-	if err := cmd.Run(); err != nil {
-		if cmd.ProcessState != nil {
-			return &ErrExited{Code: cmd.ProcessState.ExitCode()}
+			return err
 		}
-
-		return err
-	}
-	return nil
+		return nil
+	})
 }
 
 // buildEnv constructs the environment for the extension process. It starts

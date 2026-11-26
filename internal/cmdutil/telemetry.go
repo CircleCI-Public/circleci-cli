@@ -100,6 +100,56 @@ func SetTelemetryProp(ctx context.Context, key, value string) {
 	}
 }
 
+// reservedTelemetryKeys are the core command_invocation properties. The typed
+// setters drop them, so a value a caller does not control, such as an
+// extension's, cannot overwrite one. SetTelemetryProp and recordOutcome do not
+// check it: they are the CLI's own writers.
+var reservedTelemetryKeys = map[string]bool{
+	"command":    true,
+	"flags":      true,
+	"exit_code":  true,
+	"error_code": true,
+	"app_name":   true,
+}
+
+// SetInt attaches an integer property to the current invocation's
+// command_invocation event. key must be a string literal at the call site.
+// Zero is a value, not an absent one. Like SetTelemetryProp, it drops the value
+// under a context without telemetry. A key that names a core property is dropped.
+func SetInt(ctx context.Context, key string, value int) {
+	if reservedTelemetryKeys[key] {
+		return
+	}
+	if p := getTelemetryProps(ctx); p != nil {
+		p.set(key, value)
+	}
+}
+
+// SetBool attaches a boolean property. The same rules apply as for SetInt: key
+// is a string literal, false is a value, and a context without telemetry drops
+// it. A key that names a core property is dropped.
+func SetBool(ctx context.Context, key string, value bool) {
+	if reservedTelemetryKeys[key] {
+		return
+	}
+	if p := getTelemetryProps(ctx); p != nil {
+		p.set(key, value)
+	}
+}
+
+// SetEnum attaches a string property that must be one of allowed. A value
+// outside allowed, or an empty allowed, records nothing. key and allowed must
+// be string literals at the call site. A context without telemetry drops the
+// value. A key that names a core property is dropped.
+func SetEnum(ctx context.Context, key, value string, allowed ...string) {
+	if reservedTelemetryKeys[key] || !slices.Contains(allowed, value) {
+		return
+	}
+	if p := getTelemetryProps(ctx); p != nil {
+		p.set(key, value)
+	}
+}
+
 func DisableEverything(cmd *cobra.Command) {
 	if cmd.Annotations == nil {
 		cmd.Annotations = map[string]string{}

@@ -1,3 +1,4 @@
+socket 
 args [arg1 arg2]
 token test-token
 url https://circleci.com

@@ -1,3 +1,4 @@
+socket 
 args [do --parallel 2 thing]
 token test-token
 url https://circleci.com
