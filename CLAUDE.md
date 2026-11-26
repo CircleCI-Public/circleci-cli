@@ -126,7 +126,7 @@ internal/                 Everything else (below).
 
 A **separate Go module** (`github.com/CircleCI-Public/circleci-cli/clikit`) holding what an
 extension needs to look like the CLI: `iostream`, `errors`, `ui`, `ui/components`, `ui/theme`,
-`mdtable`, `jq`, `jsoncolor`, `browser`, `closer`. It is `go get`-able, so it cannot live under
+`mdtable`, `jq`, `jsoncolor`, `browser`, `closer`, `telemetry`. It is `go get`-able, so it cannot live under
 `internal/` and must not import from it — the dependency only ever runs CLI → clikit.
 
 The root `go.mod` carries `replace github.com/CircleCI-Public/circleci-cli/clikit => ./clikit`, so
@@ -221,6 +221,10 @@ internal/
 ├── configgen/            Renders pipeline YAML from a reposcan.Result and writes it to disk.
 ├── deployinit/           Scans and patches .circleci/config.yml to add deploy marker steps.
 ├── extension/            Plugin mechanism — discovers circleci-* binaries on PATH.
+├── extschema/            Schema for each extension's telemetry attributes: checks a payload,
+│                         exports schema.json for the extension release gate.
+├── extsocket/            Private Unix socket the CLI listens on before an extension starts,
+│                         and reads one bounded JSON payload from after it exits.
 ├── githubapp/            CircleCI GitHub App install detection + browser install flow.
 ├── gitremote/            Resolves project slug + branch. Prefers .circleci/info.yml, then
 │                         falls back to parsing the git remote URL.
@@ -344,6 +348,7 @@ through `iostream.Streams`.
 |---|---|
 | `CIRCLE_MCP` | Set to `1` on the `mcp start`/`mcp stream` server so `agent.Detect()` reports `mcp/<agent>` in every tool-call subprocess. Scoped to the server commands so `mcp <editor> enable` isn't misattributed |
 | `CIRCLE_TOKEN`, `CIRCLE_HOST`, `CIRCLE_TELEMETRY_ENABLED`, `CIRCLE_DEVICE_ID`, `CIRCLE_USER_ID`, `CIRCLE_VCS_TYPE`, `CIRCLE_PROJECT_USERNAME`, `CIRCLE_PROJECT_REPONAME`, `CIRCLE_PROJECT_ID`, `CIRCLE_BRANCH`, `CIRCLE_DEFAULT_BRANCH` | Passed to extension subprocesses (`internal/extension/manifest.go`). Project/branch values are best-effort — absent outside a linked checkout; `CIRCLE_USER_ID` is absent when logged out |
+| `CIRCLE_TELEMETRY_SOCKET` | Path of the Unix socket where an extension with a registered attribute schema reports its telemetry attributes. Set only when telemetry is on and the extension has a schema; an inherited value is removed otherwise. Never logged (`internal/extension/telemetry.go`) |
 | `__CIRCLE_TELEMETRY_WRITE_KEY`, `__CIRCLE_TELEMETRY_ENDPOINT` | Passed to the hidden `receive-telemetry` subprocess. Double-underscore = internal, never user-set |
 
 **Development and test overrides — not documented to users:**

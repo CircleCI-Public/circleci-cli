@@ -1,0 +1,72 @@
+{
+  "extensions": [
+    {
+      "name": "configoptimizer",
+      "version": 1,
+      "max_attributes": 20,
+      "attributes": [
+        {
+          "short_name": "jobs_analyzed",
+          "property": "ext_configoptimizer_jobs_analyzed",
+          "type": "int",
+          "min": 0,
+          "max": 10000,
+          "present": "optional"
+        },
+        {
+          "short_name": "jobs_with_suggestions",
+          "property": "ext_configoptimizer_jobs_with_suggestions",
+          "type": "int",
+          "min": 0,
+          "max": 10000,
+          "present": "optional"
+        },
+        {
+          "short_name": "no_suggestion_reason",
+          "property": "ext_configoptimizer_no_suggestion_reason",
+          "type": "enum",
+          "values": [
+            "not_enough_usage",
+            "saving_too_small",
+            "already_right_sized",
+            "memory_bound",
+            "pipeline_not_priced",
+            "unsupported_jobs",
+            "class_mismatch",
+            "previously_rejected"
+          ],
+          "present": "optional; only when suggestions is 0"
+        },
+        {
+          "short_name": "suggestions",
+          "property": "ext_configoptimizer_suggestions",
+          "type": "int",
+          "min": 0,
+          "max": 10000,
+          "present": "optional"
+        },
+        {
+          "short_name": "validation_outcome",
+          "property": "ext_configoptimizer_validation_outcome",
+          "type": "enum",
+          "values": [
+            "savings_confirmed",
+            "savings_not_realized",
+            "failed_on_suggested_hardware",
+            "error",
+            "inconclusive"
+          ],
+          "present": "optional"
+        },
+        {
+          "short_name": "validation_pairs",
+          "property": "ext_configoptimizer_validation_pairs",
+          "type": "int",
+          "min": 0,
+          "max": 100,
+          "present": "optional"
+        }
+      ]
+    }
+  ]
+}

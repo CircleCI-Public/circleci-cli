@@ -170,6 +170,7 @@ func (c *Sender) Track(eventName string, props map[string]any) error {
 	for key, val := range props {
 		p.Set(key, val)
 	}
+	p.Set("app_name", "circleci-cli")
 
 	return c.dest.Enqueue(analytics.Track{
 		Event:      eventName,

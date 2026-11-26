@@ -1,0 +1,76 @@
+# Extension telemetry
+An extension can report a few attributes about its own run. The CLI adds them to the
+`command_invocation` event it already sends for that run. This page is the contract for
+extension authors.
+
+## How it works
+
+When telemetry is on and the CLI has a registered schema for the extension, the CLI opens a
+Unix socket and puts its path in the `CIRCLE_TELEMETRY_SOCKET` environment variable. The
+extension connects to that socket, writes one JSON payload and closes the connection. The
+CLI reads the payload after the extension exits and adds the attributes it accepts to the
+event.
+
+When the variable is not set, the extension reports nothing and must still work. It is not
+set when telemetry is off, and when the extension has no registered schema. Never treat a
+missing variable, or a failed write, as an error.
+
+## Payload
+
+The payload is one JSON object:
+
+```json
+{"version":1,"attributes":{"suggestions":0,"no_suggestion_reason":"saving_too_small"}}
+```
+
+* `version` is the integer 1. Any other value rejects the whole payload.
+* `attributes` maps each short attribute name to its value.
+* A value is a whole number, a boolean or one of the enum strings the schema lists for
+  that attribute. A number must not be negative and must be within the schema bounds.
+  A value that fails its check is dropped.
+
+## Limits
+
+* At most 20 attributes. This counts every attribute in the payload, including unknown names.
+* At most 8 KB for the whole payload.
+* An attribute name matches `^[a-z][a-z0-9_]{0,31}$`.
+* The CLI waits for the payload for a short time after the extension exits: 1 second at
+  most. An extension that keeps the connection open, or sends nothing, does not hold up the CLI.
+
+A payload over a limit is dropped as a whole. The CLI never changes its output or its exit
+code because of a payload.
+
+## Adding attributes
+
+The CLI decides which attributes it accepts, so the CLI changes first and the extension
+ships second.
+
+1. Send a change to the schema in `internal/extschema/schema.go` in the circleci-cli
+   repository. Add an entry to the extension's `attrs` list with its short name, its
+   property name (it starts with `ext_`), its kind (int, enum or bool) and the bounds or
+   the allowed values. Add the extension to `specs` if it has no schema yet. Then
+   refresh `internal/extschema/schema.json` with `task test -- ./internal/extschema/... -update`.
+2. Release the CLI.
+3. Ship the extension version that reports the attribute.
+
+An attribute that is not in the CLI's schema is dropped, so an extension that ships first
+loses its data until the CLI catches up.
+
+## Status
+
+Every extension run sets `extension_attributes_status` on the event, so you can see
+what became of the payload.
+
+| Status | Meaning |
+|---|---|
+| `accepted` | The payload was valid and every attribute in it was accepted. This includes an empty `attributes` object |
+| `partially_accepted` | Some attributes were accepted and some were dropped |
+| `rejected` | The payload was read, but nothing was accepted: an unsupported `version`, more than 20 attributes, or no valid attribute |
+| `not_supported` | The extension has no registered schema, or it never connected to the socket |
+| `no_payload` | The extension connected and closed without sending data |
+| `read_failed` | The payload could not be read: invalid JSON, over 8 KB, a broken connection, or no data within the wait |
+| `setup_failed` | The CLI could not open the socket, so the extension ran without the variable |
+
+The event also carries `extension_version`, the installed version of the extension. The
+CLI sends it only when it is a valid semantic version with three numbers, such as `1.2.3` or
+`1.2.3-rc.1`, and omits it otherwise.

@@ -1,3 +1,4 @@
+socket 
 args [exit 123]
 token 
 url https://circleci.com

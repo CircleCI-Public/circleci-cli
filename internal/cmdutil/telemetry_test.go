@@ -68,6 +68,12 @@ func TestRecordTelemetry(t *testing.T) {
 		assert.NilError(t, cmd.RunE(cmd, nil))
 		assert.NilError(t, client.Close())
 
+		// The CLI's own commands never carry the extension status.
+		tracks := recorder.Tracks()
+		assert.Assert(t, cmp.Len(tracks, 1))
+		_, hasStatus := tracks[0].Properties["extension_attributes_status"]
+		assert.Check(t, !hasStatus, "extension_attributes_status must be absent: %v", tracks[0].Properties)
+
 		now := time.Now()
 		assert.Check(t, cmp.DeepEqual(recorder.Tracks(), []analytics.Track{
 			{
@@ -75,6 +81,7 @@ func TestRecordTelemetry(t *testing.T) {
 				UserId:    userID,
 				Event:     "command_invocation",
 				Properties: analytics.Properties{
+					"app_name":  "circleci-cli",
 					"command":   "circleci banana list",
 					"flags":     "bool-flag,string-flag",
 					"exit_code": clierrors.ExitSuccess,
@@ -130,6 +137,7 @@ func TestRecordTelemetry(t *testing.T) {
 				UserId:    userID,
 				Event:     "command_invocation",
 				Properties: analytics.Properties{
+					"app_name":   "circleci-cli",
 					"command":    "fail",
 					"flags":      "",
 					"exit_code":  clierrors.ExitGeneralError,
@@ -271,6 +279,7 @@ func TestRecordTelemetry(t *testing.T) {
 				UserId:    userID,
 				Event:     "command_invocation",
 				Properties: analytics.Properties{
+					"app_name":  "circleci-cli",
 					"command":   "test",
 					"flags":     "alpha,middle,zebra",
 					"exit_code": clierrors.ExitSuccess,
@@ -313,6 +322,7 @@ func TestRecordTelemetry(t *testing.T) {
 				UserId:    userID,
 				Event:     "command_invocation",
 				Properties: analytics.Properties{
+					"app_name":  "circleci-cli",
 					"command":   "test",
 					"flags":     "",
 					"exit_code": clierrors.ExitSuccess,
@@ -405,6 +415,124 @@ func TestRecordTelemetry(t *testing.T) {
 		}))
 	})
 
+	t.Run("typed setters record native types", func(t *testing.T) {
+		recorder, client := newTelemetry(t)
+		cmd := &cobra.Command{
+			Use: "banana",
+			RunE: func(cmd *cobra.Command, args []string) error {
+				ctx := cmd.Context()
+				cmdutil.SetInt(ctx, "ext_configoptimizer_suggestions", 3)
+				cmdutil.SetBool(ctx, "example_flag", true)
+				cmdutil.SetEnum(ctx, "ext_configoptimizer_validation_outcome", "savings_confirmed", "savings_confirmed", "error")
+				cmdutil.SetEnum(ctx, "ext_configoptimizer_validation_outcome", "made_up", "savings_confirmed", "error")
+				return nil
+			},
+		}
+		cmd.SetContext(cmdutil.WithTelemetry(context.Background(), client))
+		cmdutil.RecordTelemetry(cmd)
+		err := cmd.RunE(cmd, nil)
+		assert.NilError(t, err)
+		err = client.Close()
+		assert.NilError(t, err)
+
+		assert.Check(t, cmp.DeepEqual(properties(recorder.Tracks()), []analytics.Properties{
+			{
+				"command":                                "banana",
+				"flags":                                  "",
+				"exit_code":                              clierrors.ExitSuccess,
+				"ext_configoptimizer_suggestions":        3,
+				"example_flag":                           true,
+				"ext_configoptimizer_validation_outcome": "savings_confirmed",
+			},
+		}))
+	})
+
+	t.Run("typed setters keep zero values", func(t *testing.T) {
+		recorder, client := newTelemetry(t)
+		cmd := &cobra.Command{
+			Use: "banana",
+			RunE: func(cmd *cobra.Command, args []string) error {
+				cmdutil.SetInt(cmd.Context(), "count", 0)
+				cmdutil.SetBool(cmd.Context(), "flag", false)
+				return nil
+			},
+		}
+		cmd.SetContext(cmdutil.WithTelemetry(context.Background(), client))
+		cmdutil.RecordTelemetry(cmd)
+		err := cmd.RunE(cmd, nil)
+		assert.NilError(t, err)
+		err = client.Close()
+		assert.NilError(t, err)
+
+		assert.Check(t, cmp.DeepEqual(properties(recorder.Tracks()), []analytics.Properties{
+			{
+				"command":   "banana",
+				"flags":     "",
+				"exit_code": clierrors.ExitSuccess,
+				"count":     0,
+				"flag":      false,
+			},
+		}))
+	})
+
+	t.Run("SetEnum drops a value when the allowed list is empty", func(t *testing.T) {
+		recorder, client := newTelemetry(t)
+		cmd := &cobra.Command{
+			Use: "banana",
+			RunE: func(cmd *cobra.Command, args []string) error {
+				cmdutil.SetEnum(cmd.Context(), "mode", "scan")
+				return nil
+			},
+		}
+		cmd.SetContext(cmdutil.WithTelemetry(context.Background(), client))
+		cmdutil.RecordTelemetry(cmd)
+		err := cmd.RunE(cmd, nil)
+		assert.NilError(t, err)
+		err = client.Close()
+		assert.NilError(t, err)
+
+		assert.Check(t, cmp.DeepEqual(properties(recorder.Tracks()), []analytics.Properties{
+			{
+				"command":   "banana",
+				"flags":     "",
+				"exit_code": clierrors.ExitSuccess,
+			},
+		}))
+	})
+
+	t.Run("last write of a typed prop wins", func(t *testing.T) {
+		recorder, client := newTelemetry(t)
+		cmd := &cobra.Command{
+			Use: "banana",
+			RunE: func(cmd *cobra.Command, args []string) error {
+				cmdutil.SetInt(cmd.Context(), "n", 1)
+				cmdutil.SetInt(cmd.Context(), "n", 2)
+				return nil
+			},
+		}
+		cmd.SetContext(cmdutil.WithTelemetry(context.Background(), client))
+		cmdutil.RecordTelemetry(cmd)
+		err := cmd.RunE(cmd, nil)
+		assert.NilError(t, err)
+		err = client.Close()
+		assert.NilError(t, err)
+
+		assert.Check(t, cmp.DeepEqual(properties(recorder.Tracks()), []analytics.Properties{
+			{
+				"command":   "banana",
+				"flags":     "",
+				"exit_code": clierrors.ExitSuccess,
+				"n":         2,
+			},
+		}))
+	})
+
+	t.Run("typed setters on a context without telemetry are no-ops", func(t *testing.T) {
+		cmdutil.SetInt(context.Background(), "count", 3)
+		cmdutil.SetBool(context.Background(), "flag", true)
+		cmdutil.SetEnum(context.Background(), "mode", "scan", "scan")
+	})
+
 	// Props are recorded after the handler returns, so an outcome set before a
 	// failure still reaches the event.
 	t.Run("records props set before a failing RunE returned", func(t *testing.T) {
@@ -490,6 +618,7 @@ func TestRecordTelemetry(t *testing.T) {
 				UserId:    userID,
 				Event:     "command_invocation",
 				Properties: analytics.Properties{
+					"app_name":  "circleci-cli",
 					"command":   "api",
 					"flags":     "",
 					"exit_code": clierrors.ExitSuccess,
@@ -510,6 +639,46 @@ func TestRecordTelemetry(t *testing.T) {
 				Integrations: analytics.NewIntegrations().Enable("Amplitude"),
 			},
 		}, fakesegment.CompareTrack, fakesegment.CompareTime))
+	})
+}
+
+func TestTypedSettersDropCoreKeys(t *testing.T) {
+	recorder, client := newTelemetry(t)
+	cmd := &cobra.Command{
+		Use:  "banana",
+		RunE: func(cmd *cobra.Command, args []string) error { return nil },
+	}
+	cmd.SetContext(cmdutil.WithTelemetry(context.Background(), client))
+	ctx := cmd.Context()
+
+	cmdutil.SetInt(ctx, "exit_code", 99)
+	cmdutil.SetBool(ctx, "flags", true)
+	cmdutil.SetEnum(ctx, "command", "x", "x")
+	cmdutil.SetInt(ctx, "error_code", 1)
+	cmdutil.SetInt(ctx, "app_name", 1)
+	cmdutil.SetInt(ctx, "ext_x", 1)
+	cmdutil.RecordTelemetryNow(cmd)
+	assert.NilError(t, client.Close())
+
+	tracks := recorder.Tracks()
+	assert.Assert(t, cmp.Len(tracks, 1))
+	props := tracks[0].Properties
+	t.Run("keeps the CLI's own values", func(t *testing.T) {
+		assert.Check(t, cmp.Equal(props["command"], "banana"))
+		assert.Check(t, cmp.Equal(props["flags"], ""))
+		assert.Check(t, cmp.Equal(props["exit_code"], clierrors.ExitSuccess))
+	})
+	t.Run("sets no error_code", func(t *testing.T) {
+		_, ok := props["error_code"]
+		assert.Check(t, !ok, "error_code must be absent: %v", props)
+	})
+	// The sender stamps app_name after copying the caller's properties, so a
+	// value that reached it would show here as 1.
+	t.Run("leaves app_name to the sender", func(t *testing.T) {
+		assert.Check(t, cmp.Equal(props["app_name"], "circleci-cli"))
+	})
+	t.Run("keeps an ext_ key", func(t *testing.T) {
+		assert.Check(t, cmp.Equal(props["ext_x"], 1))
 	})
 }
 
@@ -541,6 +710,7 @@ func TestRecordTelemetryForSubcommands(t *testing.T) {
 				UserId:    userID,
 				Event:     "command_invocation",
 				Properties: analytics.Properties{
+					"app_name":  "circleci-cli",
 					"command":   "circleci subcommand list",
 					"flags":     "",
 					"exit_code": clierrors.ExitSuccess,
@@ -667,11 +837,18 @@ func setFromBusinessLogic(ctx context.Context) {
 }
 
 // properties reduces recorded tracks to their properties, for tests asserting on
-// the props alone. The full event shape is pinned by the subtests above.
+// the props alone. The full event shape is pinned by the subtests above, which
+// also pin app_name; here the sender's own app_name is left out.
 func properties(tracks []analytics.Track) []analytics.Properties {
 	props := make([]analytics.Properties, 0, len(tracks))
 	for _, track := range tracks {
-		props = append(props, track.Properties)
+		p := analytics.Properties{}
+		for k, v := range track.Properties {
+			if k != "app_name" {
+				p[k] = v
+			}
+		}
+		props = append(props, p)
 	}
 	return props
 }

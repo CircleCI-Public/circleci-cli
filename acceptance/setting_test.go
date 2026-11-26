@@ -203,6 +203,7 @@ func TestSettingList_TextOutput(t *testing.T) {
 								"command":   "circleci setting list",
 								"flags":     "debug,insecure-storage,theme",
 								"exit_code": float64(clierrors.ExitSuccess),
+								"app_name":  "circleci-cli",
 							},
 							Context: &analytics.Context{
 								App: analytics.AppInfo{Name: "circleci-cli", Version: "dev"},
@@ -275,6 +276,7 @@ func TestSettingList_TextOutput_Color(t *testing.T) {
 								"command":   "circleci setting list",
 								"flags":     "insecure-storage,theme",
 								"exit_code": float64(clierrors.ExitSuccess),
+								"app_name":  "circleci-cli",
 							},
 							Context: &analytics.Context{
 								App: analytics.AppInfo{Name: "circleci-cli", Version: "dev"},

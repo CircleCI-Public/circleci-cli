@@ -71,16 +71,17 @@ Using an AI coding agent? Run `circleci help agents` to install CircleCI's skill
 
 ## Help Topics
 
-| Topic             | Description                                                   |
-| ----------------- | ------------------------------------------------------------- |
-| `agents`          | Use circleci with AI coding agents: skills and MCP            |
-| `environment`     | Environment variables that can be used with circleci          |
-| `formatting`      | Formatting options for JSON data exported from circleci       |
-| `getting-started` | Install, authenticate, and start using circleci               |
-| `preflight-guide` | How preflight works, and its JSON event stream                |
-| `reference`       | A comprehensive reference of all circleci commands            |
-| `telemetry`       | Information about telemetry in circleci                       |
-| `triggers`        | Event source providers and event presets for project triggers |
+| Topic                 | Description                                                   |
+| --------------------- | ------------------------------------------------------------- |
+| `agents`              | Use circleci with AI coding agents: skills and MCP            |
+| `environment`         | Environment variables that can be used with circleci          |
+| `extension-telemetry` | How extensions report telemetry attributes to the CLI         |
+| `formatting`          | Formatting options for JSON data exported from circleci       |
+| `getting-started`     | Install, authenticate, and start using circleci               |
+| `preflight-guide`     | How preflight works, and its JSON event stream                |
+| `reference`           | A comprehensive reference of all circleci commands            |
+| `telemetry`           | Information about telemetry in circleci                       |
+| `triggers`            | Event source providers and event presets for project triggers |
 
 ## Flags
 
