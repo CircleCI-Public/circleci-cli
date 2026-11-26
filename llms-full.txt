@@ -5774,12 +5774,12 @@ to, metrics, keys), prefilter (experimental).
 summary.result is candidate_produced, no_candidate, all_candidates_rejected
 or missing_required_input; the exit code is 0 for all four.
 
-| Flag                           | Description                                                               |
-| ------------------------------ | ------------------------------------------------------------------------- |
-| `--json`                       | output as JSON (fields listed above)                                      |
-| `--only stringSlice`           | comma-separated `MODULES` to run: dlc, cache, resourceclass (default all) |
-| `--pipeline-parameters string` | YAML `FILE` of pipeline parameters to compile with                        |
-| `-v, --verbose`                | also list report-only and suppressed findings, with their evidence        |
+| Flag                           | Description                                                        |
+| ------------------------------ | ------------------------------------------------------------------ |
+| `--json`                       | output as JSON (fields listed above)                               |
+| `--only stringSlice`           | comma-separated `MODULES` to run: resourceclass (default all)      |
+| `--pipeline-parameters string` | YAML `FILE` of pipeline parameters to compile with                 |
+| `-v, --verbose`                | also list report-only and suppressed findings, with their evidence |
 
 
 #### `circleci configoptimizer apply [<config>]`
@@ -5802,7 +5802,7 @@ and summary.rejected; dispositions include applied and rejected
 | `--in-place`                   | replace <config>; needs a clean git worktree                                               |
 | `--include-cpu-demand`         | also apply downsizes whose CPU demand exceeds the smaller class (may be over 1.20x slower) |
 | `--json`                       | print the report as JSON on stdout (fields listed above)                                   |
-| `--only stringSlice`           | comma-separated `MODULES` to run: dlc, cache, resourceclass (default all)                  |
+| `--only stringSlice`           | comma-separated `MODULES` to run: resourceclass (default all)                              |
 | `-o, --output string`          | write the optimized config to `FILE`                                                       |
 | `--pipeline-parameters string` | YAML `FILE` of pipeline parameters to compile with                                         |
 | `-v, --verbose`                | also list report-only and suppressed findings, with their evidence                         |
@@ -5832,7 +5832,7 @@ comparison. A change has cpu_demand, cpu_demand_reason, expected_slowdown (wall 
 | `--cleanup`                    | only delete a trial branch a previous run left behind                                                   |
 | `--include-cpu-demand`         | also trial downsizes whose CPU demand exceeds the smaller class (may be over 1.20x slower; not checked) |
 | `--json`                       | print the report as JSON on stdout (fields listed above)                                                |
-| `--only stringSlice`           | comma-separated `MODULES` to run: dlc, cache, resourceclass (default all)                               |
+| `--only stringSlice`           | comma-separated `MODULES` to run: resourceclass (default all)                                           |
 | `-o, --output string`          | with --run, write the candidate config to `FILE` if proven cheaper                                      |
 | `--pipeline-parameters string` | YAML `FILE` of pipeline parameters to compile with                                                      |
 | `--run`                        | push the trial branch and run the paired pipelines                                                      |
