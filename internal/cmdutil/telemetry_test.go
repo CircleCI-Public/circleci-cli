@@ -860,3 +860,50 @@ type exitStatusErr struct{ status int }
 func (e exitStatusErr) Error() string     { return fmt.Sprintf("exited %d", e.status) }
 func (e exitStatusErr) ExitStatus() int   { return e.status }
 func (e exitStatusErr) ErrorCode() string { return "test.exited" }
+
+func TestRecordTelemetryNow_Agent(t *testing.T) {
+	run := func(t *testing.T, ctx context.Context) analytics.Properties {
+		t.Helper()
+		recorder, client := newTelemetry(t)
+		cmd := &cobra.Command{
+			Use:  "banana",
+			RunE: func(cmd *cobra.Command, args []string) error { return nil },
+		}
+		cmd.SetContext(cmdutil.WithTelemetry(ctx, client))
+		cmdutil.RecordTelemetryNow(cmd)
+		assert.NilError(t, client.Close())
+		tracks := recorder.Tracks()
+		assert.Assert(t, cmp.Len(tracks, 1))
+		return tracks[0].Properties
+	}
+
+	t.Run("records the detected agent on the event", func(t *testing.T) {
+		props := run(t, cmdutil.WithAgentName(context.Background(), "codex"))
+		assert.Check(t, cmp.Equal(props["agent"], "codex"))
+	})
+
+	t.Run("leaves the property out when no agent is detected", func(t *testing.T) {
+		props := run(t, cmdutil.WithAgentName(context.Background(), ""))
+		_, ok := props["agent"]
+		assert.Check(t, !ok, "agent must be absent: %v", props)
+	})
+
+	t.Run("a command cannot overwrite it", func(t *testing.T) {
+		ctx := cmdutil.WithAgentName(context.Background(), "codex")
+		recorder, client := newTelemetry(t)
+		cmd := &cobra.Command{
+			Use: "banana",
+			RunE: func(cmd *cobra.Command, args []string) error {
+				cmdutil.SetEnum(cmd.Context(), "agent", "spoofed", "spoofed")
+				return nil
+			},
+		}
+		cmd.SetContext(cmdutil.WithTelemetry(ctx, client))
+		cmdutil.RecordTelemetry(cmd)
+		assert.NilError(t, cmd.RunE(cmd, nil))
+		assert.NilError(t, client.Close())
+		tracks := recorder.Tracks()
+		assert.Assert(t, cmp.Len(tracks, 1))
+		assert.Check(t, cmp.Equal(tracks[0].Properties["agent"], "codex"))
+	})
+}

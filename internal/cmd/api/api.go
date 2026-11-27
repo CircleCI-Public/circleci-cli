@@ -91,6 +91,7 @@ func NewAPICmd() *cobra.Command {
 			ctx := cmd.Context()
 
 			cmdutil.SetTelemetryProp(ctx, "api_path", args[0])
+			cmdutil.SetTelemetryProp(ctx, "api_endpoint", endpointTemplate(args[0]))
 
 			client, cliErr := cmdutil.LoadClient(ctx)
 			if cliErr != nil {
@@ -140,6 +141,7 @@ func run(ctx context.Context, client *apiclient.Client, thepath, method string, 
 		}
 	}
 	method = strings.ToUpper(method)
+	cmdutil.SetEnum(ctx, "api_method", method, http.MethodGet, http.MethodPost, http.MethodPut, http.MethodPatch, http.MethodDelete)
 
 	thepath = strings.TrimPrefix(thepath, "/")
 
@@ -230,6 +232,11 @@ func run(ctx context.Context, client *apiclient.Client, thepath, method string, 
 	}
 
 	status, err := client.Do(ctx, method, thepath, opts...)
+	// A non-2xx response comes back with its status and an error, so record the
+	// status before the error check. Zero means no response was received.
+	if status != 0 {
+		cmdutil.SetInt(ctx, "api_status", status)
+	}
 	if err != nil {
 		cliErr := clierrors.New("api.request_failed", "Request failed", err.Error()).
 			WithExitCode(clierrors.ExitAPIError)

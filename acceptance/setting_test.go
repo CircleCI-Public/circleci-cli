@@ -276,6 +276,7 @@ func TestSettingList_TextOutput_Color(t *testing.T) {
 								"command":   "circleci setting list",
 								"flags":     "insecure-storage,theme",
 								"exit_code": float64(clierrors.ExitSuccess),
+								"agent":     "chunk",
 								"app_name":  "circleci-cli",
 							},
 							Context: &analytics.Context{
