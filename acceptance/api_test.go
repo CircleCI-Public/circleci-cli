@@ -440,7 +440,8 @@ func TestAPI_ProjectIDSubstitution_NoProject(t *testing.T) {
 }
 
 // TestAPI_Telemetry verifies that a circleci api call emits a command_invocation
-// event with the api_path property set to the raw path the user typed.
+// event with the api_path property set to the raw path the user typed, and the
+// api_endpoint, api_method and api_status properties describing the call.
 func TestAPI_Telemetry(t *testing.T) {
 	ctx := iostream.Testing(context.Background())
 
@@ -487,11 +488,14 @@ func TestAPI_Telemetry(t *testing.T) {
 						UserId:    telemetry.AnonymousID.String(),
 						Event:     "command_invocation",
 						Properties: analytics.Properties{
-							"command":   "circleci api",
-							"flags":     "debug,insecure-storage,theme",
-							"exit_code": float64(clierrors.ExitSuccess),
-							"api_path":  apiPath,
-							"app_name":  "circleci-cli",
+							"command":      "circleci api",
+							"flags":        "debug,insecure-storage,theme",
+							"exit_code":    float64(clierrors.ExitSuccess),
+							"api_path":     apiPath,
+							"api_endpoint": "v3/runs/{id}",
+							"api_method":   "GET",
+							"api_status":   float64(200),
+							"app_name":     "circleci-cli",
 						},
 						Context: &analytics.Context{
 							App: analytics.AppInfo{Name: "circleci-cli", Version: "dev"},
@@ -559,10 +563,13 @@ func TestAPI_Telemetry_CommandFailure(t *testing.T) {
 						// Compared against the process's own exit status rather
 						// than a literal, since the point of the property is that
 						// the two agree.
-						"exit_code":  float64(result.ExitCode),
-						"error_code": "api.request_failed",
-						"api_path":   apiPath,
-						"app_name":   "circleci-cli",
+						"exit_code":    float64(result.ExitCode),
+						"error_code":   "api.request_failed",
+						"api_path":     apiPath,
+						"api_endpoint": "v3/{id}",
+						"api_method":   "GET",
+						"api_status":   float64(404),
+						"app_name":     "circleci-cli",
 					}))
 				}
 			}
@@ -594,4 +601,43 @@ func TestAPI_ProjectIDSubstitution_LookupFails(t *testing.T) {
 	assert.Check(t, cmp.Equal(result.ExitCode, 4)) // ExitAPIError
 	assert.Check(t, golden.String(result.Stdout, t.Name()+".txt"))
 	assert.Check(t, golden.String(result.Stderr, t.Name()+".stderr.txt"))
+}
+
+// An invocation from an agent carries the agent on the event itself, not only
+// as a user trait, so a single call can be attributed.
+func TestAPI_Telemetry_Agent(t *testing.T) {
+	ctx := iostream.Testing(context.Background())
+
+	fake := fakes.NewCircleCI(t)
+
+	env := testenv.New(t)
+	env.Token = testToken
+	env.CircleCIURL = fake.URL()
+	env.Telemetry = true
+	env.Extra["AI_AGENT"] = "test-agent"
+	fs := fakesegment.New(ctx, telemetry.SegmentKey)
+	fsSrv := httptest.NewServer(fs)
+	t.Cleanup(fsSrv.Close)
+	env.Extra["CIRCLE_TELEMETRY_ENDPOINT"] = fsSrv.URL
+
+	result := binary.RunCLI(t, binary.RunOpts{
+		Binary:  binaryPath,
+		Args:    []string{"api", "api/v2/me/collaborations"},
+		Env:     env.Environ(),
+		WorkDir: t.TempDir(),
+	})
+	assert.Check(t, cmp.Equal(result.ExitCode, 0))
+
+	poll.WaitOn(t, func(t poll.LogT) poll.Result {
+		for _, batch := range fs.Batches() {
+			for _, msg := range batch.Messages {
+				if msg.Event == "command_invocation" {
+					return poll.Compare(cmp.DeepEqual(
+						[]any{msg.Properties["agent"], msg.Properties["api_endpoint"]},
+						[]any{"test-agent", "v2/me/collaborations"}))
+				}
+			}
+		}
+		return poll.Continue("no command_invocation event yet")
+	})
 }

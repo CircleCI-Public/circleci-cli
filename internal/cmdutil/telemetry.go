@@ -110,6 +110,7 @@ var reservedTelemetryKeys = map[string]bool{
 	"exit_code":  true,
 	"error_code": true,
 	"app_name":   true,
+	"agent":      true,
 }
 
 // SetInt attaches an integer property to the current invocation's
@@ -239,6 +240,14 @@ func RecordTelemetryNow(cmd *cobra.Command) {
 		// rather than there keeps the property on the events that never run a
 		// handler at all — help and usage — where success is the only outcome.
 		"exit_code": clierrors.ExitSuccess,
+	}
+	// The calling agent, per invocation. The agent user trait sticks to a user
+	// after they stop using an agent, so it cannot say which calls an agent made.
+	// Left out when no agent is detected, so the property means "an agent ran this".
+	// Read straight from the context: GetAgentName panics when none is set, and
+	// telemetry must never fail a command.
+	if name, _ := ctx.Value(agentNameKey{}).(string); name != "" {
+		props["agent"] = name
 	}
 	getTelemetryProps(ctx).mergeInto(props)
 
