@@ -112,9 +112,9 @@ func runSet(ctx context.Context, secureStorage bool, path, key, value string) (e
 	var res config.SaveResult
 	switch key {
 	case "token":
-		res, err = config.SetToken(ctx, value, secureStorage)
+		res, err = config.SetToken(ctx, path, value, secureStorage)
 	case "host":
-		err = config.SetHost(ctx, value)
+		err = config.SetHost(ctx, path, value)
 	case "telemetry":
 		return runSetTelemetry(ctx, path, value)
 	case "theme":
@@ -207,7 +207,7 @@ func runSetTheme(ctx context.Context, path, value string) error {
 			WithExitCode(clierrors.ExitBadArguments)
 	}
 
-	if err := config.SetTheme(ctx, value); err != nil {
+	if err := config.SetTheme(ctx, path, value); err != nil {
 		return clierrors.New("setting.save_failed", "Failed to save theme setting", err.Error()).
 			WithExitCode(clierrors.ExitGeneralError)
 	}
@@ -229,7 +229,7 @@ func runSetTelemetry(ctx context.Context, path, value string) error {
 			WithExitCode(clierrors.ExitBadArguments)
 	}
 
-	if err := config.SetTelemetry(ctx, enabled, ""); err != nil {
+	if err := config.SetTelemetry(ctx, enabled, path); err != nil {
 		return clierrors.New("setting.save_failed", "Failed to save telemetry setting", err.Error()).
 			WithExitCode(clierrors.ExitGeneralError)
 	}
@@ -258,7 +258,7 @@ func runSetUpdateCheck(ctx context.Context, path, value string) error {
 			WithExitCode(clierrors.ExitBadArguments)
 	}
 
-	if err := config.SetUpdateCheck(ctx, enabled, ""); err != nil {
+	if err := config.SetUpdateCheck(ctx, enabled, path); err != nil {
 		return clierrors.New("setting.save_failed", "Failed to save update-check setting", err.Error()).
 			WithExitCode(clierrors.ExitGeneralError)
 	}
